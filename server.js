@@ -4,14 +4,9 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-// Load environment variables
-dotenv.config(); // This automatically looks for .env file
+dotenv.config();
 
-
-// Import routes
 const routes = require('./route');
-
-// Import error handler
 const AppError = require('./utils/appError');
 
 const app = express();
@@ -29,8 +24,17 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Cookie parser
 app.use(cookieParser());
 
-// Mount all API routes
-app.use('/api/v1', routes);
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Welcome to Capsico API',
+    endpoints: {
+      health: '/health',
+      api: '/api/v1'
+    }
+  });
+});
 
 // Health Check
 app.get('/health', (req, res) => {
@@ -39,6 +43,9 @@ app.get('/health', (req, res) => {
     message: 'Server is running'
   });
 });
+
+// Mount all API routes
+app.use('/api/v1', routes);
 
 // Handle undefined routes
 app.use((req, res, next) => {
@@ -59,7 +66,7 @@ app.use((err, req, res, next) => {
 
 // Database Connection
 if (!process.env.MONGODB_URI) {
-  console.error(' MONGODB_URI not found in config.env');
+  console.error('MONGODB_URI not found in config.env');
   process.exit(1);
 }
 
@@ -88,7 +95,6 @@ process.on('unhandledRejection', (err) => {
   console.log(err.name, err.message);
   process.exit(1);
 });
-
 
 
 
