@@ -21,12 +21,20 @@ const doctorSchema = new mongoose.Schema({
     unique: true,
     match: [/^[0-9]{10}$/, 'Please provide a valid 10-digit phone number']
   },
+  // password: {
+  //   type: String,
+  //   required: [true, 'Please provide a password'],
+  //   minlength: 8,
+  //   select: false
+  // },
+
+
   password: {
-    type: String,
-    required: [true, 'Please provide a password'],
-    minlength: 8,
-    select: false
-  },
+  type: String,
+  required: false,  // Change from true to false
+  select: false
+},
+
   profilePhoto: {
     type: String,
     default: null
@@ -200,12 +208,21 @@ const doctorSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
+// doctorSchema.pre('save', async function(next) {
+//   if (!this.isModified('password')) return next();
+  
+//   this.password = await bcrypt.hash(this.password, 12);
+//   next();
+// });
+// Hash password before saving
 doctorSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  // Only hash if password is modified AND exists
+  if (!this.isModified('password') || !this.password) return next();
   
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
+
 
 // Update timestamp
 doctorSchema.pre('save', function(next) {

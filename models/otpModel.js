@@ -1,23 +1,44 @@
-const mongoose= require('mongoose')
+const mongoose = require('mongoose');
 
-const otpModel=new mongoose.Schema({
-
+const otpSchema = new mongoose.Schema(
+  {
     phone: {
       type: String,
-      required: true,
-      unique: true,
+      required: [true, 'Phone number is required'],
+      trim: true,
+      index: true
     },
-
     otp: {
       type: Number,
+      required: [true, 'OTP is required']
     },
-    otpExpiresAt:{
-        type: Date,
+    otpExpiresAt: {
+      type: Date,
+      required: [true, 'OTP expiry time is required'],
+      index: { expires: 0 } // Auto-delete expired OTPs
     },
+    type: {
+      type: String,
+      enum: ['general', 'signup', 'login', 'reset'],
+      default: 'general'
+    },
+    attempts: {
+      type: Number,
+      default: 0,
+      max: 5
+    },
+    sentAt: {
+      type: Date,
+      default: Date.now
+    },
+    deliveryStatus: {
+      type: String,
+      enum: ['pending', 'sent', 'failed'],
+      default: 'pending'
+    },
+    userId: mongoose.Schema.Types.ObjectId
   },
   { timestamps: true }
 );
 
-const otpSchema=mongoose.model("otpSchema",otpModel)
-
-module.exports=otpSchema
+module.exports = mongoose.model('Otp', otpSchema);

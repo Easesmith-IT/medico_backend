@@ -1,3 +1,4 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
@@ -28,7 +29,7 @@ app.use(cookieParser());
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'success',
-    message: 'Welcome to Capsico API',
+    message: 'Welcome to Medico API',
     endpoints: {
       health: '/health',
       api: '/api/v1'
@@ -40,7 +41,9 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'success',
-    message: 'Server is running'
+    message: 'Server is running',
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -64,37 +67,124 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Database Connection
+// ============================================
+// DATABASE CONNECTION
+// ============================================
+
 if (!process.env.MONGODB_URI) {
-  console.error('MONGODB_URI not found in config.env');
+  console.error('ERROR: MONGODB_URI not found in .env file');
   process.exit(1);
 }
 
 const DB = process.env.MONGODB_URI;
+
+console.log('');
+console.log('='.repeat(70));
+console.log('INITIALIZING APPLICATION');
+console.log('='.repeat(70));
+console.log(`Environment: ${process.env.NODE_ENV}`);
+console.log(`Port: ${process.env.PORT || 5000}`);
+console.log(`MongoDB: Connecting to Atlas cluster...`);
+console.log(`Database: medico`);
+console.log('');
 
 mongoose
   .connect(DB, {
     useNewUrlParser: true,
     useUnifiedTopology: true
   })
-  .then(() => console.log('Database connected successfully'))
+  .then(() => {
+    console.log('SUCCESS: MongoDB Atlas connected successfully');
+    console.log('');
+    console.log('COMPASS CONNECTION');
+    console.log('-'.repeat(70));
+    console.log('To view data in MongoDB Compass:');
+    console.log('1. Open MongoDB Compass application');
+    console.log('2. Use connection string from .env MONGODB_COMPASS');
+    console.log('3. Database: medico');
+    console.log('-'.repeat(70));
+    console.log('');
+  })
   .catch((err) => {
-    console.log('Database connection error:', err);
+    console.error('');
+    console.error('ERROR: Database connection failed');
+    console.error('='.repeat(70));
+    console.error('Message:', err.message);
+    console.error('='.repeat(70));
+    console.error('');
+    console.error('TROUBLESHOOTING:');
+    console.error('1. Check MONGODB_URI in .env file');
+    console.error('2. Verify username and password are correct');
+    console.error('3. Check if IP address is whitelisted in Atlas');
+    console.error('4. Verify internet connection');
+    console.error('');
     process.exit(1);
   });
 
-// Start Server
+// ============================================
+// START SERVER
+// ============================================
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+
+const server = app.listen(PORT, () => {
+  console.log('='.repeat(70));
+  console.log('SERVER STARTED SUCCESSFULLY');
+  console.log('='.repeat(70));
+  console.log(`Server running on: http://localhost:${PORT}`);
+  console.log(`API endpoint: http://localhost:${PORT}/api/v1`);
+  console.log(`Health check: http://localhost:${PORT}/health`);
+  console.log('='.repeat(70));
+  console.log('');
 });
 
-// Handle unhandled rejections
+// ============================================
+// ERROR HANDLING
+// ============================================
+
 process.on('unhandledRejection', (err) => {
-  console.log('UNHANDLED REJECTION!  Shutting down...');
-  console.log(err.name, err.message);
+  console.log('');
+  console.error('UNHANDLED REJECTION! Shutting down...');
+  console.error('='.repeat(70));
+  console.error('Error:', err.name);
+  console.error('Message:', err.message);
+  console.error('='.repeat(70));
   process.exit(1);
 });
+
+process.on('uncaughtException', (err) => {
+  console.log('');
+  console.error('UNCAUGHT EXCEPTION! Shutting down...');
+  console.error('='.repeat(70));
+  console.error('Error:', err.name);
+  console.error('Message:', err.message);
+  console.error('='.repeat(70));
+  process.exit(1);
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+module.exports = app;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -108,13 +198,9 @@ process.on('unhandledRejection', (err) => {
 // const cors = require('cors');
 // const dotenv = require('dotenv');
 
-// // Load environment variables
-// dotenv.config({ path: './config.env' });
+// dotenv.config();
 
-// // Import routes
 // const routes = require('./route');
-
-// // Import error handler
 // const AppError = require('./utils/appError');
 
 // const app = express();
@@ -132,8 +218,17 @@ process.on('unhandledRejection', (err) => {
 // // Cookie parser
 // app.use(cookieParser());
 
-// // Mount all API routes
-// app.use('/api/v1', routes);
+// // Root route
+// app.get('/', (req, res) => {
+//   res.status(200).json({
+//     status: 'success',
+//     message: 'Welcome to Capsico API',
+//     endpoints: {
+//       health: '/health',
+//       api: '/api/v1'
+//     }
+//   });
+// });
 
 // // Health Check
 // app.get('/health', (req, res) => {
@@ -143,8 +238,11 @@ process.on('unhandledRejection', (err) => {
 //   });
 // });
 
+// // Mount all API routes
+// app.use('/api/v1', routes);
+
 // // Handle undefined routes
-// app.all('*', (req, res, next) => {
+// app.use((req, res, next) => {
 //   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 // });
 
@@ -161,10 +259,12 @@ process.on('unhandledRejection', (err) => {
 // });
 
 // // Database Connection
-// const DB = process.env.DATABASE_URL.replace(
-//   '<PASSWORD>',
-//   process.env.DATABASE_PASSWORD
-// );
+// if (!process.env.MONGODB_URI) {
+//   console.error('MONGODB_URI not found in config.env');
+//   process.exit(1);
+// }
+
+// const DB = process.env.MONGODB_URI;
 
 // mongoose
 //   .connect(DB, {
@@ -172,7 +272,10 @@ process.on('unhandledRejection', (err) => {
 //     useUnifiedTopology: true
 //   })
 //   .then(() => console.log('Database connected successfully'))
-//   .catch((err) => console.log('Database connection error:', err));
+//   .catch((err) => {
+//     console.log('Database connection error:', err);
+//     process.exit(1);
+//   });
 
 // // Start Server
 // const PORT = process.env.PORT || 5000;
@@ -182,7 +285,14 @@ process.on('unhandledRejection', (err) => {
 
 // // Handle unhandled rejections
 // process.on('unhandledRejection', (err) => {
-//   console.log('UNHANDLED REJECTION! 💥 Shutting down...');
+//   console.log('UNHANDLED REJECTION!  Shutting down...');
 //   console.log(err.name, err.message);
 //   process.exit(1);
 // });
+
+
+
+
+
+
+
