@@ -385,9 +385,9 @@ const getDoctorById = catchAsync(async (req, res, next) => {
     return next(new AppError('Doctor not found', 404));
   }
 
-  if (doctor.verificationStatus !== 'approved') {
-    return next(new AppError('Doctor profile is not publicly available', 403));
-  }
+//   if (doctor.verificationStatus !== 'approved') {
+//     return next(new AppError('Doctor profile is not publicly available', 403));
+//   }
 
   res.status(200).json({
     status: 'success',
