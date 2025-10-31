@@ -1,76 +1,317 @@
 
 
 
-// controllers/authController.js
+// // controllers/authController.js
 
-const jwt = require('jsonwebtoken');
-const { promisify } = require('util');
+// const jwt = require('jsonwebtoken');
+// const { promisify } = require('util');
+// const catchAsync = require('../utils/catchAsync');
+// const AppError = require('../utils/appError');
+// const { sendOtp, verifyOtp, resendOtp } = require('../utils/otpUtils');
+
+// const Doctor = require('../models/doctorModel');
+// const Patient = require('../models/patientModel');
+// const Admin = require('../models/adminModel');
+
+// const {
+//   generateAccessToken,
+//   generateRefreshToken,
+//   setTokenCookies
+// } = require('../middleware/auth');
+
+
+
+// const generateAccessToken = (id, role, tokenVersion) => {
+//   return jwt.sign(
+//     { id, role, tokenVersion },
+//     process.env.JWT_ACCESS_SECRET,
+//     { expiresIn: process.env.JWT_ACCESS_EXPIRY || '24h' }
+//   );
+// };
+
+// const generateRefreshToken = (id, role, tokenVersion) => {
+//   return jwt.sign(
+//     { id, role, tokenVersion },
+//     process.env.JWT_REFRESH_SECRET,
+//     { expiresIn: process.env.JWT_REFRESH_EXPIRY || '90d' }
+//   );
+// };
+
+// const setAuthCookies = (res, accessToken, refreshToken) => {
+//   res.cookie('accessToken', accessToken, {
+//     httpOnly: true,
+//     secure: process.env.NODE_ENV === 'production',
+//     sameSite: 'none',
+//     maxAge: 5 * 60 * 1000
+//   });
+
+//   res.cookie('refreshToken', refreshToken, {
+//     httpOnly: true,
+//     secure: process.env.NODE_ENV === 'production',
+//     sameSite: 'none',
+//     maxAge: 90 * 24 * 60 * 60 * 1000
+//   });
+
+//   return { accessToken, refreshToken };
+// };
+
+// const clearAuthCookies = (res) => {
+//   res.clearCookie('accessToken');
+//   res.clearCookie('refreshToken');
+// };
+
+// module.exports = {
+//   generateAccessToken,
+//   generateRefreshToken,
+//   setAuthCookies,
+//   clearAuthCookies
+// };
+
+
+// controllers/doctorController.js
+
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
-const { sendOtp, verifyOtp, resendOtp } = require('../utils/otpUtils');
-
 const Doctor = require('../models/doctorModel');
-const Patient = require('../models/patientModel');
-const Admin = require('../models/adminModel');
+const Otp = require('../models/otpModel');
+const { sendOtp } = require('../utils/otpUtils');
+const jwt = require('jsonwebtoken');
 
+// Import token utilities (NOT from middleware)
 const {
   generateAccessToken,
   generateRefreshToken,
-  setTokenCookies
-} = require('../middleware/auth');
+  generateOtpToken,
+  verifyToken,
+  setAuthCookies,
+  clearAuthCookies
+} = require('../utils/tokenUtils');
 
 // ============================================
-// UTILITY FUNCTIONS
+// SIGNUP FLOW
 // ============================================
 
-// Get User Model based on Role
-const getUserModel = (role) => {
-  const models = {
-    doctor: Doctor,
-    patient: Patient,
-    admin: Admin
-  };
-  return models[role];
-};
+exports.doctorSignup = catchAsync(async (req, res, next) => {
+  const {
+    name,
+    email,
+    phone,
+    medicalRegistrationNumber,
+    issuingMedicalCouncil,
+    specialization,
+    dateOfBirth,
+    gender,
+    address,
+    yearsOfExperience,
+    consultationFees,
+    degrees,
+    university,
+    graduationYear,
+    currentWorkplace,
+    designation,
+    professionalBio
+  } = req.body;
 
-// ============================================
-// OTP FUNCTIONS (All Users)
-// ============================================
+  console.log('');
+  console.log('DOCTOR SIGNUP - STEP 1: Registration');
+  console.log('='.repeat(60));
 
-/**
- * Send OTP - Works for Doctor, Patient, Admin
- */
-const getOtp = catchAsync(async (req, res, next) => {
-  const { phone } = req.body;
-
-  if (!phone) {
-    return next(new AppError('Phone number is required', 400));
+  if (
+    !name ||
+    !email ||
+    !phone ||
+    !medicalRegistrationNumber ||
+    !issuingMedicalCouncil ||
+    !specialization
+  ) {
+    return next(
+      new AppError(
+        'Required fields: name, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
+        400
+      )
+    );
   }
+
+  console.log(`Phone: ${phone}`);
+  console.log(`Email: ${email}`);
+  console.log(`Name: ${name}`);
+
+  const existingDoctor = await Doctor.findOne({
+    $or: [{ email }, { phone }, { medicalRegistrationNumber }]
+  });
+
+  if (existingDoctor) {
+    if (existingDoctor.email === email) {
+      return next(new AppError('Doctor with this email already exists', 400));
+    }
+    if (existingDoctor.phone === phone) {
+      return next(
+        new AppError('Doctor with this phone number already exists', 400)
+      );
+    }
+    if (existingDoctor.medicalRegistrationNumber === medicalRegistrationNumber) {
+      return next(
+        new AppError('Doctor with this registration number already exists', 400)
+      );
+    }
+  }
+
+  const newDoctor = new Doctor({
+    name,
+    email,
+    phone,
+    medicalRegistrationNumber,
+    issuingMedicalCouncil,
+    specialization,
+    dateOfBirth,
+    gender,
+    address,
+    yearsOfExperience: yearsOfExperience || 0,
+    consultationFees: consultationFees || 0,
+    degrees: degrees || [],
+    university,
+    graduationYear,
+    currentWorkplace,
+    designation,
+    professionalBio,
+    isPhoneVerified: false,
+    verificationStatus: 'pending',
+    tokenVersion: 0
+  });
+
+  await newDoctor.save();
+  console.log('SUCCESS: Doctor created in database');
 
   const isOtpSent = await sendOtp(phone);
 
   if (!isOtpSent) {
+    await Doctor.findByIdAndDelete(newDoctor._id);
     return next(new AppError('Failed to send OTP. Please try again.', 400));
   }
 
-  res.status(200).json({
+  console.log('SUCCESS: OTP sent to phone');
+  console.log('='.repeat(60));
+  console.log('');
+
+  res.status(201).json({
     success: true,
-    message: 'OTP sent successfully to your phone',
-    data: { phone }
+    message: 'Registration successful. OTP sent to your phone.',
+    data: {
+      doctor: {
+        id: newDoctor._id,
+        name: newDoctor.name,
+        email: newDoctor.email,
+        phone: newDoctor.phone,
+        medicalRegistrationNumber: newDoctor.medicalRegistrationNumber
+      },
+      nextStep: 'Verify OTP sent to your phone'
+    }
   });
 });
 
-/**
- * Resend OTP
- */
-const resendOtpHandler = catchAsync(async (req, res, next) => {
+exports.verifySignupOtp = catchAsync(async (req, res, next) => {
+  const { phone, otp } = req.body;
+
+  if (!phone || !otp) {
+    return next(new AppError('Phone number and OTP are required', 400));
+  }
+
+  console.log('');
+  console.log('DOCTOR SIGNUP - STEP 2: OTP Verification');
+  console.log('='.repeat(60));
+  console.log(`Phone: ${phone}`);
+
+  const otpDoc = await Otp.findOne({ phone });
+
+  if (
+    !otpDoc ||
+    otpDoc.otp !== parseInt(otp) ||
+    otpDoc.otpExpiresAt < new Date()
+  ) {
+    console.log('ERROR: Invalid or expired OTP');
+    return next(new AppError('Invalid or expired OTP', 400));
+  }
+
+  const doctor = await Doctor.findOne({ phone }).select('+tokenVersion');
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found. Please register first.', 404));
+  }
+
+  if (doctor.isPhoneVerified) {
+    return next(
+      new AppError('Phone already verified. Please login instead.', 400)
+    );
+  }
+
+  doctor.isPhoneVerified = true;
+  doctor.verificationStatus = 'approved';
+  await doctor.save();
+
+  console.log('VERIFY - After update, isPhoneVerified:', doctor.isPhoneVerified);
+
+  await Otp.deleteOne({ phone });
+  console.log('SUCCESS: OTP deleted');
+
+  // Generate tokens using utility functions - 3 separate parameters
+  const accessToken = generateAccessToken(
+    doctor._id,
+    'doctor',
+    doctor.tokenVersion
+  );
+  const refreshToken = generateRefreshToken(
+    doctor._id,
+    'doctor',
+    doctor.tokenVersion
+  );
+
+  doctor.refreshToken = refreshToken;
+  await doctor.save();
+
+  const tokens = setAuthCookies(res, accessToken, refreshToken);
+
+  console.log('SUCCESS: Tokens generated and cookies set');
+  console.log('='.repeat(60));
+  console.log('');
+
+  res.status(200).json({
+    success: true,
+    message: 'Phone verified successfully. Registration complete.',
+    data: {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      doctor: {
+        id: doctor._id,
+        name: doctor.name,
+        phone: doctor.phone,
+        email: doctor.email,
+        verificationStatus: doctor.verificationStatus,
+        isPhoneVerified: doctor.isPhoneVerified
+      }
+    }
+  });
+});
+
+exports.resendSignupOtp = catchAsync(async (req, res, next) => {
   const { phone } = req.body;
 
   if (!phone) {
     return next(new AppError('Phone number is required', 400));
   }
 
-  const isOtpResent = await resendOtp(phone);
+  const doctor = await Doctor.findOne({ phone });
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found. Please register first.', 404));
+  }
+
+  if (doctor.isPhoneVerified) {
+    return next(
+      new AppError('Phone already verified. Please login instead.', 400)
+    );
+  }
+
+  const isOtpResent = await sendOtp(phone);
 
   if (!isOtpResent) {
     return next(new AppError('Failed to resend OTP. Please try again.', 400));
@@ -83,521 +324,607 @@ const resendOtpHandler = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * Verify OTP - Works for Doctor, Patient, Admin
- */
-const verifyOtpHandler = catchAsync(async (req, res, next) => {
-  const { phone, otp, role } = req.body;
+// ============================================
+// LOGIN FLOW
+// ============================================
+
+exports.doctorLogin = catchAsync(async (req, res, next) => {
+  const { phone, role = 'doctor' } = req.body;
+
+  if (!phone) {
+    return next(new AppError('Phone number is required', 400));
+  }
+
+  if (role !== 'doctor') {
+    return next(new AppError('Invalid role. Expected: doctor', 400));
+  }
+
+  console.log('');
+  console.log('DOCTOR LOGIN - STEP 1: Send OTP');
+  console.log('='.repeat(60));
+  console.log(`Phone: ${phone}`);
+
+  const doctor = await Doctor.findOne({ phone });
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found. Please register first.', 404));
+  }
+
+  if (!doctor.isPhoneVerified) {
+    return next(
+      new AppError('Phone not verified. Please complete signup first.', 400)
+    );
+  }
+
+  if (!doctor.isActive) {
+    return next(new AppError('Your account has been deactivated.', 403));
+  }
+
+  const isOtpSent = await sendOtp(phone);
+
+  if (!isOtpSent) {
+    return next(new AppError('Failed to send OTP. Please try again.', 400));
+  }
+
+  console.log('SUCCESS: OTP sent to phone');
+  console.log('='.repeat(60));
+  console.log('');
+
+  res.status(200).json({
+    success: true,
+    message: 'OTP sent successfully to your registered phone',
+    data: {
+      phone,
+      role: 'doctor',
+      nextStep: 'Verify OTP'
+    }
+  });
+});
+
+exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
+  const { phone, otp } = req.body;
 
   if (!phone || !otp) {
     return next(new AppError('Phone number and OTP are required', 400));
   }
 
-  // Verify OTP
-  const isOtpValid = await verifyOtp(phone, otp);
+  console.log('');
+  console.log('DOCTOR LOGIN - STEP 2: Verify OTP');
+  console.log('='.repeat(60));
+  console.log(`Phone: ${phone}`);
 
-  if (!isOtpValid) {
+  const otpDoc = await Otp.findOne({ phone });
+
+  if (
+    !otpDoc ||
+    otpDoc.otp !== parseInt(otp) ||
+    otpDoc.otpExpiresAt < new Date()
+  ) {
+    console.log('ERROR: Invalid or expired OTP');
     return next(new AppError('Invalid or expired OTP', 400));
   }
 
-  // If role provided, check if user exists and auto-login
-  if (role) {
-    const UserModel = getUserModel(role);
-    if (!UserModel) {
-      return next(new AppError('Invalid role specified', 400));
-    }
+  const doctor = await Doctor.findOne({ phone }).select('+tokenVersion');
 
-    const user = await UserModel.findOne({ phone }).select('+tokenVersion');
-
-    if (user) {
-      // Auto-login user
-      const accessToken = generateAccessToken(user._id, role, user.tokenVersion);
-      const refreshToken = generateRefreshToken(user._id, role, user.tokenVersion);
-
-      setTokenCookies(res, accessToken, refreshToken);
-
-      return res.status(200).json({
-        success: true,
-        message: 'OTP verified and logged in successfully',
-        data: {
-          user: {
-            _id: user._id,
-            phone: user.phone,
-            name: user.name,
-            email: user.email,
-            role: role
-          }
-        }
-      });
-    }
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
   }
 
-  // OTP verified but user not found or role not provided
+  if (!doctor.isPhoneVerified) {
+    return next(
+      new AppError('Phone not verified. Please complete signup first.', 400)
+    );
+  }
+
+  if (!doctor.isActive) {
+    return next(new AppError('Your account has been deactivated.', 403));
+  }
+
+  await Otp.deleteOne({ phone });
+  console.log('SUCCESS: OTP verified');
+
+  // Generate tokens using utility functions - 3 separate parameters
+  const accessToken = generateAccessToken(
+    doctor._id,
+    'doctor',
+    doctor.tokenVersion
+  );
+  const refreshToken = generateRefreshToken(
+    doctor._id,
+    'doctor',
+    doctor.tokenVersion
+  );
+
+  doctor.refreshToken = refreshToken;
+  await doctor.save();
+
+  const tokens = setAuthCookies(res, accessToken, refreshToken);
+
+  console.log('SUCCESS: Tokens generated and cookies set');
+  console.log('='.repeat(60));
+  console.log('');
+
   res.status(200).json({
     success: true,
-    message: 'OTP verified successfully',
-    data: { phone, verified: true }
-  });
-});
-
-// ============================================
-// PASSWORD-BASED LOGIN (Alternative)
-// ============================================
-
-/**
- * Role-Based Login with Email & Password
- */
-const login = catchAsync(async (req, res, next) => {
-  const { email, password, role } = req.body;
-
-  // 1) Validate input
-  if (!email || !password || !role) {
-    return next(new AppError('Please provide email, password, and role', 400));
-  }
-
-  // 2) Get user model based on role
-  const UserModel = getUserModel(role);
-  if (!UserModel) {
-    return next(new AppError('Invalid role specified', 400));
-  }
-
-  // 3) Find user and include password & tokenVersion
-  const user = await UserModel.findOne({ email }).select('+password +tokenVersion');
-
-  if (!user) {
-    return next(new AppError('Invalid email or password', 401));
-  }
-
-  // 4) Compare password
-  const isPasswordCorrect = await user.comparePassword(password, user.password);
-  if (!isPasswordCorrect) {
-    return next(new AppError('Invalid email or password', 401));
-  }
-
-  // 5) Check if user is active
-  if (!user.isActive) {
-    return next(new AppError('Your account has been deactivated. Please contact support.', 403));
-  }
-
-  // 6) For doctors, check verification status
-  if (role === 'doctor' && user.verificationStatus !== 'approved') {
-    return next(new AppError(`Your account is ${user.verificationStatus}. Please wait for admin approval.`, 403));
-  }
-
-  // 7) Generate tokens
-  const accessToken = generateAccessToken(user._id, role, user.tokenVersion);
-  const refreshToken = generateRefreshToken(user._id, role, user.tokenVersion);
-
-  // 8) Set cookies
-  setTokenCookies(res, accessToken, refreshToken);
-
-  // 9) Remove password from output
-  user.password = undefined;
-  user.tokenVersion = undefined;
-
-  res.status(200).json({
-    status: 'success',
-    message: 'Login successful',
+    message: 'OTP verified. Logged in successfully.',
     data: {
-      user,
-      role
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      doctor: {
+        id: doctor._id,
+        name: doctor.name,
+        phone: doctor.phone,
+        email: doctor.email,
+        verificationStatus: doctor.verificationStatus
+      }
     }
   });
 });
 
-// ============================================
-// LOGOUT FUNCTIONS
-// ============================================
+exports.resendLoginOtp = catchAsync(async (req, res, next) => {
+  const { phone } = req.body;
 
-/**
- * Logout (Single Device)
- */
-const logout = catchAsync(async (req, res, next) => {
-  res.clearCookie('accessToken');
-  res.clearCookie('refreshToken');
+  if (!phone) {
+    return next(new AppError('Phone number is required', 400));
+  }
+
+  const doctor = await Doctor.findOne({ phone });
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found. Please register first.', 404));
+  }
+
+  if (!doctor.isPhoneVerified) {
+    return next(
+      new AppError('Phone not verified. Please complete signup first.', 400)
+    );
+  }
+
+  if (!doctor.isActive) {
+    return next(new AppError('Your account has been deactivated.', 403));
+  }
+
+  const isOtpResent = await sendOtp(phone);
+
+  if (!isOtpResent) {
+    return next(new AppError('Failed to resend OTP. Please try again.', 400));
+  }
 
   res.status(200).json({
-    status: 'success',
+    success: true,
+    message: 'OTP resent successfully',
+    data: { phone }
+  });
+});
+
+// ============================================
+// LOGOUT
+// ============================================
+
+exports.logout = catchAsync(async (req, res, next) => {
+  clearAuthCookies(res);
+
+  res.status(200).json({
+    success: true,
     message: 'Logged out successfully'
   });
 });
 
-/**
- * Logout All Devices (Forceful Logout)
- */
-const logoutAll = catchAsync(async (req, res, next) => {
-  const { phone, role } = req.body;
+exports.logoutAllDevices = catchAsync(async (req, res, next) => {
+  const { phone } = req.body;
 
-  // Validate input
-  if (!phone || !role) {
-    return next(new AppError('Please provide phone number and role', 400));
+  if (!phone) {
+    return next(new AppError('Phone number is required', 400));
   }
 
-  // Get user model based on role
-  const UserModel = getUserModel(role);
-  if (!UserModel) {
-    return next(new AppError('Invalid role specified', 400));
+  const doctor = await Doctor.findOne({ phone }).select('+tokenVersion');
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
   }
 
-  // Find user
-  const user = await UserModel.findOne({ phone }).select('+tokenVersion');
-  if (!user) {
-    return next(new AppError('User not found', 404));
-  }
+  doctor.tokenVersion = (doctor.tokenVersion || 0) + 1;
+  await doctor.save({ validateBeforeSave: false });
 
-  // Increment tokenVersion to invalidate all tokens
-  user.tokenVersion += 1;
-  await user.save({ validateBeforeSave: false });
-
-  // Clear cookies
-  res.clearCookie('accessToken');
-  res.clearCookie('refreshToken');
+  clearAuthCookies(res);
 
   res.status(200).json({
-    status: 'success',
+    success: true,
     message: 'Logged out from all devices successfully'
   });
 });
 
 // ============================================
-// AUTH STATUS & VERIFICATION
+// PROFILE MANAGEMENT
 // ============================================
 
-/**
- * Check Authentication Status
- */
-const checkAuthStatus = catchAsync(async (req, res, next) => {
-  const accessToken = req.cookies.accessToken;
-  const refreshToken = req.cookies.refreshToken;
+exports.getMyProfile = catchAsync(async (req, res, next) => {
+  const doctor = await Doctor.findById(req.user?._id || req.user?.id).select(
+    '-password -tokenVersion'
+  );
 
-  if (!accessToken && !refreshToken) {
-    return res.status(200).json({
-      status: 'success',
-      isAuthenticated: false,
-      data: null
-    });
-  }
-
-  try {
-    let decoded;
-
-    // Try access token first
-    try {
-      decoded = await promisify(jwt.verify)(accessToken, process.env.JWT_ACCESS_SECRET);
-    } catch (err) {
-      // If access token expired, try refresh token
-      if (err.name === 'TokenExpiredError' && refreshToken) {
-        decoded = await promisify(jwt.verify)(refreshToken, process.env.JWT_REFRESH_SECRET);
-      } else {
-        throw err;
-      }
-    }
-
-    // Get user
-    const UserModel = getUserModel(decoded.role);
-    const user = await UserModel.findById(decoded.id).select('+tokenVersion');
-
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      res.clearCookie('accessToken');
-      res.clearCookie('refreshToken');
-      return res.status(200).json({
-        status: 'success',
-        isAuthenticated: false,
-        data: null
-      });
-    }
-
-    res.status(200).json({
-      status: 'success',
-      isAuthenticated: true,
-      data: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: decoded.role
-      }
-    });
-
-  } catch (err) {
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
-    return res.status(200).json({
-      status: 'success',
-      isAuthenticated: false,
-      data: null
-    });
-  }
-});
-
-/**
- * Verify User by Phone (Check if user exists)
- */
-const verifyUserExists = catchAsync(async (req, res, next) => {
-  const { phone, role } = req.body;
-
-  if (!phone || !role) {
-    return next(new AppError('Phone number and role are required', 400));
-  }
-
-  const UserModel = getUserModel(role);
-  if (!UserModel) {
-    return next(new AppError('Invalid role specified', 400));
-  }
-
-  const user = await UserModel.findOne({ phone });
-
-  if (!user) {
-    return res.status(200).json({
-      success: true,
-      exists: false,
-      message: 'User not found. Please sign up first.'
-    });
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
   }
 
   res.status(200).json({
     success: true,
-    exists: true,
-    message: 'User found',
-    data: {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: role
-    }
+    data: { doctor }
   });
 });
 
+exports.updateProfile = catchAsync(async (req, res, next) => {
+  const {
+    password,
+    role,
+    tokenVersion,
+    verificationStatus,
+    medicalRegistrationNumber,
+    ...updateData
+  } = req.body;
 
+  const updatedDoctor = await Doctor.findByIdAndUpdate(
+    req.user?._id || req.user?.id,
+    updateData,
+    { new: true, runValidators: true }
+  ).select('-password -tokenVersion');
 
-module.exports = {
-  // OTP Functions
-  getOtp,
-  resendOtpHandler,
-  verifyOtpHandler,
+  if (!updatedDoctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
 
-  // Authentication Functions
-  login,
-  logout,
-  logoutAll,
+  res.status(200).json({
+    success: true,
+    message: 'Profile updated successfully',
+    data: { doctor: updatedDoctor }
+  });
+});
 
-  // Status Functions
-  checkAuthStatus,
-  verifyUserExists
-};
+// ============================================
+// AUTHENTICATION STATUS
+// ============================================
 
+exports.checkAuthStatus = catchAsync(async (req, res, next) => {
+  console.log('=== DEBUG: Inside checkAuthStatus ===');
+  console.log('Cookies:', req.cookies);
 
+  const { accessToken, refreshToken } = req.cookies || {};
+  console.log('Refresh token present:', !!refreshToken);
 
+  if (!refreshToken || refreshToken === 'undefined') {
+    return res.status(200).json({
+      success: true,
+      isAuthenticated: false,
+      message: 'refresh token expired',
+      shouldLogout: true
+    });
+  }
 
+  if (accessToken && accessToken !== 'undefined') {
+    try {
+      const decoded = verifyToken(accessToken, 'access');
+      console.log('Access token valid:', decoded.id);
 
+      const doctor = await Doctor.findById(decoded.id);
 
+      if (doctor) {
+        res.cookie('isAuthenticated', 'true', {
+          httpOnly: false,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 90 * 24 * 60 * 60 * 1000
+        });
 
+        return res.status(200).json({
+          success: true,
+          isAuthenticated: true,
+          data: {
+            id: doctor._id,
+            name: doctor.name,
+            phone: doctor.phone,
+            email: doctor.email,
+            verificationStatus: doctor.verificationStatus
+          }
+        });
+      }
+    } catch (error) {
+      console.log('Access token verification failed:', error.message);
+    }
+  }
 
+  if (refreshToken && refreshToken !== 'undefined') {
+    try {
+      const decoded = verifyToken(refreshToken, 'refresh');
+      console.log('Refresh token valid:', decoded.id);
 
+      const doctor = await Doctor.findById(decoded.id).select('+tokenVersion');
 
+      if (doctor) {
+        console.log('Token versions - Doctor:', doctor.tokenVersion, 'Decoded:', decoded.tokenVersion);
+      }
 
+      if (!doctor || doctor.tokenVersion !== decoded.tokenVersion) {
+        return next(new AppError('Invalid refresh token - please login again', 401));
+      }
 
+      // Generate new access token - 3 separate parameters
+      const newAccessToken = generateAccessToken(
+        doctor._id,
+        'doctor',
+        doctor.tokenVersion
+      );
 
+      res.cookie('accessToken', newAccessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 5 * 60 * 1000
+      });
 
+      res.cookie('isAuthenticated', 'true', {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 90 * 24 * 60 * 60 * 1000
+      });
 
+      res.setHeader('X-New-Token', newAccessToken);
+      res.setHeader('X-Token-Refreshed', 'true');
 
+      return res.status(200).json({
+        success: true,
+        isAuthenticated: true,
+        data: {
+          id: doctor._id,
+          name: doctor.name,
+          phone: doctor.phone,
+          email: doctor.email,
+          verificationStatus: doctor.verificationStatus
+        }
+      });
+    } catch (error) {
+      console.log('Refresh token verification failed:', error.message);
+      return next(new AppError('Session expired - please login again', 401));
+    }
+  }
 
+  res.cookie('isAuthenticated', 'false', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 90 * 24 * 60 * 60 * 1000
+  });
 
+  return res.status(200).json({
+    success: false,
+    isAuthenticated: false,
+    message: 'Authentication required - please login',
+    shouldLogout: true
+  });
+});
 
+// ============================================
+// PUBLIC ENDPOINTS
+// ============================================
 
+exports.getAllDoctors = catchAsync(async (req, res, next) => {
+  const { specialization, city, page = 1, limit = 10 } = req.query;
 
+  const filter = {
+    isActive: true,
+    verificationStatus: 'approved'
+  };
 
+  if (specialization) {
+    filter.specialization = { $regex: specialization, $options: 'i' };
+  }
 
-// const jwt = require('jsonwebtoken');
-// const { promisify } = require('util');
-// const catchAsync = require('../utils/catchAsync');
-// const AppError = require('../utils/appError');  
+  if (city) {
+    filter['address.city'] = { $regex: city, $options: 'i' };
+  }
 
-// const Doctor = require('../models/doctorModel');
-// const Patient = require('../models/patientModel');
-// const Admin = require('../models/adminModel');
-// const {
-//   generateAccessToken,
-//   generateRefreshToken,
-//   setTokenCookies
-// } = require('../middleware/auth');
+  const skip = (page - 1) * limit;
 
-// // Get User Model based on Role
-// const getUserModel = (role) => {
-//   const models = {
-//     doctor: Doctor,
-//     patient: Patient,
-//     admin: Admin
-//   };
-//   return models[role];
-// };
+  const doctors = await Doctor.find(filter)
+    .select('-password -tokenVersion -verificationDocuments')
+    .skip(skip)
+    .limit(parseInt(limit))
+    .sort('-averageRating -createdAt');
 
-// // Role-Based Login (Single Endpoint)
-// exports.login = catchAsync(async (req, res, next) => {
-//   const { email, password, role } = req.body;
+  const total = await Doctor.countDocuments(filter);
 
-//   // 1) Validate input
-//   if (!email || !password || !role) {
-//     return next(new AppError('Please provide email, password, and role', 400));
-//   }
+  res.status(200).json({
+    success: true,
+    results: doctors.length,
+    totalPages: Math.ceil(total / limit),
+    currentPage: parseInt(page),
+    data: { doctors }
+  });
+});
 
-//   // 2) Get user model based on role
-//   const UserModel = getUserModel(role);
-//   if (!UserModel) {
-//     return next(new AppError('Invalid role specified', 400));
-//   }
+exports.getDoctorById = catchAsync(async (req, res, next) => {
+  const doctor = await Doctor.findById(req.params.id).select(
+    '-password -tokenVersion -verificationDocuments'
+  );
 
-//   // 3) Find user and include password & tokenVersion
-//   const user = await UserModel.findOne({ email }).select('+password +tokenVersion');
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
 
-//   if (!user) {
-//     return next(new AppError('Invalid email or password', 401));
-//   }
+  res.status(200).json({
+    success: true,
+    data: { doctor }
+  });
+});
 
-//   // 4) Compare password
-//   const isPasswordCorrect = await user.comparePassword(password, user.password);
-//   if (!isPasswordCorrect) {
-//     return next(new AppError('Invalid email or password', 401));
-//   }
+exports.getDoctorsBySpecialization = catchAsync(async (req, res, next) => {
+  const { specialization } = req.params;
+  const { page = 1, limit = 10 } = req.query;
 
-//   // 5) Check if user is active
-//   if (!user.isActive) {
-//     return next(new AppError('Your account has been deactivated. Please contact support.', 403));
-//   }
+  const skip = (page - 1) * limit;
 
-//   // 6) For doctors, check verification status
-//   if (role === 'doctor' && user.verificationStatus !== 'approved') {
-//     return next(new AppError(`Your account is ${user.verificationStatus}. Please wait for admin approval.`, 403));
-//   }
+  const doctors = await Doctor.find({
+    specialization: { $regex: specialization, $options: 'i' },
+    verificationStatus: 'approved',
+    isActive: true
+  })
+    .select('-password -tokenVersion -verificationDocuments')
+    .skip(skip)
+    .limit(parseInt(limit))
+    .sort('-averageRating');
 
-//   // 7) Generate tokens
-//   const accessToken = generateAccessToken(user._id, role, user.tokenVersion);
-//   const refreshToken = generateRefreshToken(user._id, role, user.tokenVersion);
+  const total = await Doctor.countDocuments({
+    specialization: { $regex: specialization, $options: 'i' },
+    verificationStatus: 'approved',
+    isActive: true
+  });
 
-//   // 8) Set cookies
-//   setTokenCookies(res, accessToken, refreshToken);
+  res.status(200).json({
+    success: true,
+    results: doctors.length,
+    totalPages: Math.ceil(total / limit),
+    currentPage: parseInt(page),
+    data: { doctors }
+  });
+});
 
-//   // 9) Remove password from output
-//   user.password = undefined;
-//   user.tokenVersion = undefined;
+// ============================================
+// AVAILABILITY MANAGEMENT
+// ============================================
 
-//   res.status(200).json({
-//     status: 'success',
-//     message: 'Login successful',
-//     data: {
-//       user,
-//       role
-//     }
-//   });
-// });
+exports.updateAvailability = catchAsync(async (req, res, next) => {
+  const { days, timeSlots } = req.body;
 
-// // Logout (Single Device)
-// exports.logout = catchAsync(async (req, res, next) => {
-//   res.clearCookie('accessToken');
-//   res.clearCookie('refreshToken');
+  if (!days || !timeSlots) {
+    return next(new AppError('Please provide days and timeSlots', 400));
+  }
 
-//   res.status(200).json({
-//     status: 'success',
-//     message: 'Logged out successfully'
-//   });
-// });
+  const updatedDoctor = await Doctor.findByIdAndUpdate(
+    req.user?._id || req.user?.id,
+    { availability: { days, timeSlots } },
+    { new: true, runValidators: true }
+  ).select('-password -tokenVersion');
 
-// // Logout All Devices (Forceful Logout)
-// exports.logoutAll = catchAsync(async (req, res, next) => {
-//   const { phone, role } = req.body;
+  if (!updatedDoctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
 
-//   // Validate input
-//   if (!phone || !role) {
-//     return next(new AppError('Please provide phone number and role', 400));
-//   }
+  res.status(200).json({
+    success: true,
+    message: 'Availability updated successfully',
+    data: { doctor: updatedDoctor }
+  });
+});
 
-//   // Get user model based on role
-//   const UserModel = getUserModel(role);
-//   if (!UserModel) {
-//     return next(new AppError('Invalid role specified', 400));
-//   }
+// ============================================
+// CLINIC MANAGEMENT
+// ============================================
 
-//   // Find user
-//   const user = await UserModel.findOne({ phone }).select('+tokenVersion');
-//   if (!user) {
-//     return next(new AppError('User not found', 404));
-//   }
+exports.addClinic = catchAsync(async (req, res, next) => {
+  const clinicData = req.body;
 
-//   // Increment tokenVersion to invalidate all tokens
-//   user.tokenVersion += 1;
-//   await user.save({ validateBeforeSave: false });
+  if (!clinicData.clinicName || !clinicData.address) {
+    return next(new AppError('Please provide clinic name and address', 400));
+  }
 
-//   // Clear cookies
-//   res.clearCookie('accessToken');
-//   res.clearCookie('refreshToken');
+  const doctor = await Doctor.findById(req.user?._id || req.user?.id);
 
-//   res.status(200).json({
-//     status: 'success',
-//     message: 'Logged out from all devices successfully'
-//   });
-// });
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
 
-// // Check Auth Status
-// exports.checkAuthStatus = catchAsync(async (req, res, next) => {
-//   const accessToken = req.cookies.accessToken;
-//   const refreshToken = req.cookies.refreshToken;
+  doctor.clinics.push(clinicData);
+  await doctor.save();
 
-//   if (!accessToken && !refreshToken) {
-//     return res.status(200).json({
-//       status: 'success',
-//       isAuthenticated: false,
-//       data: null
-//     });
-//   }
+  res.status(201).json({
+    success: true,
+    message: 'Clinic added successfully',
+    data: { clinics: doctor.clinics }
+  });
+});
 
-//   try {
-//     let decoded;
-    
-//     // Try access token first
-//     try {
-//       decoded = await promisify(jwt.verify)(accessToken, process.env.JWT_ACCESS_SECRET);
-//     } catch (err) {
-//       // If access token expired, try refresh token
-//       if (err.name === 'TokenExpiredError' && refreshToken) {
-//         decoded = await promisify(jwt.verify)(refreshToken, process.env.JWT_REFRESH_SECRET);
-//       } else {
-//         throw err;
-//       }
-//     }
+exports.updateClinic = catchAsync(async (req, res, next) => {
+  const { clinicId } = req.params;
+  const updateData = req.body;
 
-//     // Get user
-//     const UserModel = getUserModel(decoded.role);
-//     const user = await UserModel.findById(decoded.id).select('+tokenVersion');
+  const doctor = await Doctor.findById(req.user?._id || req.user?.id);
 
-//     if (!user || user.tokenVersion !== decoded.tokenVersion) {
-//       res.clearCookie('accessToken');
-//       res.clearCookie('refreshToken');
-//       return res.status(200).json({
-//         status: 'success',
-//         isAuthenticated: false,
-//         data: null
-//       });
-//     }
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
 
-//     res.status(200).json({
-//       status: 'success',
-//       isAuthenticated: true,
-//       data: {
-//         id: user._id,
-//         name: user.name,
-//         email: user.email,
-//         role: decoded.role
-//       }
-//     });
+  const clinic = doctor.clinics.id(clinicId);
 
-//   } catch (err) {
-//     res.clearCookie('accessToken');
-//     res.clearCookie('refreshToken');
-//     return res.status(200).json({
-//       status: 'success',
-//       isAuthenticated: false,
-//       data: null
-//     });
-//   }
-// });
+  if (!clinic) {
+    return next(new AppError('Clinic not found', 404));
+  }
+
+  Object.assign(clinic, updateData);
+  await doctor.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Clinic updated successfully',
+    data: { clinic }
+  });
+});
+
+exports.deleteClinic = catchAsync(async (req, res, next) => {
+  const { clinicId } = req.params;
+
+  const doctor = await Doctor.findById(req.user?._id || req.user?.id);
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  doctor.clinics.pull(clinicId);
+  await doctor.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Clinic deleted successfully',
+    data: null
+  });
+});
+
+// ============================================
+// VERIFICATION DOCUMENTS
+// ============================================
+
+exports.uploadVerificationDocuments = catchAsync(async (req, res, next) => {
+  const {
+    identityProof,
+    degreesCertificates,
+    medicalCouncilRegistration
+  } = req.body;
+
+  const doctor = await Doctor.findById(req.user?._id || req.user?.id);
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  if (identityProof) {
+    doctor.verificationDocuments.identityProof = identityProof;
+  }
+
+  if (degreesCertificates) {
+    doctor.verificationDocuments.degreesCertificates = degreesCertificates;
+  }
+
+  if (medicalCouncilRegistration) {
+    doctor.verificationDocuments.medicalCouncilRegistration =
+      medicalCouncilRegistration;
+  }
+
+  await doctor.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Verification documents uploaded successfully',
+    data: {
+      verificationDocuments: doctor.verificationDocuments
+    }
+  });
+});

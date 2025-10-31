@@ -169,6 +169,16 @@ const doctorSchema = new mongoose.Schema({
     default: 0,
     select: false
   },
+    isPhoneVerified: {
+    type: Boolean,
+    default: false
+  },
+  // Authentication Tokens
+  refreshToken: {
+    type: String,
+    default: null,
+    select: false
+  },
 
   // Ratings & Reviews
   averageRating: {
