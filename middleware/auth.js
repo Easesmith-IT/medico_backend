@@ -129,9 +129,9 @@ const verifyOtpToken = (req, res, next) => {
   }
 };
 
-/**
- * Verify Admin Role (superAdmin or subAdmin)
- */
+
+ //* Verify Admin Role (superAdmin or subAdmin)
+
 const verifyAdminRole = (req, res, next) => {
   try {
     const token = req.cookies?.accessToken;
@@ -154,9 +154,7 @@ const verifyAdminRole = (req, res, next) => {
   }
 };
 
-/**
- * Verify Super Admin Role (superAdmin Only)
- */
+
 const verifySuperAdminRole = (req, res, next) => {
   try {
     const token = req.cookies?.accessToken;
@@ -179,9 +177,9 @@ const verifySuperAdminRole = (req, res, next) => {
   }
 };
 
-/**
- * Verify Doctor Role
- */
+
+//  * Verify Doctor Role
+
 const verifyDoctorRole = (req, res, next) => {
   try {
     const token = req.cookies?.accessToken;

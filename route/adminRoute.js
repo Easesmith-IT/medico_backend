@@ -18,7 +18,7 @@ router.post('/logout-all-devices', adminController.logoutAllDevices);
 
 
 router.get('/me', verifyAccessToken, adminController.getMyProfile);
-router.put('/profile', verifyAccessToken, adminController.updateProfile);
+router.put('/updateProfile', verifyAccessToken, adminController.updateProfile);
 
 
 
