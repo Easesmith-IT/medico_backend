@@ -2184,20 +2184,6 @@ exports.getAllDoctors = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getDoctorById = catchAsync(async (req, res, next) => {
-  const doctor = await Doctor.findById(req.params.id).select(
-    '-password -tokenVersion -verificationDocuments'
-  );
-
-  if (!doctor) {
-    return next(new AppError('Doctor not found', 404));
-  }
-
-  res.status(200).json({
-    success: true,
-    data: { doctor }
-  });
-});
 
 exports.getDoctorsBySpecialization = catchAsync(async (req, res, next) => {
   const { specialization } = req.params;
