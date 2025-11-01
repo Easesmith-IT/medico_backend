@@ -18,7 +18,7 @@
 
 // exports.doctorSignup = catchAsync(async (req, res, next) => {
 //   const {
-//     name,
+//     firstName,
 //     email,
 //     phone,
 //     medicalRegistrationNumber,
@@ -41,16 +41,16 @@
 //   console.log('DOCTOR SIGNUP - STEP 1: Registration');
 //   console.log('='.repeat(60));
 
-//   if (!name || !email || !phone || !medicalRegistrationNumber || !issuingMedicalCouncil || !specialization) {
+//   if (!firstName || !email || !phone || !medicalRegistrationNumber || !issuingMedicalCouncil || !specialization) {
 //     return next(new AppError(
-//       'Required fields: name, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
+//       'Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
 //       400
 //     ));
 //   }
 
 //   console.log(`Phone: ${phone}`);
 //   console.log(`Email: ${email}`);
-//   console.log(`Name: ${name}`);
+//   console.log(`firstName: ${firstName}`);
 
 //   const existingDoctor = await Doctor.findOne({
 //     $or: [
@@ -73,7 +73,7 @@
 //   }
 
 //   const newDoctor = new Doctor({
-//     name,
+//     firstName,
 //     email,
 //     phone,
 //     medicalRegistrationNumber,
@@ -115,7 +115,7 @@
 //     data: {
 //       doctor: {
 //         id: newDoctor._id,
-//         name: newDoctor.name,
+//         firstName: newDoctor.firstName,
 //         email: newDoctor.email,
 //         phone: newDoctor.phone,
 //         medicalRegistrationNumber: newDoctor.medicalRegistrationNumber
@@ -204,7 +204,7 @@
 //       refreshToken: tokens.refreshToken,
 //       doctor: {
 //         id: doctor._id,
-//         name: doctor.name,
+//         firstName: doctor.firstName,
 //         phone: doctor.phone,
 //         email: doctor.email,
 //         verificationStatus: doctor.verificationStatus,
@@ -378,7 +378,7 @@
 //       refreshToken: tokens.refreshToken,
 //       doctor: {
 //         id: doctor._id,
-//         name: doctor.name,
+//         firstName: doctor.firstName,
 //         phone: doctor.phone,
 //         email: doctor.email,
 //         verificationStatus: doctor.verificationStatus
@@ -430,7 +430,7 @@
 
 // // exports.doctorSignup = catchAsync(async (req, res, next) => {
 // //   const {
-// //     name,
+// //     firstName,
 // //     email,
 // //     phone,
 // //     medicalRegistrationNumber,
@@ -453,16 +453,16 @@
 // //   console.log('DOCTOR SIGNUP - STEP 1: Registration');
 // //   console.log('='.repeat(60));
 
-// //   if (!name || !email || !phone || !medicalRegistrationNumber || !issuingMedicalCouncil || !specialization) {
+// //   if (!firstName || !email || !phone || !medicalRegistrationNumber || !issuingMedicalCouncil || !specialization) {
 // //     return next(new AppError(
-// //       'Required fields: name, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
+// //       'Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
 // //       400
 // //     ));
 // //   }
 
 // //   console.log(`Phone: ${phone}`);
 // //   console.log(`Email: ${email}`);
-// //   console.log(`Name: ${name}`);
+// //   console.log(`firstName: ${firstName}`);
 
 // //   const existingDoctor = await Doctor.findOne({
 // //     $or: [
@@ -485,7 +485,7 @@
 // //   }
 
 // //   const newDoctor = new Doctor({
-// //     name,
+// //     firstName,
 // //     email,
 // //     phone,
 // //     medicalRegistrationNumber,
@@ -527,7 +527,7 @@
 // //     data: {
 // //       doctor: {
 // //         id: newDoctor._id,
-// //         name: newDoctor.name,
+// //         firstName: newDoctor.firstName,
 // //         email: newDoctor.email,
 // //         phone: newDoctor.phone,
 // //         medicalRegistrationNumber: newDoctor.medicalRegistrationNumber
@@ -609,7 +609,7 @@
 // // //       refreshToken,
 // // //       doctor: {
 // // //         id: doctor._id,
-// // //         name: doctor.name,
+// // //         firstName: doctor.firstName,
 // // //         phone: doctor.phone,
 // // //         email: doctor.email,
 // // //         verificationStatus: doctor.verificationStatus,
@@ -703,7 +703,7 @@
 // //       refreshToken,
 // //       doctor: {
 // //         id: updatedDoctor._id,
-// //         name: updatedDoctor.name,
+// //         firstName: updatedDoctor.firstName,
 // //         phone: updatedDoctor.phone,
 // //         email: updatedDoctor.email,
 // //         verificationStatus: updatedDoctor.verificationStatus,
@@ -790,7 +790,7 @@
 // //       refreshToken,
 // //       doctor: {
 // //         id: doctor._id,
-// //         name: doctor.name,
+// //         firstName: doctor.firstName,
 // //         phone: doctor.phone,
 // //         email: doctor.email,
 // //         verificationStatus: doctor.verificationStatus
@@ -1004,7 +1004,7 @@
 // //   const userInfo = {
 // //     id: doctor._id,
 // //     customId: doctor.customId,
-// //     name: doctor.name,
+// //     firstName: doctor.firstName,
 // //     phone: doctor.phone,
 // //     email: doctor.email
 // //   };
@@ -1032,7 +1032,7 @@
 // //       doctor: {
 // //         id: doctor._id,
 // //         customId: doctor.customId,
-// //         name: doctor.name,
+// //         firstName: doctor.firstName,
 // //         phone: doctor.phone,
 // //         email: doctor.email,
 // //         verificationStatus: doctor.verificationStatus
@@ -1195,7 +1195,7 @@
 //           isAuthenticated: true,
 //           data: {
 //             id: doctor._id,
-//             name: doctor.name,
+//             firstName: doctor.firstName,
 //             phone: doctor.phone,
 //             email: doctor.email,
 //             verificationStatus: doctor.verificationStatus
@@ -1249,7 +1249,7 @@
 //         isAuthenticated: true,
 //         data: {
 //           id: doctor._id,
-//           name: doctor.name,
+//           firstName: doctor.firstName,
 //           phone: doctor.phone,
 //           email: doctor.email,
 //           verificationStatus: doctor.verificationStatus
@@ -1403,8 +1403,8 @@
 // exports.addClinic = catchAsync(async (req, res, next) => {
 //   const clinicData = req.body;
 
-//   if (!clinicData.clinicName || !clinicData.address) {
-//     return next(new AppError('Please provide clinic name and address', 400));
+//   if (!clinicData.clinicfirstName || !clinicData.address) {
+//     return next(new AppError('Please provide clinic firstName and address', 400));
 //   }
 
 //   const doctor = await Doctor.findById(req.user?._id || req.user?.id);
@@ -1533,9 +1533,127 @@ const {
 // SIGNUP FLOW
 // ============================================
 
+// exports.doctorSignup = catchAsync(async (req, res, next) => {
+//   const {
+//     firstName,
+//     email,
+//     phone,
+//     medicalRegistrationNumber,
+//     issuingMedicalCouncil,
+//     specialization,
+//     dateOfBirth,
+//     gender,
+//     address,
+//     yearsOfExperience,
+//     consultationFees,
+//     degrees,
+//     university,
+//     graduationYear,
+//     currentWorkplace,
+//     designation,
+//     professionalBio
+//   } = req.body;
+
+//   console.log('');
+//   console.log('DOCTOR SIGNUP - STEP 1: Registration');
+//   console.log('='.repeat(60));
+
+//   if (
+//     !firstName ||
+//     !email ||
+//     !phone ||
+//     !medicalRegistrationNumber ||
+//     !issuingMedicalCouncil ||
+//     !specialization
+//   ) {
+//     return next(
+//       new AppError(
+//         'Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
+//         400
+//       )
+//     );
+//   }
+
+//   console.log(`Phone: ${phone}`);
+//   console.log(`Email: ${email}`);
+//   console.log(`firstName: ${firstName}`);
+
+//   const existingDoctor = await Doctor.findOne({
+//     $or: [{ email }, { phone }, { medicalRegistrationNumber }]
+//   });
+
+//   if (existingDoctor) {
+//     if (existingDoctor.email === email) {
+//       return next(new AppError('Doctor with this email already exists', 400));
+//     }
+//     if (existingDoctor.phone === phone) {
+//       return next(
+//         new AppError('Doctor with this phone number already exists', 400)
+//       );
+//     }
+//     if (existingDoctor.medicalRegistrationNumber === medicalRegistrationNumber) {
+//       return next(
+//         new AppError('Doctor with this registration number already exists', 400)
+//       );
+//     }
+//   }
+
+//   const newDoctor = new Doctor({
+//     firstName,
+//     email,
+//     phone,
+//     medicalRegistrationNumber,
+//     issuingMedicalCouncil,
+//     specialization,
+//     dateOfBirth,
+//     gender,
+//     address,
+//     yearsOfExperience: yearsOfExperience || 0,
+//     consultationFees: consultationFees || 0,
+//     degrees: degrees || [],
+//     university,
+//     graduationYear,
+//     currentWorkplace,
+//     designation,
+//     professionalBio,
+//     isPhoneVerified: false,
+//     verificationStatus: 'pending',
+//     tokenVersion: 0
+//   });
+
+//   await newDoctor.save();
+//   console.log('SUCCESS: Doctor created in database');
+
+//   const isOtpSent = await sendOtp(phone);
+
+//   if (!isOtpSent) {
+//     await Doctor.findByIdAndDelete(newDoctor._id);
+//     return next(new AppError('Failed to send OTP. Please try again.', 400));
+//   }
+
+//   console.log('SUCCESS: OTP sent to phone');
+//   console.log('='.repeat(60));
+//   console.log('');
+
+//   res.status(201).json({
+//     success: true,
+//     message: 'Registration successful. OTP sent to your phone.',
+//     data: {
+//       doctor: {
+//         id: newDoctor._id,
+//         firstName: newDoctor.firstName,
+//         email: newDoctor.email,
+//         phone: newDoctor.phone,
+//         medicalRegistrationNumber: newDoctor.medicalRegistrationNumber
+//       },
+//       nextStep: 'Verify OTP sent to your phone'
+//     }
+//   });
+// });
 exports.doctorSignup = catchAsync(async (req, res, next) => {
   const {
-    name,
+    firstName,
+    lastName,
     email,
     phone,
     medicalRegistrationNumber,
@@ -1559,7 +1677,7 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
   console.log('='.repeat(60));
 
   if (
-    !name ||
+    !firstName ||
     !email ||
     !phone ||
     !medicalRegistrationNumber ||
@@ -1568,7 +1686,7 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
   ) {
     return next(
       new AppError(
-        'Required fields: name, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
+        'Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
         400
       )
     );
@@ -1576,7 +1694,7 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
 
   console.log(`Phone: ${phone}`);
   console.log(`Email: ${email}`);
-  console.log(`Name: ${name}`);
+  console.log(`FirstName: ${firstName}`);
 
   const existingDoctor = await Doctor.findOne({
     $or: [{ email }, { phone }, { medicalRegistrationNumber }]
@@ -1599,7 +1717,8 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
   }
 
   const newDoctor = new Doctor({
-    name,
+    firstName,
+    lastName: lastName || '',
     email,
     phone,
     medicalRegistrationNumber,
@@ -1641,7 +1760,7 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
     data: {
       doctor: {
         id: newDoctor._id,
-        name: newDoctor.name,
+        firstName: newDoctor.firstName,
         email: newDoctor.email,
         phone: newDoctor.phone,
         medicalRegistrationNumber: newDoctor.medicalRegistrationNumber
@@ -1724,7 +1843,7 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
       refreshToken: tokens.refreshToken,
       doctor: {
         id: doctor._id,
-        name: doctor.name,
+        firstName: doctor.firstName,
         phone: doctor.phone,
         email: doctor.email,
         verificationStatus: doctor.verificationStatus,
@@ -1894,7 +2013,7 @@ exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
       refreshToken: tokens.refreshToken,
       doctor: {
         id: doctor._id,
-        name: doctor.name,
+        firstName: doctor.firstName,
         phone: doctor.phone,
         email: doctor.email,
         verificationStatus: doctor.verificationStatus
@@ -2062,7 +2181,7 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
           isAuthenticated: true,
           data: {
             id: doctor._id,
-            name: doctor.name,
+            firstName: doctor.firstName,
             phone: doctor.phone,
             email: doctor.email,
             verificationStatus: doctor.verificationStatus
@@ -2118,7 +2237,7 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
         isAuthenticated: true,
         data: {
           id: doctor._id,
-          name: doctor.name,
+          firstName: doctor.firstName,
           phone: doctor.phone,
           email: doctor.email,
           verificationStatus: doctor.verificationStatus
@@ -2266,8 +2385,8 @@ exports.updateAvailability = catchAsync(async (req, res, next) => {
 exports.addClinic = catchAsync(async (req, res, next) => {
   const clinicData = req.body;
 
-  if (!clinicData.clinicName || !clinicData.address) {
-    return next(new AppError('Please provide clinic name and address', 400));
+  if (!clinicData.clinicfirstName || !clinicData.address) {
+    return next(new AppError('Please provide clinic firstName and address', 400));
   }
 
   const doctor = await Doctor.findById(req.user?._id || req.user?.id);
