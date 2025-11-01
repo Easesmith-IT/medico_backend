@@ -104,7 +104,7 @@ router.get('/:id', doctorController.getDoctorById);
 // Protected routes
 router.post('/logout', verifyAccessToken, doctorController.logout);
 router.post('/logout-all-devices', doctorController.logoutAllDevices);
-router.get('/me', verifyAccessToken, doctorController.getMyProfile);
+router.get('/getMyProfile', verifyAccessToken, doctorController.getMyProfile);
 router.put('/profile', verifyAccessToken, doctorController.updateProfile);
 router.put('/availability', verifyAccessToken, doctorController.updateAvailability);
 router.post('/clinic', verifyAccessToken, doctorController.addClinic);

@@ -143,6 +143,16 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
     accessToken,
     refreshToken
   };
+
+
+
+
+  
+};
+  const clearAuthCookies = (res) => {
+  res.clearCookie('accessToken');
+  res.clearCookie('refreshToken');
+  res.clearCookie('isAuthenticated');
 };
 
 module.exports = {
@@ -150,5 +160,6 @@ module.exports = {
   generateRefreshToken,
   generateOtpToken,
   verifyToken,
-  setAuthCookies
+  setAuthCookies,
+  clearAuthCookies
 };

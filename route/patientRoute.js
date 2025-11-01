@@ -1,31 +1,30 @@
+// // route/patientRoute.js
+
 // const express = require('express');
-// const patientController = require('../controller/patientController');
-// const { protect} = require('../middleware/auth');
-
 // const router = express.Router();
+// const patientController = require('../controller/patientController');
+// const { verifyAccessToken } = require('../middleware/auth');
 
-// // Public Routes
+// // ============================================
+// // PATIENT AUTH (Signup, Login, Logout)
+// // ============================================
+
 // router.post('/signup', patientController.patientSignup);
+// router.post('/verify-signup-otp', patientController.verifySignupOtp);
+// router.post('/resend-signup-otp', patientController.resendSignupOtp);
 // router.post('/login', patientController.patientLogin);
-// router.post('/logout', patientController.patientLogout);
-// router.post('/logout-all', patientController.patientLogoutAll);
+// router.post('/verify-login-otp', patientController.verifyLoginOtp);
+// router.post('/resend-login-otp', patientController.resendLoginOtp);
+// router.post('/check-auth', patientController.checkAuthStatus);
+// router.post('/logout', verifyAccessToken, patientController.logout);
 
-// // Protected Routes (Patient Only)
-// router.use(protect);
+// // ============================================
+// // PATIENT OPERATIONS
+// // ============================================
 
-// router.get('/me/profile', patientController.getMyProfile);
-// router.patch('/me/update', patientController.updatePatient);
-
-// // Medical Information Management
-// router.patch('/me/medical-history', patientController.updateMedicalHistory);
-// router.delete('/me/medical-history/:historyId', patientController.deleteMedicalHistory);
-// router.post('/me/allergies', patientController.addAllergy);
-// router.delete('/me/allergies', patientController.removeAllergy);
-// router.post('/me/medications', patientController.addMedication);
-// router.delete('/me/medications', patientController.removeMedication);
-
-// // Follow/Unfollow Doctors
-// router.post('/follow/:doctorId', patientController.followDoctor);
-// router.delete('/unfollow/:doctorId', patientController.unfollowDoctor);
+// router.get('/', patientController.getAllPatients);
+// router.get('/:id', patientController.getPatientById);
+// router.get('/me', verifyAccessToken, patientController.getMyProfile);
+// router.put('/profile', verifyAccessToken, patientController.updateProfile);
 
 // module.exports = router;
