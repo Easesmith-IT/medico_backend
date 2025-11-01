@@ -97,9 +97,9 @@ router.post('/login', doctorController.doctorLogin);
 router.post('/verify-login-otp', doctorController.verifyLoginOtp);
 router.post('/resend-login-otp', doctorController.resendLoginOtp);
 router.post('/check-auth', doctorController.checkAuthStatus);
-router.get('/', doctorController.getAllDoctors);
+router.get('/getAllDoctors', doctorController.getAllDoctors);
 router.get('/specialization/:specialization', doctorController.getDoctorsBySpecialization);
-router.get('/:id', doctorController.getDoctorById);
+router.get('/getDoctorById/:id', doctorController.getDoctorById);
 
 // Protected routes
 router.post('/logout', verifyAccessToken, doctorController.logout);
