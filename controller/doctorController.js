@@ -2148,6 +2148,21 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
 // ============================================
 // PUBLIC ENDPOINTS
 // ============================================
+exports.getDoctorById = catchAsync(async (req, res, next) => {
+  const doctor = await Doctor.findById(req.params.id).select(
+    '-password -tokenVersion -verificationDocuments'
+  );
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: { doctor }
+  });
+});
+
 
 exports.getAllDoctors = catchAsync(async (req, res, next) => {
   const { specialization, city, page = 1, limit = 10 } = req.query;
