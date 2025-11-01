@@ -105,7 +105,7 @@ router.get('/:id', doctorController.getDoctorById);
 router.post('/logout', verifyAccessToken, doctorController.logout);
 router.post('/logout-all-devices', doctorController.logoutAllDevices);
 router.get('/getMyProfile', verifyAccessToken, doctorController.getMyProfile);
-router.put('/profile', verifyAccessToken, doctorController.updateProfile);
+router.put('/updateProfile', verifyAccessToken, doctorController.updateProfile);
 router.put('/availability', verifyAccessToken, doctorController.updateAvailability);
 router.post('/clinic', verifyAccessToken, doctorController.addClinic);
 router.put('/clinic/:clinicId', verifyAccessToken, doctorController.updateClinic);

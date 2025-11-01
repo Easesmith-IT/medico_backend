@@ -438,9 +438,9 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
   });
 });
 
-// ============================================
+
 // AUTHENTICATION STATUS
-// ============================================
+
 
 exports.checkAuthStatus = catchAsync(async (req, res, next) => {
   console.log('=== DEBUG: Admin checkAuthStatus ===');

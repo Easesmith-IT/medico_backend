@@ -1939,9 +1939,9 @@ exports.resendLoginOtp = catchAsync(async (req, res, next) => {
   });
 });
 
-// ============================================
+
 // LOGOUT
-// ============================================
+
 
 exports.logout = catchAsync(async (req, res, next) => {
   clearAuthCookies(res);
@@ -1976,9 +1976,9 @@ exports.logoutAllDevices = catchAsync(async (req, res, next) => {
   });
 });
 
-// ============================================
+
 // PROFILE MANAGEMENT
-// ============================================
+
 
 exports.getMyProfile = catchAsync(async (req, res, next) => {
   const doctor = await Doctor.findById(req.user?._id || req.user?.id).select(
