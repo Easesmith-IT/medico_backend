@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 
 const doctorSchema = new mongoose.Schema({
   // Personal Information
-  name: {
+  firstName: {
     type: String,
     required: [true, 'Please provide your name'],
     trim: true
