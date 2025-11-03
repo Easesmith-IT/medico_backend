@@ -1694,6 +1694,112 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
 // DOCTOR MANAGEMENT
 // ============================================
 
+exports.createDoctor = catchAsync(async (req, res, next) => {
+  console.log("req.body",req.body);
+  
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    medicalRegistrationNumber,
+    issuingMedicalCouncil,
+    specialization,
+    dateOfBirth,
+    gender,
+    address,
+    yearsOfExperience,
+    consultationFees,
+    degrees,
+    university,
+    graduationYear,
+    currentWorkplace,
+    designation,
+    professionalBio
+  } = req.body;
+
+
+  if (
+    !firstName ||
+    !email ||
+    !phone ||
+    !medicalRegistrationNumber ||
+    !issuingMedicalCouncil ||
+    !specialization
+  ) {
+    return next(
+      new AppError(
+        'Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
+        400
+      )
+    );
+  }
+
+  console.log(`Phone: ${phone}`);
+  console.log(`Email: ${email}`);
+  console.log(`FirstName: ${firstName}`);
+
+  const existingDoctor = await Doctor.findOne({
+    $or: [{ email }, { phone }, { medicalRegistrationNumber }]
+  });
+
+  if (existingDoctor) {
+    if (existingDoctor.email === email) {
+      return next(new AppError('Doctor with this email already exists', 400));
+    }
+    if (existingDoctor.phone === phone) {
+      return next(
+        new AppError('Doctor with this phone number already exists', 400)
+      );
+    }
+    if (existingDoctor.medicalRegistrationNumber === medicalRegistrationNumber) {
+      return next(
+        new AppError('Doctor with this registration number already exists', 400)
+      );
+    }
+  }
+
+  const newDoctor = new Doctor({
+    firstName,
+    lastName: lastName || '',
+    email,
+    phone,
+    medicalRegistrationNumber,
+    issuingMedicalCouncil,
+    specialization,
+    dateOfBirth,
+    gender,
+    address,
+    yearsOfExperience: yearsOfExperience || 0,
+    consultationFees: consultationFees || 0,
+    degrees: degrees || [],
+    university,
+    graduationYear,
+    currentWorkplace,
+    designation,
+    professionalBio,
+    isPhoneVerified: false,
+    verificationStatus: 'pending',
+    tokenVersion: 0
+  });
+
+  await newDoctor.save();
+
+  res.status(201).json({
+    success: true,
+    message: 'Doctor created successfully.',
+    data: {
+      doctor: {
+        id: newDoctor._id,
+        firstName: newDoctor.firstName,
+        email: newDoctor.email,
+        phone: newDoctor.phone,
+        medicalRegistrationNumber: newDoctor.medicalRegistrationNumber
+      },
+    }
+  });
+});
+
 exports.getAllDoctors = catchAsync(async (req, res, next) => {
   const { page = 1, limit = 10, status } = req.query;
   const skip = (page - 1) * limit;

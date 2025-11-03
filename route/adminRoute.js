@@ -21,7 +21,7 @@ router.get('/me', verifyAccessToken, adminController.getMyProfile);
 router.put('/updateProfile', verifyAccessToken, adminController.updateProfile);
 
 
-
+router.post("/doctors/create", verifyAccessToken, adminController.createDoctor);
 router.get('/doctors', verifyAccessToken, adminController.getAllDoctors);
 router.get('/doctors/:id', verifyAccessToken, adminController.getDoctorById);
 router.put('/doctors/:id/approve', verifyAccessToken, adminController.approveDoctor);
