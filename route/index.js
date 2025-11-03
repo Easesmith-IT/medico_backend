@@ -9,7 +9,7 @@ const router = express.Router();
 // Mount all routes
 // router.use('/auth', authRoutes);      // Common auth operations
 router.use('/doctor', doctorRoute);   // All doctor routes
-// router.use('/patient', patientRoute); // All patient routes
+router.use('/patient', patientRoute); // All patient routes
 router.use('/admin', adminRoute);     // All admin routes
 
 module.exports = router;
