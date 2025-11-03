@@ -699,8 +699,20 @@ const otpUtils = require('../utils/otpUtils');
 // PATIENT SIGNUP (OTP Request)
 // ============================================
 
+// controllers/patientController.js
+
 exports.patientSignup = catchAsync(async (req, res, next) => {
-  const { firstName, email, phone, password } = req.body;
+  const { 
+    firstName, 
+    email, 
+    phone, 
+    password,
+    dateOfBirth,
+    gender,
+    address,
+    bloodGroup,
+    emergencyContact
+  } = req.body;
 
   console.log('');
   console.log('PATIENT SIGNUP - OTP Generation');
@@ -719,6 +731,8 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
   console.log(`firstName: ${firstName}`);
   console.log(`Email: ${email}`);
   console.log(`Phone: ${phone}`);
+  console.log(`Gender: ${gender || 'Not provided'}`);
+  console.log(`Blood Group: ${bloodGroup || 'Not provided'}`);
 
   // Validate phone number format
   if (!otpUtils.validatePhoneNumber(phone)) {
@@ -766,12 +780,21 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
 
   console.log('SUCCESS: OTP sent via SMS');
 
-  // Create unverified patient record
+  // Create unverified patient record with all fields
   const newPatient = await Patient.create({
     firstName,
     email,
     phone,
     password,
+    dateOfBirth: dateOfBirth || null,
+    gender: gender || null,
+    address: address || null,
+    bloodGroup: bloodGroup || null,
+    emergencyContact: emergencyContact || {
+      name: null,
+      phone: null,
+      relationship: null
+    },
     signupOtp: otp,
     signupOtpExpiry: otpExpiry,
     isVerified: false,
@@ -792,12 +815,19 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     success: true,
     message: 'OTP sent to your phone number',
     data: {
+      patient: {
+        id: newPatient._id,
+        firstName: newPatient.firstName,
+        email: newPatient.email,
+        phone: newPatient.phone
+      },
       otpToken,
       expiresIn: 600, // 10 minutes in seconds
       phone: phone.slice(-4) // Return last 4 digits for UI
     }
   });
 });
+
 
 // ============================================
 // VERIFY SIGNUP OTP

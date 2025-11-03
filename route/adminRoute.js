@@ -9,8 +9,8 @@ const { verifyAccessToken } = require('../middleware/auth');
 
 router.post('/signup', adminController.adminSignup);
 router.post('/login', adminController.adminLogin);
-router.post('/verify-login-otp', adminController.verifyLoginOtp);
-router.post('/resend-login-otp', adminController.resendLoginOtp);
+router.post('/verify-signup-otp', adminController.verifySignupOtp);
+// router.post('/resend-login-otp', adminController.resendLoginOtp);
 router.post('/check-auth', adminController.checkAuthStatus);
 router.post('/logout', verifyAccessToken, adminController.logout);
 router.post('/logout-all-devices', adminController.logoutAllDevices);
