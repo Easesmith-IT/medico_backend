@@ -930,9 +930,8 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
 });
 
 
-// ============================================
 // RESEND SIGNUP OTP
-// ============================================
+
 
 exports.resendSignupOtp = catchAsync(async (req, res, next) => {
   const { phone } = req.body;
@@ -1700,6 +1699,42 @@ exports.unfollowDoctor = catchAsync(async (req, res, next) => {
     message: 'Doctor unfollowed successfully',
     data: {
       following: patient.following
+    }
+  });
+});
+
+
+//getbyid 
+// ============================================
+// GET PATIENT BY ID
+// ============================================
+
+exports.getPatientById = catchAsync(async (req, res, next) => {
+  const { patientId } = req.params;
+
+  // Validate if patientId is provided
+  if (!patientId) {
+    return next(new AppError('Please provide patient ID', 400));
+  }
+
+  // Find patient by ID
+  const patient = await Patient.findById(patientId);
+
+  // Check if patient exists
+  if (!patient) {
+    return next(new AppError('Patient not found', 404));
+  }
+
+  // Remove sensitive data
+  patient.password = undefined;
+  patient.tokenVersion = undefined;
+  patient.refreshToken = undefined;
+
+  res.status(200).json({
+    success: true,
+    message: 'Patient retrieved successfully',
+    data: {
+      patient
     }
   });
 });

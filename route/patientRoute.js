@@ -68,15 +68,15 @@ router.patch('/profile', protect, patientController.updatePatient);
 router.post('/medical-history', protect, patientController.updateMedicalHistory);
 router.delete('/medical-history/:historyId', protect, patientController.deleteMedicalHistory);
 
-// ============================================
+
 // PROTECTED ROUTES - Allergies
-// ============================================
+
 router.post('/allergies', protect, patientController.addAllergy);
 router.delete('/allergies', protect, patientController.removeAllergy);
 
-// ============================================
+
 // PROTECTED ROUTES - Medications
-// ============================================
+
 router.post('/medications', protect, patientController.addMedication);
 router.delete('/medications', protect, patientController.removeMedication);
 
@@ -85,6 +85,11 @@ router.delete('/medications', protect, patientController.removeMedication);
 // ============================================
 router.post('/follow/:doctorId', protect, patientController.followDoctor);
 router.delete('/unfollow/:doctorId', protect, patientController.unfollowDoctor);
+
+
+//getByID
+router.get('/getById/:patientId',patientController.getPatientById);
+
 
 module.exports = router;
 
