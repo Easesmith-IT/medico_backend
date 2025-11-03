@@ -857,12 +857,19 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
 
   console.log('SUCCESS: OTP verified');
 
-  // Find unverified patient
-  const patient = await Patient.findOne({ phone, isVerified: false });
+  // Find patient by phone (whether verified or not)
+  const patient = await Patient.findOne({ phone });
 
   if (!patient) {
     return next(
-      new AppError('Invalid phone number or patient already verified', 400)
+      new AppError('Phone number not found. Please sign up first.', 404)
+    );
+  }
+
+  // Check if already verified
+  if (patient.isVerified) {
+    return next(
+      new AppError('Phone number already verified. Please login instead.', 400)
     );
   }
 
@@ -921,6 +928,7 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
     }
   });
 });
+
 
 // ============================================
 // RESEND SIGNUP OTP
