@@ -1,3 +1,5 @@
+// models/patientModel.js
+
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -36,7 +38,8 @@ const patientSchema = new mongoose.Schema({
   },
   gender: {
     type: String,
-    enum: ['male', 'female', 'other']
+    enum: ['male', 'female', 'other'],
+    default: null
   },
   address: {
     street: String,
@@ -49,7 +52,8 @@ const patientSchema = new mongoose.Schema({
   // Medical Information
   bloodGroup: {
     type: String,
-    enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+    enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+    default: null
   },
   medicalHistory: [{
     condition: String,
@@ -70,14 +74,54 @@ const patientSchema = new mongoose.Schema({
     relation: String
   },
 
-  // Authentication
+  // Authentication & Verification (✅ CRITICAL FIELDS)
   role: {
     type: String,
     default: 'patient'
   },
+  
+  // ✅ Verification Status - Must be explicit
+  isVerified: {
+    type: Boolean,
+    default: false,
+    index: true  // Add index for faster queries
+  },
+  
+  // ✅ Account Status
+  isActive: {
+    type: Boolean,
+    default: false  // Only true after OTP verification
+  },
+
+  // ✅ OTP for Signup Verification
+  signupOtp: {
+    type: String,
+    select: false
+  },
+  signupOtpExpiry: {
+    type: Date,
+    select: false
+  },
+
+  // ✅ OTP for Login
+  loginOtp: {
+    type: String,
+    select: false
+  },
+  loginOtpExpiry: {
+    type: Date,
+    select: false
+  },
+
+  // Token Management
   tokenVersion: {
     type: Number,
     default: 0,
+    select: false
+  },
+
+  refreshToken: {
+    type: String,
     select: false
   },
 
@@ -101,11 +145,7 @@ const patientSchema = new mongoose.Schema({
     }
   }],
 
-  // Status
-  isActive: {
-    type: Boolean,
-    default: true
-  },
+  // Timestamps
   createdAt: {
     type: Date,
     default: Date.now
@@ -116,12 +156,16 @@ const patientSchema = new mongoose.Schema({
   }
 });
 
-// Hash password before saving
+// Hash password before saving (only if modified)
 patientSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
+
+  try {
+    this.password = await bcrypt.hash(this.password, 12);
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Update timestamp
@@ -134,6 +178,11 @@ patientSchema.pre('save', function(next) {
 patientSchema.methods.comparePassword = async function(candidatePassword, userPassword) {
   return await bcrypt.compare(candidatePassword, userPassword);
 };
+
+// Indexes for better query performance
+patientSchema.index({ phone: 1 });
+patientSchema.index({ email: 1 });
+patientSchema.index({ isVerified: 1, isActive: 1 });
 
 const Patient = mongoose.model('Patient', patientSchema);
 
