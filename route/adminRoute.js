@@ -30,6 +30,8 @@ router.delete('/doctors/:id', verifyAccessToken, adminController.deleteDoctor);
 
 
 
+router.post('/patients/create', verifyAccessToken, adminController.createPatient);
+router.get('/patients/export', verifyAccessToken, adminController.exportPatients);
 router.get('/patients', verifyAccessToken, adminController.getAllPatients);
 router.get('/patients/:id', verifyAccessToken, adminController.getPatientById);
 router.put('/patients/:id/block', verifyAccessToken, adminController.blockPatient);

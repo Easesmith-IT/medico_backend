@@ -86,7 +86,7 @@
 // //   // If phone is provided, send OTP
 // //   if (phone) {
 // //     const isOtpSent = await sendOtp(phone);
-    
+
 // //     if (!isOtpSent) {
 // //       await Admin.findByIdAndDelete(newAdmin._id);
 // //       return next(new AppError('Failed to send OTP. Please try again.', 400));
@@ -132,11 +132,9 @@
 // exports.adminSignup = catchAsync(async (req, res, next) => {
 //   const { email, password, firstName, lastName, phone, role = 'superAdmin' } = req.body;
 
-
 //   console.log('');
 //   console.log(`${role.toUpperCase()} SIGNUP - STEP 1: Registration`);
 //   console.log('='.repeat(60));
-
 
 //   // Validation
 //   if (!email || !password || !firstName) {
@@ -145,23 +143,19 @@
 //     );
 //   }
 
-
 //   // Validate role
 //   if (role !== 'superAdmin' && role !== 'subAdmin') {
 //     return next(new AppError('Invalid role. Must be superAdmin or subAdmin', 400));
 //   }
 
-
 //   console.log(`Email: ${email}`);
 //   console.log(`Name: ${firstName} ${lastName || ''}`);
 //   console.log(`Role: ${role}`);
-
 
 //   // Check if admin already exists
 //   const existingAdmin = await Admin.findOne({
 //     $or: [{ email: email.toLowerCase() }, { phone }]
 //   });
-
 
 //   if (existingAdmin) {
 //     if (existingAdmin.email === email.toLowerCase()) {
@@ -176,10 +170,8 @@
 //     }
 //   }
 
-
 //   // Hash password using bcryptjs (10 rounds)
 //   const hashedPassword = await bcrypt.hash(password, 10);
-
 
 //   // Create admin/subadmin with isVerified: true
 //   const newAdmin = new Admin({
@@ -195,15 +187,12 @@
 //     tokenVersion: 0
 //   });
 
-
 //   await newAdmin.save();
 //   console.log(`SUCCESS: ${role} created in database`);
 //   console.log(`isVerified: true`);
 
-
 //   console.log('='.repeat(60));
 //   console.log('');
-
 
 //   // Return success - admin can login immediately
 //   res.status(201).json({
@@ -225,11 +214,9 @@
 // exports.adminSignup = catchAsync(async (req, res, next) => {
 //   const { email, password, firstName, lastName, phone, role = 'superAdmin' } = req.body;
 
-
 //   console.log('');
 //   console.log(`${role.toUpperCase()} SIGNUP - STEP 1: Registration`);
 //   console.log('='.repeat(60));
-
 
 //   // Validation
 //   if (!email || !password || !firstName) {
@@ -238,23 +225,19 @@
 //     );
 //   }
 
-
 //   // Validate role
 //   if (role !== 'superAdmin' && role !== 'subAdmin') {
 //     return next(new AppError('Invalid role. Must be superAdmin or subAdmin', 400));
 //   }
 
-
 //   console.log(`Email: ${email}`);
 //   console.log(`Name: ${firstName} ${lastName || ''}`);
 //   console.log(`Role: ${role}`);
-
 
 //   // Check if admin already exists
 //   const existingAdmin = await Admin.findOne({
 //     $or: [{ email: email.toLowerCase() }, { phone }]
 //   });
-
 
 //   if (existingAdmin) {
 //     if (existingAdmin.email === email.toLowerCase()) {
@@ -269,10 +252,8 @@
 //     }
 //   }
 
-
 //   // Hash password using bcryptjs (10 rounds)
 //   const hashedPassword = await bcrypt.hash(password, 10);
-
 
 //   // Create admin/subadmin with isVerified: true
 //   const newAdmin = new Admin({
@@ -288,15 +269,12 @@
 //     tokenVersion: 0
 //   });
 
-
 //   await newAdmin.save();
 //   console.log(`SUCCESS: ${role} created in database`);
 //   console.log(`isVerified: true`);
 
-
 //   console.log('='.repeat(60));
 //   console.log('');
-
 
 //   // Return success - admin can login immediately
 //   res.status(201).json({
@@ -318,11 +296,9 @@
 // exports.adminSignup = catchAsync(async (req, res, next) => {
 //   const { email, password, firstName, lastName, phone, role = 'superAdmin' } = req.body;
 
-
 //   console.log('');
 //   console.log(`${role.toUpperCase()} SIGNUP - STEP 1: Registration`);
 //   console.log('='.repeat(60));
-
 
 //   // Validation
 //   if (!email || !password || !firstName) {
@@ -331,23 +307,19 @@
 //     );
 //   }
 
-
 //   // Validate role
 //   if (role !== 'superAdmin' && role !== 'subAdmin') {
 //     return next(new AppError('Invalid role. Must be superAdmin or subAdmin', 400));
 //   }
 
-
 //   console.log(`Email: ${email}`);
 //   console.log(`Name: ${firstName} ${lastName || ''}`);
 //   console.log(`Role: ${role}`);
-
 
 //   // Check if admin already exists
 //   const existingAdmin = await Admin.findOne({
 //     $or: [{ email: email.toLowerCase() }, { phone }]
 //   });
-
 
 //   if (existingAdmin) {
 //     if (existingAdmin.email === email.toLowerCase()) {
@@ -362,10 +334,8 @@
 //     }
 //   }
 
-
 //   // Hash password using bcryptjs (10 rounds)
 //   const hashedPassword = await bcrypt.hash(password, 10);
-
 
 //   // Create admin/subadmin with isVerified: true
 //   const newAdmin = new Admin({
@@ -381,15 +351,12 @@
 //     tokenVersion: 0
 //   });
 
-
 //   await newAdmin.save();
 //   console.log(`SUCCESS: ${role} created in database`);
 //   console.log(`isVerified: true`);
 
-
 //   console.log('='.repeat(60));
 //   console.log('');
-
 
 //   // Return success - admin can login immediately
 //   res.status(201).json({
@@ -408,36 +375,28 @@
 //     }
 //   });
 // });
-
-
 
 // exports.verifySignupOtp = catchAsync(async (req, res, next) => {
 //   const { phone, otp } = req.body;
 
-
 //   if (!phone || !otp) {
 //     return next(new AppError('Phone number and OTP are required', 400));
 //   }
-
 
 //   console.log('');
 //   console.log('ADMIN SIGNUP - STEP 2: Verify OTP');
 //   console.log('='.repeat(60));
 //   console.log(`Phone: ${phone}`);
 
-
 //   // Verify OTP from database
 //   const otpDoc = await Otp.findOne({ phone });
-
 
 //   if (!otpDoc) {
 //     console.log('ERROR: OTP not found');
 //     return next(new AppError('OTP not found. Please request a new one.', 400));
 //   }
 
-
 //   console.log(`OTP in DB: ${otpDoc.otp}, OTP received: ${otp}`);
-
 
 //   // Check if OTP is expired
 //   if (otpDoc.otpExpiresAt < new Date()) {
@@ -446,29 +405,23 @@
 //     return next(new AppError('OTP has expired. Please request a new one.', 400));
 //   }
 
-
 //   // Check if OTP matches
 //   if (otpDoc.otp !== parseInt(otp)) {
 //     console.log('ERROR: Invalid OTP');
 //     return next(new AppError('Invalid OTP. Please try again.', 400));
 //   }
 
-
 //   console.log('SUCCESS: OTP verified');
-
 
 //   // Find admin by phone
 //   const admin = await Admin.findOne({ phone }).select('+isVerified');
-
 
 //   if (!admin) {
 //     console.log('ERROR: Admin not found');
 //     return next(new AppError('Admin not found', 404));
 //   }
 
-
 //   console.log(`Admin before update - isVerified: ${admin.isVerified}`);
-
 
 //   // Mark admin as verified using updateOne
 //   const updateResult = await Admin.updateOne(
@@ -476,21 +429,17 @@
 //     { $set: { isVerified: true } }
 //   );
 
-
 //   console.log(`Update result: ${JSON.stringify(updateResult)}`);
-
 
 //   // Fetch updated admin
 //   const updatedAdmin = await Admin.findById(admin._id).select('+isVerified');
 //   console.log(`Admin after update - isVerified: ${updatedAdmin.isVerified}`);
-
 
 //   // Delete OTP after successful verification
 //   await Otp.deleteOne({ phone });
 //   console.log('SUCCESS: OTP deleted from database');
 //   console.log('='.repeat(60));
 //   console.log('');
-
 
 //   res.status(200).json({
 //     success: true,
@@ -508,10 +457,6 @@
 //     }
 //   });
 // });
-
-
-
-
 
 // // ADMIN LOGIN (Email + Password + OTP)
 
@@ -572,7 +517,7 @@
 
 //   // Compare password using bcryptjs
 //   const isPasswordCorrect = await bcrypt.compare(password, admin.password);
-  
+
 //   console.log(`Password match: ${isPasswordCorrect}`);
 //   console.log(`Stored hash starts with: ${admin.password.substring(0, 10)}...`);
 
@@ -620,7 +565,6 @@
 //     }
 //   });
 // });
-
 
 // // exports.adminLogin = catchAsync(async (req, res, next) => {
 // //   const { email, password, phone } = req.body;
@@ -926,9 +870,7 @@
 //   });
 // });
 
-
 // // AUTHENTICATION STATUS
-
 
 // exports.checkAuthStatus = catchAsync(async (req, res, next) => {
 //   console.log('=== DEBUG: Admin checkAuthStatus ===');
@@ -989,7 +931,7 @@
 //         console.log('Token versions - Admin:', admin.tokenVersion, 'Decoded:', decoded.tokenVersion);
 //       }
 
-//       if (!admin || admin.tokenVersion !== decoded.tokenVersion || 
+//       if (!admin || admin.tokenVersion !== decoded.tokenVersion ||
 //           (decoded.role !== 'superAdmin' && decoded.role !== 'subAdmin')) {
 //         return next(new AppError('Invalid refresh token - please login again', 401));
 //       }
@@ -1258,60 +1200,71 @@
 //   });
 // });
 
-
 // controllers/adminController.js
 
-const catchAsync = require('../utils/catchAsync');
-const AppError = require('../utils/appError');
-const Admin = require('../models/adminModel');
-const Doctor = require('../models/doctorModel');
-const Patient = require('../models/patientModel');
-const Otp = require('../models/otpModel');
-const { sendOtp } = require('../utils/otpUtils');
-const bcrypt = require('bcryptjs');
+const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
+const Admin = require("../models/adminModel");
+const Doctor = require("../models/doctorModel");
+const Patient = require("../models/patientModel");
+const Otp = require("../models/otpModel");
+const { sendOtp } = require("../utils/otpUtils");
+const bcrypt = require("bcryptjs");
 
 const {
   generateAccessToken,
   generateRefreshToken,
   verifyToken,
   setAuthCookies,
-  clearAuthCookies
-} = require('../utils/tokenUtils');
+  clearAuthCookies,
+} = require("../utils/tokenUtils");
+
+const { Parser } = require("json2csv");
+const PDFDocument = require("pdfkit");
 
 // ============================================
 // ADMIN SIGNUP - STEP 1: Create Account
 // ============================================
 
 exports.adminSignup = catchAsync(async (req, res, next) => {
-  const { email, password, firstName, lastName, phone, role = 'superAdmin' } = req.body;
+  const {
+    email,
+    password,
+    firstName,
+    lastName,
+    phone,
+    role = "superAdmin",
+  } = req.body;
 
-  console.log('');
-  console.log('ADMIN SIGNUP - STEP 1: Create Account');
-  console.log('='.repeat(60));
+  console.log("");
+  console.log("ADMIN SIGNUP - STEP 1: Create Account");
+  console.log("=".repeat(60));
 
   // Validation
   if (!email || !password || !firstName || !phone) {
-    return next(new AppError('Email, password, first name, and phone are required', 400));
+    return next(
+      new AppError("Email, password, first name, and phone are required", 400)
+    );
   }
 
   // Validate role
-  if (role !== 'superAdmin' && role !== 'subAdmin') {
-    return next(new AppError('Invalid role', 400));
+  if (role !== "superAdmin" && role !== "subAdmin") {
+    return next(new AppError("Invalid role", 400));
   }
 
   const emailLower = email.toLowerCase();
 
   // Check if admin already exists
   const existingAdmin = await Admin.findOne({
-    $or: [{ email: emailLower }, { phone }]
+    $or: [{ email: emailLower }, { phone }],
   });
 
   if (existingAdmin) {
     if (existingAdmin.email === emailLower) {
-      return next(new AppError('Email already registered', 409));
+      return next(new AppError("Email already registered", 409));
     }
     if (existingAdmin.phone === phone) {
-      return next(new AppError('Phone already registered', 409));
+      return next(new AppError("Phone already registered", 409));
     }
   }
 
@@ -1323,12 +1276,12 @@ exports.adminSignup = catchAsync(async (req, res, next) => {
     email: emailLower,
     password: hashedPassword,
     firstName,
-    lastName: lastName || '',
+    lastName: lastName || "",
     phone,
     role,
     isVerified: false, // ⭐ Not verified yet - OTP needed
     isActive: true,
-    tokenVersion: 0
+    tokenVersion: 0,
   });
 
   await newAdmin.save();
@@ -1341,27 +1294,27 @@ exports.adminSignup = catchAsync(async (req, res, next) => {
   if (!isOtpSent) {
     // Delete admin if OTP fails
     await Admin.findByIdAndDelete(newAdmin._id);
-    console.log('❌ Failed to send OTP');
-    return next(new AppError('Failed to send OTP. Please try again.', 400));
+    console.log("❌ Failed to send OTP");
+    return next(new AppError("Failed to send OTP. Please try again.", 400));
   }
 
   console.log(`✓ OTP sent to phone: ${phone}`);
-  console.log('='.repeat(60));
-  console.log('');
+  console.log("=".repeat(60));
+  console.log("");
 
   res.status(201).json({
     success: true,
-    message: 'Admin registered. OTP sent to your phone.',
+    message: "Admin registered. OTP sent to your phone.",
     data: {
       admin: {
         id: newAdmin._id,
         email: newAdmin.email,
         firstName: newAdmin.firstName,
         phone: newAdmin.phone,
-        role: newAdmin.role
+        role: newAdmin.role,
       },
-      nextStep: 'Verify OTP sent to your phone'
-    }
+      nextStep: "Verify OTP sent to your phone",
+    },
   });
 });
 
@@ -1372,12 +1325,12 @@ exports.adminSignup = catchAsync(async (req, res, next) => {
 exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   const { phone, otp } = req.body;
 
-  console.log('');
-  console.log('ADMIN SIGNUP - STEP 2: Verify OTP');
-  console.log('='.repeat(60));
+  console.log("");
+  console.log("ADMIN SIGNUP - STEP 2: Verify OTP");
+  console.log("=".repeat(60));
 
   if (!phone || !otp) {
-    return next(new AppError('Phone and OTP required', 400));
+    return next(new AppError("Phone and OTP required", 400));
   }
 
   console.log(`Phone: ${phone}`);
@@ -1386,31 +1339,31 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   const otpDoc = await Otp.findOne({ phone });
 
   if (!otpDoc) {
-    console.log('❌ OTP not found');
-    return next(new AppError('OTP not found. Request new one.', 400));
+    console.log("❌ OTP not found");
+    return next(new AppError("OTP not found. Request new one.", 400));
   }
 
   // Check if expired
   if (otpDoc.otpExpiresAt < new Date()) {
-    console.log('❌ OTP expired');
+    console.log("❌ OTP expired");
     await Otp.deleteOne({ phone });
-    return next(new AppError('OTP expired. Request new one.', 400));
+    return next(new AppError("OTP expired. Request new one.", 400));
   }
 
   // Check if matches
   if (otpDoc.otp !== parseInt(otp)) {
-    console.log('❌ Invalid OTP');
-    return next(new AppError('Invalid OTP. Try again.', 400));
+    console.log("❌ Invalid OTP");
+    return next(new AppError("Invalid OTP. Try again.", 400));
   }
 
-  console.log('✓ OTP verified');
+  console.log("✓ OTP verified");
 
   // Find admin
   const admin = await Admin.findOne({ phone });
 
   if (!admin) {
-    console.log('❌ Admin not found');
-    return next(new AppError('Admin not found', 404));
+    console.log("❌ Admin not found");
+    return next(new AppError("Admin not found", 404));
   }
 
   // Mark as verified
@@ -1422,12 +1375,12 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   // Delete OTP
   await Otp.deleteOne({ phone });
 
-  console.log('='.repeat(60));
-  console.log('');
+  console.log("=".repeat(60));
+  console.log("");
 
   res.status(200).json({
     success: true,
-    message: 'Phone verified! Your account is active. You can now login.',
+    message: "Phone verified! Your account is active. You can now login.",
     data: {
       admin: {
         id: admin._id,
@@ -1435,10 +1388,10 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
         firstName: admin.firstName,
         phone: admin.phone,
         role: admin.role,
-        isVerified: true
+        isVerified: true,
       },
-      nextStep: 'Login with email and password'
-    }
+      nextStep: "Login with email and password",
+    },
   });
 });
 
@@ -1449,65 +1402,74 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
 exports.adminLogin = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
-  console.log('');
-  console.log('ADMIN LOGIN');
-  console.log('='.repeat(60));
+  console.log("");
+  console.log("ADMIN LOGIN");
+  console.log("=".repeat(60));
 
   if (!email || !password) {
-    return next(new AppError('Email and password required', 400));
+    return next(new AppError("Email and password required", 400));
   }
 
   const emailLower = email.toLowerCase();
   console.log(`Email: ${emailLower}`);
 
   // Get admin with password
-  const admin = await Admin.findOne({ email: emailLower })
-    .select('+password +tokenVersion +isVerified +isActive');
+  const admin = await Admin.findOne({ email: emailLower }).select(
+    "+password +tokenVersion +isVerified +isActive"
+  );
 
   if (!admin) {
-    console.log('❌ Admin not found');
-    return next(new AppError('Invalid email or password', 401));
+    console.log("❌ Admin not found");
+    return next(new AppError("Invalid email or password", 401));
   }
 
   // Check if verified
   if (!admin.isVerified) {
-    console.log('❌ Admin not verified');
-    return next(new AppError('Please verify your phone via OTP first', 403));
+    console.log("❌ Admin not verified");
+    return next(new AppError("Please verify your phone via OTP first", 403));
   }
 
   // Check if active
   if (!admin.isActive) {
-    console.log('❌ Admin inactive');
-    return next(new AppError('Admin account disabled', 403));
+    console.log("❌ Admin inactive");
+    return next(new AppError("Admin account disabled", 403));
   }
 
   // Compare password
   const isPasswordCorrect = await bcrypt.compare(password, admin.password);
 
   if (!isPasswordCorrect) {
-    console.log('❌ Password mismatch');
-    return next(new AppError('Invalid email or password', 401));
+    console.log("❌ Password mismatch");
+    return next(new AppError("Invalid email or password", 401));
   }
 
-  console.log('✓ Credentials valid');
+  console.log("✓ Credentials valid");
 
   // Generate tokens
-  const adminRole = admin.role || 'superAdmin';
-  const accessToken = generateAccessToken(admin._id, adminRole, admin.tokenVersion);
-  const refreshToken = generateRefreshToken(admin._id, adminRole, admin.tokenVersion);
+  const adminRole = admin.role || "superAdmin";
+  const accessToken = generateAccessToken(
+    admin._id,
+    adminRole,
+    admin.tokenVersion
+  );
+  const refreshToken = generateRefreshToken(
+    admin._id,
+    adminRole,
+    admin.tokenVersion
+  );
 
   admin.refreshToken = refreshToken;
   await admin.save({ validateBeforeSave: false });
 
   const tokens = setAuthCookies(res, accessToken, refreshToken);
 
-  console.log('✓ Login successful');
-  console.log('='.repeat(60));
-  console.log('');
+  console.log("✓ Login successful");
+  console.log("=".repeat(60));
+  console.log("");
 
   res.status(200).json({
     success: true,
-    message: 'Login successful',
+    message: "Login successful",
     data: {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
@@ -1515,9 +1477,9 @@ exports.adminLogin = catchAsync(async (req, res, next) => {
         id: admin._id,
         email: admin.email,
         firstName: admin.firstName,
-        role: admin.role
-      }
-    }
+        role: admin.role,
+      },
+    },
   });
 });
 
@@ -1530,7 +1492,7 @@ exports.logout = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Logged out successfully'
+    message: "Logged out successfully",
   });
 });
 
@@ -1542,14 +1504,15 @@ exports.logoutAllDevices = catchAsync(async (req, res, next) => {
   const { email } = req.body;
 
   if (!email) {
-    return next(new AppError('Email required', 400));
+    return next(new AppError("Email required", 400));
   }
 
-  const admin = await Admin.findOne({ email: email.toLowerCase() })
-    .select('+tokenVersion');
+  const admin = await Admin.findOne({ email: email.toLowerCase() }).select(
+    "+tokenVersion"
+  );
 
   if (!admin) {
-    return next(new AppError('Admin not found', 404));
+    return next(new AppError("Admin not found", 404));
   }
 
   admin.tokenVersion = (admin.tokenVersion || 0) + 1;
@@ -1559,7 +1522,7 @@ exports.logoutAllDevices = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Logged out from all devices'
+    message: "Logged out from all devices",
   });
 });
 
@@ -1568,16 +1531,17 @@ exports.logoutAllDevices = catchAsync(async (req, res, next) => {
 // ============================================
 
 exports.getMyProfile = catchAsync(async (req, res, next) => {
-  const admin = await Admin.findById(req.user?.id || req.user?._id)
-    .select('-password -tokenVersion');
+  const admin = await Admin.findById(req.user?.id || req.user?._id).select(
+    "-password -tokenVersion"
+  );
 
   if (!admin) {
-    return next(new AppError('Admin not found', 404));
+    return next(new AppError("Admin not found", 404));
   }
 
   res.status(200).json({
     success: true,
-    data: { admin }
+    data: { admin },
   });
 });
 
@@ -1592,16 +1556,16 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
     req.user?.id || req.user?._id,
     updateData,
     { new: true, runValidators: true }
-  ).select('-password -tokenVersion');
+  ).select("-password -tokenVersion");
 
   if (!updatedAdmin) {
-    return next(new AppError('Admin not found', 404));
+    return next(new AppError("Admin not found", 404));
   }
 
   res.status(200).json({
     success: true,
-    message: 'Profile updated',
-    data: { admin: updatedAdmin }
+    message: "Profile updated",
+    data: { admin: updatedAdmin },
   });
 });
 
@@ -1612,20 +1576,23 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
 exports.checkAuthStatus = catchAsync(async (req, res, next) => {
   const { accessToken, refreshToken } = req.cookies || {};
 
-  if (!refreshToken || refreshToken === 'undefined') {
+  if (!refreshToken || refreshToken === "undefined") {
     return res.status(200).json({
       success: true,
-      isAuthenticated: false
+      isAuthenticated: false,
     });
   }
 
   // Try access token
-  if (accessToken && accessToken !== 'undefined') {
+  if (accessToken && accessToken !== "undefined") {
     try {
-      const decoded = verifyToken(accessToken, 'access');
+      const decoded = verifyToken(accessToken, "access");
       const admin = await Admin.findById(decoded.id);
 
-      if (admin && (decoded.role === 'superAdmin' || decoded.role === 'subAdmin')) {
+      if (
+        admin &&
+        (decoded.role === "superAdmin" || decoded.role === "subAdmin")
+      ) {
         return res.status(200).json({
           success: true,
           isAuthenticated: true,
@@ -1633,36 +1600,40 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
             id: admin._id,
             email: admin.email,
             firstName: admin.firstName,
-            role: decoded.role
-          }
+            role: decoded.role,
+          },
         });
       }
     } catch (error) {
-      console.log('Access token expired');
+      console.log("Access token expired");
     }
   }
 
   // Try refresh token
-  if (refreshToken && refreshToken !== 'undefined') {
+  if (refreshToken && refreshToken !== "undefined") {
     try {
-      const decoded = verifyToken(refreshToken, 'refresh');
-      const admin = await Admin.findById(decoded.id).select('+tokenVersion');
+      const decoded = verifyToken(refreshToken, "refresh");
+      const admin = await Admin.findById(decoded.id).select("+tokenVersion");
 
       if (!admin || admin.tokenVersion !== decoded.tokenVersion) {
         return res.status(200).json({
           success: true,
-          isAuthenticated: false
+          isAuthenticated: false,
         });
       }
 
       const adminRole = admin.role || decoded.role;
-      const newAccessToken = generateAccessToken(admin._id, adminRole, admin.tokenVersion);
+      const newAccessToken = generateAccessToken(
+        admin._id,
+        adminRole,
+        admin.tokenVersion
+      );
 
-      res.cookie('accessToken', newAccessToken, {
+      res.cookie("accessToken", newAccessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 5 * 60 * 1000
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 5 * 60 * 1000,
       });
 
       return res.status(200).json({
@@ -1672,21 +1643,21 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
           id: admin._id,
           email: admin.email,
           firstName: admin.firstName,
-          role: adminRole
-        }
+          role: adminRole,
+        },
       });
     } catch (error) {
-      console.log('Refresh token expired');
+      console.log("Refresh token expired");
       return res.status(200).json({
         success: true,
-        isAuthenticated: false
+        isAuthenticated: false,
       });
     }
   }
 
   return res.status(200).json({
     success: true,
-    isAuthenticated: false
+    isAuthenticated: false,
   });
 });
 
@@ -1695,8 +1666,8 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
 // ============================================
 
 exports.createDoctor = catchAsync(async (req, res, next) => {
-  console.log("req.body",req.body);
-  
+  console.log("req.body", req.body);
+
   const {
     firstName,
     lastName,
@@ -1715,9 +1686,8 @@ exports.createDoctor = catchAsync(async (req, res, next) => {
     graduationYear,
     currentWorkplace,
     designation,
-    professionalBio
+    professionalBio,
   } = req.body;
-
 
   if (
     !firstName ||
@@ -1729,7 +1699,7 @@ exports.createDoctor = catchAsync(async (req, res, next) => {
   ) {
     return next(
       new AppError(
-        'Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
+        "Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization",
         400
       )
     );
@@ -1740,28 +1710,30 @@ exports.createDoctor = catchAsync(async (req, res, next) => {
   console.log(`FirstName: ${firstName}`);
 
   const existingDoctor = await Doctor.findOne({
-    $or: [{ email }, { phone }, { medicalRegistrationNumber }]
+    $or: [{ email }, { phone }, { medicalRegistrationNumber }],
   });
 
   if (existingDoctor) {
     if (existingDoctor.email === email) {
-      return next(new AppError('Doctor with this email already exists', 400));
+      return next(new AppError("Doctor with this email already exists", 400));
     }
     if (existingDoctor.phone === phone) {
       return next(
-        new AppError('Doctor with this phone number already exists', 400)
+        new AppError("Doctor with this phone number already exists", 400)
       );
     }
-    if (existingDoctor.medicalRegistrationNumber === medicalRegistrationNumber) {
+    if (
+      existingDoctor.medicalRegistrationNumber === medicalRegistrationNumber
+    ) {
       return next(
-        new AppError('Doctor with this registration number already exists', 400)
+        new AppError("Doctor with this registration number already exists", 400)
       );
     }
   }
 
   const newDoctor = new Doctor({
     firstName,
-    lastName: lastName || '',
+    lastName: lastName || "",
     email,
     phone,
     medicalRegistrationNumber,
@@ -1779,24 +1751,24 @@ exports.createDoctor = catchAsync(async (req, res, next) => {
     designation,
     professionalBio,
     isPhoneVerified: false,
-    verificationStatus: 'pending',
-    tokenVersion: 0
+    verificationStatus: "pending",
+    tokenVersion: 0,
   });
 
   await newDoctor.save();
 
   res.status(201).json({
     success: true,
-    message: 'Doctor created successfully.',
+    message: "Doctor created successfully.",
     data: {
       doctor: {
         id: newDoctor._id,
         firstName: newDoctor.firstName,
         email: newDoctor.email,
         phone: newDoctor.phone,
-        medicalRegistrationNumber: newDoctor.medicalRegistrationNumber
+        medicalRegistrationNumber: newDoctor.medicalRegistrationNumber,
       },
-    }
+    },
   });
 });
 
@@ -1808,10 +1780,10 @@ exports.getAllDoctors = catchAsync(async (req, res, next) => {
   if (status) filter.verificationStatus = status;
 
   const doctors = await Doctor.find(filter)
-    .select('-password -tokenVersion')
+    .select("-password -tokenVersion")
     .skip(skip)
     .limit(parseInt(limit))
-    .sort('-createdAt');
+    .sort("-createdAt");
 
   const total = await Doctor.countDocuments(filter);
 
@@ -1820,38 +1792,40 @@ exports.getAllDoctors = catchAsync(async (req, res, next) => {
     results: doctors.length,
     totalPages: Math.ceil(total / limit),
     currentPage: parseInt(page),
-    data: { doctors }
+    data: { doctors },
   });
 });
 
 exports.getDoctorById = catchAsync(async (req, res, next) => {
-  const doctor = await Doctor.findById(req.params.id).select('-password -tokenVersion');
+  const doctor = await Doctor.findById(req.params.id).select(
+    "-password -tokenVersion"
+  );
 
   if (!doctor) {
-    return next(new AppError('Doctor not found', 404));
+    return next(new AppError("Doctor not found", 404));
   }
 
   res.status(200).json({
     success: true,
-    data: { doctor }
+    data: { doctor },
   });
 });
 
 exports.approveDoctor = catchAsync(async (req, res, next) => {
   const doctor = await Doctor.findByIdAndUpdate(
     req.params.id,
-    { verificationStatus: 'approved', isActive: true },
+    { verificationStatus: "approved", isActive: true },
     { new: true }
-  ).select('-password -tokenVersion');
+  ).select("-password -tokenVersion");
 
   if (!doctor) {
-    return next(new AppError('Doctor not found', 404));
+    return next(new AppError("Doctor not found", 404));
   }
 
   res.status(200).json({
     success: true,
-    message: 'Doctor approved',
-    data: { doctor }
+    message: "Doctor approved",
+    data: { doctor },
   });
 });
 
@@ -1860,18 +1834,18 @@ exports.rejectDoctor = catchAsync(async (req, res, next) => {
 
   const doctor = await Doctor.findByIdAndUpdate(
     req.params.id,
-    { verificationStatus: 'rejected', rejectionReason: reason },
+    { verificationStatus: "rejected", rejectionReason: reason },
     { new: true }
-  ).select('-password -tokenVersion');
+  ).select("-password -tokenVersion");
 
   if (!doctor) {
-    return next(new AppError('Doctor not found', 404));
+    return next(new AppError("Doctor not found", 404));
   }
 
   res.status(200).json({
     success: true,
-    message: 'Doctor rejected',
-    data: { doctor }
+    message: "Doctor rejected",
+    data: { doctor },
   });
 });
 
@@ -1879,12 +1853,12 @@ exports.deleteDoctor = catchAsync(async (req, res, next) => {
   const doctor = await Doctor.findByIdAndDelete(req.params.id);
 
   if (!doctor) {
-    return next(new AppError('Doctor not found', 404));
+    return next(new AppError("Doctor not found", 404));
   }
 
   res.status(200).json({
     success: true,
-    message: 'Doctor deleted'
+    message: "Doctor deleted",
   });
 });
 
@@ -1892,37 +1866,390 @@ exports.deleteDoctor = catchAsync(async (req, res, next) => {
 // PATIENT MANAGEMENT
 // ============================================
 
+exports.createPatient = catchAsync(async (req, res, next) => {
+  const {
+    firstName,
+    email,
+    phone,
+    password,
+    dateOfBirth,
+    gender,
+    address,
+    bloodGroup,
+    emergencyContact,
+  } = req.body;
+
+  console.log("");
+  console.log("PATIENT CREATION");
+  console.log("=".repeat(60));
+
+  // Validate required fields
+  if (!firstName || !email || !phone || !password) {
+    return next(
+      new AppError(
+        "Please provide all required fields: firstName, email, phone, password",
+        400
+      )
+    );
+  }
+
+  console.log(`First Name: ${firstName}`);
+  console.log(`Email: ${email}`);
+  console.log(`Phone: ${phone}`);
+  console.log(`Gender: ${gender || "Not provided"}`);
+  console.log(`Blood Group: ${bloodGroup || "Not provided"}`);
+
+  // Validate phone number format
+  if (!/^[6-9]\d{9}$/.test(phone)) {
+    return next(
+      new AppError("Phone number must be a valid 10-digit Indian number", 400)
+    );
+  }
+
+  // Check if patient already exists
+  const existingPatient = await Patient.findOne({
+    $or: [{ email }, { phone }],
+  });
+
+  if (existingPatient) {
+    if (existingPatient.email === email) {
+      return next(new AppError("Patient with this email already exists", 400));
+    }
+    if (existingPatient.phone === phone) {
+      return next(
+        new AppError("Patient with this phone number already exists", 400)
+      );
+    }
+  }
+
+  // Create verified & active patient directly
+  const newPatient = await Patient.create({
+    firstName,
+    email,
+    phone,
+    password,
+    dateOfBirth: dateOfBirth || null,
+    gender: gender || null,
+    address: address || null,
+    bloodGroup: bloodGroup || null,
+    emergencyContact: emergencyContact || {
+      name: null,
+      phone: null,
+      relationship: null,
+    },
+    isVerified: true,
+    isActive: true,
+    tokenVersion: 0,
+  });
+
+  console.log("SUCCESS: Patient created in database");
+  console.log("=".repeat(60));
+  console.log("");
+
+  res.status(201).json({
+    success: true,
+    message: "Patient created successfully",
+    data: {
+      id: newPatient._id,
+      firstName: newPatient.firstName,
+      email: newPatient.email,
+      phone: newPatient.phone,
+    },
+  });
+});
+
+exports.exportPatients = catchAsync(async (req, res, next) => {
+  const { from, to, format = "csv", gender, bloodGroup, isActive } = req.query;
+
+  // ----------------------------
+  // 🧠 Build dynamic filter
+  // ----------------------------
+  const query = {};
+  if (from || to) {
+    query.createdAt = {};
+    if (from) {
+      const start = new Date(from);
+      start.setHours(0, 0, 0, 0);
+      query.createdAt.$gte = start;
+    }
+    if (to) {
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+      query.createdAt.$lte = end;
+    }
+  }
+
+  if (gender) query.gender = gender;
+  if (bloodGroup) query.bloodGroup = bloodGroup;
+  if (isActive !== undefined) query.isActive = isActive === "true";
+
+  // ----------------------------
+  // 📋 Select fields to export
+  // ----------------------------
+  const fields = [
+    "firstName",
+    "email",
+    "phone",
+    "dateOfBirth",
+    "gender",
+    "bloodGroup",
+    "address.city",
+    "address.state",
+    "address.country",
+    "emergencyContact.name",
+    "emergencyContact.phone",
+    "emergencyContact.relation",
+    "isActive",
+    "createdAt",
+  ];
+
+  const patients = await Patient.find(query).lean();
+
+  if (!patients.length) {
+    return res.status(404).json({ message: "No patients found" });
+  }
+
+  // ----------------------------
+  // 📤 EXPORT AS CSV
+  // ----------------------------
+  if (format === "csv") {
+    // Flatten nested fields for CSV export
+    const flatPatients = patients.map((p) => ({
+      firstName: p.firstName || "—",
+      email: p.email || "—",
+      phone: p.phone || "—",
+      dateOfBirth: p.dateOfBirth
+        ? new Date(p.dateOfBirth).toLocaleDateString()
+        : "—",
+      gender: p.gender || "—",
+      bloodGroup: p.bloodGroup || "—",
+      city: p.address?.city || "—",
+      state: p.address?.state || "—",
+      country: p.address?.country || "—",
+      emergencyName: p.emergencyContact?.name || "—",
+      emergencyPhone: p.emergencyContact?.phone || "—",
+      emergencyRelation: p.emergencyContact?.relation || "—",
+      isActive: p.isActive ? "Active" : "Inactive",
+      createdAt: new Date(p.createdAt).toLocaleString(),
+    }));
+
+    const csvFields = [
+      "firstName",
+      "email",
+      "phone",
+      "dateOfBirth",
+      "gender",
+      "bloodGroup",
+      "city",
+      "state",
+      "country",
+      "emergencyName",
+      "emergencyPhone",
+      "emergencyRelation",
+      "isActive",
+      "createdAt",
+    ];
+
+    const parser = new Parser({ fields: csvFields });
+    const csv = parser.parse(flatPatients);
+
+    res.header("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=patients.csv");
+    res.write("\uFEFF"); // Add UTF-8 BOM
+    return res.end(csv);
+  }
+
+  // ----------------------------
+  // 📄 EXPORT AS PDF
+  // ----------------------------
+ if (format === "pdf") {
+   const doc = new PDFDocument({ margin: 40, size: "A4" });
+   const fileName = "patients.pdf";
+
+   res.setHeader("Content-Type", "application/pdf");
+   res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
+   doc.pipe(res);
+
+   // ----------------------------
+   // 🏷️ Title
+   // ----------------------------
+   doc
+     .fontSize(20)
+     .font("Helvetica-Bold")
+     .text("Patient Records Report", { align: "center" });
+   doc.moveDown(1);
+   doc
+     .fontSize(12)
+     .font("Helvetica")
+     .text(`Total Patients: ${patients.length}`);
+   doc.moveDown(1.5);
+
+   // ----------------------------
+   // 🧾 Table Header
+   // ----------------------------
+   const headers = [
+     "Name",
+     "Email",
+     "Phone",
+     "DOB",
+     "Gender",
+     "Blood",
+     "City",
+   ];
+   const colWidths = [70, 160, 70, 60, 55, 45, 60, 75, 55];
+   const startX = 40;
+   let y = doc.y;
+
+   // Draw header background
+   doc
+     .rect(startX - 5, y - 2, 520, 20)
+     .fill("#f0f0f0")
+     .stroke();
+   doc.fillColor("black").font("Helvetica-Bold");
+
+   let x = startX;
+   headers.forEach((header, i) => {
+     doc.text(header, x, y, { width: colWidths[i], align: "left" });
+     x += colWidths[i];
+   });
+
+   y += 22;
+   doc
+     .moveTo(startX - 5, y - 5)
+     .lineTo(560, y - 5)
+     .stroke();
+
+   // ----------------------------
+   // 📋 Table Rows
+   // ----------------------------
+   doc.font("Helvetica").fontSize(10);
+   patients.forEach((p, index) => {
+     const row = [
+       p.firstName || "-",
+       p.email || "-",
+       p.phone || "-",
+       p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString() : "-",
+       p.gender || "-",
+       p.bloodGroup || "-",
+       p.address?.city || "-",
+     ];
+
+     // Alternate row color
+     if (index % 2 === 0) {
+       doc
+         .rect(startX - 5, y - 2, 520, 18)
+         .fill("#fafafa")
+         .stroke();
+       doc.fillColor("black");
+     }
+
+     let x = startX;
+     row.forEach((cell, i) => {
+       doc.text(String(cell), x, y, { width: colWidths[i], align: "left" });
+       x += colWidths[i];
+     });
+
+     y += 18;
+     if (y > 750) {
+       doc.addPage();
+       y = 50;
+     }
+   });
+
+   // ----------------------------
+   // ✅ End PDF
+   // ----------------------------
+   doc.end();
+   return;
+ }
+
+
+  // ----------------------------
+  // ❌ Unsupported format
+  // ----------------------------
+  return res.status(400).json({
+    message: "Invalid format. Use ?format=csv or ?format=pdf",
+  });
+});
+
 exports.getAllPatients = catchAsync(async (req, res, next) => {
-  const { page = 1, limit = 10 } = req.query;
+  const {
+    page = 1,
+    limit = 10,
+    searchQuery = "",
+    gender,
+    bloodGroup,
+    isActive,
+  } = req.query;
+
+  console.log(" req.query", req.query);
+
   const skip = (page - 1) * limit;
 
-  const patients = await Patient.find()
-    .select('-password -tokenVersion')
+  // Build dynamic filter
+  const filter = {};
+
+  // 🔍 Search by name, email, or phone
+  if (searchQuery) {
+    filter.$or = [
+      { firstName: { $regex: searchQuery, $options: "i" } },
+      { email: { $regex: searchQuery, $options: "i" } },
+      { phone: { $regex: searchQuery, $options: "i" } },
+    ];
+  }
+
+  // 🧩 Filter by gender
+  if (gender) {
+    filter.gender = gender;
+  }
+
+  // 🩸 Filter by blood group
+  if (bloodGroup) {
+    filter.bloodGroup = bloodGroup;
+  }
+
+  // ⚙️ Filter by active status
+  console.log(
+    `typeof isActive !== "undefined"`,
+    typeof isActive !== "undefined"
+  );
+
+  if (isActive !== "null") {
+    filter.isActive = isActive === "true"; // convert string → boolean
+  }
+
+  // Fetch patients with filters
+  const patients = await Patient.find(filter)
+    .select("-password -tokenVersion")
     .skip(skip)
     .limit(parseInt(limit))
-    .sort('-createdAt');
+    .sort("-createdAt");
 
-  const total = await Patient.countDocuments();
+  const total = await Patient.countDocuments(filter);
 
   res.status(200).json({
     success: true,
     results: patients.length,
     totalPages: Math.ceil(total / limit),
     currentPage: parseInt(page),
-    data: { patients }
+    totalRecords: total,
+    filtersUsed: filter,
+    data: { patients },
   });
 });
 
 exports.getPatientById = catchAsync(async (req, res, next) => {
-  const patient = await Patient.findById(req.params.id).select('-password -tokenVersion');
+  const patient = await Patient.findById(req.params.id).select(
+    "-password -tokenVersion"
+  );
 
   if (!patient) {
-    return next(new AppError('Patient not found', 404));
+    return next(new AppError("Patient not found", 404));
   }
 
   res.status(200).json({
     success: true,
-    data: { patient }
+    data: { patient },
   });
 });
 
@@ -1931,16 +2258,16 @@ exports.blockPatient = catchAsync(async (req, res, next) => {
     req.params.id,
     { isActive: false },
     { new: true }
-  ).select('-password -tokenVersion');
+  ).select("-password -tokenVersion");
 
   if (!patient) {
-    return next(new AppError('Patient not found', 404));
+    return next(new AppError("Patient not found", 404));
   }
 
   res.status(200).json({
     success: true,
-    message: 'Patient blocked',
-    data: { patient }
+    message: "Patient blocked",
+    data: { patient },
   });
 });
 
@@ -1948,12 +2275,12 @@ exports.deletePatient = catchAsync(async (req, res, next) => {
   const patient = await Patient.findByIdAndDelete(req.params.id);
 
   if (!patient) {
-    return next(new AppError('Patient not found', 404));
+    return next(new AppError("Patient not found", 404));
   }
 
   res.status(200).json({
     success: true,
-    message: 'Patient deleted'
+    message: "Patient deleted",
   });
 });
 
@@ -1964,8 +2291,12 @@ exports.deletePatient = catchAsync(async (req, res, next) => {
 exports.getDashboardStats = catchAsync(async (req, res, next) => {
   const totalDoctors = await Doctor.countDocuments({ isActive: true });
   const totalPatients = await Patient.countDocuments({ isActive: true });
-  const pendingDoctors = await Doctor.countDocuments({ verificationStatus: 'pending' });
-  const approvedDoctors = await Doctor.countDocuments({ verificationStatus: 'approved' });
+  const pendingDoctors = await Doctor.countDocuments({
+    verificationStatus: "pending",
+  });
+  const approvedDoctors = await Doctor.countDocuments({
+    verificationStatus: "approved",
+  });
 
   res.status(200).json({
     success: true,
@@ -1973,8 +2304,8 @@ exports.getDashboardStats = catchAsync(async (req, res, next) => {
       totalDoctors,
       totalPatients,
       pendingDoctors,
-      approvedDoctors
-    }
+      approvedDoctors,
+    },
   });
 });
 
@@ -1982,14 +2313,14 @@ exports.getDoctorStats = catchAsync(async (req, res, next) => {
   const stats = {
     active: await Doctor.countDocuments({ isActive: true }),
     inactive: await Doctor.countDocuments({ isActive: false }),
-    pending: await Doctor.countDocuments({ verificationStatus: 'pending' }),
-    approved: await Doctor.countDocuments({ verificationStatus: 'approved' }),
-    rejected: await Doctor.countDocuments({ verificationStatus: 'rejected' })
+    pending: await Doctor.countDocuments({ verificationStatus: "pending" }),
+    approved: await Doctor.countDocuments({ verificationStatus: "approved" }),
+    rejected: await Doctor.countDocuments({ verificationStatus: "rejected" }),
   };
 
   res.status(200).json({
     success: true,
-    data: stats
+    data: stats,
   });
 });
 
