@@ -1747,28 +1747,237 @@ exports.getMyProfile = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.updatePatient = catchAsync(async (req, res, next) => {
-  const { password, role, tokenVersion, isVerified, isActive, ...updateData } = req.body;
+// exports.updatePatient = catchAsync(async (req, res, next) => {
+//   const { password, role, tokenVersion, isVerified, isActive, ...updateData } = req.body;
 
+//   const updatedPatient = await Patient.findByIdAndUpdate(
+//     req.user?.id,
+//     updateData,
+//     { new: true, runValidators: true }
+//   ).select('-password -tokenVersion');
+
+//   if (!updatedPatient) {
+//     return next(new AppError('Patient not found', 404));
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: 'Profile updated successfully',
+//     data: {
+//       patient: updatedPatient
+//     }
+//   });
+// });
+exports.updatePatient = catchAsync(async (req, res, next) => {
+  console.log('\n');
+  console.log('UPDATE PATIENT PROFILE - COMPREHENSIVE');
+  console.log('='.repeat(60));
+  console.log('Patient ID:', req.user?.id);
+  console.log('Update fields:', Object.keys(req.body));
+
+  // ✅ SECURITY: Remove ALL sensitive fields that should NOT be updated
+  const { 
+    password, 
+    role, 
+    tokenVersion, 
+    isVerified, 
+    isActive,
+    _id,
+    id,
+    createdAt,
+    updatedAt,
+    signupOtp,
+    signupOtpExpiry,
+    loginOtp,
+    loginOtpExpiry,
+    refreshToken,
+    __v,
+    following,
+    followingCount,
+    medicalHistory,
+    allergies,
+    currentMedications,
+    savedPosts,
+    ...updateData 
+  } = req.body;
+
+  console.log('Safe update data:', updateData);
+
+  // ✅ WHITELIST: Only these fields can be updated from signup form
+  const allowedFields = [
+    'firstName',
+    'email',
+    'phone',
+    'profilePhoto',
+    'dateOfBirth',
+    'gender',
+    'address',
+    'bloodGroup',
+    'emergencyContact'
+  ];
+
+  // ✅ VALIDATE: Check which fields are being updated
+  const fieldsToUpdate = Object.keys(updateData).filter(field => allowedFields.includes(field));
+  console.log('Fields to update:', fieldsToUpdate);
+
+  // ✅ VALIDATE: Email uniqueness (if email is being updated)
+  if (updateData.email) {
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    if (!emailRegex.test(updateData.email)) {
+      return next(new AppError('Please provide a valid email', 400));
+    }
+
+    const existingEmail = await Patient.findOne({ 
+      email: updateData.email,
+      _id: { $ne: req.user?.id }  // Exclude current user
+    });
+
+    if (existingEmail) {
+      console.log('❌ Email already in use');
+      return next(new AppError('Email already in use', 400));
+    }
+
+    console.log('✅ Email is unique');
+  }
+
+  // ✅ VALIDATE: Phone uniqueness (if phone is being updated)
+  if (updateData.phone) {
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(updateData.phone)) {
+      return next(new AppError('Phone number must be a valid 10-digit number', 400));
+    }
+
+    const existingPhone = await Patient.findOne({ 
+      phone: updateData.phone,
+      _id: { $ne: req.user?.id }  // Exclude current user
+    });
+
+    if (existingPhone) {
+      console.log('❌ Phone number already in use');
+      return next(new AppError('Phone number already in use', 400));
+    }
+
+    console.log('✅ Phone number is unique');
+  }
+
+  // ✅ VALIDATE: firstName
+  if (updateData.firstName && updateData.firstName.trim().length === 0) {
+    return next(new AppError('First name cannot be empty', 400));
+  }
+
+  // ✅ VALIDATE: dateOfBirth (must be valid date and not in future)
+  if (updateData.dateOfBirth) {
+    const dob = new Date(updateData.dateOfBirth);
+    if (isNaN(dob.getTime())) {
+      return next(new AppError('Please provide a valid date of birth', 400));
+    }
+
+    if (dob > new Date()) {
+      return next(new AppError('Date of birth cannot be in the future', 400));
+    }
+
+    console.log('✅ Date of birth is valid');
+  }
+
+  // ✅ VALIDATE: gender
+  if (updateData.gender && !['male', 'female', 'other'].includes(updateData.gender)) {
+    return next(new AppError('Invalid gender. Must be male, female, or other', 400));
+  }
+
+  // ✅ VALIDATE: bloodGroup
+  if (updateData.bloodGroup) {
+    const validBloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    if (!validBloodGroups.includes(updateData.bloodGroup)) {
+      return next(new AppError('Invalid blood group', 400));
+    }
+  }
+
+  // ✅ VALIDATE: address (if provided)
+  if (updateData.address) {
+    if (typeof updateData.address !== 'object') {
+      return next(new AppError('Address must be an object with street, city, state, country, pincode', 400));
+    }
+
+    // Validate address fields
+    const { street, city, state, country, pincode } = updateData.address;
+    if (city && city.trim().length === 0) {
+      return next(new AppError('City cannot be empty', 400));
+    }
+    if (state && state.trim().length === 0) {
+      return next(new AppError('State cannot be empty', 400));
+    }
+    if (country && country.trim().length === 0) {
+      return next(new AppError('Country cannot be empty', 400));
+    }
+
+    console.log('✅ Address is valid');
+  }
+
+  // ✅ VALIDATE: emergencyContact (if provided)
+  if (updateData.emergencyContact) {
+    if (typeof updateData.emergencyContact !== 'object') {
+      return next(new AppError('Emergency contact must be an object with name, phone, relation', 400));
+    }
+
+    const { name, phone: emergencyPhone, relation } = updateData.emergencyContact;
+    
+    if (name && name.trim().length === 0) {
+      return next(new AppError('Emergency contact name cannot be empty', 400));
+    }
+
+    if (emergencyPhone) {
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(emergencyPhone)) {
+        return next(new AppError('Emergency contact phone must be a valid 10-digit number', 400));
+      }
+    }
+
+    if (relation && relation.trim().length === 0) {
+      return next(new AppError('Emergency contact relation cannot be empty', 400));
+    }
+
+    console.log('✅ Emergency contact is valid');
+  }
+
+  // ✅ FILTER: Build only allowed fields for update
+  const filteredUpdateData = {};
+  for (const field of allowedFields) {
+    if (field in updateData) {
+      filteredUpdateData[field] = updateData[field];
+    }
+  }
+
+  console.log('Final update data:', filteredUpdateData);
+
+  // ✅ UPDATE: Find and update patient
   const updatedPatient = await Patient.findByIdAndUpdate(
     req.user?.id,
-    updateData,
-    { new: true, runValidators: true }
-  ).select('-password -tokenVersion');
+    filteredUpdateData,
+    { 
+      new: true,           // Return updated document
+      runValidators: true  // Run schema validators
+    }
+  ).select('-password -tokenVersion -refreshToken -signupOtp -loginOtp -signupOtpExpiry -loginOtpExpiry');
 
   if (!updatedPatient) {
+    console.log('❌ Patient not found');
     return next(new AppError('Patient not found', 404));
   }
+
+  console.log('✅ Patient profile updated successfully');
+  console.log('Updated fields:', fieldsToUpdate);
+  console.log('='.repeat(60));
+  console.log('\n');
 
   res.status(200).json({
     success: true,
     message: 'Profile updated successfully',
     data: {
-      patient: updatedPatient
+      patient: updatedPatient,
+      updatedFields: fieldsToUpdate
     }
   });
 });
-
 /**
  * ====================================================================
  * MEDICAL HISTORY
