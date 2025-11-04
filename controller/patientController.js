@@ -1773,9 +1773,16 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
   console.log('UPDATE PATIENT PROFILE - COMPREHENSIVE');
   console.log('='.repeat(60));
   console.log('Patient ID:', req.user?.id);
+
+  // ✅ Check if user exists in database
+  const userExists = await Patient.findById(req.user?.id);
+  if (!userExists) {
+    return next(new AppError('The user belonging to this token no longer exists', 401));
+  }
+
   console.log('Update fields:', Object.keys(req.body));
 
-  // ✅ SECURITY: Remove ALL sensitive fields that should NOT be updated
+  // ✅ SECURITY: Remove sensitive fields
   const { 
     password, 
     role, 
@@ -1803,7 +1810,7 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
 
   console.log('Safe update data:', updateData);
 
-  // ✅ WHITELIST: Only these fields can be updated from signup form
+  // ✅ WHITELIST: Only these fields can be updated
   const allowedFields = [
     'firstName',
     'email',
@@ -1816,11 +1823,10 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     'emergencyContact'
   ];
 
-  // ✅ VALIDATE: Check which fields are being updated
   const fieldsToUpdate = Object.keys(updateData).filter(field => allowedFields.includes(field));
   console.log('Fields to update:', fieldsToUpdate);
 
-  // ✅ VALIDATE: Email uniqueness (if email is being updated)
+  // ✅ Email uniqueness
   if (updateData.email) {
     const emailRegex = /^\S+@\S+\.\S+$/;
     if (!emailRegex.test(updateData.email)) {
@@ -1829,18 +1835,15 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
 
     const existingEmail = await Patient.findOne({ 
       email: updateData.email,
-      _id: { $ne: req.user?.id }  // Exclude current user
+      _id: { $ne: req.user?.id }
     });
 
     if (existingEmail) {
-      console.log('❌ Email already in use');
       return next(new AppError('Email already in use', 400));
     }
-
-    console.log('✅ Email is unique');
   }
 
-  // ✅ VALIDATE: Phone uniqueness (if phone is being updated)
+  // ✅ Phone uniqueness
   if (updateData.phone) {
     const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(updateData.phone)) {
@@ -1849,23 +1852,20 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
 
     const existingPhone = await Patient.findOne({ 
       phone: updateData.phone,
-      _id: { $ne: req.user?.id }  // Exclude current user
+      _id: { $ne: req.user?.id }
     });
 
     if (existingPhone) {
-      console.log('❌ Phone number already in use');
       return next(new AppError('Phone number already in use', 400));
     }
-
-    console.log('✅ Phone number is unique');
   }
 
-  // ✅ VALIDATE: firstName
+  // ✅ firstName validation
   if (updateData.firstName && updateData.firstName.trim().length === 0) {
     return next(new AppError('First name cannot be empty', 400));
   }
 
-  // ✅ VALIDATE: dateOfBirth (must be valid date and not in future)
+  // ✅ dateOfBirth validation
   if (updateData.dateOfBirth) {
     const dob = new Date(updateData.dateOfBirth);
     if (isNaN(dob.getTime())) {
@@ -1875,16 +1875,14 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     if (dob > new Date()) {
       return next(new AppError('Date of birth cannot be in the future', 400));
     }
-
-    console.log('✅ Date of birth is valid');
   }
 
-  // ✅ VALIDATE: gender
+  // ✅ gender validation
   if (updateData.gender && !['male', 'female', 'other'].includes(updateData.gender)) {
     return next(new AppError('Invalid gender. Must be male, female, or other', 400));
   }
 
-  // ✅ VALIDATE: bloodGroup
+  // ✅ bloodGroup validation
   if (updateData.bloodGroup) {
     const validBloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
     if (!validBloodGroups.includes(updateData.bloodGroup)) {
@@ -1892,14 +1890,9 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     }
   }
 
-  // ✅ VALIDATE: address (if provided)
-  if (updateData.address) {
-    if (typeof updateData.address !== 'object') {
-      return next(new AppError('Address must be an object with street, city, state, country, pincode', 400));
-    }
-
-    // Validate address fields
-    const { street, city, state, country, pincode } = updateData.address;
+  // ✅ address validation
+  if (updateData.address && typeof updateData.address === 'object') {
+    const { city, state, country } = updateData.address;
     if (city && city.trim().length === 0) {
       return next(new AppError('City cannot be empty', 400));
     }
@@ -1909,16 +1902,10 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     if (country && country.trim().length === 0) {
       return next(new AppError('Country cannot be empty', 400));
     }
-
-    console.log('✅ Address is valid');
   }
 
-  // ✅ VALIDATE: emergencyContact (if provided)
-  if (updateData.emergencyContact) {
-    if (typeof updateData.emergencyContact !== 'object') {
-      return next(new AppError('Emergency contact must be an object with name, phone, relation', 400));
-    }
-
+  // ✅ emergencyContact validation
+  if (updateData.emergencyContact && typeof updateData.emergencyContact === 'object') {
     const { name, phone: emergencyPhone, relation } = updateData.emergencyContact;
     
     if (name && name.trim().length === 0) {
@@ -1935,11 +1922,9 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     if (relation && relation.trim().length === 0) {
       return next(new AppError('Emergency contact relation cannot be empty', 400));
     }
-
-    console.log('✅ Emergency contact is valid');
   }
 
-  // ✅ FILTER: Build only allowed fields for update
+  // ✅ Build filtered update data
   const filteredUpdateData = {};
   for (const field of allowedFields) {
     if (field in updateData) {
@@ -1949,23 +1934,17 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
 
   console.log('Final update data:', filteredUpdateData);
 
-  // ✅ UPDATE: Find and update patient
+  // ✅ Update patient
   const updatedPatient = await Patient.findByIdAndUpdate(
     req.user?.id,
     filteredUpdateData,
     { 
-      new: true,           // Return updated document
-      runValidators: true  // Run schema validators
+      new: true,
+      runValidators: true
     }
   ).select('-password -tokenVersion -refreshToken -signupOtp -loginOtp -signupOtpExpiry -loginOtpExpiry');
 
-  if (!updatedPatient) {
-    console.log('❌ Patient not found');
-    return next(new AppError('Patient not found', 404));
-  }
-
   console.log('✅ Patient profile updated successfully');
-  console.log('Updated fields:', fieldsToUpdate);
   console.log('='.repeat(60));
   console.log('\n');
 
@@ -1978,6 +1957,7 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     }
   });
 });
+
 /**
  * ====================================================================
  * MEDICAL HISTORY
