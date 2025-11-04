@@ -60,7 +60,7 @@ router.post('/logout-all', patientController.patientLogoutAll);
 // PROTECTED ROUTES - Profile Management
 // ============================================
 router.get('/profile', protect, patientController.getMyProfile);
-router.patch('/profile', protect, patientController.updatePatient);
+router.patch('/updateProfile/:id', protect, patientController.updatePatient);
 
 // ============================================
 // PROTECTED ROUTES - Medical History
