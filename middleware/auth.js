@@ -383,7 +383,7 @@ const verifyPatientRole = (req, res, next) => {
 };
 
 module.exports = {
-  protect,              // ← NEW: Use this for protected routes
+  protect,              
   verifyAccessToken,
   verifyRefreshToken,
   verifyOtpToken,
