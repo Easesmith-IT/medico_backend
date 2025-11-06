@@ -10,7 +10,7 @@ const Doctor = require('../models/doctorModel');
 const Otp = require('../models/otpModel');
 const { sendOtp } = require('../utils/otpUtils');
 const jwt = require('jsonwebtoken');
-
+const City = require('../models/availableCities'); 
 // Import token utilities (NOT from middleware)
 const {
   generateAccessToken,
@@ -633,9 +633,9 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
   });
 });
 
-// ============================================
+
 // AUTHENTICATION STATUS
-// ============================================
+
 
 exports.checkAuthStatus = catchAsync(async (req, res, next) => {
   console.log('=== DEBUG: Inside checkAuthStatus ===');
@@ -979,6 +979,188 @@ exports.uploadVerificationDocuments = catchAsync(async (req, res, next) => {
     message: 'Verification documents uploaded successfully',
     data: {
       verificationDocuments: doctor.verificationDocuments
+    }
+  });
+});
+
+
+//doctior city 
+// 1. Get logged-in doctor's all cities
+// 1. Get doctor's all cities by doctor ID
+exports.getDoctorCities = catchAsync(async (req, res, next) => {
+  const { doctorId } = req.params;
+
+  console.log('');
+  console.log('GET DOCTOR: MY CITIES');
+  console.log('='.repeat(60));
+  console.log(`Doctor ID: ${doctorId}`);
+
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return next(new AppError('Invalid doctor ID format', 400));
+  }
+
+  const doctor = await Doctor.findById(doctorId).populate('cities', 'name latitude longitude state country');
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  console.log(`Doctor: ${doctor.firstName} ${doctor.lastName || ''}`);
+  console.log(`Total Cities: ${doctor.cities.length}`);
+  console.log('='.repeat(60));
+  console.log('');
+
+  res.status(200).json({
+    success: true,
+    message: 'Cities retrieved successfully',
+    data: {
+      doctor: {
+        id: doctor._id,
+        firstName: doctor.firstName,
+        lastName: doctor.lastName,
+        email: doctor.email,
+        phone: doctor.phone,
+        medicalRegistrationNumber: doctor.medicalRegistrationNumber,
+        specialization: doctor.specialization,
+        totalCities: doctor.cities.length,
+        cities: doctor.cities
+      }
+    }
+  });
+});
+
+// 2. Get doctor's cities filtered by city name
+exports.getDoctorCitiesByName = catchAsync(async (req, res, next) => {
+  const { doctorId, cityName } = req.params;
+
+  console.log('');
+  console.log('GET DOCTOR: CITIES BY NAME');
+  console.log('='.repeat(60));
+  console.log(`Doctor ID: ${doctorId}`);
+  console.log(`City Name: ${cityName}`);
+
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return next(new AppError('Invalid doctor ID format', 400));
+  }
+
+  if (!cityName || cityName.trim().length === 0) {
+    return next(new AppError('City name is required', 400));
+  }
+
+  const doctor = await Doctor.findById(doctorId).populate({
+    path: 'cities',
+    select: 'name latitude longitude state country',
+    match: { name: { $regex: cityName, $options: 'i' } }
+  });
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  console.log(`Doctor: ${doctor.firstName} ${doctor.lastName || ''}`);
+  console.log(`Matching Cities: ${doctor.cities.length}`);
+  console.log('='.repeat(60));
+  console.log('');
+
+  if (doctor.cities.length === 0) {
+    return res.status(404).json({
+      success: false,
+      message: `Doctor is not available in city: ${cityName}`,
+      data: {
+        cities: []
+      }
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Cities matching "${cityName}" retrieved successfully`,
+    data: {
+      doctor: {
+        id: doctor._id,
+        firstName: doctor.firstName,
+        lastName: doctor.lastName,
+        specialization: doctor.specialization,
+        totalCities: doctor.cities.length,
+        cities: doctor.cities
+      }
+    }
+  });
+});
+
+
+
+exports.getDoctorsByCityName = catchAsync(async (req, res, next) => {
+  const { cityName } = req.params;
+
+  console.log('');
+  console.log('GET DOCTORS BY CITY NAME');
+  console.log('='.repeat(60));
+  console.log(`City Name: ${cityName}`);
+
+  if (!cityName || cityName.trim().length === 0) {
+    return next(new AppError('City name is required', 400));
+  }
+
+  // Find city by name
+  const city = await City.findOne({ name: { $regex: cityName, $options: 'i' } });
+
+  if (!city) {
+    return next(new AppError(`City not found: ${cityName}`, 404));
+  }
+
+  console.log(`City Found: ${city.name}`);
+  console.log(`City ID: ${city._id}`);
+
+  // Find all doctors that have this city
+  const doctors = await Doctor.find({ cities: city._id }).populate('cities', 'name latitude longitude state country');
+
+  console.log(`Total Doctors in ${city.name}: ${doctors.length}`);
+  console.log('='.repeat(60));
+  console.log('');
+
+  if (doctors.length === 0) {
+    return res.status(404).json({
+      success: false,
+      message: `No doctors found in city: ${cityName}`,
+      data: {
+        city: {
+          id: city._id,
+          name: city.name,
+          latitude: city.latitude,
+          longitude: city.longitude,
+          state: city.state,
+          country: city.country
+        },
+        doctors: []
+      }
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `${doctors.length} doctor(s) found in ${cityName}`,
+    data: {
+      city: {
+        id: city._id,
+        name: city.name,
+        latitude: city.latitude,
+        longitude: city.longitude,
+        state: city.state,
+        country: city.country
+      },
+      totalDoctors: doctors.length,
+      doctors: doctors.map(doctor => ({
+        id: doctor._id,
+        firstName: doctor.firstName,
+        lastName: doctor.lastName,
+        email: doctor.email,
+        phone: doctor.phone,
+        medicalRegistrationNumber: doctor.medicalRegistrationNumber,
+        specialization: doctor.specialization,
+        cities: doctor.cities,
+        totalCities: doctor.cities.length
+      }))
     }
   });
 });

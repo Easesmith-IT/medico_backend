@@ -53,6 +53,13 @@ const doctorSchema = new mongoose.Schema({
     country: String,
     pincode: String
   },
+    cities: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'City',
+      default: [] // Initialize as empty array
+    }
+  ],
 
   // Professional Details
   medicalRegistrationNumber: {
