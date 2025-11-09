@@ -112,6 +112,14 @@ router.put('/clinic/:clinicId', verifyAccessToken, doctorController.updateClinic
 router.delete('/clinic/:clinicId', verifyAccessToken, doctorController.deleteClinic);
 router.post('/verification-documents', verifyAccessToken, doctorController.uploadVerificationDocuments);
 
+
+//citywise 
+router.get('/doctor/my-cities/:doctorId', doctorController.getDoctorCities);
+router.get('/doctor/cities/by-name/:doctorId/:cityName', doctorController.getDoctorCitiesByName);
+
+router.get('/doctors/city/:cityName', doctorController.getDoctorsByCityName);
+
+
 module.exports = router;
 
 

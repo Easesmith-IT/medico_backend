@@ -1202,15 +1202,15 @@
 
 // controllers/adminController.js
 
-const catchAsync = require("../utils/catchAsync");
-const AppError = require("../utils/appError");
-const Admin = require("../models/adminModel");
-const Doctor = require("../models/doctorModel");
-const Patient = require("../models/patientModel");
-const Otp = require("../models/otpModel");
-const { sendOtp } = require("../utils/otpUtils");
-const bcrypt = require("bcryptjs");
-
+const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
+const Admin = require('../models/adminModel');
+const Doctor = require('../models/doctorModel');
+const Patient = require('../models/patientModel');
+const Otp = require('../models/otpModel');
+const { sendOtp } = require('../utils/otpUtils');
+const bcrypt = require('bcryptjs');
+const City = require('../models/availableCities'); 
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -2323,5 +2323,382 @@ exports.getDoctorStats = catchAsync(async (req, res, next) => {
     data: stats,
   });
 });
+
+
+
+
+//added doctor city 
+exports.addDoctorToCities = catchAsync(async (req, res, next) => {
+  const { doctorId, cityIds } = req.body;
+
+  console.log('');
+  console.log('ADMIN: ADD DOCTOR TO CITIES');
+  console.log('='.repeat(60));
+  console.log(`Doctor ID: ${doctorId}`);
+  console.log(`Cities count: ${cityIds?.length || 0}`);
+
+  // Validate input
+  if (!doctorId) {
+    return next(new AppError('Doctor ID is required', 400));
+  }
+
+  if (!cityIds || !Array.isArray(cityIds) || cityIds.length === 0) {
+    return next(
+      new AppError(
+        'Please provide an array of cityIds with at least one city',
+        400
+      )
+    );
+  }
+
+  // Validate MongoDB ObjectId format
+  const mongoose = require('mongoose');
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return next(new AppError('Invalid doctor ID format', 400));
+  }
+
+  for (const cityId of cityIds) {
+    if (!mongoose.Types.ObjectId.isValid(cityId)) {
+      return next(
+        new AppError(`Invalid city ID format: ${cityId}`, 400)
+      );
+    }
+  }
+
+  // Check if doctor exists
+  const doctor = await Doctor.findById(doctorId);
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  console.log(`Doctor: ${doctor.firstName} ${doctor.lastName || ''}`);
+
+  // Verify all cities exist
+  const cities = await City.find({ _id: { $in: cityIds } });
+
+  if (cities.length !== cityIds.length) {
+    const foundCityIds = cities.map(c => c._id.toString());
+    const missingCityIds = cityIds.filter(
+      id => !foundCityIds.includes(id.toString())
+    );
+    return next(
+      new AppError(
+        `Some cities not found: ${missingCityIds.join(', ')}`,
+        404
+      )
+    );
+  }
+
+  console.log('SUCCESS: All cities verified');
+
+  // Add cities to doctor (avoid duplicates)
+  const existingCityIds = doctor.cities.map(id => id.toString());
+  const newCityIds = cityIds.filter(
+    id => !existingCityIds.includes(id.toString())
+  );
+
+  const duplicateCityIds = cityIds.filter(
+    id => existingCityIds.includes(id.toString())
+  );
+
+  if (newCityIds.length === 0) {
+    console.log('INFO: Doctor already added to all these cities');
+    return res.status(200).json({
+      success: true,
+      message: 'Doctor is already associated with all these cities',
+      alreadyAdded: duplicateCityIds.length,
+      newlyAdded: 0,
+      data: {
+        doctor: {
+          id: doctor._id,
+          firstName: doctor.firstName,
+          lastName: doctor.lastName,
+          email: doctor.email,
+          phone: doctor.phone,
+          totalCities: doctor.cities.length
+        }
+      }
+    });
+  }
+
+  doctor.cities.push(...newCityIds);
+  await doctor.save();
+
+  console.log(`SUCCESS: Doctor added to ${newCityIds.length} new cities`);
+  if (duplicateCityIds.length > 0) {
+    console.log(`INFO: ${duplicateCityIds.length} cities were already associated`);
+  }
+  console.log('='.repeat(60));
+  console.log('');
+
+  // Populate city details before response
+  await doctor.populate('cities', 'name latitude longitude');
+
+  res.status(200).json({
+    success: true,
+    message: `Doctor added to ${newCityIds.length} cities successfully${
+      duplicateCityIds.length > 0
+        ? ` (${duplicateCityIds.length} already associated)`
+        : ''
+    }`,
+    newlyAdded: newCityIds.length,
+    alreadyAdded: duplicateCityIds.length,
+    data: {
+      doctor: {
+        id: doctor._id,
+        firstName: doctor.firstName,
+        lastName: doctor.lastName,
+        email: doctor.email,
+        phone: doctor.phone,
+        medicalRegistrationNumber: doctor.medicalRegistrationNumber,
+        specialization: doctor.specialization,
+        cities: doctor.cities,
+        totalCities: doctor.cities.length
+      }
+    }
+  });
+});
+
+// ============================================
+// ADMIN: REMOVE DOCTOR FROM CITIES
+// ============================================
+
+exports.removeDoctorFromCities = catchAsync(async (req, res, next) => {
+  const { doctorId, cityIds } = req.body;
+
+  console.log('');
+  console.log('ADMIN: REMOVE DOCTOR FROM CITIES');
+  console.log('='.repeat(60));
+
+  if (!doctorId) {
+    return next(new AppError('Doctor ID is required', 400));
+  }
+
+  if (!cityIds || !Array.isArray(cityIds) || cityIds.length === 0) {
+    return next(
+      new AppError(
+        'Please provide an array of cityIds with at least one city',
+        400
+      )
+    );
+  }
+
+  const mongoose = require('mongoose');
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return next(new AppError('Invalid doctor ID format', 400));
+  }
+
+  const doctor = await Doctor.findById(doctorId);
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  const initialCount = doctor.cities.length;
+  doctor.cities = doctor.cities.filter(
+    id => !cityIds.includes(id.toString())
+  );
+
+  const removedCount = initialCount - doctor.cities.length;
+
+  await doctor.save();
+  await doctor.populate('cities', 'name latitude longitude');
+
+  console.log(`SUCCESS: Removed doctor from ${removedCount} cities`);
+  console.log('='.repeat(60));
+  console.log('');
+
+  res.status(200).json({
+    success: true,
+    message: `Doctor removed from ${removedCount} cities successfully`,
+    removedCount,
+    data: {
+      doctor: {
+        id: doctor._id,
+        firstName: doctor.firstName,
+        lastName: doctor.lastName,
+        email: doctor.email,
+        phone: doctor.phone,
+        cities: doctor.cities,
+        totalCities: doctor.cities.length
+      }
+    }
+  });
+});
+
+// ============================================
+// ADMIN: UPDATE DOCTOR CITIES (REPLACE ALL)
+// ============================================
+
+exports.updateDoctorCities = catchAsync(async (req, res, next) => {
+  const { doctorId, cityIds } = req.body;
+
+  console.log('');
+  console.log('ADMIN: UPDATE DOCTOR CITIES (REPLACE ALL)');
+  console.log('='.repeat(60));
+
+  if (!doctorId) {
+    return next(new AppError('Doctor ID is required', 400));
+  }
+
+  if (!cityIds || !Array.isArray(cityIds)) {
+    return next(new AppError('Please provide an array of cityIds', 400));
+  }
+
+  const mongoose = require('mongoose');
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return next(new AppError('Invalid doctor ID format', 400));
+  }
+
+  const doctor = await Doctor.findById(doctorId);
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  // Verify all cities exist (if cityIds is not empty)
+  if (cityIds.length > 0) {
+    const cities = await City.find({ _id: { $in: cityIds } });
+
+    if (cities.length !== cityIds.length) {
+      const foundCityIds = cities.map(c => c._id.toString());
+      const missingCityIds = cityIds.filter(
+        id => !foundCityIds.includes(id.toString())
+      );
+      return next(
+        new AppError(
+          `Some cities not found: ${missingCityIds.join(', ')}`,
+          404
+        )
+      );
+    }
+  }
+
+  const previousCount = doctor.cities.length;
+  doctor.cities = cityIds;
+  await doctor.save();
+  await doctor.populate('cities', 'name latitude longitude');
+
+  console.log(`SUCCESS: Doctor cities updated from ${previousCount} to ${cityIds.length}`);
+  console.log('='.repeat(60));
+  console.log('');
+
+  res.status(200).json({
+    success: true,
+    message: `Doctor cities updated successfully`,
+    previousCitiesCount: previousCount,
+    newCitiesCount: cityIds.length,
+    data: {
+      doctor: {
+        id: doctor._id,
+        firstName: doctor.firstName,
+        lastName: doctor.lastName,
+        email: doctor.email,
+        phone: doctor.phone,
+        cities: doctor.cities,
+        totalCities: doctor.cities.length
+      }
+    }
+  });
+});
+
+// ============================================
+// ADMIN: GET DOCTOR'S CITIES
+// ============================================
+
+exports.getDoctorCities = catchAsync(async (req, res, next) => {
+  const { doctorId } = req.params;
+
+  if (!doctorId) {
+    return next(new AppError('Doctor ID is required', 400));
+  }
+
+  const mongoose = require('mongoose');
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return next(new AppError('Invalid doctor ID format', 400));
+  }
+
+  const doctor = await Doctor.findById(doctorId).populate(
+    'cities',
+    'name latitude longitude'
+  );
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      doctor: {
+        id: doctor._id,
+        firstName: doctor.firstName,
+        lastName: doctor.lastName,
+        email: doctor.email,
+        phone: doctor.phone
+      },
+      cities: doctor.cities,
+      totalCities: doctor.cities.length
+    }
+  });
+});
+
+// ============================================
+// ADMIN: GET ALL DOCTORS WITH CITY FILTER
+// ============================================
+
+exports.getDoctorsByCity = catchAsync(async (req, res, next) => {
+  const { cityId, page = 1, limit = 10 } = req.query;
+
+  if (!cityId) {
+    return next(new AppError('City ID is required', 400));
+  }
+
+  const mongoose = require('mongoose');
+  if (!mongoose.Types.ObjectId.isValid(cityId)) {
+    return next(new AppError('Invalid city ID format', 400));
+  }
+
+  // Check if city exists
+  const city = await City.findById(cityId);
+  if (!city) {
+    return next(new AppError('City not found', 404));
+  }
+
+  const skip = (page - 1) * limit;
+
+  const doctors = await Doctor.find({ cities: cityId })
+    .select('-password -tokenVersion -verificationDocuments')
+    .skip(skip)
+    .limit(parseInt(limit))
+    .populate('cities', 'name')
+    .sort('-createdAt');
+
+  const total = await Doctor.countDocuments({ cities: cityId });
+
+  res.status(200).json({
+    success: true,
+    city: {
+      id: city._id,
+      name: city.name,
+      latitude: city.latitude,
+      longitude: city.longitude
+    },
+    results: doctors.length,
+    totalPages: Math.ceil(total / limit),
+    currentPage: parseInt(page),
+    totalDoctors: total,
+    data: { doctors }
+  });
+});
+
+
+
+
+
+
+
+
 
 module.exports = exports;
