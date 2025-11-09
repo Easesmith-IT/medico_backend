@@ -41,4 +41,25 @@ router.delete('/patients/:id', verifyAccessToken, adminController.deletePatient)
 router.get('/reports/dashboard', verifyAccessToken, adminController.getDashboardStats);
 router.get('/reports/doctors', verifyAccessToken, adminController.getDoctorStats);
 
+
+
+//add doc by cities 
+// Admin only routes
+
+
+// Add doctor to cities
+router.post('/admin/doctor/add-cities', verifyAccessToken,adminController.addDoctorToCities);
+
+// Remove doctor from cities
+router.post('/admin/doctor/remove-cities', verifyAccessToken,adminController.removeDoctorFromCities);
+
+// Replace all cities for a doctor
+router.put('/admin/doctor/update-cities', verifyAccessToken,adminController.updateDoctorCities);
+
+// Get specific doctor's cities
+router.get('/admin/doctor/:doctorId/cities', verifyAccessToken,adminController.getDoctorCities);
+
+// Get all doctors in a specific city
+router.get('/admin/city/:cityId/doctors', verifyAccessToken,adminController.getDoctorsByCity);
+
 module.exports = router;
