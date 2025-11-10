@@ -13,8 +13,7 @@ const {
 } = require('../controller/articleController');
 
 
-
-router.get('/:doctorId/articles', getArticlesByDoctorId);
+router.get('/doctors/:doctorId/articles', getArticlesByDoctorId); 
 const { protect } = require('../middleware/auth');
 
 const uploadMiddleware = (req, res, next) => {
