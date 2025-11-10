@@ -8,6 +8,7 @@ const {
   getMyArticles,
   updateArticle,
   deleteArticle,
+  getArticlesByDoctorId,
   publishArticle
 } = require('../controller/articleController');
 const { protect } = require('../middleware/auth');
@@ -30,6 +31,9 @@ router.put('/updateArticle/:id', protect('doctor', 'hospital'), updateArticle);
 router.delete('/:id', protect('doctor', 'hospital'), deleteArticle);
 router.patch('/:id/publish', protect('doctor', 'hospital'), publishArticle);
 router.get('/', getAllArticles);
+// PUBLIC route - no authenticate middleware
+router.get('/doctors/:doctorId/articles', getArticlesByDoctorId);
+
 router.get('/getArticleById/:id', getArticleById);
 
 module.exports = router;

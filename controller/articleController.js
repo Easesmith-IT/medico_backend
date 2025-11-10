@@ -595,6 +595,49 @@ const publishArticle = async (req, res, next) => {
   }
 };
 
+
+
+//get article by doctor id 
+// PUBLIC - Get all articles by doctor ID (no auth required)
+const getArticlesByDoctorId = async (req, res, next) => {
+  try {
+    const { doctorId } = req.params;
+    const { status, page = 1, limit = 10 } = req.query;
+
+    const filter = { createdBy: doctorId };
+    
+    // If status is not specified, only show published articles (public view)
+    if (status) {
+      filter.status = status;
+    } else {
+      filter.status = 'published';
+    }
+
+    const skip = (page - 1) * limit;
+
+    const articles = await Article.find(filter)
+      .populate('createdBy', 'name email specialization profileImage')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Article.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      count: articles.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      articles
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
 module.exports = {
   createArticle,
   getAllArticles,
@@ -602,5 +645,6 @@ module.exports = {
   getMyArticles,
   updateArticle,
   deleteArticle,
+  getArticlesByDoctorId ,
   publishArticle
 };
