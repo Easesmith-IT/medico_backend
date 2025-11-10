@@ -32,7 +32,7 @@ router.delete('/:id', protect('doctor', 'hospital'), deleteArticle);
 router.patch('/:id/publish', protect('doctor', 'hospital'), publishArticle);
 router.get('/', getAllArticles);
 // PUBLIC route - no authenticate middleware
-router.get('/doctors/:doctorId/articles', getArticlesByDoctorId);
+router.get('/:doctorId/articles', getArticlesByDoctorId);
 
 router.get('/getArticleById/:id', getArticleById);
 
