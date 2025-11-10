@@ -26,10 +26,10 @@ const uploadMiddleware = (req, res, next) => {
 
 router.post('/create', protect('doctor', 'hospital'), uploadMiddleware, createArticle);
 router.get('/my-articles', protect('doctor', 'hospital'), getMyArticles);
-router.put('/:id', protect('doctor', 'hospital'), updateArticle);
+router.put('/updateArticle/:id', protect('doctor', 'hospital'), updateArticle);
 router.delete('/:id', protect('doctor', 'hospital'), deleteArticle);
 router.patch('/:id/publish', protect('doctor', 'hospital'), publishArticle);
 router.get('/', getAllArticles);
-router.get('/:id', getArticleById);
+router.get('/getArticleById/:id', getArticleById);
 
 module.exports = router;
