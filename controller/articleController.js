@@ -598,7 +598,45 @@ const publishArticle = async (req, res, next) => {
 
 
 //get article by doctor id 
-// PUBLIC - Get all articles by doctor ID (no auth required)
+// PUBLIC - Get all articles by doctor ID (no auth required) //publish one
+// const getArticlesByDoctorId = async (req, res, next) => {
+//   try {
+//     const { doctorId } = req.params;
+//     const { status, page = 1, limit = 10 } = req.query;
+
+//     const filter = { createdBy: doctorId };
+    
+//     // If status is not specified, only show published articles (public view)
+//     if (status) {
+//       filter.status = status;
+//     } else {
+//       filter.status = 'published';
+//     }
+
+//     const skip = (page - 1) * limit;
+
+//     const articles = await Article.find(filter)
+//       .populate('createdBy', 'name email specialization profileImage')
+//       .sort({ createdAt: -1 })
+//       .skip(skip)
+//       .limit(parseInt(limit));
+
+//     const total = await Article.countDocuments(filter);
+
+//     res.status(200).json({
+//       success: true,
+//       count: articles.length,
+//       total,
+//       totalPages: Math.ceil(total / limit),
+//       currentPage: parseInt(page),
+//       articles
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+//showing all without publish 
 const getArticlesByDoctorId = async (req, res, next) => {
   try {
     const { doctorId } = req.params;
@@ -606,12 +644,11 @@ const getArticlesByDoctorId = async (req, res, next) => {
 
     const filter = { createdBy: doctorId };
     
-    // If status is not specified, only show published articles (public view)
+    // Only filter by status if explicitly provided in query
     if (status) {
       filter.status = status;
-    } else {
-      filter.status = 'published';
     }
+    // ✅ Removed the else block - now shows all articles by default
 
     const skip = (page - 1) * limit;
 
@@ -635,7 +672,6 @@ const getArticlesByDoctorId = async (req, res, next) => {
     next(error);
   }
 };
-
 
 
 module.exports = {
