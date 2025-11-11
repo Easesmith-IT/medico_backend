@@ -648,7 +648,7 @@ const getArticlesByDoctorId = async (req, res, next) => {
     if (status) {
       filter.status = status;
     }
-    // ✅ Removed the else block - now shows all articles by default
+    //  Removed the else block - now shows all articles by default
 
     const skip = (page - 1) * limit;
 
