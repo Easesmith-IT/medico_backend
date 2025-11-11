@@ -1,18 +1,19 @@
-// const Article = require('../models/articleModel');
-// const AppError = require('../utils/appError');
-// const {
-//   uploadImageToCloudinary,
-//   uploadVideoToCloudinary,
-//   deleteFromCloudinary,
-//   uploadMultipleImagesToCloudinary
-// } = require('../config/cloudinaryConfig');
 
-// /**
-//  * Create Article
-//  */
+
+
+const Article = require('../models/articleModel');
+const AppError = require('../utils/appError');
+const {
+  uploadImageToCloudinary,
+  uploadVideoToCloudinary,
+  deleteFromCloudinary,
+  uploadMultipleImagesToCloudinary
+} = require('../config/cloudinaryConfig');
+
 // const createArticle = async (req, res, next) => {
 //   try {
 //     const { 
+//       doctorId,
 //       location, 
 //       category,
 //       tags, 
@@ -22,23 +23,23 @@
 //       textContent
 //     } = req.body;
 
-//     // Get user info from protect middleware
-//     const createdBy = req.user._id;
+//     const createdBy = doctorId || req.user._id;
 //     const creatorModel = req.userModel;
 
-//     // Validation
 //     if (!location || !category || !title || !articleType) {
 //       return next(new AppError('Location, category, title, and articleType are required', 400));
 //     }
 
-//     // Validate articleType
+//     if (!tags || tags.length === 0) {
+//       return next(new AppError('At least one tag is required', 400));
+//     }
+
 //     const validTypes = ['article', 'video', 'image'];
 //     if (!validTypes.includes(articleType.toLowerCase())) {
 //       return next(new AppError('Article type must be "article", "video", or "image"', 400));
 //     }
 
-//     // Parse tags
-//     const parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags || [];
+//     const parsedTags = typeof tags === 'string' ? JSON.parse(tags) : Array.isArray(tags) ? tags : [];
 
 //     const articleData = {
 //       createdBy,
@@ -52,7 +53,6 @@
 //       content: {}
 //     };
 
-//     // Handle content based on article type
 //     if (articleType.toLowerCase() === 'article') {
 //       if (!textContent) {
 //         return next(new AppError('Text content is required for article type', 400));
@@ -64,7 +64,6 @@
 //         return next(new AppError('Video file is required for video type', 400));
 //       }
       
-//       // Upload video to Cloudinary
 //       const videoResult = await uploadVideoToCloudinary(
 //         req.file.buffer,
 //         req.file.originalname
@@ -83,7 +82,6 @@
 //         return next(new AppError('At least one image file is required for image type', 400));
 //       }
       
-//       // Upload multiple images to Cloudinary
 //       const imageResults = await uploadMultipleImagesToCloudinary(
 //         req.files.map(f => f.buffer),
 //         req.files.map(f => f.originalname)
@@ -99,7 +97,6 @@
 //       }));
 //     }
 
-//     // Create article in database
 //     const article = await Article.create(articleData);
 //     await article.populate('createdBy', 'name email specialization profileImage');
 
@@ -114,9 +111,6 @@
 //   }
 // };
 
-// /**
-//  * Get all articles (PUBLIC)
-//  */
 // const getAllArticles = async (req, res, next) => {
 //   try {
 //     const { 
@@ -162,173 +156,14 @@
 //   }
 // };
 
-// /**
-//  * Get single article (PUBLIC)
-//  */
-// const getArticleById = async (req, res, next) => {
-//   try {
-//     const article = await Article.findById(req.params.id)
-//       .populate('createdBy', 'name email specialization profileImage');
-
-//     if (!article) {
-//       return next(new AppError('Article not found', 404));
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       article
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// /**
-//  * Get my articles
-//  */
-// const getMyArticles = async (req, res, next) => {
-//   try {
-//     const createdBy = req.user._id;
-//     const creatorModel = req.userModel;
-//     const { status } = req.query;
-
-//     const filter = { createdBy, creatorModel };
-//     if (status) filter.status = status;
-
-//     const articles = await Article.find(filter).sort({ createdAt: -1 });
-
-//     res.status(200).json({
-//       success: true,
-//       count: articles.length,
-//       articles
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// /**
-//  * Update article
-//  */
-// const updateArticle = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
-//     const createdBy = req.user._id;
-
-//     const article = await Article.findOne({ _id: id, createdBy });
-
-//     if (!article) {
-//       return next(new AppError('Article not found or you do not have permission', 404));
-//     }
-
-//     const updateData = { ...req.body };
-//     if (updateData.tags && typeof updateData.tags === 'string') {
-//       updateData.tags = JSON.parse(updateData.tags);
-//     }
-
-//     const updatedArticle = await Article.findByIdAndUpdate(
-//       id,
-//       updateData,
-//       { new: true, runValidators: true }
-//     ).populate('createdBy', 'name email specialization profileImage');
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Article updated successfully',
-//       article: updatedArticle
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// /**
-//  * Delete article
-//  */
-// const deleteArticle = async (req, res, next) => {
-//   try {
-//     const createdBy = req.user._id;
-//     const article = await Article.findOne({ _id: req.params.id, createdBy });
-
-//     if (!article) {
-//       return next(new AppError('Article not found or you do not have permission', 404));
-//     }
-
-//     // Delete video from Cloudinary if exists
-//     if (article.content.video?.publicId) {
-//       await deleteFromCloudinary(article.content.video.publicId, 'video');
-//     }
-
-//     // Delete images from Cloudinary if exist
-//     if (article.content.images?.length > 0) {
-//       const deletePromises = article.content.images.map(img =>
-//         deleteFromCloudinary(img.publicId, 'image')
-//       );
-//       await Promise.all(deletePromises);
-//     }
-
-//     await Article.findByIdAndDelete(req.params.id);
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Article deleted successfully'
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// /**
-//  * Publish article
-//  */
-// const publishArticle = async (req, res, next) => {
-//   try {
-//     const createdBy = req.user._id;
-//     const article = await Article.findOneAndUpdate(
-//       { _id: req.params.id, createdBy },
-//       { status: 'published' },
-//       { new: true }
-//     ).populate('createdBy', 'name email specialization profileImage');
-
-//     if (!article) {
-//       return next(new AppError('Article not found or you do not have permission', 404));
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Article published successfully',
-//       article
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// module.exports = {
-//   createArticle,
-//   getAllArticles,
-//   getArticleById,
-//   getMyArticles,
-//   updateArticle,
-//   deleteArticle,
-//   publishArticle
-// };
 
 
-const Article = require('../models/articleModel');
-const AppError = require('../utils/appError');
-const {
-  uploadImageToCloudinary,
-  uploadVideoToCloudinary,
-  deleteFromCloudinary,
-  uploadMultipleImagesToCloudinary
-} = require('../config/cloudinaryConfig');
-
+//with filtewrs 
 const createArticle = async (req, res, next) => {
   try {
     const { 
       doctorId,
-      location, 
+      cityName,  // Changed from location to cityName
       category,
       tags, 
       title, 
@@ -340,8 +175,15 @@ const createArticle = async (req, res, next) => {
     const createdBy = doctorId || req.user._id;
     const creatorModel = req.userModel;
 
-    if (!location || !category || !title || !articleType) {
-      return next(new AppError('Location, category, title, and articleType are required', 400));
+    // Validate required fields
+    if (!cityName || !category || !title || !articleType) {
+      return next(new AppError('cityName, category, title, and articleType are required', 400));
+    }
+
+    // Find city by name
+    const city = await City.findOne({ name: cityName.toLowerCase().trim() });
+    if (!city) {
+      return next(new AppError('City not found. Please provide a valid city name', 404));
     }
 
     if (!tags || tags.length === 0) {
@@ -358,7 +200,7 @@ const createArticle = async (req, res, next) => {
     const articleData = {
       createdBy,
       creatorModel,
-      location,
+      cityId: city._id,  // Use cityId from the found city
       category,
       tags: parsedTags,
       title,
@@ -367,6 +209,7 @@ const createArticle = async (req, res, next) => {
       content: {}
     };
 
+    // Handle content based on article type
     if (articleType.toLowerCase() === 'article') {
       if (!textContent) {
         return next(new AppError('Text content is required for article type', 400));
@@ -412,7 +255,12 @@ const createArticle = async (req, res, next) => {
     }
 
     const article = await Article.create(articleData);
-    await article.populate('createdBy', 'name email specialization profileImage');
+    
+    // Populate both creator and city information
+    await article.populate([
+      { path: 'createdBy', select: 'name email specialization profileImage' },
+      { path: 'cityId', select: 'name latitude longitude' }
+    ]);
 
     res.status(201).json({
       success: true,
@@ -425,37 +273,155 @@ const createArticle = async (req, res, next) => {
   }
 };
 
+
+
 const getAllArticles = async (req, res, next) => {
   try {
     const { 
       creatorId, 
       creatorModel,
-      location, 
+      cityId,
+      cityName,
       category, 
       tags, 
-      articleType, 
+      articleType,
+      longitude,
+      latitude,
+      maxDistance = 50000,
       page = 1, 
       limit = 10 
     } = req.query;
     
-    const filter = { status: 'published' };
-    
+    // REMOVED: const filter = { status: 'published' };
+    const filter = {};  // Empty filter - show ALL articles
+    let articles;
+    let total;
+
+    // Build basic filters
     if (creatorId) filter.createdBy = creatorId;
     if (creatorModel) filter.creatorModel = creatorModel;
-    if (location) filter.location = new RegExp(location, 'i');
     if (category) filter.category = new RegExp(category, 'i');
     if (tags) filter.tags = { $in: tags.split(',').map(tag => tag.trim()) };
     if (articleType) filter.articleType = articleType.toLowerCase();
 
     const skip = (page - 1) * limit;
+    const limitNum = parseInt(limit);
 
-    const articles = await Article.find(filter)
-      .populate('createdBy', 'name email specialization profileImage')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    // OPTION 1: Nearby search using coordinates
+    if (longitude && latitude) {
+      const lng = parseFloat(longitude);
+      const lat = parseFloat(latitude);
+      const distance = parseInt(maxDistance);
 
-    const total = await Article.countDocuments(filter);
+      const nearbyCities = await City.aggregate([
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [lng, lat] },
+            distanceField: 'distance',
+            maxDistance: distance,
+            spherical: true
+          }
+        }
+      ]);
+
+      if (nearbyCities.length > 0) {
+        const cityIds = nearbyCities.map(city => city._id);
+        
+        // Find doctors from these cities
+        const Doctor = mongoose.model('Doctor');
+        const doctorsInCity = await Doctor.find({ 
+          cityId: { $in: cityIds } 
+        }).select('_id');
+        const doctorIds = doctorsInCity.map(doc => doc._id);
+
+        filter.$or = [
+          { cityId: { $in: cityIds } },
+          { createdBy: { $in: doctorIds }, creatorModel: 'Doctor' }
+        ];
+      } else {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          total: 0,
+          totalPages: 0,
+          currentPage: parseInt(page),
+          articles: []
+        });
+      }
+
+      articles = await Article.find(filter)
+        .populate('createdBy', 'name email specialization profileImage cityId')
+        .populate('cityId', 'name latitude longitude')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum);
+
+      total = await Article.countDocuments(filter);
+    }
+    // OPTION 2: Filter by specific cityId
+    else if (cityId) {
+      if (!mongoose.Types.ObjectId.isValid(cityId)) {
+        return next(new AppError('Invalid cityId format', 400));
+      }
+
+      const Doctor = mongoose.model('Doctor');
+      const doctorsInCity = await Doctor.find({ cityId }).select('_id');
+      const doctorIds = doctorsInCity.map(doc => doc._id);
+
+      filter.$or = [
+        { cityId: cityId },
+        { createdBy: { $in: doctorIds }, creatorModel: 'Doctor' }
+      ];
+
+      articles = await Article.find(filter)
+        .populate('createdBy', 'name email specialization profileImage cityId')
+        .populate('cityId', 'name latitude longitude')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum);
+
+      total = await Article.countDocuments(filter);
+    }
+    // OPTION 3: Filter by city name
+    else if (cityName) {
+      const city = await City.findOne({ name: cityName.toLowerCase().trim() });
+      
+      if (!city) {
+        return res.status(404).json({
+          success: false,
+          message: 'City not found'
+        });
+      }
+
+      const Doctor = mongoose.model('Doctor');
+      const doctorsInCity = await Doctor.find({ cityId: city._id }).select('_id');
+      const doctorIds = doctorsInCity.map(doc => doc._id);
+
+      filter.$or = [
+        { cityId: city._id },
+        { createdBy: { $in: doctorIds }, creatorModel: 'Doctor' }
+      ];
+
+      articles = await Article.find(filter)
+        .populate('createdBy', 'name email specialization profileImage cityId')
+        .populate('cityId', 'name latitude longitude')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum);
+
+      total = await Article.countDocuments(filter);
+    }
+    // OPTION 4: No city filter - get all articles
+    else {
+      articles = await Article.find(filter)
+        .populate('createdBy', 'name email specialization profileImage cityId')
+        .populate('cityId', 'name latitude longitude')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum);
+
+      total = await Article.countDocuments(filter);
+    }
 
     res.status(200).json({
       success: true,
@@ -465,10 +431,13 @@ const getAllArticles = async (req, res, next) => {
       currentPage: parseInt(page),
       articles
     });
+
   } catch (error) {
     next(error);
   }
 };
+
+
 
 const getArticleById = async (req, res, next) => {
   try {
