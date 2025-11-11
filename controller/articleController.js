@@ -1,6 +1,6 @@
 
 
-
+const mongoose = require('mongoose');
 const Article = require('../models/articleModel');
 const AppError = require('../utils/appError');
 const City = require('../models/availableCities'); 
