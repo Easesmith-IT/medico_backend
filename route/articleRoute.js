@@ -12,7 +12,7 @@ const {
   publishArticle
 } = require('../controller/articleController');
 
-
+router.get('/articles', getAllArticles);
 router.get('/doctors/:doctorId/articles', getArticlesByDoctorId); 
 const { protect } = require('../middleware/auth');
 
