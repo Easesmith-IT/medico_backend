@@ -3,6 +3,7 @@
 
 const Article = require('../models/articleModel');
 const AppError = require('../utils/appError');
+const City = require('../models/availableCities'); 
 const {
   uploadImageToCloudinary,
   uploadVideoToCloudinary,
