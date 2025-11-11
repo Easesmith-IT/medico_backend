@@ -1164,3 +1164,394 @@ exports.getDoctorsByCityName = catchAsync(async (req, res, next) => {
     }
   });
 });
+
+
+
+
+//slot booking doctor set up availability
+exports.setupWeeklyAvailability = async (req, res) => {
+  try {
+    const doctorId = req.user.id;
+    const { days, timeSlots, serviceAvailability, serviceCoverage, autoSlotGeneration } = req.body;
+
+    const doctor = await Doctor.findById(doctorId);
+    
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    if (days) doctor.availability.days = days;
+    if (timeSlots) doctor.availability.timeSlots = timeSlots;
+    if (serviceAvailability) doctor.availability.serviceAvailability = serviceAvailability;
+    if (serviceCoverage) doctor.availability.serviceCoverage = serviceCoverage;
+    if (autoSlotGeneration) {
+      doctor.availability.autoSlotGeneration = {
+        ...doctor.availability.autoSlotGeneration,
+        ...autoSlotGeneration
+      };
+    }
+
+    await doctor.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Availability configured successfully',
+      data: doctor.availability
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error configuring availability',
+      error: error.message
+    });
+  }
+};
+
+// Generate Daily Slots
+exports.generateDailySlots = async (req, res) => {
+  try {
+    const doctorId = req.user.id;
+    const { startDate, endDate, slotDuration, bufferTime } = req.body;
+
+    const doctor = await Doctor.findById(doctorId);
+    
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    const slotConfig = {
+      duration: slotDuration,
+      buffer: bufferTime
+    };
+
+    const generatedSlots = await doctor.generateSlots(
+      new Date(startDate),
+      new Date(endDate),
+      slotConfig
+    );
+
+    // Merge with existing slots
+    generatedSlots.forEach(newSlot => {
+      const existingIndex = doctor.availability.dailySlots.findIndex(
+        ds => ds.date.toDateString() === newSlot.date.toDateString()
+      );
+      
+      if (existingIndex === -1) {
+        doctor.availability.dailySlots.push(newSlot);
+      }
+    });
+
+    await doctor.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Generated slots for ${generatedSlots.length} days`,
+      data: generatedSlots
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error generating slots',
+      error: error.message
+    });
+  }
+};
+
+// Get Available Slots
+exports.getAvailableSlots = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    const doctor = await Doctor.findById(doctorId)
+      .select('firstName specialization availability averageRating consultationFees');
+    
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    const availableSlots = doctor.getAvailableSlotsByDateRange(startDate, endDate);
+
+    res.status(200).json({
+      success: true,
+      doctor: {
+        id: doctor._id,
+        name: doctor.firstName,
+        specialization: doctor.specialization,
+        rating: doctor.averageRating,
+        fees: doctor.consultationFees
+      },
+      availableSlots
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching available slots',
+      error: error.message
+    });
+  }
+};
+
+// Toggle Slot Availability
+exports.toggleSlotAvailability = async (req, res) => {
+  try {
+    const doctorId = req.user.id;
+    const { date, startTime, isSlotAvailable } = req.body;
+
+    const doctor = await Doctor.findById(doctorId);
+    
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    const updatedSlot = doctor.toggleSlotAvailability(date, startTime, isSlotAvailable);
+    await doctor.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Slot ${isSlotAvailable ? 'enabled' : 'disabled'} successfully`,
+      data: updatedSlot
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      error: error.message
+    });
+  }
+};
+
+// Add Break Time
+exports.addBreakTime = async (req, res) => {
+  try {
+    const doctorId = req.user.id;
+    const { date, startTime, endTime, reason } = req.body;
+
+    const doctor = await Doctor.findById(doctorId);
+    
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    const updatedSlot = doctor.addBreakTime(date, startTime, endTime, reason);
+    await doctor.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Break time added successfully',
+      data: updatedSlot
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      error: error.message
+    });
+  }
+};
+
+
+
+
+//remove break time 
+exports.removeBreakTime = catchAsync(async (req, res, next) => {
+  const doctorId = req.user.id || req.user._id;
+  const { date, startTime } = req.body;
+
+  const doctor = await Doctor.findById(doctorId);
+  
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  const dailySlot = doctor.availability.dailySlots.find(
+    ds => ds.date.toDateString() === new Date(date).toDateString()
+  );
+
+  if (!dailySlot) {
+    return next(new AppError('No slots found for this date', 404));
+  }
+
+  const breakIndex = dailySlot.breakTimes.findIndex(
+    bt => bt.startTime === startTime
+  );
+
+  if (breakIndex === -1) {
+    return next(new AppError('Break time not found', 404));
+  }
+
+  const breakTime = dailySlot.breakTimes[breakIndex];
+  dailySlot.breakTimes.splice(breakIndex, 1);
+
+  // Unblock slots that were blocked due to this break
+  dailySlot.slots.forEach(slot => {
+    if (slot.startTime >= breakTime.startTime && 
+        slot.startTime < breakTime.endTime && 
+        !slot.isBooked) {
+      slot.status = 'available';
+      slot.isSlotAvailable = true;
+    }
+  });
+
+  await doctor.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Break time removed successfully',
+    data: dailySlot
+  });
+});
+
+// Get Doctor's Own Availability
+exports.getMyAvailability = catchAsync(async (req, res, next) => {
+  const doctorId = req.user.id || req.user._id;
+
+  const doctor = await Doctor.findById(doctorId)
+    .select('availability firstName specialization');
+  
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: doctor.availability
+  });
+});
+
+// Update Service Availability
+exports.updateServiceAvailability = catchAsync(async (req, res, next) => {
+  const doctorId = req.user.id || req.user._id;
+  const { serviceType, isOffering, modes, pricing, slotDuration, maxBookingsPerDay } = req.body;
+
+  const doctor = await Doctor.findById(doctorId);
+  
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  const serviceIndex = doctor.availability.serviceAvailability.findIndex(
+    sa => sa.serviceType === serviceType
+  );
+
+  if (serviceIndex > -1) {
+    // Update existing
+    doctor.availability.serviceAvailability[serviceIndex] = {
+      serviceType,
+      isOffering,
+      modes,
+      pricing,
+      slotDuration,
+      maxBookingsPerDay
+    };
+  } else {
+    // Add new
+    doctor.availability.serviceAvailability.push({
+      serviceType,
+      isOffering,
+      modes,
+      pricing,
+      slotDuration,
+      maxBookingsPerDay
+    });
+  }
+
+  await doctor.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Service availability updated successfully',
+    data: doctor.availability.serviceAvailability
+  });
+});
+
+// Update Service Coverage
+exports.updateServiceCoverage = catchAsync(async (req, res, next) => {
+  const doctorId = req.user.id || req.user._id;
+  const { areas, maxDistance, homeServiceCharges } = req.body;
+
+  const doctor = await Doctor.findById(doctorId);
+  
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  doctor.availability.serviceCoverage = {
+    areas: areas || doctor.availability.serviceCoverage.areas,
+    maxDistance: maxDistance || doctor.availability.serviceCoverage.maxDistance,
+    homeServiceCharges: homeServiceCharges || doctor.availability.serviceCoverage.homeServiceCharges
+  };
+
+  await doctor.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Service coverage updated successfully',
+    data: doctor.availability.serviceCoverage
+  });
+});
+
+// Bulk Manage Slots
+exports.bulkManageSlots = catchAsync(async (req, res, next) => {
+  const doctorId = req.user.id || req.user._id;
+  const { date, action, timeRange } = req.body; // action: 'block' or 'unblock'
+
+  const doctor = await Doctor.findById(doctorId);
+  
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  const dailySlot = doctor.availability.dailySlots.find(
+    ds => ds.date.toDateString() === new Date(date).toDateString()
+  );
+
+  if (!dailySlot) {
+    return next(new AppError('No slots found for this date', 404));
+  }
+
+  let updatedCount = 0;
+
+  dailySlot.slots.forEach(slot => {
+    if (timeRange) {
+      // Block/unblock slots within time range
+      if (slot.startTime >= timeRange.start && slot.startTime < timeRange.end) {
+        if (!slot.isBooked) {
+          slot.isSlotAvailable = action === 'unblock';
+          slot.status = action === 'block' ? 'blocked' : 'available';
+          updatedCount++;
+        }
+      }
+    } else {
+      // Block/unblock all slots
+      if (!slot.isBooked) {
+        slot.isSlotAvailable = action === 'unblock';
+        slot.status = action === 'block' ? 'blocked' : 'available';
+        updatedCount++;
+      }
+    }
+  });
+
+  await doctor.save();
+
+  res.status(200).json({
+    success: true,
+    message: `${updatedCount} slots ${action}ed successfully`,
+    data: dailySlot
+  });
+});
