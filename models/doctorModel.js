@@ -412,7 +412,7 @@ const doctorSchema = new mongoose.Schema({
     // General weekly availability (your original field)
     days: [{
       type: String,
-      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+      enum: ['Monday', "Tuesday", "Wednesday", "Thursday", "Friday","Saturday","Sunday"]
     }],
     
     // General time slots (your original field)
