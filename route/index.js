@@ -18,7 +18,7 @@ router.use('/patient', patientRoute); // All patient routes
 router.use('/admin', adminRoute);     // All admin routes
 router.use('/city',cityRoute);
 router.use('/article',articleRoute);
-router.use('booking',bookingRoute);
+router.use('/booking',bookingRoute);
 router.use('/service',serviceRoute);
 
 module.exports = router;
