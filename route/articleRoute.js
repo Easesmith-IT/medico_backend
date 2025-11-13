@@ -33,7 +33,7 @@ router.get('/my-articles', protect('doctor', 'hospital'), getMyArticles);
 router.put('/updateArticle/:id', protect('doctor', 'hospital'), updateArticle);
 router.delete('/:id', protect('doctor', 'hospital'), deleteArticle);
 router.patch('/:id/publish', protect('doctor', 'hospital'), publishArticle);
-router.get('/', getAllArticles);
+router.get('/getallarticle', getAllArticles);
 // PUBLIC route - no authenticate middleware
 
 router.get('/getArticleById/:id', getArticleById);
