@@ -8,7 +8,7 @@ const { verifyAdminRole } = require('../middleware/auth');
 
 
 // Get All Available Services
-router.get('/', 
+router.get('/getAllServices', 
   serviceController.getAllServices
 );
 
