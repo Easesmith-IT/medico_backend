@@ -899,14 +899,16 @@ exports.getMyProfile = catchAsync(async (req, res, next) => {
 //     }
 //   });
 // });
+
 exports.updatePatient = catchAsync(async (req, res, next) => {
   console.log('\n');
   console.log('🔧 UPDATE PATIENT PROFILE - COMPREHENSIVE');
   console.log('='.repeat(60));
   
-  // 🔍 STEP 1: Check authentication
-  console.log('🔍 Step 1: Checking authentication');
-  console.log('   Patient ID:', req.user?.id);
+  // 🔍 STEP 1: Check authentication and validate ID
+  console.log('🔍 Step 1: Checking authentication and ID validation');
+  console.log('   Patient ID from token:', req.user?.id);
+  console.log('   Patient ID from URL:', req.params.id);
   console.log('   User object exists:', !!req.user);
   
   if (!req.user || !req.user.id) {
@@ -914,9 +916,18 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     return next(new AppError('Authentication required', 401));
   }
 
+  // 🔒 SECURITY: Validate user can only update their own profile
+  if (req.params.id !== req.user.id) {
+    console.log('❌ Step 1 FAILED: Unauthorized - ID mismatch');
+    console.log('   Attempted to update ID:', req.params.id);
+    console.log('   Authenticated user ID:', req.user.id);
+    return next(new AppError('You are not authorized to update this profile', 403));
+  }
+  console.log('✅ Step 1 PASSED: Authentication and authorization successful');
+
   // 🔍 STEP 2: Check if user exists in database
   console.log('🔍 Step 2: Checking if user exists in database');
-  const userExists = await Patient.findById(req.user.id);
+  const userExists = await Patient.findById(req.params.id);
   console.log('   User found:', !!userExists);
   
   if (!userExists) {
@@ -995,7 +1006,7 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     console.log('   Checking email uniqueness...');
     const existingEmail = await Patient.findOne({ 
       email: updateData.email,
-      _id: { $ne: req.user.id }
+      _id: { $ne: req.params.id }
     });
 
     if (existingEmail) {
@@ -1017,7 +1028,7 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     console.log('   Checking phone uniqueness...');
     const existingPhone = await Patient.findOne({ 
       phone: updateData.phone,
-      _id: { $ne: req.user.id }
+      _id: { $ne: req.params.id }
     });
 
     if (existingPhone) {
@@ -1100,27 +1111,27 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     const { name, phone: emergencyPhone, relation } = updateData.emergencyContact;
     
     if (name && name.trim().length === 0) {
-      console.log(' Step 4h FAILED: Emergency contact name empty');
+      console.log('❌ Step 4h FAILED: Emergency contact name empty');
       return next(new AppError('Emergency contact name cannot be empty', 400));
     }
 
     if (emergencyPhone) {
       const phoneRegex = /^[0-9]{10}$/;
       if (!phoneRegex.test(emergencyPhone)) {
-        console.log(' Step 4h FAILED: Emergency phone invalid');
+        console.log('❌ Step 4h FAILED: Emergency phone invalid');
         return next(new AppError('Emergency contact phone must be a valid 10-digit number', 400));
       }
     }
 
     if (relation && relation.trim().length === 0) {
-      console.log(' Step 4h FAILED: Relation empty');
+      console.log('❌ Step 4h FAILED: Relation empty');
       return next(new AppError('Emergency contact relation cannot be empty', 400));
     }
-    console.log(' Step 4h PASSED: Emergency contact valid');
+    console.log('✅ Step 4h PASSED: Emergency contact valid');
   }
 
-  //  STEP 12: Build filtered update data
-  console.log(' Step 5: Building filtered update data');
+  // 🔍 STEP 12: Build filtered update data
+  console.log('🔍 Step 5: Building filtered update data');
   const filteredUpdateData = {};
   for (const field of allowedFields) {
     if (field in updateData) {
@@ -1129,16 +1140,18 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
   }
 
   console.log('   Final update data:', JSON.stringify(filteredUpdateData, null, 2));
-  console.log(' Step 5 PASSED: Update data prepared');
+  console.log('✅ Step 5 PASSED: Update data prepared');
 
-  //  STEP 13: Update patient in database
-  console.log(' Step 6: Updating patient in database...');
-  console.log('   Patient ID:', req.user.id);
+  // 🔍 STEP 13: Update patient in database
+  console.log('🔍 Step 6: Updating patient in database...');
+  console.log('   Patient ID:', req.params.id);
   console.log('   Update options: { new: true, runValidators: true }');
   
+  let updatedPatient;
+  
   try {
-    const updatedPatient = await Patient.findByIdAndUpdate(
-      req.user.id,
+    updatedPatient = await Patient.findByIdAndUpdate(
+      req.params.id,
       filteredUpdateData,
       { 
         new: true,
@@ -1150,15 +1163,15 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     console.log('   Updated patient exists:', !!updatedPatient);
 
     if (!updatedPatient) {
-      console.log(' Step 6 FAILED: Patient not found after update');
+      console.log('❌ Step 6 FAILED: Patient not found after update');
       return next(new AppError('Patient not found', 404));
     }
     
-    console.log('Step 6 PASSED: Patient updated successfully');
+    console.log('✅ Step 6 PASSED: Patient updated successfully');
     console.log('   Updated fields:', Object.keys(filteredUpdateData));
 
   } catch (error) {
-    console.log(' Step 6 FAILED: Database error');
+    console.log('❌ Step 6 FAILED: Database error');
     console.log('   Error name:', error.name);
     console.log('   Error message:', error.message);
     console.log('   Error stack:', error.stack);
@@ -1183,6 +1196,7 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
 
   console.log('✅ Step 7 PASSED: Response sent to client');
 });
+
 
 /**
  * ====================================================================
