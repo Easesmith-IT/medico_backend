@@ -1169,13 +1169,53 @@ exports.getDoctorsByCityName = catchAsync(async (req, res, next) => {
 
 
 //slot booking doctor set up availability
+// exports.setupWeeklyAvailability = async (req, res) => {
+//   try {
+//     const doctorId = req.user.id;
+//     const { days, timeSlots, serviceAvailability, serviceCoverage, autoSlotGeneration } = req.body;
+
+//     const doctor = await Doctor.findById(doctorId);
+    
+//     if (!doctor) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Doctor not found'
+//       });
+//     }
+
+//     if (days) doctor.availability.days = days;
+//     if (timeSlots) doctor.availability.timeSlots = timeSlots;
+//     if (serviceAvailability) doctor.availability.serviceAvailability = serviceAvailability;
+//     if (serviceCoverage) doctor.availability.serviceCoverage = serviceCoverage;
+//     if (autoSlotGeneration) {
+//       doctor.availability.autoSlotGeneration = {
+//         ...doctor.availability.autoSlotGeneration,
+//         ...autoSlotGeneration
+//       };
+//     }
+
+//     await doctor.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Availability configured successfully',
+//       data: doctor.availability
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error configuring availability',
+//       error: error.message
+//     });
+//   }
+// };
 exports.setupWeeklyAvailability = async (req, res) => {
   try {
     const doctorId = req.user.id;
-    const { days, timeSlots, serviceAvailability, serviceCoverage, autoSlotGeneration } = req.body;
+    let { days, timeSlots, serviceAvailability, serviceCoverage, autoSlotGeneration } = req.body;
 
     const doctor = await Doctor.findById(doctorId);
-    
+
     if (!doctor) {
       return res.status(404).json({
         success: false,
@@ -1183,8 +1223,34 @@ exports.setupWeeklyAvailability = async (req, res) => {
       });
     }
 
-    if (days) doctor.availability.days = days;
-    if (timeSlots) doctor.availability.timeSlots = timeSlots;
+    // Validate days: must be array of ["Monday", ...] and not empty
+    const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    if (days) {
+      if (!Array.isArray(days) || days.length === 0 || !days.every(day => validDays.includes(day.charAt(0).toUpperCase() + day.slice(1).toLowerCase()))) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid days. Each must be a valid weekday, e.g., "Monday".'
+        });
+      }
+      // Normalize days to capitalized form for DB
+      doctor.availability.days = days.map(day => day.charAt(0).toUpperCase() + day.slice(1).toLowerCase());
+    }
+
+    // Validate timeSlots: must be array of {start, end} with both present and HH:mm format
+    if (timeSlots) {
+      if (!Array.isArray(timeSlots) || timeSlots.length === 0 || !timeSlots.every(slot =>
+        slot.start && slot.end &&
+        /^\d{2}:\d{2}$/.test(slot.start) &&
+        /^\d{2}:\d{2}$/.test(slot.end)
+      )) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each timeSlot must have start and end as "HH:mm" strings.'
+        });
+      }
+      doctor.availability.timeSlots = timeSlots;
+    }
+
     if (serviceAvailability) doctor.availability.serviceAvailability = serviceAvailability;
     if (serviceCoverage) doctor.availability.serviceCoverage = serviceCoverage;
     if (autoSlotGeneration) {
