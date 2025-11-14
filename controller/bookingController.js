@@ -5,11 +5,116 @@ const Patient = require('../models/patientModel');
 const Service = require('../models/serviceModel');
 
 // Create Booking (Patient)
+// exports.createBooking = async (req, res) => {
+//   try {
+//     const {
+//       doctorId,
+//       serviceType,
+//       serviceMode,
+//       appointmentDate,
+//       slotTime,
+//       duration,
+//       location,
+//       paymentType,
+//       paymentId,
+//       transactionId,
+//       paymentGateway
+//     } = req.body;
+
+//     const patientId = req.user.id;
+
+//     // Verify doctor exists and is verified
+//     const doctor = await Doctor.findById(doctorId);
+//     if (!doctor || doctor.verificationStatus !== 'approved') {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Doctor not available or not verified'
+//       });
+//     }
+
+//     // Check slot availability
+//     const isAvailable = doctor.isSlotAvailable(appointmentDate, slotTime.startTime);
+//     if (!isAvailable) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Selected slot is not available'
+//       });
+//     }
+
+//     // Get service pricing
+//     const service = await Service.findOne({ name: serviceType });
+//     if (!service || !service.isActive) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Service not available'
+//       });
+//     }
+
+//     // Calculate pricing
+//     const basePrice = service.basePrice;
+//     const equipmentCharges = service.equipmentCharges || 0;
+//     const taxes = (basePrice + equipmentCharges) * (service.taxPercentage / 100);
+//     const totalAmount = basePrice + equipmentCharges + taxes;
+
+//     // Validate payment for Prepaid
+//     if (paymentType === 'Prepaid' && !paymentId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Payment required for prepaid booking'
+//       });
+//     }
+
+//     // Create booking
+//     const booking = new Booking({
+//       patientId,
+//       doctorId,
+//       serviceType,
+//       serviceMode,
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime,
+//       duration: duration || service.defaultDuration,
+//       location,
+//       pricing: {
+//         basePrice,
+//         equipmentCharges,
+//         taxes,
+//         totalAmount
+//       },
+//       paymentType,
+//       paymentId,
+//       transactionId,
+//       paymentGateway,
+//       paymentStatus: paymentType === 'Prepaid' ? 'Completed' : 'Pending',
+//       adminApproval: { status: 'Pending' }
+//     });
+
+//     await booking.save();
+
+//     // Book the slot in doctor's availability
+//     doctor.bookSlot(appointmentDate, slotTime.startTime, booking._id);
+//     await doctor.save();
+
+//     // Send notification (implement notification service)
+//     // await sendNotification(patientId, 'Booking request received');
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Booking created successfully. Awaiting admin approval.',
+//       data: booking
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error creating booking',
+//       error: error.message
+//     });
+//   }
+// };
 exports.createBooking = async (req, res) => {
   try {
     const {
       doctorId,
-      serviceType,
+      serviceId,          // changed from serviceType to serviceId
       serviceMode,
       appointmentDate,
       slotTime,
@@ -41,8 +146,8 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    // Get service pricing
-    const service = await Service.findOne({ name: serviceType });
+    // Get service pricing using serviceId
+    const service = await Service.findById(serviceId);
     if (!service || !service.isActive) {
       return res.status(400).json({
         success: false,
@@ -64,11 +169,11 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    // Create booking
+    // Create booking with serviceId stored
     const booking = new Booking({
       patientId,
       doctorId,
-      serviceType,
+      serviceType: service.name,  // Keep service name for legacy or display
       serviceMode,
       appointmentDate: new Date(appointmentDate),
       slotTime,
