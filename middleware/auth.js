@@ -483,69 +483,162 @@ const { verifyToken, verifyTokenSafe, generateAccessToken } = require('../utils/
 const AppError = require('../utils/appError');
 const Patient = require('../models/patientModel');
 const Doctor = require('../models/doctorModel');
-
+const Admin = require('../models/adminModel');
 /**
  * PROTECT MIDDLEWARE - Automatic token refresh on expiry
  * @param  {...string} allowedRoles - Optional roles for authorization
  */
+// const protect = (...allowedRoles) => {
+//   return async (req, res, next) => {
+//     try {
+//       let token;
+//       let refreshToken;
+
+//       // Get token from cookies or Authorization header
+//       if (req.cookies && req.cookies.accessToken) {
+//         token = req.cookies.accessToken;
+//         refreshToken = req.cookies.refreshToken;
+//       } else if (
+//         req.headers.authorization &&
+//         req.headers.authorization.startsWith('Bearer')
+//       ) {
+//         token = req.headers.authorization.split(' ')[1];
+//         refreshToken = req.headers['x-refresh-token'];
+//       }
+
+//       if (!token || token === 'undefined') {
+//         return next(new AppError('You are not logged in. Please log in to get access', 401));
+//       }
+
+//       // Try to verify access token SAFELY (returns null if expired, doesn't throw error)
+//       let decoded = verifyTokenSafe(token, 'access');
+
+//       // If access token is expired or invalid, try refresh token
+//       if (!decoded) {
+//         if (!refreshToken) {
+//           return next(new AppError('Token expired. Please login again.', 401));
+//         }
+
+//         // Verify refresh token SAFELY
+//         decoded = verifyTokenSafe(refreshToken, 'refresh');
+
+//         if (!decoded) {
+//           return next(new AppError('Session expired. Please login again.', 401));
+//         }
+
+//         // Generate new access token
+//         const newAccessToken = generateAccessToken(
+//           decoded.id,
+//           decoded.role,
+//           decoded.tokenVersion
+//         );
+
+//         // Set new token in response header or cookie
+//         if (req.cookies) {
+//           res.cookie('accessToken', newAccessToken, {
+//             httpOnly: true,
+//             secure: process.env.NODE_ENV === 'production',
+//             sameSite: 'strict',
+//             maxAge: 5 * 60 * 1000
+//           });
+//         } else {
+//           res.set('X-New-Access-Token', newAccessToken);
+//         }
+
+//         token = newAccessToken;
+//       }
+
+//       // Load full user from database based on role
+//       let currentUser;
+//       let userModel;
+
+//       if (decoded.role === 'patient') {
+//         currentUser = await Patient.findById(decoded.id).select('+tokenVersion');
+//         userModel = 'Patient';
+//       } else if (decoded.role === 'doctor') {
+//         currentUser = await Doctor.findById(decoded.id).select('+tokenVersion');
+//         userModel = 'Doctor';
+//       } else if (decoded.role === 'hospital') {
+//         currentUser = await Hospital.findById(decoded.id).select('+tokenVersion');
+//         userModel = 'Hospital';
+//       }
+
+//       if (!currentUser) {
+//         return next(new AppError('The user belonging to this token no longer exists', 401));
+//       }
+
+//       // Check token version (for logout all devices)
+//       if (currentUser.tokenVersion !== decoded.tokenVersion) {
+//         return next(new AppError('Your session has been invalidated. Please log in again', 401));
+//       }
+
+//       // Check if user is active
+//       if (currentUser.isActive === false) {
+//         return next(new AppError('Your account has been deactivated. Please contact support', 403));
+//       }
+
+//       // Grant access
+//       req.user = currentUser;
+//       req.user.role = decoded.role;
+//       req.userModel = userModel;
+
+//       // If specific roles are required
+//       if (allowedRoles.length > 0) {
+//         const userRole = decoded.role?.toLowerCase();
+
+//         if (!allowedRoles.includes(userRole)) {
+//           return next(new AppError(
+//             `Access denied. Required roles: ${allowedRoles.join(', ')}`,
+//             403
+//           ));
+//         }
+
+//         req.userData = currentUser;
+//       }
+
+//       next();
+//     } catch (error) {
+//       next(error);
+//     }
+//   };
+// };
+
+// Keep all other middleware functions the same...
+
+
+
 const protect = (...allowedRoles) => {
   return async (req, res, next) => {
     try {
       let token;
-      let refreshToken;
 
       // Get token from cookies or Authorization header
       if (req.cookies && req.cookies.accessToken) {
         token = req.cookies.accessToken;
-        refreshToken = req.cookies.refreshToken;
-      } else if (
-        req.headers.authorization &&
-        req.headers.authorization.startsWith('Bearer')
-      ) {
+      } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         token = req.headers.authorization.split(' ')[1];
-        refreshToken = req.headers['x-refresh-token'];
       }
 
-      if (!token || token === 'undefined') {
+      // Better token validation
+      if (!token) {
         return next(new AppError('You are not logged in. Please log in to get access', 401));
       }
 
-      // Try to verify access token SAFELY (returns null if expired, doesn't throw error)
-      let decoded = verifyTokenSafe(token, 'access');
+      // Remove any potential quotes or whitespace
+      token = token.trim().replace(/^["']|["']$/g, '');
 
-      // If access token is expired or invalid, try refresh token
-      if (!decoded) {
-        if (!refreshToken) {
-          return next(new AppError('Token expired. Please login again.', 401));
-        }
+      // Check if token is not 'undefined' or 'null' string
+      if (token === 'undefined' || token === 'null' || token === '') {
+        return next(new AppError('Invalid token. Please log in again', 401));
+      }
 
-        // Verify refresh token SAFELY
-        decoded = verifyTokenSafe(refreshToken, 'refresh');
-
-        if (!decoded) {
-          return next(new AppError('Session expired. Please login again.', 401));
-        }
-
-        // Generate new access token
-        const newAccessToken = generateAccessToken(
-          decoded.id,
-          decoded.role,
-          decoded.tokenVersion
-        );
-
-        // Set new token in response header or cookie
-        if (req.cookies) {
-          res.cookie('accessToken', newAccessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 5 * 60 * 1000
-          });
-        } else {
-          res.set('X-New-Access-Token', newAccessToken);
-        }
-
-        token = newAccessToken;
+      // Verify token - wrap in try-catch for better error handling
+      let decoded;
+      try {
+        decoded = verifyToken(token, 'access');
+      } catch (tokenError) {
+        console.error('Token verification error:', tokenError.message);
+        return next(new AppError('Invalid or expired token. Please log in again', 401));
       }
 
       // Load full user from database based on role
@@ -553,21 +646,21 @@ const protect = (...allowedRoles) => {
       let userModel;
 
       if (decoded.role === 'patient') {
-        currentUser = await Patient.findById(decoded.id).select('+tokenVersion');
+        currentUser = await Patient.findById(decoded.id).select('tokenVersion isActive');
         userModel = 'Patient';
       } else if (decoded.role === 'doctor') {
-        currentUser = await Doctor.findById(decoded.id).select('+tokenVersion');
+        currentUser = await Doctor.findById(decoded.id).select('tokenVersion isActive');
         userModel = 'Doctor';
-      } else if (decoded.role === 'hospital') {
-        currentUser = await Hospital.findById(decoded.id).select('+tokenVersion');
-        userModel = 'Hospital';
+      } else if (decoded.role === 'admin' || decoded.role === 'superAdmin') {
+        currentUser = await Admin.findById(decoded.id).select('tokenVersion isActive');
+        userModel = 'Admin';
       }
 
       if (!currentUser) {
         return next(new AppError('The user belonging to this token no longer exists', 401));
       }
 
-      // Check token version (for logout all devices)
+      // Check token version
       if (currentUser.tokenVersion !== decoded.tokenVersion) {
         return next(new AppError('Your session has been invalidated. Please log in again', 401));
       }
@@ -578,32 +671,34 @@ const protect = (...allowedRoles) => {
       }
 
       // Grant access
-      req.user = currentUser;
-      req.user.role = decoded.role;
+      req.user = {
+        ...currentUser.toObject(),
+        id: decoded.id,
+        role: decoded.role
+      };
       req.userModel = userModel;
 
       // If specific roles are required
       if (allowedRoles.length > 0) {
         const userRole = decoded.role?.toLowerCase();
-
-        if (!allowedRoles.includes(userRole)) {
-          return next(new AppError(
-            `Access denied. Required roles: ${allowedRoles.join(', ')}`,
-            403
-          ));
+        const normalizedRole = userRole === 'superadmin' ? 'admin' : userRole;
+        
+        if (!allowedRoles.includes(normalizedRole)) {
+          return next(new AppError(`Access denied. Required roles: ${allowedRoles.join(', ')}`, 403));
         }
-
-        req.userData = currentUser;
       }
 
       next();
     } catch (error) {
+      console.error('Auth middleware error:', error);
       next(error);
     }
   };
 };
 
-// Keep all other middleware functions the same...
+
+
+
 const verifyAccessToken = (req, res, next) => {
   try {
     const token = req.cookies?.accessToken;

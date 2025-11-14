@@ -2,51 +2,35 @@
 const express = require('express');
 const router = express.Router();
 const serviceController = require('../controller/serviceController');
-const { verifyAdminRole } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 
-// PUBLIC ROUTES (No Authentication Required)
+// ==================== PUBLIC ROUTES ====================
 
+// Get all services with filters and pagination
+// GET /api/services?page=1&limit=10&cityId=xxx&isActive=true&search=doctor&sortBy=basePrice&order=asc
+router.get('/getAllServices', serviceController.getAllServices);
 
-// Get All Available Services
-router.get('/getAllServices', 
-  serviceController.getAllServices
-);
+// Get service by ID
+// GET /api/services/:serviceId
+router.get('/:serviceId', serviceController.getServiceById);
 
-// Get Service Details
-router.get('/:serviceId', 
-  serviceController.getServiceDetails
-);
+// Get services by city
+// GET /api/services/city/:cityId
+router.get('/city/:cityId', serviceController.getServicesByCity);
 
-// Get Verified Providers by Service Type
-router.get('/providers/:serviceType', 
-  serviceController.getProvidersByService
-);
+// Get services by creator
+// GET /api/services/creator/:creatorId?role=admin
+router.get('/creator/:creatorId', serviceController.getServicesByCreator);
 
-// Get Provider Full Profile
-router.get('/provider/profile/:doctorId', 
-  serviceController.getProviderProfile
-);
+// ==================== PROTECTED ROUTES ====================
 
+// Create service (Admin or Doctor only)
+// POST /api/services
+// router.post('/createService', protect('admin', 'doctor'), serviceController.createService);
+router.post('/createService', protect('admin', 'doctor'), serviceController.createService);
 
-// ADMIN ROUTES
-
-
-// Create Service - Admin Only
-router.post('/admin/create', 
-  verifyAdminRole,
-  serviceController.createService
-);
-
-// Update Service - Admin Only
-router.put('/admin/update/:serviceId', 
-  verifyAdminRole,
-  serviceController.updateService
-);
-
-// Delete/Deactivate Service - Admin Only
-router.delete('/admin/delete/:serviceId', 
-  verifyAdminRole,
-  serviceController.deleteService
-);
+// Update service (Admin or Doctor only)
+// PUT /api/services/:serviceId
+router.put('/updateService/:serviceId', protect('admin', 'doctor'), serviceController.updateService);
 
 module.exports = router;

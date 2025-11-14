@@ -356,7 +356,7 @@ const generateAccessToken = (userId, userRole, tokenVersion = 0) => {
   const token = jwt.sign(
     payload,
     process.env.JWT_ACCESS_SECRET,
-    { expiresIn: '5m' }
+  { expiresIn: '365d' } 
   );
 
   return token;
