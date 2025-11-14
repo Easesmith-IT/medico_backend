@@ -635,17 +635,18 @@ doctorSchema.methods.comparePassword = async function(candidatePassword, userPas
 //   return slots;
 // };
 doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConfig) {
+  if (!this.availability.timeSlots || this.availability.timeSlots.length === 0) {
+    throw new Error("Doctor's availability.timeSlots are not configured");
+  }
+
   const slots = [];
   const currentDate = new Date(startDate);
-  
-  // Normalize available days to lowercase for case-insensitive check
   const availableDaysLower = this.availability.days.map(d => d.toLowerCase());
-  
+
   while (currentDate <= endDate) {
-    const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' }); // e.g., "Monday"
+    const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
     const dayOfWeekLower = dayOfWeek.toLowerCase();
 
-    // Check availability on this day (case-insensitive)
     if (availableDaysLower.includes(dayOfWeekLower)) {
       const dailySlot = {
         date: new Date(currentDate),
@@ -653,8 +654,15 @@ doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConf
         isAvailable: true,
         slots: []
       };
-      
+
       this.availability.timeSlots.forEach(timeRange => {
+        // Defensive check for missing start or end times
+        if (!timeRange.start || !timeRange.end) {
+          // Optionally log this for debugging
+          console.warn('Invalid timeRange skipped during slot generation:', timeRange);
+          return; // skip this invalid time range
+        }
+
         const [startHour, startMin] = timeRange.start.split(':').map(Number);
         const [endHour, endMin] = timeRange.end.split(':').map(Number);
 
@@ -669,9 +677,10 @@ doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConf
 
         while (slotStart.getTime() + duration * 60000 <= rangeEnd.getTime()) {
           const slotEnd = new Date(slotStart.getTime() + duration * 60000);
+
           dailySlot.slots.push({
-            startTime: slotStart.toTimeString().slice(0,5),
-            endTime: slotEnd.toTimeString().slice(0,5),
+            startTime: slotStart.toTimeString().slice(0, 5),
+            endTime: slotEnd.toTimeString().slice(0, 5),
             duration,
             isBooked: false,
             isSlotAvailable: true,
@@ -682,7 +691,7 @@ doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConf
         }
       });
 
-      if(dailySlot.slots.length > 0) {
+      if (dailySlot.slots.length > 0) {
         slots.push(dailySlot);
       }
     }
@@ -692,6 +701,7 @@ doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConf
 
   return slots;
 };
+
 
 // Method to check if a specific slot is available
 doctorSchema.methods.isSlotAvailable = function(date, startTime) {
