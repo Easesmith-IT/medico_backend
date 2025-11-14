@@ -834,11 +834,14 @@ exports.getAllServices = async (req, res) => {
 // Create Service (superAdmin or Admin only)
 exports.createService = async (req, res) => {
   try {
-    // Check role authorization - only superAdmin and admin can create services
-    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
+    // Normalize role to lowercase
+    const userRole = req.user.role.toLowerCase();
+
+    // Allow only 'admin' (includes superadmin normalized in middleware)
+    if (userRole !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Only superAdmin and admin can create services. Doctors can only select from existing services.'
+        message: 'Access denied. Only admin users can create services.'
       });
     }
 
@@ -884,9 +887,8 @@ exports.createService = async (req, res) => {
       });
     }
 
-    // Get creator details - only admin or superAdmin at this point
-    const creatorModel = req.user.role === 'superAdmin' ? 'Admin' : 'Admin';
-    const Creator = mongoose.model(creatorModel);
+    // Creator is always Admin model (admin or superadmin)
+    const Creator = Admin;
     const creatorDetails = await Creator.findById(req.user.id).select('name email');
 
     if (!creatorDetails) {
@@ -913,7 +915,7 @@ exports.createService = async (req, res) => {
       cities,
       createdBy: {
         userId: req.user.id,
-        userModel: creatorModel,
+        userModel: 'Admin',
         name: creatorDetails.name,
         email: creatorDetails.email,
         role: req.user.role
@@ -929,7 +931,7 @@ exports.createService = async (req, res) => {
       { new: true }
     );
 
-    // Populate before sending response
+    // Populate cities before sending response
     await service.populate('cities', 'name latitude longitude');
 
     res.status(201).json({
