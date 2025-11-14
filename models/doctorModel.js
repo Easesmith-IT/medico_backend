@@ -407,6 +407,13 @@ const doctorSchema = new mongoose.Schema({
     paymentMethods: [String]
   }],
 
+
+  services: [{
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Service'
+}],
+
+
   // Enhanced Availability System with Booking Integration
   availability: {
     // General weekly availability (your original field)
