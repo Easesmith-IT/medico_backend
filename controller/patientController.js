@@ -710,19 +710,236 @@ exports.getMyProfile = catchAsync(async (req, res, next) => {
 //     }
 //   });
 // });
+// exports.updatePatient = catchAsync(async (req, res, next) => {
+//   console.log('\n');
+//   console.log('UPDATE PATIENT PROFILE - COMPREHENSIVE');
+//   console.log('='.repeat(60));
+//   console.log('Patient ID:', req.user?.id);
+
+//   // ✅ Check if user exists in database
+//   const userExists = await Patient.findById(req.user?.id);
+//   if (!userExists) {
+//     return next(new AppError('The user belonging to this token no longer exists', 401));
+//   }
+
+//   console.log('Update fields:', Object.keys(req.body));
+
+//   // ✅ SECURITY: Remove sensitive fields
+//   const { 
+//     password, 
+//     role, 
+//     tokenVersion, 
+//     isVerified, 
+//     isActive,
+//     _id,
+//     id,
+//     createdAt,
+//     updatedAt,
+//     signupOtp,
+//     signupOtpExpiry,
+//     loginOtp,
+//     loginOtpExpiry,
+//     refreshToken,
+//     __v,
+//     following,
+//     followingCount,
+//     medicalHistory,
+//     allergies,
+//     currentMedications,
+//     savedPosts,
+//     ...updateData 
+//   } = req.body;
+
+//   console.log('Safe update data:', updateData);
+
+//   // ✅ WHITELIST: Only these fields can be updated
+//   const allowedFields = [
+//     'firstName',
+//     'email',
+//     'phone',
+//     'profilePhoto',
+//     'dateOfBirth',
+//     'gender',
+//     'address',
+//     'bloodGroup',
+//     'emergencyContact'
+//   ];
+
+//   const fieldsToUpdate = Object.keys(updateData).filter(field => allowedFields.includes(field));
+//   console.log('Fields to update:', fieldsToUpdate);
+
+//   // ✅ Email uniqueness
+//   if (updateData.email) {
+//     const emailRegex = /^\S+@\S+\.\S+$/;
+//     if (!emailRegex.test(updateData.email)) {
+//       return next(new AppError('Please provide a valid email', 400));
+//     }
+
+//     const existingEmail = await Patient.findOne({ 
+//       email: updateData.email,
+//       _id: { $ne: req.user?.id }
+//     });
+
+//     if (existingEmail) {
+//       return next(new AppError('Email already in use', 400));
+//     }
+//   }
+
+//   // ✅ Phone uniqueness
+//   if (updateData.phone) {
+//     const phoneRegex = /^[0-9]{10}$/;
+//     if (!phoneRegex.test(updateData.phone)) {
+//       return next(new AppError('Phone number must be a valid 10-digit number', 400));
+//     }
+
+//     const existingPhone = await Patient.findOne({ 
+//       phone: updateData.phone,
+//       _id: { $ne: req.user?.id }
+//     });
+
+//     if (existingPhone) {
+//       return next(new AppError('Phone number already in use', 400));
+//     }
+//   }
+
+//   // ✅ firstName validation
+//   if (updateData.firstName && updateData.firstName.trim().length === 0) {
+//     return next(new AppError('First name cannot be empty', 400));
+//   }
+
+//   // ✅ dateOfBirth validation
+//   if (updateData.dateOfBirth) {
+//     const dob = new Date(updateData.dateOfBirth);
+//     if (isNaN(dob.getTime())) {
+//       return next(new AppError('Please provide a valid date of birth', 400));
+//     }
+
+//     if (dob > new Date()) {
+//       return next(new AppError('Date of birth cannot be in the future', 400));
+//     }
+//   }
+
+//   // ✅ gender validation
+//   if (updateData.gender && !['male', 'female', 'other'].includes(updateData.gender)) {
+//     return next(new AppError('Invalid gender. Must be male, female, or other', 400));
+//   }
+
+//   // ✅ bloodGroup validation
+//   if (updateData.bloodGroup) {
+//     const validBloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+//     if (!validBloodGroups.includes(updateData.bloodGroup)) {
+//       return next(new AppError('Invalid blood group', 400));
+//     }
+//   }
+
+//   // ✅ address validation
+//   if (updateData.address && typeof updateData.address === 'object') {
+//     const { city, state, country } = updateData.address;
+//     if (city && city.trim().length === 0) {
+//       return next(new AppError('City cannot be empty', 400));
+//     }
+//     if (state && state.trim().length === 0) {
+//       return next(new AppError('State cannot be empty', 400));
+//     }
+//     if (country && country.trim().length === 0) {
+//       return next(new AppError('Country cannot be empty', 400));
+//     }
+//   }
+
+//   // ✅ emergencyContact validation
+//   if (updateData.emergencyContact && typeof updateData.emergencyContact === 'object') {
+//     const { name, phone: emergencyPhone, relation } = updateData.emergencyContact;
+    
+//     if (name && name.trim().length === 0) {
+//       return next(new AppError('Emergency contact name cannot be empty', 400));
+//     }
+
+//     if (emergencyPhone) {
+//       const phoneRegex = /^[0-9]{10}$/;
+//       if (!phoneRegex.test(emergencyPhone)) {
+//         return next(new AppError('Emergency contact phone must be a valid 10-digit number', 400));
+//       }
+//     }
+
+//     if (relation && relation.trim().length === 0) {
+//       return next(new AppError('Emergency contact relation cannot be empty', 400));
+//     }
+//   }
+
+//   // ✅ Build filtered update data
+//   const filteredUpdateData = {};
+//   for (const field of allowedFields) {
+//     if (field in updateData) {
+//       filteredUpdateData[field] = updateData[field];
+//     }
+//   }
+
+//   console.log('Final update data:', filteredUpdateData);
+
+//   // ✅ Update patient
+//   const updatedPatient = await Patient.findByIdAndUpdate(
+//     req.user?.id,
+//     filteredUpdateData,
+//     { 
+//       new: true,
+//       runValidators: true
+//     }
+//   ).select('-password -tokenVersion -refreshToken -signupOtp -loginOtp -signupOtpExpiry -loginOtpExpiry');
+
+//   console.log('✅ Patient profile updated successfully');
+//   console.log('='.repeat(60));
+//   console.log('\n');
+
+//   res.status(200).json({
+//     success: true,
+//     message: 'Profile updated successfully',
+//     data: {
+//       patient: updatedPatient,
+//       updatedFields: fieldsToUpdate
+//     }
+//   });
+// });
+
 exports.updatePatient = catchAsync(async (req, res, next) => {
   console.log('\n');
-  console.log('UPDATE PATIENT PROFILE - COMPREHENSIVE');
+  console.log('🔧 UPDATE PATIENT PROFILE - COMPREHENSIVE');
   console.log('='.repeat(60));
-  console.log('Patient ID:', req.user?.id);
-
-  // ✅ Check if user exists in database
-  const userExists = await Patient.findById(req.user?.id);
-  if (!userExists) {
-    return next(new AppError('The user belonging to this token no longer exists', 401));
+  
+  // 🔍 STEP 1: Check authentication and validate ID
+  console.log('🔍 Step 1: Checking authentication and ID validation');
+  console.log('   Patient ID from token:', req.user?.id);
+  console.log('   Patient ID from URL:', req.params.id);
+  console.log('   User object exists:', !!req.user);
+  
+  if (!req.user || !req.user.id) {
+    console.log('❌ Step 1 FAILED: No user ID found in request');
+    return next(new AppError('Authentication required', 401));
   }
 
-  console.log('Update fields:', Object.keys(req.body));
+  // 🔒 SECURITY: Validate user can only update their own profile
+  if (req.params.id !== req.user.id) {
+    console.log('❌ Step 1 FAILED: Unauthorized - ID mismatch');
+    console.log('   Attempted to update ID:', req.params.id);
+    console.log('   Authenticated user ID:', req.user.id);
+    return next(new AppError('You are not authorized to update this profile', 403));
+  }
+  console.log('✅ Step 1 PASSED: Authentication and authorization successful');
+
+  // 🔍 STEP 2: Check if user exists in database
+  console.log('🔍 Step 2: Checking if user exists in database');
+  const userExists = await Patient.findById(req.params.id);
+  console.log('   User found:', !!userExists);
+  
+  if (!userExists) {
+    console.log('❌ Step 2 FAILED: User not found in database');
+    return next(new AppError('The user belonging to this token no longer exists', 401));
+  }
+  console.log('✅ Step 2 PASSED: User exists');
+
+  // 🔍 STEP 3: Log incoming data
+  console.log('🔍 Step 3: Processing request body');
+  console.log('   Update fields received:', Object.keys(req.body));
+  console.log('   Body content:', JSON.stringify(req.body, null, 2));
 
   // ✅ SECURITY: Remove sensitive fields
   const { 
@@ -750,7 +967,7 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     ...updateData 
   } = req.body;
 
-  console.log('Safe update data:', updateData);
+  console.log('   Safe update data:', updateData);
 
   // ✅ WHITELIST: Only these fields can be updated
   const allowedFields = [
@@ -766,107 +983,155 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
   ];
 
   const fieldsToUpdate = Object.keys(updateData).filter(field => allowedFields.includes(field));
-  console.log('Fields to update:', fieldsToUpdate);
+  console.log('   Fields to update:', fieldsToUpdate);
+  
+  if (fieldsToUpdate.length === 0) {
+    console.log('⚠️  Step 3 WARNING: No valid fields to update');
+    return res.status(400).json({
+      success: false,
+      message: 'No valid fields provided for update'
+    });
+  }
+  console.log('✅ Step 3 PASSED: Fields validated');
 
-  // ✅ Email uniqueness
+  // 🔍 STEP 4: Email validation
   if (updateData.email) {
+    console.log('🔍 Step 4a: Validating email');
     const emailRegex = /^\S+@\S+\.\S+$/;
     if (!emailRegex.test(updateData.email)) {
+      console.log('❌ Step 4a FAILED: Invalid email format');
       return next(new AppError('Please provide a valid email', 400));
     }
 
+    console.log('   Checking email uniqueness...');
     const existingEmail = await Patient.findOne({ 
       email: updateData.email,
-      _id: { $ne: req.user?.id }
+      _id: { $ne: req.params.id }
     });
 
     if (existingEmail) {
+      console.log('❌ Step 4a FAILED: Email already in use');
       return next(new AppError('Email already in use', 400));
     }
+    console.log('✅ Step 4a PASSED: Email valid and unique');
   }
 
-  // ✅ Phone uniqueness
+  // 🔍 STEP 5: Phone validation
   if (updateData.phone) {
+    console.log('🔍 Step 4b: Validating phone');
     const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(updateData.phone)) {
+      console.log('❌ Step 4b FAILED: Invalid phone format');
       return next(new AppError('Phone number must be a valid 10-digit number', 400));
     }
 
+    console.log('   Checking phone uniqueness...');
     const existingPhone = await Patient.findOne({ 
       phone: updateData.phone,
-      _id: { $ne: req.user?.id }
+      _id: { $ne: req.params.id }
     });
 
     if (existingPhone) {
+      console.log('❌ Step 4b FAILED: Phone already in use');
       return next(new AppError('Phone number already in use', 400));
     }
+    console.log('✅ Step 4b PASSED: Phone valid and unique');
   }
 
-  // ✅ firstName validation
-  if (updateData.firstName && updateData.firstName.trim().length === 0) {
-    return next(new AppError('First name cannot be empty', 400));
+  // 🔍 STEP 6: firstName validation
+  if (updateData.firstName) {
+    console.log('🔍 Step 4c: Validating firstName');
+    if (updateData.firstName.trim().length === 0) {
+      console.log('❌ Step 4c FAILED: First name empty');
+      return next(new AppError('First name cannot be empty', 400));
+    }
+    console.log('✅ Step 4c PASSED: First name valid');
   }
 
-  // ✅ dateOfBirth validation
+  // 🔍 STEP 7: dateOfBirth validation
   if (updateData.dateOfBirth) {
+    console.log('🔍 Step 4d: Validating dateOfBirth');
     const dob = new Date(updateData.dateOfBirth);
     if (isNaN(dob.getTime())) {
+      console.log('❌ Step 4d FAILED: Invalid date format');
       return next(new AppError('Please provide a valid date of birth', 400));
     }
 
     if (dob > new Date()) {
+      console.log('❌ Step 4d FAILED: Date in future');
       return next(new AppError('Date of birth cannot be in the future', 400));
     }
+    console.log('✅ Step 4d PASSED: Date of birth valid');
   }
 
-  // ✅ gender validation
-  if (updateData.gender && !['male', 'female', 'other'].includes(updateData.gender)) {
-    return next(new AppError('Invalid gender. Must be male, female, or other', 400));
+  // 🔍 STEP 8: gender validation
+  if (updateData.gender) {
+    console.log('🔍 Step 4e: Validating gender');
+    if (!['male', 'female', 'other'].includes(updateData.gender)) {
+      console.log('❌ Step 4e FAILED: Invalid gender value');
+      return next(new AppError('Invalid gender. Must be male, female, or other', 400));
+    }
+    console.log('✅ Step 4e PASSED: Gender valid');
   }
 
-  // ✅ bloodGroup validation
+  // 🔍 STEP 9: bloodGroup validation
   if (updateData.bloodGroup) {
+    console.log('🔍 Step 4f: Validating blood group');
     const validBloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
     if (!validBloodGroups.includes(updateData.bloodGroup)) {
+      console.log('❌ Step 4f FAILED: Invalid blood group');
       return next(new AppError('Invalid blood group', 400));
     }
+    console.log('✅ Step 4f PASSED: Blood group valid');
   }
 
-  // ✅ address validation
+  // 🔍 STEP 10: address validation
   if (updateData.address && typeof updateData.address === 'object') {
+    console.log('🔍 Step 4g: Validating address');
     const { city, state, country } = updateData.address;
+    
     if (city && city.trim().length === 0) {
+      console.log('❌ Step 4g FAILED: City empty');
       return next(new AppError('City cannot be empty', 400));
     }
     if (state && state.trim().length === 0) {
+      console.log('❌ Step 4g FAILED: State empty');
       return next(new AppError('State cannot be empty', 400));
     }
     if (country && country.trim().length === 0) {
+      console.log('❌ Step 4g FAILED: Country empty');
       return next(new AppError('Country cannot be empty', 400));
     }
+    console.log('✅ Step 4g PASSED: Address valid');
   }
 
-  // ✅ emergencyContact validation
+  // 🔍 STEP 11: emergencyContact validation
   if (updateData.emergencyContact && typeof updateData.emergencyContact === 'object') {
+    console.log('🔍 Step 4h: Validating emergency contact');
     const { name, phone: emergencyPhone, relation } = updateData.emergencyContact;
     
     if (name && name.trim().length === 0) {
+      console.log('❌ Step 4h FAILED: Emergency contact name empty');
       return next(new AppError('Emergency contact name cannot be empty', 400));
     }
 
     if (emergencyPhone) {
       const phoneRegex = /^[0-9]{10}$/;
       if (!phoneRegex.test(emergencyPhone)) {
+        console.log('❌ Step 4h FAILED: Emergency phone invalid');
         return next(new AppError('Emergency contact phone must be a valid 10-digit number', 400));
       }
     }
 
     if (relation && relation.trim().length === 0) {
+      console.log('❌ Step 4h FAILED: Relation empty');
       return next(new AppError('Emergency contact relation cannot be empty', 400));
     }
+    console.log('✅ Step 4h PASSED: Emergency contact valid');
   }
 
-  // ✅ Build filtered update data
+  // 🔍 STEP 12: Build filtered update data
+  console.log('🔍 Step 5: Building filtered update data');
   const filteredUpdateData = {};
   for (const field of allowedFields) {
     if (field in updateData) {
@@ -874,19 +1139,49 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     }
   }
 
-  console.log('Final update data:', filteredUpdateData);
+  console.log('   Final update data:', JSON.stringify(filteredUpdateData, null, 2));
+  console.log('✅ Step 5 PASSED: Update data prepared');
 
-  // ✅ Update patient
-  const updatedPatient = await Patient.findByIdAndUpdate(
-    req.user?.id,
-    filteredUpdateData,
-    { 
-      new: true,
-      runValidators: true
+  // 🔍 STEP 13: Update patient in database
+  console.log('🔍 Step 6: Updating patient in database...');
+  console.log('   Patient ID:', req.params.id);
+  console.log('   Update options: { new: true, runValidators: true }');
+  
+  let updatedPatient;
+  
+  try {
+    updatedPatient = await Patient.findByIdAndUpdate(
+      req.params.id,
+      filteredUpdateData,
+      { 
+        new: true,
+        runValidators: true
+      }
+    ).select('-password -tokenVersion -refreshToken -signupOtp -loginOtp -signupOtpExpiry -loginOtpExpiry');
+
+    console.log('   Update query executed');
+    console.log('   Updated patient exists:', !!updatedPatient);
+
+    if (!updatedPatient) {
+      console.log('❌ Step 6 FAILED: Patient not found after update');
+      return next(new AppError('Patient not found', 404));
     }
-  ).select('-password -tokenVersion -refreshToken -signupOtp -loginOtp -signupOtpExpiry -loginOtpExpiry');
+    
+    console.log('✅ Step 6 PASSED: Patient updated successfully');
+    console.log('   Updated fields:', Object.keys(filteredUpdateData));
 
-  console.log('✅ Patient profile updated successfully');
+  } catch (error) {
+    console.log('❌ Step 6 FAILED: Database error');
+    console.log('   Error name:', error.name);
+    console.log('   Error message:', error.message);
+    console.log('   Error stack:', error.stack);
+    return next(error);
+  }
+
+  // 🔍 STEP 14: Send response
+  console.log('🔍 Step 7: Sending response to client');
+  console.log('='.repeat(60));
+  console.log('✅ SUCCESS: Profile updated successfully');
   console.log('='.repeat(60));
   console.log('\n');
 
@@ -898,7 +1193,10 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
       updatedFields: fieldsToUpdate
     }
   });
+
+  console.log('✅ Step 7 PASSED: Response sent to client');
 });
+
 
 /**
  * ====================================================================
