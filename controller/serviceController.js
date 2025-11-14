@@ -755,7 +755,7 @@ exports.getAllServices = async (req, res) => {
 
 //     // Determine creator model - handle admin, superAdmin, and doctor
 //     const userRole = req.user.role.toLowerCase();
-//     const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+//     const isAdmin = userRole === 'admin' || userRole === 'superAdmin';
 //     const creatorModel = isAdmin ? 'Admin' : 'Doctor';
     
 //     const Creator = mongoose.model(creatorModel);
@@ -831,14 +831,14 @@ exports.getAllServices = async (req, res) => {
 // };
 
 
-// Create Service (Superadmin or Admin only)
+// Create Service (superAdmin or Admin only)
 exports.createService = async (req, res) => {
   try {
-    // Check role authorization - only superadmin and admin can create services
-    if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
+    // Check role authorization - only superAdmin and admin can create services
+    if (req.user.role !== 'superAdmin' && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Only superadmin and admin can create services. Doctors can only select from existing services.'
+        message: 'Access denied. Only superAdmin and admin can create services. Doctors can only select from existing services.'
       });
     }
 
@@ -884,8 +884,8 @@ exports.createService = async (req, res) => {
       });
     }
 
-    // Get creator details - only admin or superadmin at this point
-    const creatorModel = req.user.role === 'superadmin' ? 'Admin' : 'Admin';
+    // Get creator details - only admin or superAdmin at this point
+    const creatorModel = req.user.role === 'superAdmin' ? 'Admin' : 'Admin';
     const Creator = mongoose.model(creatorModel);
     const creatorDetails = await Creator.findById(req.user.id).select('name email');
 
@@ -989,7 +989,7 @@ exports.createService = async (req, res) => {
 
 //     // Determine creator model - handle admin, superAdmin, and doctor
 //     const userRole = req.user.role.toLowerCase();
-//     const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+//     const isAdmin = userRole === 'admin' || userRole === 'superAdmin';
 //     const creatorModel = isAdmin ? 'Admin' : 'Doctor';
     
 //     const Creator = mongoose.model(creatorModel);
@@ -1273,7 +1273,7 @@ exports.getServicesByCreator = async (req, res) => {
     }
 
     // Validate role - accept admin, superAdmin, and doctor
-    const validRoles = ['admin', 'superadmin', 'doctor'];
+    const validRoles = ['admin', 'superAdmin', 'doctor'];
     if (!role || !validRoles.includes(role.toLowerCase())) {
       return res.status(400).json({
         success: false,
@@ -1283,7 +1283,7 @@ exports.getServicesByCreator = async (req, res) => {
 
     // Map superAdmin to Admin model (both use Admin model)
     const roleLower = role.toLowerCase();
-    const creatorModel = (roleLower === 'admin' || roleLower === 'superadmin') ? 'Admin' : 'Doctor';
+    const creatorModel = (roleLower === 'admin' || roleLower === 'superAdmin') ? 'Admin' : 'Doctor';
 
     const services = await Service.find({
       'createdBy.userId': creatorId,

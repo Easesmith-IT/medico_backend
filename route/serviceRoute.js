@@ -18,7 +18,7 @@ router.get('/providers/:serviceId', serviceController.getProvidersByService);
 router.get('/fullServiceInfo/:serviceId', serviceController.getFullServiceInfo);
 
 // === PROTECTED ROUTES ===
-router.post('/createService', protect('admin', 'doctor'), serviceController.createService);
+router.post('/createService', protect('admin','superAdmin'), serviceController.createService);
 router.put('/updateService/:serviceId', protect('admin', 'doctor'), serviceController.updateService);
 router.post('/selectService', protect('doctor'), serviceController.selectService);
 
