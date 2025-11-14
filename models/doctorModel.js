@@ -656,11 +656,10 @@ doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConf
       };
 
       this.availability.timeSlots.forEach(timeRange => {
-        // Defensive check for missing start or end times
         if (!timeRange.start || !timeRange.end) {
-          // Optionally log this for debugging
-          console.warn('Invalid timeRange skipped during slot generation:', timeRange);
-          return; // skip this invalid time range
+          // Skip invalid time ranges, optionally log for debugging
+          console.warn(`Skipping invalid time range: ${JSON.stringify(timeRange)}`);
+          return;
         }
 
         const [startHour, startMin] = timeRange.start.split(':').map(Number);
@@ -677,7 +676,6 @@ doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConf
 
         while (slotStart.getTime() + duration * 60000 <= rangeEnd.getTime()) {
           const slotEnd = new Date(slotStart.getTime() + duration * 60000);
-
           dailySlot.slots.push({
             startTime: slotStart.toTimeString().slice(0, 5),
             endTime: slotEnd.toTimeString().slice(0, 5),
@@ -695,12 +693,12 @@ doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConf
         slots.push(dailySlot);
       }
     }
-
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
   return slots;
 };
+
 
 
 // Method to check if a specific slot is available
