@@ -1098,10 +1098,54 @@ exports.getServiceById = async (req, res) => {
   }
 };
 // Get services by creator ID
+// exports.getServicesByCreator = async (req, res) => {
+//   try {
+//     const { creatorId } = req.params;
+//     const { role } = req.query; // 'admin' or 'doctor'
+
+//     if (!creatorId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Creator ID is required'
+//       });
+//     }
+
+//     if (!role || !['admin', 'doctor'].includes(role.toLowerCase())) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Valid role (admin or doctor) is required'
+//       });
+//     }
+
+//     const creatorModel = role.toLowerCase() === 'admin' ? 'Admin' : 'Doctor';
+
+//     const services = await Service.find({
+//       'createdBy.userId': creatorId,
+//       'createdBy.userModel': creatorModel
+//     })
+//       .populate('cities', 'name latitude longitude')
+//       .sort({ createdAt: -1 });
+
+//     res.status(200).json({
+//       success: true,
+//       count: services.length,
+//       data: services
+//     });
+//   } catch (error) {
+//     console.error('Error in getServicesByCreator:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching services',
+//       error: error.message
+//     });
+//   }
+// };
+
+
 exports.getServicesByCreator = async (req, res) => {
   try {
     const { creatorId } = req.params;
-    const { role } = req.query; // 'admin' or 'doctor'
+    const { role } = req.query; // 'admin', 'superAdmin', or 'doctor'
 
     if (!creatorId) {
       return res.status(400).json({
@@ -1110,14 +1154,18 @@ exports.getServicesByCreator = async (req, res) => {
       });
     }
 
-    if (!role || !['admin', 'doctor'].includes(role.toLowerCase())) {
+    // Validate role - accept admin, superAdmin, and doctor
+    const validRoles = ['admin', 'superadmin', 'doctor'];
+    if (!role || !validRoles.includes(role.toLowerCase())) {
       return res.status(400).json({
         success: false,
-        message: 'Valid role (admin or doctor) is required'
+        message: 'Valid role (admin, superAdmin, or doctor) is required'
       });
     }
 
-    const creatorModel = role.toLowerCase() === 'admin' ? 'Admin' : 'Doctor';
+    // Map superAdmin to Admin model (both use Admin model)
+    const roleLower = role.toLowerCase();
+    const creatorModel = (roleLower === 'admin' || roleLower === 'superadmin') ? 'Admin' : 'Doctor';
 
     const services = await Service.find({
       'createdBy.userId': creatorId,
@@ -1140,5 +1188,3 @@ exports.getServicesByCreator = async (req, res) => {
     });
   }
 };
-
-
