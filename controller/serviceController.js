@@ -831,8 +831,17 @@ exports.getAllServices = async (req, res) => {
 // };
 
 
+// Create Service (Superadmin or Admin only)
 exports.createService = async (req, res) => {
   try {
+    // Check role authorization - only superadmin and admin can create services
+    if (req.user.role !== 'superadmin' && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only superadmin and admin can create services. Doctors can only select from existing services.'
+      });
+    }
+
     const {
       name,
       description,
@@ -846,7 +855,7 @@ exports.createService = async (req, res) => {
       paymentMode,
       icon,
       image,
-      cities
+      cities // Array of city IDs
     } = req.body;
 
     // Validate cities
@@ -866,34 +875,25 @@ exports.createService = async (req, res) => {
       });
     }
 
-    // REMOVED: Duplicate service name check
-    // This allows multiple doctors to create services with the same name
+    // Check if service already exists
+    const existingService = await Service.findOne({ name });
+    if (existingService) {
+      return res.status(400).json({
+        success: false,
+        message: 'Service with this name already exists'
+      });
+    }
 
-    // Determine creator model - handle admin, superAdmin, and doctor
-    const userRole = req.user.role.toLowerCase();
-    const isAdmin = userRole === 'admin' || userRole === 'superadmin';
-    const creatorModel = isAdmin ? 'Admin' : 'Doctor';
-    
+    // Get creator details - only admin or superadmin at this point
+    const creatorModel = req.user.role === 'superadmin' ? 'Admin' : 'Admin';
     const Creator = mongoose.model(creatorModel);
-    const creatorDetails = await Creator.findById(req.user.id).select('firstName lastName name email');
+    const creatorDetails = await Creator.findById(req.user.id).select('name email');
 
     if (!creatorDetails) {
       return res.status(404).json({
         success: false,
         message: 'Creator not found'
       });
-    }
-
-    // Build creator name (handle different name formats)
-    let creatorName;
-    if (creatorDetails.firstName && creatorDetails.lastName) {
-      creatorName = `${creatorDetails.firstName} ${creatorDetails.lastName}`;
-    } else if (creatorDetails.firstName) {
-      creatorName = creatorDetails.firstName;
-    } else if (creatorDetails.name) {
-      creatorName = creatorDetails.name;
-    } else {
-      creatorName = 'Unknown';
     }
 
     // Create service
@@ -914,8 +914,9 @@ exports.createService = async (req, res) => {
       createdBy: {
         userId: req.user.id,
         userModel: creatorModel,
-        name: creatorName,
-        email: creatorDetails.email
+        name: creatorDetails.name,
+        email: creatorDetails.email,
+        role: req.user.role
       }
     });
 
@@ -945,6 +946,123 @@ exports.createService = async (req, res) => {
     });
   }
 };
+
+
+//both admin and doctor can create same service name
+// exports.createService = async (req, res) => {
+//   try {
+//     const {
+//       name,
+//       description,
+//       basePrice,
+//       equipmentCharges,
+//       taxPercentage,
+//       modes,
+//       supportsDuration,
+//       defaultDuration,
+//       durationOptions,
+//       paymentMode,
+//       icon,
+//       image,
+//       cities
+//     } = req.body;
+
+//     // Validate cities
+//     if (!cities || !Array.isArray(cities) || cities.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'At least one city must be specified'
+//       });
+//     }
+
+//     // Verify all city IDs exist
+//     const validCities = await City.find({ _id: { $in: cities } });
+//     if (validCities.length !== cities.length) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'One or more invalid city IDs provided'
+//       });
+//     }
+
+//     // REMOVED: Duplicate service name check
+//     // This allows multiple doctors to create services with the same name
+
+//     // Determine creator model - handle admin, superAdmin, and doctor
+//     const userRole = req.user.role.toLowerCase();
+//     const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+//     const creatorModel = isAdmin ? 'Admin' : 'Doctor';
+    
+//     const Creator = mongoose.model(creatorModel);
+//     const creatorDetails = await Creator.findById(req.user.id).select('firstName lastName name email');
+
+//     if (!creatorDetails) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Creator not found'
+//       });
+//     }
+
+//     // Build creator name (handle different name formats)
+//     let creatorName;
+//     if (creatorDetails.firstName && creatorDetails.lastName) {
+//       creatorName = `${creatorDetails.firstName} ${creatorDetails.lastName}`;
+//     } else if (creatorDetails.firstName) {
+//       creatorName = creatorDetails.firstName;
+//     } else if (creatorDetails.name) {
+//       creatorName = creatorDetails.name;
+//     } else {
+//       creatorName = 'Unknown';
+//     }
+
+//     // Create service
+//     const service = new Service({
+//       name,
+//       description,
+//       basePrice,
+//       equipmentCharges,
+//       taxPercentage: taxPercentage || 18,
+//       modes,
+//       supportsDuration,
+//       defaultDuration: defaultDuration || 30,
+//       durationOptions,
+//       paymentMode,
+//       icon,
+//       image,
+//       cities,
+//       createdBy: {
+//         userId: req.user.id,
+//         userModel: creatorModel,
+//         name: creatorName,
+//         email: creatorDetails.email
+//       }
+//     });
+
+//     await service.save();
+
+//     // Add service to creator's services array
+//     await Creator.findByIdAndUpdate(
+//       req.user.id,
+//       { $addToSet: { services: service._id } },
+//       { new: true }
+//     );
+
+//     // Populate before sending response
+//     await service.populate('cities', 'name latitude longitude');
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Service created successfully',
+//       data: service
+//     });
+//   } catch (error) {
+//     console.error('Error in createService:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error creating service',
+//       error: error.message
+//     });
+//   }
+// };
 
 
 
@@ -1184,6 +1302,208 @@ exports.getServicesByCreator = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching services',
+      error: error.message
+    });
+  }
+};
+
+
+// Select/Assign Service to Doctor (Doctor only)
+exports.selectService = async (req, res) => {
+  try {
+    // Only doctors can use this endpoint
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. This endpoint is for doctors only.'
+      });
+    }
+
+    const { serviceIds } = req.body; // Array of service IDs to select
+
+    // Validate input
+    if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one service ID must be provided'
+      });
+    }
+
+    // Verify all service IDs exist
+    const validServices = await Service.find({ 
+      _id: { $in: serviceIds },
+      isActive: true 
+    });
+
+    if (validServices.length !== serviceIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'One or more invalid or inactive service IDs provided'
+      });
+    }
+
+    // Update doctor's services
+    const doctor = await Doctor.findByIdAndUpdate(
+      req.user.id,
+      { $addToSet: { services: { $each: serviceIds } } },
+      { new: true }
+    ).populate('services', 'name description basePrice modes');
+
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Services selected successfully',
+      data: {
+        doctorId: doctor._id,
+        services: doctor.services
+      }
+    });
+  } catch (error) {
+    console.error('Error in selectService:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error selecting services',
+      error: error.message
+    });
+  }
+};
+
+// Get Available Services for Selection (All authenticated users)
+exports.getAvailableServices = async (req, res) => {
+  try {
+    const { cityId } = req.query;
+
+    const filter = { isActive: true };
+    if (cityId) {
+      filter.cities = cityId;
+    }
+
+    const services = await Service.find(filter)
+      .populate('cities', 'name')
+      .select('name description basePrice modes supportsDuration icon image')
+      .sort({ name: 1 });
+
+    res.status(200).json({
+      success: true,
+      count: services.length,
+      data: services
+    });
+  } catch (error) {
+    console.error('Error in getAvailableServices:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching services',
+      error: error.message
+    });
+  }
+};
+
+
+
+// controllers/serviceController.js
+
+// Get list of Doctors/Medico providers by Service ID and optional City ID
+exports.getProvidersByService = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+    const { cityId } = req.query;
+
+    // Build query
+    const query = {
+      services: serviceId
+    };
+    if (cityId) {
+      query.cities = cityId;
+    }
+
+    // Assume Medico and Doctor model both have 'services' and 'cities' fields
+    const doctors = await Doctor.find(query)
+      .select('name email phone services cities location')
+      .populate('services', 'name')
+      .populate('cities', 'name latitude longitude')
+      .lean();
+
+   const medicos = await Admin.find(query)
+      .select('name email phone services cities location')
+      .populate('services', 'name')
+      .populate('cities', 'name latitude longitude')
+      .lean();
+
+    // Combine doctors and medicos
+    const providers = [...doctors, ...medicos];
+
+    res.status(200).json({
+      success: true,
+      count: providers.length,
+      data: providers
+    });
+  } catch (error) {
+    console.error('Error in getProvidersByService:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting providers by service',
+      error: error.message
+    });
+  }
+};
+
+
+
+// controllers/serviceController.js
+
+// Get full service info by Service ID, including provider info
+exports.getFullServiceInfo = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    // Find the service and populate creator info and cities
+    const service = await Service.findById(serviceId)
+      .populate({
+        path: 'createdBy.userId',
+        select: 'name email role cities'
+      })
+      .populate('cities', 'name latitude longitude')
+      .lean();
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found'
+      });
+    }
+
+    // Find all doctors and medicos offering this service
+    const doctors = await Doctor.find({ services: serviceId })
+      .select('name email phone cities location')
+      .populate('cities', 'name latitude longitude')
+      .lean();
+
+    const medicos = await Medico.find({ services: serviceId })
+      .select('name email phone cities location')
+      .populate('cities', 'name latitude longitude')
+      .lean();
+
+    // Add providers to the service response
+    service.providers = {
+      doctors,
+      medicos
+    };
+
+    res.status(200).json({
+      success: true,
+      data: service
+    });
+  } catch (error) {
+    console.error('Error in getFullServiceInfo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting service info',
       error: error.message
     });
   }
