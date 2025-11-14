@@ -21,7 +21,7 @@ router.get('/me', verifyAccessToken, adminController.getMyProfile);
 router.put('/updateProfile', verifyAccessToken, adminController.updateProfile);
 
 
-
+router.post("/doctors/create", verifyAccessToken, adminController.createDoctor);
 router.get('/doctors', verifyAccessToken, adminController.getAllDoctors);
 router.get('/doctors/:id', verifyAccessToken, adminController.getDoctorById);
 router.put('/doctors/:id/approve', verifyAccessToken, adminController.approveDoctor);
@@ -30,6 +30,8 @@ router.delete('/doctors/:id', verifyAccessToken, adminController.deleteDoctor);
 
 
 
+router.post('/patients/create', verifyAccessToken, adminController.createPatient);
+router.get('/patients/export', verifyAccessToken, adminController.exportPatients);
 router.get('/patients', verifyAccessToken, adminController.getAllPatients);
 router.get('/patients/:id', verifyAccessToken, adminController.getPatientById);
 router.put('/patients/:id/block', verifyAccessToken, adminController.blockPatient);
