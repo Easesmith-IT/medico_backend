@@ -88,6 +88,8 @@ const express = require('express');
 const router = express.Router();
 const doctorController = require('../controller/doctorController');
 const { verifyAccessToken } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
+
 
 // Public routes
 router.post('/signup', doctorController.doctorSignup);
@@ -118,6 +120,72 @@ router.get('/doctor/my-cities/:doctorId', doctorController.getDoctorCities);
 router.get('/doctor/cities/by-name/:doctorId/:cityName', doctorController.getDoctorCitiesByName);
 
 router.get('/doctors/city/:cityName', doctorController.getDoctorsByCityName);
+
+
+
+
+//availabe slot route 
+router.get('/slots/:doctorId', 
+  doctorController.getAvailableSlots
+);
+
+
+// DOCTOR ROUTES
+
+
+// Setup Weekly Availability - Doctor Only
+router.post('/setup', 
+  protect('doctor'),
+  doctorController.setupWeeklyAvailability
+);
+
+// Generate Daily Slots for Date Range - Doctor Only
+router.post('/generate-slots', 
+  protect('doctor'),
+  doctorController.generateDailySlots
+);
+
+// Toggle Individual Slot Availability - Doctor Only
+router.put('/toggle-slot', 
+  protect('doctor'),
+  doctorController.toggleSlotAvailability
+);
+
+// Add Break Time - Doctor Only
+router.post('/break-time', 
+  protect('doctor'),
+  doctorController.addBreakTime
+);
+
+// Remove Break Time - Doctor Only
+router.delete('/break-time', 
+  protect('doctor'),
+  doctorController.removeBreakTime
+);
+
+// Get Doctor's Own Availability - Doctor Only
+router.get('/my-availability', 
+  protect('doctor'),
+  doctorController.getMyAvailability
+);
+
+// Update Service Availability - Doctor Only
+router.put('/service-availability', 
+  protect('doctor'),
+  doctorController.updateServiceAvailability
+);
+
+// Update Service Coverage Areas - Doctor Only
+router.put('/service-coverage', 
+  protect('doctor'),
+  doctorController.updateServiceCoverage
+);
+
+// Bulk Block/Unblock Slots - Doctor Only
+router.put('/bulk-manage-slots', 
+  protect('doctor'),
+  doctorController.bulkManageSlots
+);
 
 
 module.exports = router;
