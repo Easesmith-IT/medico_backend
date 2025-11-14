@@ -834,10 +834,8 @@ exports.getAllServices = async (req, res) => {
 // Create Service (superAdmin or Admin only)
 exports.createService = async (req, res) => {
   try {
-    // Normalize role to lowercase
-    const userRole = req.user.role.toLowerCase();
+    const userRole = req.user.role; // already normalized as 'admin' or other roles
 
-    // Allow only 'admin' (includes superadmin normalized in middleware)
     if (userRole !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -858,10 +856,9 @@ exports.createService = async (req, res) => {
       paymentMode,
       icon,
       image,
-      cities // Array of city IDs
+      cities
     } = req.body;
 
-    // Validate cities
     if (!cities || !Array.isArray(cities) || cities.length === 0) {
       return res.status(400).json({
         success: false,
@@ -869,7 +866,6 @@ exports.createService = async (req, res) => {
       });
     }
 
-    // Verify all city IDs exist
     const validCities = await City.find({ _id: { $in: cities } });
     if (validCities.length !== cities.length) {
       return res.status(400).json({
@@ -878,7 +874,6 @@ exports.createService = async (req, res) => {
       });
     }
 
-    // Check if service already exists
     const existingService = await Service.findOne({ name });
     if (existingService) {
       return res.status(400).json({
@@ -887,8 +882,9 @@ exports.createService = async (req, res) => {
       });
     }
 
-    // Creator is always Admin model (admin or superadmin)
-    const Creator = Admin;
+    // Creator is always Admin model
+    const creatorModel = 'Admin';
+    const Creator = mongoose.model(creatorModel);
     const creatorDetails = await Creator.findById(req.user.id).select('name email');
 
     if (!creatorDetails) {
@@ -898,7 +894,6 @@ exports.createService = async (req, res) => {
       });
     }
 
-    // Create service
     const service = new Service({
       name,
       description,
@@ -915,7 +910,7 @@ exports.createService = async (req, res) => {
       cities,
       createdBy: {
         userId: req.user.id,
-        userModel: 'Admin',
+        userModel: creatorModel,
         name: creatorDetails.name,
         email: creatorDetails.email,
         role: req.user.role
@@ -924,14 +919,12 @@ exports.createService = async (req, res) => {
 
     await service.save();
 
-    // Add service to creator's services array
     await Creator.findByIdAndUpdate(
       req.user.id,
       { $addToSet: { services: service._id } },
       { new: true }
     );
 
-    // Populate cities before sending response
     await service.populate('cities', 'name latitude longitude');
 
     res.status(201).json({

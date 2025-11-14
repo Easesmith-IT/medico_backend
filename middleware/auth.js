@@ -607,32 +607,117 @@ const Admin = require('../models/adminModel');
 
 
 
+// const protect = (...allowedRoles) => {
+//   return async (req, res, next) => {
+//     try {
+//       let token;
+
+//       // Get token from cookies or Authorization header
+//       if (req.cookies && req.cookies.accessToken) {
+//         token = req.cookies.accessToken;
+//       } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+//         token = req.headers.authorization.split(' ')[1];
+//       }
+
+//       // Better token validation
+//       if (!token) {
+//         return next(new AppError('You are not logged in. Please log in to get access', 401));
+//       }
+
+//       // Remove any potential quotes or whitespace
+//       token = token.trim().replace(/^["']|["']$/g, '');
+
+//       // Check if token is not 'undefined' or 'null' string
+//       if (token === 'undefined' || token === 'null' || token === '') {
+//         return next(new AppError('Invalid token. Please log in again', 401));
+//       }
+
+//       // Verify token - wrap in try-catch for better error handling
+//       let decoded;
+//       try {
+//         decoded = verifyToken(token, 'access');
+//       } catch (tokenError) {
+//         console.error('Token verification error:', tokenError.message);
+//         return next(new AppError('Invalid or expired token. Please log in again', 401));
+//       }
+
+//       // Load full user from database based on role
+//       let currentUser;
+//       let userModel;
+
+//       if (decoded.role === 'patient') {
+//         currentUser = await Patient.findById(decoded.id).select('tokenVersion isActive');
+//         userModel = 'Patient';
+//       } else if (decoded.role === 'doctor') {
+//         currentUser = await Doctor.findById(decoded.id).select('tokenVersion isActive');
+//         userModel = 'Doctor';
+//       } else if (decoded.role === 'admin' || decoded.role === 'superAdmin') {
+//         currentUser = await Admin.findById(decoded.id).select('tokenVersion isActive');
+//         userModel = 'Admin';
+//       }
+
+//       if (!currentUser) {
+//         return next(new AppError('The user belonging to this token no longer exists', 401));
+//       }
+
+//       // Check token version
+//       if (currentUser.tokenVersion !== decoded.tokenVersion) {
+//         return next(new AppError('Your session has been invalidated. Please log in again', 401));
+//       }
+
+//       // Check if user is active
+//       if (currentUser.isActive === false) {
+//         return next(new AppError('Your account has been deactivated. Please contact support', 403));
+//       }
+
+//       // Grant access
+//       req.user = {
+//         ...currentUser.toObject(),
+//         id: decoded.id,
+//         role: decoded.role
+//       };
+//       req.userModel = userModel;
+
+//       // If specific roles are required
+//       if (allowedRoles.length > 0) {
+//         const userRole = decoded.role?.toLowerCase();
+//         const normalizedRole = userRole === 'superadmin' ? 'admin' : userRole;
+        
+//         if (!allowedRoles.includes(normalizedRole)) {
+//           return next(new AppError(`Access denied. Required roles: ${allowedRoles.join(', ')}`, 403));
+//         }
+//       }
+
+//       next();
+//     } catch (error) {
+//       console.error('Auth middleware error:', error);
+//       next(error);
+//     }
+//   };
+// };
+
+
 const protect = (...allowedRoles) => {
   return async (req, res, next) => {
     try {
       let token;
 
-      // Get token from cookies or Authorization header
       if (req.cookies && req.cookies.accessToken) {
         token = req.cookies.accessToken;
       } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         token = req.headers.authorization.split(' ')[1];
       }
 
-      // Better token validation
       if (!token) {
         return next(new AppError('You are not logged in. Please log in to get access', 401));
       }
 
-      // Remove any potential quotes or whitespace
       token = token.trim().replace(/^["']|["']$/g, '');
 
-      // Check if token is not 'undefined' or 'null' string
       if (token === 'undefined' || token === 'null' || token === '') {
         return next(new AppError('Invalid token. Please log in again', 401));
       }
 
-      // Verify token - wrap in try-catch for better error handling
       let decoded;
       try {
         decoded = verifyToken(token, 'access');
@@ -641,7 +726,6 @@ const protect = (...allowedRoles) => {
         return next(new AppError('Invalid or expired token. Please log in again', 401));
       }
 
-      // Load full user from database based on role
       let currentUser;
       let userModel;
 
@@ -660,29 +744,26 @@ const protect = (...allowedRoles) => {
         return next(new AppError('The user belonging to this token no longer exists', 401));
       }
 
-      // Check token version
       if (currentUser.tokenVersion !== decoded.tokenVersion) {
         return next(new AppError('Your session has been invalidated. Please log in again', 401));
       }
 
-      // Check if user is active
       if (currentUser.isActive === false) {
         return next(new AppError('Your account has been deactivated. Please contact support', 403));
       }
 
-      // Grant access
+      // Normalize role for consistency: map superadmin to admin, lowercase all
+      const userRoleRaw = decoded.role?.toLowerCase();
+      const normalizedRole = userRoleRaw === 'superadmin' ? 'admin' : userRoleRaw;
+
       req.user = {
         ...currentUser.toObject(),
         id: decoded.id,
-        role: decoded.role
+        role: normalizedRole
       };
       req.userModel = userModel;
 
-      // If specific roles are required
       if (allowedRoles.length > 0) {
-        const userRole = decoded.role?.toLowerCase();
-        const normalizedRole = userRole === 'superadmin' ? 'admin' : userRole;
-        
         if (!allowedRoles.includes(normalizedRole)) {
           return next(new AppError(`Access denied. Required roles: ${allowedRoles.join(', ')}`, 403));
         }
@@ -695,9 +776,6 @@ const protect = (...allowedRoles) => {
     }
   };
 };
-
-
-
 
 const verifyAccessToken = (req, res, next) => {
   try {
