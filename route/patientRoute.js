@@ -59,32 +59,32 @@ router.post('/logout-all', patientController.patientLogoutAll);
 // ============================================
 // PROTECTED ROUTES - Profile Management
 // ============================================
-router.get('/profile', protect, patientController.getMyProfile);
-router.patch('/updateProfile/:id', protect, patientController.updatePatient);
+router.get('/profile', protect(), patientController.getMyProfile);
+router.patch('/updateProfile/:id', protect(), patientController.updatePatient);
 
 // ============================================
 // PROTECTED ROUTES - Medical History
 // ============================================
-router.post('/medical-history', protect, patientController.updateMedicalHistory);
-router.delete('/medical-history/:historyId', protect, patientController.deleteMedicalHistory);
+router.post('/medical-history', protect(), patientController.updateMedicalHistory);
+router.delete('/medical-history/:historyId', protect(), patientController.deleteMedicalHistory);
 
 
 // PROTECTED ROUTES - Allergies
 
-router.post('/allergies', protect, patientController.addAllergy);
-router.delete('/allergies', protect, patientController.removeAllergy);
+router.post('/allergies', protect(), patientController.addAllergy);
+router.delete('/allergies', protect(), patientController.removeAllergy);
 
 
 // PROTECTED ROUTES - Medications
 
-router.post('/medications', protect, patientController.addMedication);
-router.delete('/medications', protect, patientController.removeMedication);
+router.post('/medications', protect(), patientController.addMedication);
+router.delete('/medications', protect(), patientController.removeMedication);
 
 // ============================================
 // PROTECTED ROUTES - Doctor Following
 // ============================================
-router.post('/follow/:doctorId', protect, patientController.followDoctor);
-router.delete('/unfollow/:doctorId', protect, patientController.unfollowDoctor);
+router.post('/follow/:doctorId', protect(), patientController.followDoctor);
+router.delete('/unfollow/:doctorId', protect(), patientController.unfollowDoctor);
 
 
 //getByID
