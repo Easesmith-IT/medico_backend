@@ -11,7 +11,7 @@ const { protect } = require('../middleware/auth');
 
 router.get('/getAllServices', serviceController.getAllServices);
 router.get('/getServiceById/:serviceId', serviceController.getServiceById);
-router.get('/city/:cityId', serviceController.getServicesByCity);
+router.get('/services/:cityId', serviceController.getServicesByCity);
 router.get('/creator/:creatorId', serviceController.getServicesByCreator);
 router.get('/availableServices', protect(), serviceController.getAvailableServices);
 router.get('/providers/:serviceId', serviceController.getProvidersByService);
