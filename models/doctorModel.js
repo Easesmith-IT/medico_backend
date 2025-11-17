@@ -987,7 +987,7 @@ const doctorSchema = new mongoose.Schema({
     ref: 'Service'
   }],
 
-  // ✅ SIMPLIFIED Availability System (matches your controller)
+  // ✅ FLEXIBLE Availability System (backward compatible)
   availability: {
     // Weekly schedule
     days: [{
@@ -997,21 +997,21 @@ const doctorSchema = new mongoose.Schema({
     
     // Weekly time slots
     timeSlots: [{
-      start: { type: String, required: true },  // "09:00"
-      end: { type: String, required: true }     // "12:00"
+      start: { type: String, required: true },
+      end: { type: String, required: true }
     }],
     
-    // Service mode (simplified to string)
+    // ✅ FIXED: Accepts both string ('both') AND old object structure
     serviceAvailability: {
-      type: String,
-      enum: ['home', 'clinic', 'both'],
+      type: mongoose.Schema.Types.Mixed,
       default: 'both'
     },
     
-    // Coverage areas (simplified to array of strings)
-    serviceCoverage: [{
-      type: String
-    }],
+    // ✅ FIXED: Accepts both array of strings AND old object structure
+    serviceCoverage: {
+      type: mongoose.Schema.Types.Mixed,
+      default: []
+    },
     
     // Auto-generation settings
     autoSlotGeneration: {
