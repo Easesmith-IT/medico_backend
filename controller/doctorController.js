@@ -1388,11 +1388,65 @@ exports.configureAvailability = async (req, res) => {
 
 
 // Get doctor's service availability by doctor ID
+// exports.getServiceAvailability = async (req, res) => {
+//   try {
+//     const { doctorId } = req.params;
+
+//     // Find doctor and populate services
+//     const doctor = await Doctor.findById(doctorId)
+//       .select('firstName email phone specialization consultationFees availability services')
+//       .populate('services', 'name description price duration');
+
+//     if (!doctor) {
+//       return res.status(404).json({ 
+//         success: false, 
+//         message: 'Doctor not found' 
+//       });
+//     }
+
+//     // Check if doctor is active
+//     if (!doctor.isActive) {
+//       return res.status(403).json({ 
+//         success: false, 
+//         message: 'Doctor is not currently active' 
+//       });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         doctorInfo: {
+//           id: doctor._id,
+//           name: doctor.firstName,
+//           email: doctor.email,
+//           phone: doctor.phone,
+//           specialization: doctor.specialization,
+//           consultationFees: doctor.consultationFees
+//         },
+//         services: doctor.services,
+//         availability: {
+//           days: doctor.availability.days,
+//           timeSlots: doctor.availability.timeSlots,
+//           serviceAvailability: doctor.availability.serviceAvailability,
+//           serviceCoverage: doctor.availability.serviceCoverage,
+//           autoSlotGeneration: doctor.availability.autoSlotGeneration
+//         },
+//         dailySlots: doctor.availability.dailySlots
+//       }
+//     });
+//   } catch (error) {
+//     res.status(500).json({ 
+//       success: false, 
+//       message: 'Error fetching service availability', 
+//       error: error.message 
+//     });
+//   }
+// };
+
 exports.getServiceAvailability = async (req, res) => {
   try {
     const { doctorId } = req.params;
 
-    // Find doctor and populate services
     const doctor = await Doctor.findById(doctorId)
       .select('firstName email phone specialization consultationFees availability services')
       .populate('services', 'name description price duration');
@@ -1404,13 +1458,13 @@ exports.getServiceAvailability = async (req, res) => {
       });
     }
 
-    // Check if doctor is active
-    if (!doctor.isActive) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Doctor is not currently active' 
-      });
-    }
+    // ❌ REMOVE THIS CHECK
+    // if (!doctor.isActive) {
+    //   return res.status(403).json({ 
+    //     success: false, 
+    //     message: 'Doctor is not currently active' 
+    //   });
+    // }
 
     res.status(200).json({
       success: true,
@@ -1442,6 +1496,8 @@ exports.getServiceAvailability = async (req, res) => {
     });
   }
 };
+
+
 
 // Get available slots for a specific date range (optional - for patients)
 exports.getAvailableSlots = async (req, res) => {
