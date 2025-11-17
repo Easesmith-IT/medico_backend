@@ -134,16 +134,26 @@ router.get('/slots/:doctorId',
 
 
 // Setup Weekly Availability - Doctor Only
-router.post('/setup', 
+// router.post('/setup', 
+//   protect('doctor'),
+//   doctorController.setupWeeklyAvailability
+// );
+
+// // Generate Daily Slots for Date Range - Doctor Only
+// router.post('/generate-slots', 
+//   protect('doctor'),
+//   doctorController.generateDailySlots
+// );
+
+
+router.post('/availability', 
   protect('doctor'),
-  doctorController.setupWeeklyAvailability
+  doctorController.configureAvailability
 );
 
-// Generate Daily Slots for Date Range - Doctor Only
-router.post('/generate-slots', 
-  protect('doctor'),
-  doctorController.generateDailySlots
-);
+
+
+
 
 // Toggle Individual Slot Availability - Doctor Only
 router.put('/toggle-slot', 

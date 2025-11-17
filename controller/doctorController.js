@@ -1168,14 +1168,14 @@ exports.getDoctorsByCityName = catchAsync(async (req, res, next) => {
 
 
 
-//slot booking doctor set up availability
+
 // exports.setupWeeklyAvailability = async (req, res) => {
 //   try {
 //     const doctorId = req.user.id;
-//     const { days, timeSlots, serviceAvailability, serviceCoverage, autoSlotGeneration } = req.body;
+//     let { days, timeSlots, serviceAvailability, serviceCoverage, autoSlotGeneration } = req.body;
 
 //     const doctor = await Doctor.findById(doctorId);
-    
+
 //     if (!doctor) {
 //       return res.status(404).json({
 //         success: false,
@@ -1183,8 +1183,34 @@ exports.getDoctorsByCityName = catchAsync(async (req, res, next) => {
 //       });
 //     }
 
-//     if (days) doctor.availability.days = days;
-//     if (timeSlots) doctor.availability.timeSlots = timeSlots;
+//     // Validate days: must be array of ["Monday", ...] and not empty
+//     const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+//     if (days) {
+//       if (!Array.isArray(days) || days.length === 0 || !days.every(day => validDays.includes(day.charAt(0).toUpperCase() + day.slice(1).toLowerCase()))) {
+//         return res.status(400).json({
+//           success: false,
+//           message: 'Invalid days. Each must be a valid weekday, e.g., "Monday".'
+//         });
+//       }
+//       // Normalize days to capitalized form for DB
+//       doctor.availability.days = days.map(day => day.charAt(0).toUpperCase() + day.slice(1).toLowerCase());
+//     }
+
+//     // Validate timeSlots: must be array of {start, end} with both present and HH:mm format
+//     if (timeSlots) {
+//       if (!Array.isArray(timeSlots) || timeSlots.length === 0 || !timeSlots.every(slot =>
+//         slot.start && slot.end &&
+//         /^\d{2}:\d{2}$/.test(slot.start) &&
+//         /^\d{2}:\d{2}$/.test(slot.end)
+//       )) {
+//         return res.status(400).json({
+//           success: false,
+//           message: 'Each timeSlot must have start and end as "HH:mm" strings.'
+//         });
+//       }
+//       doctor.availability.timeSlots = timeSlots;
+//     }
+
 //     if (serviceAvailability) doctor.availability.serviceAvailability = serviceAvailability;
 //     if (serviceCoverage) doctor.availability.serviceCoverage = serviceCoverage;
 //     if (autoSlotGeneration) {
@@ -1209,55 +1235,124 @@ exports.getDoctorsByCityName = catchAsync(async (req, res, next) => {
 //     });
 //   }
 // };
-exports.setupWeeklyAvailability = async (req, res) => {
+
+// Generate Daily Slots
+// exports.generateDailySlots = async (req, res) => {
+//   try {
+//     const doctorId = req.user.id;
+//     const { startDate, endDate, slotDuration, bufferTime } = req.body;
+
+//     const doctor = await Doctor.findById(doctorId);
+    
+//     if (!doctor) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Doctor not found'
+//       });
+//     }
+
+//     const slotConfig = {
+//       duration: slotDuration,
+//       buffer: bufferTime
+//     };
+
+//     const generatedSlots = await doctor.generateSlots(
+//       new Date(startDate),
+//       new Date(endDate),
+//       slotConfig
+//     );
+
+//     // Merge with existing slots
+//     generatedSlots.forEach(newSlot => {
+//       const existingIndex = doctor.availability.dailySlots.findIndex(
+//         ds => ds.date.toDateString() === newSlot.date.toDateString()
+//       );
+      
+//       if (existingIndex === -1) {
+//         doctor.availability.dailySlots.push(newSlot);
+//       }
+//     });
+
+//     await doctor.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: `Generated slots for ${generatedSlots.length} days`,
+//       data: generatedSlots
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error generating slots',
+//       error: error.message
+//     });
+//   }
+// };
+
+
+
+exports.configureAvailability = async (req, res) => {
   try {
     const doctorId = req.user.id;
-    let { days, timeSlots, serviceAvailability, serviceCoverage, autoSlotGeneration } = req.body;
+    const { 
+      days, 
+      timeSlots, 
+      serviceAvailability, 
+      serviceCoverage,
+      slotDuration,
+      bufferTime,
+      startDate,
+      endDate 
+    } = req.body;
 
     const doctor = await Doctor.findById(doctorId);
-
     if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found'
-      });
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
     }
 
-    // Validate days: must be array of ["Monday", ...] and not empty
+    // Validate days
     const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     if (days) {
       if (!Array.isArray(days) || days.length === 0 || !days.every(day => validDays.includes(day.charAt(0).toUpperCase() + day.slice(1).toLowerCase()))) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid days. Each must be a valid weekday, e.g., "Monday".'
-        });
+        return res.status(400).json({ success: false, message: 'Invalid days format' });
       }
-      // Normalize days to capitalized form for DB
       doctor.availability.days = days.map(day => day.charAt(0).toUpperCase() + day.slice(1).toLowerCase());
     }
 
-    // Validate timeSlots: must be array of {start, end} with both present and HH:mm format
+    // Validate timeSlots
     if (timeSlots) {
       if (!Array.isArray(timeSlots) || timeSlots.length === 0 || !timeSlots.every(slot =>
-        slot.start && slot.end &&
-        /^\d{2}:\d{2}$/.test(slot.start) &&
-        /^\d{2}:\d{2}$/.test(slot.end)
+        slot.start && slot.end && /^\d{2}:\d{2}$/.test(slot.start) && /^\d{2}:\d{2}$/.test(slot.end)
       )) {
-        return res.status(400).json({
-          success: false,
-          message: 'Each timeSlot must have start and end as "HH:mm" strings.'
-        });
+        return res.status(400).json({ success: false, message: 'Each timeSlot must have start and end as HH:mm' });
       }
       doctor.availability.timeSlots = timeSlots;
     }
 
     if (serviceAvailability) doctor.availability.serviceAvailability = serviceAvailability;
     if (serviceCoverage) doctor.availability.serviceCoverage = serviceCoverage;
-    if (autoSlotGeneration) {
-      doctor.availability.autoSlotGeneration = {
-        ...doctor.availability.autoSlotGeneration,
-        ...autoSlotGeneration
+
+    // Auto-generate daily slots if date range + slot config provided
+    if (startDate && endDate && slotDuration) {
+      const slotConfig = {
+        duration: slotDuration,
+        buffer: bufferTime || 0
       };
+
+      const generatedSlots = await doctor.generateSlots(
+        new Date(startDate),
+        new Date(endDate),
+        slotConfig
+      );
+
+      generatedSlots.forEach(newSlot => {
+        const existingIndex = doctor.availability.dailySlots.findIndex(
+          ds => ds.date.toDateString() === newSlot.date.toDateString()
+        );
+        if (existingIndex === -1) {
+          doctor.availability.dailySlots.push(newSlot);
+        }
+      });
     }
 
     await doctor.save();
@@ -1265,69 +1360,20 @@ exports.setupWeeklyAvailability = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Availability configured successfully',
-      data: doctor.availability
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error configuring availability',
-      error: error.message
-    });
-  }
-};
-
-// Generate Daily Slots
-exports.generateDailySlots = async (req, res) => {
-  try {
-    const doctorId = req.user.id;
-    const { startDate, endDate, slotDuration, bufferTime } = req.body;
-
-    const doctor = await Doctor.findById(doctorId);
-    
-    if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found'
-      });
-    }
-
-    const slotConfig = {
-      duration: slotDuration,
-      buffer: bufferTime
-    };
-
-    const generatedSlots = await doctor.generateSlots(
-      new Date(startDate),
-      new Date(endDate),
-      slotConfig
-    );
-
-    // Merge with existing slots
-    generatedSlots.forEach(newSlot => {
-      const existingIndex = doctor.availability.dailySlots.findIndex(
-        ds => ds.date.toDateString() === newSlot.date.toDateString()
-      );
-      
-      if (existingIndex === -1) {
-        doctor.availability.dailySlots.push(newSlot);
+      data: {
+        availability: doctor.availability,
+        slotsGenerated: startDate && endDate ? true : false
       }
     });
-
-    await doctor.save();
-
-    res.status(200).json({
-      success: true,
-      message: `Generated slots for ${generatedSlots.length} days`,
-      data: generatedSlots
-    });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error generating slots',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error configuring availability', error: error.message });
   }
 };
+
+
+
+
+
 
 // Get Available Slots
 exports.getAvailableSlots = async (req, res) => {
