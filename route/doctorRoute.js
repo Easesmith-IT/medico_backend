@@ -151,7 +151,9 @@ router.post('/availability',
   doctorController.configureAvailability
 );
 
-
+router.get('/:doctorId/service-availability', 
+  doctorController.getServiceAvailability
+);
 
 
 
