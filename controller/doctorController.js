@@ -1329,10 +1329,20 @@ exports.configureAvailability = async (req, res) => {
       doctor.availability.timeSlots = timeSlots;
     }
 
-    if (serviceAvailability) doctor.availability.serviceAvailability = serviceAvailability;
-    if (serviceCoverage) doctor.availability.serviceCoverage = serviceCoverage;
+    // ✅ Handle Mixed type - accepts string, array, or object
+    if (serviceAvailability !== undefined) {
+      doctor.availability.serviceAvailability = serviceAvailability;
+      doctor.markModified('availability.serviceAvailability');
+    }
+
+    // ✅ Handle Mixed type - accepts array or object
+    if (serviceCoverage !== undefined) {
+      doctor.availability.serviceCoverage = serviceCoverage;
+      doctor.markModified('availability.serviceCoverage');
+    }
 
     // Auto-generate daily slots if date range + slot config provided
+    let slotsGenerated = false;
     if (startDate && endDate && slotDuration) {
       const slotConfig = {
         duration: slotDuration,
@@ -1353,6 +1363,7 @@ exports.configureAvailability = async (req, res) => {
           doctor.availability.dailySlots.push(newSlot);
         }
       });
+      slotsGenerated = true;
     }
 
     await doctor.save();
@@ -1362,11 +1373,15 @@ exports.configureAvailability = async (req, res) => {
       message: 'Availability configured successfully',
       data: {
         availability: doctor.availability,
-        slotsGenerated: startDate && endDate ? true : false
+        slotsGenerated
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error configuring availability', error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error configuring availability', 
+      error: error.message 
+    });
   }
 };
 
