@@ -9,7 +9,7 @@ const { verifyAccessToken } = require('../middleware/auth');
 // ============================================
 
 // Get all cities
-router.get('/cities', cityController.getAllCities);
+router.get('/getAllCities', cityController.getAllCities);
 
 // Get city by ID
 router.get('/cities/:cityId', cityController.getCityById);
