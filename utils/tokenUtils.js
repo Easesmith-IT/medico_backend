@@ -466,6 +466,7 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
     // sameSite: 'strict',
     sameSite: "none",
     maxAge: 5 * 60 * 1000,
+    domain: ".rehabmedico.in",
   });
 
   res.cookie("refreshToken", refreshToken, {
@@ -475,6 +476,7 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
     // sameSite: 'strict',
     sameSite: "none",
     maxAge: 90 * 24 * 60 * 60 * 1000,
+    domain: ".rehabmedico.in",
   });
 
   res.cookie("isAuthenticated", true, {
@@ -484,6 +486,7 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
     // sameSite: 'strict',
     sameSite: "none",
     maxAge: 90 * 24 * 60 * 60 * 1000,
+    domain: ".rehabmedico.in",
   });
 
   return {
