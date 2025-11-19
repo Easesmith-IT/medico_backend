@@ -885,7 +885,11 @@ exports.createService = async (req, res) => {
     // Creator is always Admin model
     const creatorModel = 'Admin';
     const Creator = mongoose.model(creatorModel);
-    const creatorDetails = await Creator.findById(req.user.id).select('name email');
+    const creatorDetails = await Creator.findById(req.user.id).select(
+      "firstName email"
+    );
+    console.log("creatorDetails", creatorDetails);
+    
 
     if (!creatorDetails) {
       return res.status(404).json({
@@ -911,10 +915,10 @@ exports.createService = async (req, res) => {
       createdBy: {
         userId: req.user.id,
         userModel: creatorModel,
-        name: creatorDetails.name,
-        email: creatorDetails.email,
-        role: req.user.role
-      }
+        name: creatorDetails?.firstName,
+        email: creatorDetails?.email,
+        role: req.user.role,
+      },
     });
 
     await service.save();
