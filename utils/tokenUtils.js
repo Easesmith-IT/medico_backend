@@ -461,7 +461,8 @@ const verifyTokenSafe = (token, tokenType = "access") => {
 const setAuthCookies = (res, accessToken, refreshToken) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // secure: process.env.NODE_ENV === "production",
+    secure: true,
     // sameSite: 'strict',
     sameSite: "none",
     maxAge: 5 * 60 * 1000,
@@ -469,7 +470,8 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
 
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // secure: process.env.NODE_ENV === "production",
+    secure: true,
     // sameSite: 'strict',
     sameSite: "none",
     maxAge: 90 * 24 * 60 * 60 * 1000,
@@ -477,7 +479,8 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
 
   res.cookie("isAuthenticated", true, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
+    // secure: process.env.NODE_ENV === "production",
+    secure: true,
     // sameSite: 'strict',
     sameSite: "none",
     maxAge: 90 * 24 * 60 * 60 * 1000,
