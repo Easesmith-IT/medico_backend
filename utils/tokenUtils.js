@@ -144,10 +144,6 @@
 //     refreshToken
 //   };
 
-
-
-
-  
 // };
 //   const clearAuthCookies = (res) => {
 //   res.clearCookie('accessToken');
@@ -163,9 +159,6 @@
 //   setAuthCookies,
 //   clearAuthCookies
 // };
-
-
-
 
 // // utils/tokenUtils.js
 
@@ -331,33 +324,29 @@
 // //   clearAuthCookies
 // // };
 
-
-
 // utils/tokenUtils.js
 
-const jwt = require('jsonwebtoken');
-const AppError = require('./appError');
+const jwt = require("jsonwebtoken");
+const AppError = require("./appError");
 
 /**
  * Generate Access Token (5 minutes)
  */
 const generateAccessToken = (userId, userRole, tokenVersion = 0) => {
   if (!userId) {
-    throw new AppError('UserId is required to generate access token', 400);
+    throw new AppError("UserId is required to generate access token", 400);
   }
 
   const payload = {
     id: userId,
     role: userRole,
     tokenVersion,
-    type: 'access'
+    type: "access",
   };
 
-  const token = jwt.sign(
-    payload,
-    process.env.JWT_ACCESS_SECRET,
-  { expiresIn: '365d' } 
-  );
+  const token = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
+    expiresIn: "365d",
+  });
 
   return token;
 };
@@ -367,21 +356,19 @@ const generateAccessToken = (userId, userRole, tokenVersion = 0) => {
  */
 const generateRefreshToken = (userId, userRole, tokenVersion = 0) => {
   if (!userId) {
-    throw new AppError('UserId is required to generate refresh token', 400);
+    throw new AppError("UserId is required to generate refresh token", 400);
   }
 
   const payload = {
     id: userId,
     role: userRole,
     tokenVersion,
-    type: 'refresh'
+    type: "refresh",
   };
 
-  const token = jwt.sign(
-    payload,
-    process.env.JWT_REFRESH_SECRET,
-    { expiresIn: '90d' }
-  );
+  const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: "90d",
+  });
 
   return token;
 };
@@ -391,19 +378,19 @@ const generateRefreshToken = (userId, userRole, tokenVersion = 0) => {
  */
 const generateOtpToken = (phone, userRole) => {
   if (!phone) {
-    throw new AppError('Phone is required to generate OTP token', 400);
+    throw new AppError("Phone is required to generate OTP token", 400);
   }
 
   const payload = {
     phone,
     role: userRole,
-    type: 'otp'
+    type: "otp",
   };
 
   const token = jwt.sign(
     payload,
     process.env.JWT_OTP_SECRET || process.env.JWT_ACCESS_SECRET,
-    { expiresIn: '10m' }
+    { expiresIn: "10m" }
   );
 
   return token;
@@ -412,37 +399,40 @@ const generateOtpToken = (phone, userRole) => {
 /**
  * Verify Token (throws error)
  */
-const verifyToken = (token, tokenType = 'access') => {
+const verifyToken = (token, tokenType = "access") => {
   try {
-    const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
+    const cleanToken = token.startsWith("Bearer ") ? token.slice(7) : token;
 
     if (!cleanToken) {
-      throw new Error('Token not provided');
+      throw new Error("Token not provided");
     }
 
     let secret;
 
-    if (tokenType === 'access') {
+    if (tokenType === "access") {
       secret = process.env.JWT_ACCESS_SECRET;
-    } else if (tokenType === 'refresh') {
+    } else if (tokenType === "refresh") {
       secret = process.env.JWT_REFRESH_SECRET;
-    } else if (tokenType === 'otp') {
+    } else if (tokenType === "otp") {
       secret = process.env.JWT_OTP_SECRET || process.env.JWT_ACCESS_SECRET;
     }
 
     const decoded = jwt.verify(cleanToken, secret);
     return decoded;
   } catch (error) {
-    throw new AppError(`Invalid or expired ${tokenType} token: ${error.message}`, 401);
+    throw new AppError(
+      `Invalid or expired ${tokenType} token: ${error.message}`,
+      401
+    );
   }
 };
 
 /**
  * Verify Token SAFELY (returns null, no error thrown)
  */
-const verifyTokenSafe = (token, tokenType = 'access') => {
+const verifyTokenSafe = (token, tokenType = "access") => {
   try {
-    const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
+    const cleanToken = token.startsWith("Bearer ") ? token.slice(7) : token;
 
     if (!cleanToken) {
       return null;
@@ -450,11 +440,11 @@ const verifyTokenSafe = (token, tokenType = 'access') => {
 
     let secret;
 
-    if (tokenType === 'access') {
+    if (tokenType === "access") {
       secret = process.env.JWT_ACCESS_SECRET;
-    } else if (tokenType === 'refresh') {
+    } else if (tokenType === "refresh") {
       secret = process.env.JWT_REFRESH_SECRET;
-    } else if (tokenType === 'otp') {
+    } else if (tokenType === "otp") {
       secret = process.env.JWT_OTP_SECRET || process.env.JWT_ACCESS_SECRET;
     }
 
@@ -469,37 +459,40 @@ const verifyTokenSafe = (token, tokenType = 'access') => {
  * Set Authentication Cookies
  */
 const setAuthCookies = (res, accessToken, refreshToken) => {
-  res.cookie('accessToken', accessToken, {
+  res.cookie("accessToken", accessToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 5 * 60 * 1000
+    secure: process.env.NODE_ENV === "production",
+    // sameSite: 'strict',
+    sameSite: "none",
+    maxAge: 5 * 60 * 1000,
   });
 
-  res.cookie('refreshToken', refreshToken, {
+  res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 90 * 24 * 60 * 60 * 1000
+    secure: process.env.NODE_ENV === "production",
+    // sameSite: 'strict',
+    sameSite: "none",
+    maxAge: 90 * 24 * 60 * 60 * 1000,
   });
 
-  res.cookie('isAuthenticated', true, {
+  res.cookie("isAuthenticated", true, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 90 * 24 * 60 * 60 * 1000
+    secure: process.env.NODE_ENV === "production",
+    // sameSite: 'strict',
+    sameSite: "none",
+    maxAge: 90 * 24 * 60 * 60 * 1000,
   });
 
   return {
     accessToken,
-    refreshToken
+    refreshToken,
   };
 };
 
 const clearAuthCookies = (res) => {
-  res.clearCookie('accessToken');
-  res.clearCookie('refreshToken');
-  res.clearCookie('isAuthenticated');
+  res.clearCookie("accessToken");
+  res.clearCookie("refreshToken");
+  res.clearCookie("isAuthenticated");
 };
 
 module.exports = {
@@ -507,7 +500,7 @@ module.exports = {
   generateRefreshToken,
   generateOtpToken,
   verifyToken,
-  verifyTokenSafe,  // ← MAKE SURE THIS IS EXPORTED
+  verifyTokenSafe, // ← MAKE SURE THIS IS EXPORTED
   setAuthCookies,
-  clearAuthCookies
+  clearAuthCookies,
 };
