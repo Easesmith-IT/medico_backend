@@ -111,15 +111,15 @@ const serviceSchema = new mongoose.Schema({
   // Service name
   name: { 
     type: String, 
-    required: false,
-    enum: [
-      'Doctor Visit', 
-      'Nursing', // Can be 24-hour or consultation-based
-      'Physiotherapy', 
-      'Attendant Care', 
-      'Ventilator', 
-      'Oxygen Therapy'
-    ]
+    required: true,
+    // enum: [
+    //   'Doctor Visit', 
+    //   'Nursing', // Can be 24-hour or consultation-based
+    //   'Physiotherapy', 
+    //   'Attendant Care', 
+    //   'Ventilator', 
+    //   'Oxygen Therapy'
+    // ]
   },
 
   // Service category for slot generation logic
