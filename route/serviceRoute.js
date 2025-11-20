@@ -72,9 +72,9 @@ router.get('/category/:category',
 );
 
 // Get Nursing Services by Type
-router.get('/nursing/:nursingType', 
-  serviceController.getNursingServicesByType
-);
+// router.get('/nursing/:nursingType', 
+//   serviceController.getNursingServicesByType
+// );
 
 // Get Services by City
 router.get('/city/:cityId', 

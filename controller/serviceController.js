@@ -1529,6 +1529,116 @@ const Service = require('../models/serviceModel');
 const City = require('../models/availableCities');
 const Admin = require('../models/adminModel');
 const Doctor = require('../models/doctorModel');
+
+
+
+
+// const mongoose = require('mongoose');
+// const Service = require('../models/serviceModel');
+// const City = require('../models/availableCities');
+// const Admin = require('../models/adminModel');
+// const Doctor = require('../models/doctorModel');
+
+// ============= HELPER FUNCTIONS =============
+
+// ✅ Format duration in HOURS (not minutes)
+const formatDuration = (minutes) => {
+  if (minutes === 30) return '0.5 hours';
+  if (minutes === 45) return '0.75 hours';
+  if (minutes === 60) return '1 hour';
+  if (minutes === 90) return '1.5 hours';
+  if (minutes === 120) return '2 hours';
+  if (minutes === 150) return '2.5 hours';
+  if (minutes === 180) return '3 hours';
+  if (minutes === 240) return '4 hours';
+  if (minutes === 360) return '6 hours';
+  if (minutes === 480) return '8 hours';
+  if (minutes === 720) return '12 hours';
+  if (minutes === 1440) return '24 hours';
+  
+  // For any other duration
+  if (minutes >= 60) {
+    const hours = minutes / 60;
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  }
+  
+  return `${minutes / 60} hours`;
+};
+
+// ✅ Convert minutes to hours
+const minutesToHours = (minutes) => {
+  return minutes / 60;
+};
+
+// ✅ Convert hours to minutes
+const hoursToMinutes = (hours) => {
+  return hours * 60;
+};
+
+// ✅ Format time based on user preference (12-hour or 24-hour)
+const formatTime = (time24, format = '24-hour') => {
+  if (!time24) return null;
+  
+  const [hours, minutes] = time24.split(':').map(Number);
+  
+  if (format === '12-hour') {
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
+  }
+  
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
+// ✅ Parse time from 12-hour or 24-hour format
+const parseTime = (timeString) => {
+  if (!timeString) return null;
+  
+  // Check if it's 12-hour format
+  const time12Regex = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
+  const match = timeString.match(time12Regex);
+  
+  if (match) {
+    let hours = parseInt(match[1]);
+    const minutes = parseInt(match[2]);
+    const period = match[3].toUpperCase();
+    
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+  
+  // Assume 24-hour format
+  return timeString;
+};
+
+// ✅ Get all available duration options for flexible services
+const getFlexibleDurationOptions = () => {
+  return [
+    { minutes: 60, label: '1 hour' },
+    { minutes: 90, label: '1.5 hours' },
+    { minutes: 120, label: '2 hours' },
+    { minutes: 150, label: '2.5 hours' },
+    { minutes: 180, label: '3 hours' },
+    { minutes: 240, label: '4 hours' },
+    { minutes: 360, label: '6 hours' },
+    { minutes: 480, label: '8 hours' },
+    { minutes: 720, label: '12 hours' },
+    { minutes: 1440, label: '24 hours' }
+  ];
+};
+
+// ✅ Validate duration for service category
+const validateDuration = (duration, category) => {
+  if (category === 'consultation') {
+    return duration === 30; // Fixed 30 minutes
+  }
+  
+  // For nursing and equipment: 1 hour to 24 hours
+  return duration >= 60 && duration <= 1440;
+};
+
 const validateCities = async (cityIds) => {
   if (!cityIds || !Array.isArray(cityIds) || cityIds.length === 0) {
     throw new Error('At least one city must be specified');
@@ -1548,28 +1658,6 @@ const validateCities = async (cityIds) => {
   return validCities;
 };
 
-// Helper function to format duration from minutes to readable format
-const formatDuration = (minutes) => {
-  if (minutes === 60) return 'hourly';
-  if (minutes === 720) return '12-hour';
-  if (minutes === 1440) return '24-hour';
-  if (minutes === 480) return '8-hour';
-  return `${minutes} minutes`;
-};
-
-// Helper function to get duration in minutes from nursing type
-const getDurationFromNursingType = (nursingType) => {
-  const durationMap = {
-    "hourly": 60,
-    "12-hour": 720,
-    "24-hour": 1440,
-    "full-day": 1440,
-    "full-night": 720,
-    "8-hour": 480
-  };
-  return durationMap[nursingType] || 60;
-};
-
 // ============= CREATE SERVICE =============
 exports.createService = async (req, res) => {
   try {
@@ -1586,7 +1674,6 @@ exports.createService = async (req, res) => {
     const {
       name,
       category,
-      nursingType,
       description,
       basePrice,
       equipmentCharges,
@@ -1597,7 +1684,8 @@ exports.createService = async (req, res) => {
       icon,
       image,
       cities,
-      slotConfig
+      slotConfig,
+      timeFormat // ✅ NEW: Allow admin to set default time format (12-hour or 24-hour)
     } = req.body;
 
     // Validate required fields
@@ -1616,11 +1704,12 @@ exports.createService = async (req, res) => {
       });
     }
 
-    // Validate nursing type if category is nursing
-    if (category === 'nursing' && !nursingType) {
+    // Validate time format
+    const selectedTimeFormat = timeFormat || '24-hour';
+    if (!['12-hour', '24-hour'].includes(selectedTimeFormat)) {
       return res.status(400).json({
         success: false,
-        message: "Nursing type is required for nursing services (hourly, full-day, full-night, 12-hour, 24-hour)"
+        message: "Time format must be either '12-hour' or '24-hour'"
       });
     }
 
@@ -1639,14 +1728,13 @@ exports.createService = async (req, res) => {
     const existingService = await Service.findOne({ 
       name, 
       category,
-      nursingType: category === 'nursing' ? nursingType : null,
       isDeleted: false 
     });
     
     if (existingService) {
       return res.status(400).json({
         success: false,
-        message: `${category} service with name '${name}'${category === 'nursing' ? ` and type '${nursingType}'` : ''} already exists`,
+        message: `${category} service with name '${name}' already exists`,
       });
     }
 
@@ -1668,12 +1756,13 @@ exports.createService = async (req, res) => {
       ? `${creatorDetails.firstName} ${creatorDetails.lastName || ''}`.trim()
       : creatorDetails.name || 'Unknown';
 
-    // Configure slot settings and duration based on category
+    // ✅ Configure slots based on category
     let finalSlotConfig = {};
-    let defaultDuration;
-    let durationOptions;
+    let defaultDuration = 60; // Default 1 hour
+    let durationOptions = [];
 
     if (category === 'consultation') {
+      // Fixed 30-minute consultation slots
       finalSlotConfig = {
         consultationSlots: {
           enabled: true,
@@ -1685,57 +1774,48 @@ exports.createService = async (req, res) => {
         equipmentBooking: { enabled: false }
       };
       defaultDuration = 30;
-      durationOptions = [30];
-    } else if (category === 'nursing') {
-      // Get duration based on nursing type - ONLY ONE DURATION
-      const duration = getDurationFromNursingType(nursingType);
+      durationOptions = [30]; // Only 30 minutes for consultation
+    } else if (category === 'nursing' || category === 'equipment') {
+      // ✅ Flexible duration: Patient can select any duration from 1 hour to 24 hours
+      const flexibleOptions = getFlexibleDurationOptions();
+      durationOptions = flexibleOptions.map(opt => opt.minutes);
       
-      const shiftTypes = [nursingType]; // Only the selected nursing type
-
       finalSlotConfig = {
         consultationSlots: { enabled: false },
-        nursingSlots: {
+        nursingSlots: category === 'nursing' ? {
           enabled: true,
-          shiftTypes,
-          minDuration: duration,
-          maxDuration: duration,
+          shiftTypes: ['flexible'], // No fixed shift types
+          minDuration: 60, // 1 hour minimum
+          maxDuration: 1440, // 24 hours maximum
           available24x7: true,
-          allowCustomDuration: false // No custom duration for fixed shifts
-        },
-        equipmentBooking: { enabled: false }
-      };
-      
-      defaultDuration = duration;
-      durationOptions = [duration]; // ✅ ONLY ONE DURATION OPTION
-    } else if (category === 'equipment') {
-      finalSlotConfig = {
-        consultationSlots: { enabled: false },
-        nursingSlots: { enabled: false },
-        equipmentBooking: {
+          allowCustomDuration: true,
+          flexibleDurationOptions: flexibleOptions
+        } : { enabled: false },
+        equipmentBooking: category === 'equipment' ? {
           enabled: true,
-          minDuration: slotConfig?.equipmentBooking?.minDuration || 60,
-          maxDuration: slotConfig?.equipmentBooking?.maxDuration || 720,
-          available24x7: true
-        }
+          minDuration: 60, // 1 hour minimum
+          maxDuration: 1440, // 24 hours maximum
+          available24x7: true,
+          flexibleDurationOptions: flexibleOptions
+        } : { enabled: false }
       };
-      defaultDuration = 60;
-      durationOptions = [60, 120, 180, 240, 360, 480, 720];
     }
 
     // Create service
     const service = new Service({
       name,
       category,
-      nursingType: category === 'nursing' ? nursingType : null,
+      nursingType: null,
       description,
       basePrice,
       equipmentCharges: equipmentCharges || 0,
       taxPercentage: taxPercentage || 18,
       modes: modes || ['Home Service'],
-      supportsDuration: supportsDuration !== undefined ? supportsDuration : (category !== 'consultation'),
+      supportsDuration: supportsDuration !== undefined ? supportsDuration : true,
       defaultDuration,
       durationOptions,
       paymentMode: paymentMode || 'Both',
+      timeFormat: selectedTimeFormat, // ✅ Store time format preference
       icon,
       image,
       cities: validatedCities.map(city => city._id),
@@ -1751,7 +1831,7 @@ exports.createService = async (req, res) => {
 
     await service.save();
 
-    // Update creator's service list if they have a services field
+    // Update creator's service list
     if (Creator.schema.path('services')) {
       await Creator.findByIdAndUpdate(
         req.user.id,
@@ -1763,33 +1843,25 @@ exports.createService = async (req, res) => {
     // Populate response
     await service.populate("cities", "name latitude longitude");
 
-    // Format response with readable duration
-    const responseSlotInfo = category === 'consultation' 
-      ? {
-          type: 'consultation',
-          slotDuration: '30 minutes',
-          availableHours: '09:00 - 19:00',
-          slotsPerDay: 20
-        }
-      : category === 'nursing'
-      ? {
-          type: 'nursing',
-          nursingType,
-          shiftType: formatDuration(defaultDuration), // "24-hour"
-          duration: formatDuration(defaultDuration),   // "24-hour"
-          durationOptions: durationOptions.map(d => formatDuration(d)), // ["24-hour"]
-          minDuration: formatDuration(finalSlotConfig.nursingSlots.minDuration),
-          maxDuration: formatDuration(finalSlotConfig.nursingSlots.maxDuration),
-          availability: '24x7',
-          pricing: `Per ${formatDuration(defaultDuration)}`
-        }
-      : {
-          type: 'equipment',
-          minDuration: `${finalSlotConfig.equipmentBooking.minDuration} minutes`,
-          maxDuration: `${finalSlotConfig.equipmentBooking.maxDuration} minutes`,
-          availability: '24x7',
-          durationOptions: durationOptions.map(d => formatDuration(d))
-        };
+    // ✅ Format response with human-readable durations
+    const responseSlotInfo = {
+      type: category,
+      defaultDuration: formatDuration(defaultDuration),
+      durationOptions: category === 'consultation' 
+        ? ['30 minutes'] 
+        : getFlexibleDurationOptions().map(opt => opt.label),
+      availability: category === 'consultation' 
+        ? `${formatTime('09:00', selectedTimeFormat)} - ${formatTime('19:00', selectedTimeFormat)}` 
+        : '24x7 (Patient can select any time)',
+      timeFormat: selectedTimeFormat,
+      pricing: `₹${basePrice} per hour`,
+      selectionMode: category === 'consultation' 
+        ? 'Fixed 30-minute slots' 
+        : 'Patient selects start time and duration',
+      instructions: category !== 'consultation'
+        ? 'Patient can book service for any duration from 1 hour to 24 hours at any time of the day'
+        : 'Fixed consultation slots available from 9 AM to 7 PM'
+    };
 
     res.status(201).json({
       success: true,
@@ -1834,11 +1906,11 @@ exports.getAllServices = async (req, res) => {
       category,
       cityId,
       isActive,
-      nursingType,
       page = 1,
       limit = 10,
       sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
+      timeFormat = '24-hour' // ✅ User's preferred time format
     } = req.query;
 
     const query = { isDeleted: false };
@@ -1846,7 +1918,6 @@ exports.getAllServices = async (req, res) => {
     if (category) query.category = category;
     if (cityId) query.cities = cityId;
     if (isActive !== undefined) query.isActive = isActive === 'true';
-    if (nursingType) query.nursingType = nursingType;
 
     const skip = (page - 1) * limit;
     const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
@@ -1860,13 +1931,14 @@ exports.getAllServices = async (req, res) => {
 
     const total = await Service.countDocuments(query);
 
-    // Format duration options in response
+    // ✅ Format duration options in response
     const formattedServices = services.map(service => {
       const serviceObj = service.toObject();
       return {
         ...serviceObj,
         formattedDuration: formatDuration(serviceObj.defaultDuration),
-        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
+        displayTimeFormat: timeFormat
       };
     });
 
@@ -1897,6 +1969,7 @@ exports.getAllServices = async (req, res) => {
 exports.getServiceById = async (req, res) => {
   try {
     const { id } = req.params;
+    const { timeFormat = '24-hour' } = req.query;
 
     const service = await Service.findById(id)
       .populate('cities', 'name latitude longitude')
@@ -1913,7 +1986,8 @@ exports.getServiceById = async (req, res) => {
     const formattedService = {
       ...serviceObj,
       formattedDuration: formatDuration(serviceObj.defaultDuration),
-      formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+      formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
+      displayTimeFormat: timeFormat
     };
 
     res.status(200).json({
@@ -1935,7 +2009,7 @@ exports.getServiceById = async (req, res) => {
 exports.getServicesByCategory = async (req, res) => {
   try {
     const { category } = req.params;
-    const { cityId, isActive = true } = req.query;
+    const { cityId, isActive = true, timeFormat = '24-hour' } = req.query;
 
     if (!['consultation', 'nursing', 'equipment'].includes(category)) {
       return res.status(400).json({
@@ -1963,7 +2037,8 @@ exports.getServicesByCategory = async (req, res) => {
       return {
         ...serviceObj,
         formattedDuration: formatDuration(serviceObj.defaultDuration),
-        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
+        displayTimeFormat: timeFormat
       };
     });
 
@@ -1979,62 +2054,6 @@ exports.getServicesByCategory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching services by category',
-      error: error.message
-    });
-  }
-};
-
-// ============= GET NURSING SERVICES BY TYPE =============
-exports.getNursingServicesByType = async (req, res) => {
-  try {
-    const { nursingType } = req.params;
-    const { cityId } = req.query;
-
-    const validNursingTypes = ['hourly', 'full-day', 'full-night', '12-hour', '24-hour'];
-    
-    if (!validNursingTypes.includes(nursingType)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid nursing type. Must be one of: ${validNursingTypes.join(', ')}`
-      });
-    }
-
-    const query = { 
-      category: 'nursing',
-      nursingType,
-      isActive: true,
-      isDeleted: false 
-    };
-
-    if (cityId) {
-      query.cities = cityId;
-    }
-
-    const services = await Service.find(query)
-      .populate('cities', 'name latitude longitude')
-      .sort({ basePrice: 1 });
-
-    const formattedServices = services.map(service => {
-      const serviceObj = service.toObject();
-      return {
-        ...serviceObj,
-        formattedDuration: formatDuration(serviceObj.defaultDuration),
-        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
-      };
-    });
-
-    res.status(200).json({
-      success: true,
-      nursingType,
-      count: services.length,
-      data: formattedServices
-    });
-
-  } catch (error) {
-    console.error('Get nursing services by type error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching nursing services',
       error: error.message
     });
   }
@@ -2069,10 +2088,10 @@ exports.updateService = async (req, res) => {
       equipmentCharges,
       taxPercentage,
       modes,
-      nursingType,
       defaultDuration,
       durationOptions,
       paymentMode,
+      timeFormat,
       icon,
       image,
       cities,
@@ -2093,33 +2112,21 @@ exports.updateService = async (req, res) => {
       }
     }
 
-    // If nursing type is being updated, recalculate duration
-    if (service.category === 'nursing' && nursingType && nursingType !== service.nursingType) {
-      const duration = getDurationFromNursingType(nursingType);
-      service.nursingType = nursingType;
-      service.defaultDuration = duration;
-      service.durationOptions = [duration];
-      
-      // Update slot config
-      service.slotConfig.nursingSlots.shiftTypes = [nursingType];
-      service.slotConfig.nursingSlots.minDuration = duration;
-      service.slotConfig.nursingSlots.maxDuration = duration;
-    }
-
-    // Update other fields
+    // Update fields
     if (name) service.name = name;
     if (description) service.description = description;
     if (basePrice !== undefined) service.basePrice = basePrice;
     if (equipmentCharges !== undefined) service.equipmentCharges = equipmentCharges;
     if (taxPercentage !== undefined) service.taxPercentage = taxPercentage;
     if (modes) service.modes = modes;
-    if (defaultDuration !== undefined && service.category !== 'nursing') service.defaultDuration = defaultDuration;
-    if (durationOptions && service.category !== 'nursing') service.durationOptions = durationOptions;
+    if (defaultDuration !== undefined) service.defaultDuration = defaultDuration;
+    if (durationOptions) service.durationOptions = durationOptions;
     if (paymentMode) service.paymentMode = paymentMode;
+    if (timeFormat) service.timeFormat = timeFormat;
     if (icon !== undefined) service.icon = icon;
     if (image !== undefined) service.image = image;
     if (isActive !== undefined) service.isActive = isActive;
-    if (slotConfig && service.category !== 'nursing') service.slotConfig = { ...service.slotConfig, ...slotConfig };
+    if (slotConfig) service.slotConfig = { ...service.slotConfig, ...slotConfig };
 
     await service.save();
     await service.populate('cities', 'name latitude longitude');
@@ -2297,7 +2304,7 @@ exports.toggleServiceStatus = async (req, res) => {
 exports.getAvailableSlots = async (req, res) => {
   try {
     const { serviceId } = req.params;
-    const { date, partnerId } = req.query;
+    const { date, partnerId, timeFormat = '24-hour' } = req.query;
 
     if (!date) {
       return res.status(400).json({
@@ -2327,6 +2334,7 @@ exports.getAvailableSlots = async (req, res) => {
       serviceName: service.name,
       serviceCategory: service.category,
       date: new Date(date).toDateString(),
+      timeFormat,
       data: availableSlots
     });
 
@@ -2344,7 +2352,7 @@ exports.getAvailableSlots = async (req, res) => {
 exports.calculateServicePrice = async (req, res) => {
   try {
     const { id } = req.params;
-    const { duration, includeEquipment, shiftType } = req.query;
+    const { duration, includeEquipment } = req.query;
 
     const service = await Service.findById(id);
 
@@ -2355,19 +2363,10 @@ exports.calculateServicePrice = async (req, res) => {
       });
     }
 
-    if (service.category === 'nursing' && shiftType) {
-      if (!service.slotConfig.nursingSlots.shiftTypes.includes(shiftType)) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid shift type for this service. Available: ${service.slotConfig.nursingSlots.shiftTypes.join(', ')}`
-        });
-      }
-    }
-
     const pricing = service.calculateTotalPrice(
       duration ? parseInt(duration) : null,
       includeEquipment === 'true',
-      shiftType
+      null
     );
 
     res.status(200).json({
@@ -2375,8 +2374,7 @@ exports.calculateServicePrice = async (req, res) => {
       serviceId: service._id,
       serviceName: service.name,
       category: service.category,
-      ...(shiftType && { shiftType }),
-      ...(duration && { duration: `${duration} minutes` }),
+      duration: duration ? formatDuration(parseInt(duration)) : formatDuration(service.defaultDuration),
       pricing
     });
 
@@ -2394,7 +2392,7 @@ exports.calculateServicePrice = async (req, res) => {
 exports.getServicesByCity = async (req, res) => {
   try {
     const { cityId } = req.params;
-    const { category } = req.query;
+    const { category, timeFormat = '24-hour' } = req.query;
 
     const query = {
       cities: cityId,
@@ -2417,7 +2415,8 @@ exports.getServicesByCity = async (req, res) => {
       return {
         ...serviceObj,
         formattedDuration: formatDuration(serviceObj.defaultDuration),
-        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
+        displayTimeFormat: timeFormat
       };
     });
 
@@ -2441,7 +2440,7 @@ exports.getServicesByCity = async (req, res) => {
 // ============= SEARCH SERVICES =============
 exports.searchServices = async (req, res) => {
   try {
-    const { query, category, cityId, minPrice, maxPrice } = req.query;
+    const { query, category, cityId, minPrice, maxPrice, timeFormat = '24-hour' } = req.query;
 
     const searchQuery = {
       isActive: true,
@@ -2478,7 +2477,8 @@ exports.searchServices = async (req, res) => {
       return {
         ...serviceObj,
         formattedDuration: formatDuration(serviceObj.defaultDuration),
-        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
+        displayTimeFormat: timeFormat
       };
     });
 
@@ -2525,21 +2525,6 @@ exports.getServiceStatistics = async (req, res) => {
         }
       ]),
 
-      Service.aggregate([
-        { 
-          $match: { 
-            category: 'nursing',
-            isDeleted: false 
-          } 
-        },
-        {
-          $group: {
-            _id: '$nursingType',
-            count: { $sum: 1 }
-          }
-        }
-      ]),
-
       Service.countDocuments({ isDeleted: false }),
       Service.countDocuments({ isActive: true, isDeleted: false }),
       Service.countDocuments({ isActive: false, isDeleted: false })
@@ -2549,10 +2534,9 @@ exports.getServiceStatistics = async (req, res) => {
       success: true,
       data: {
         byCategory: stats[0],
-        nursingByType: stats[1],
-        totalServices: stats[2],
-        activeServices: stats[3],
-        inactiveServices: stats[4]
+        totalServices: stats[1],
+        activeServices: stats[2],
+        inactiveServices: stats[3]
       }
     });
 
@@ -2619,6 +2603,993 @@ exports.bulkUpdateServices = async (req, res) => {
 };
 
 module.exports = exports;
+
+
+
+// ============= HELPER FUNCTIONS =============
+// const validateCities = async (cityIds) => {
+//   if (!cityIds || !Array.isArray(cityIds) || cityIds.length === 0) {
+//     throw new Error('At least one city must be specified');
+//   }
+
+//   const validCities = await City.find({ _id: { $in: cityIds } });
+  
+//   if (validCities.length !== cityIds.length) {
+//     const validCityIds = validCities.map(city => city._id.toString());
+//     const invalidIds = cityIds.filter(id => !validCityIds.includes(id.toString()));
+    
+//     throw new Error(
+//       `Invalid city IDs: ${invalidIds.join(', ')}. Please ensure all cities exist in the system.`
+//     );
+//   }
+
+//   return validCities;
+// };
+
+// // ✅ Universal format - shows "X hours" instead of minutes
+// const formatDuration = (minutes) => {
+//   // Hours format
+//   if (minutes === 30) return '30 minutes';
+//   if (minutes === 60) return '1 hour';
+//   if (minutes === 120) return '2 hours';
+//   if (minutes === 180) return '3 hours';
+//   if (minutes === 240) return '4 hours';
+//   if (minutes === 360) return '6 hours';
+//   if (minutes === 480) return '8 hours';
+//   if (minutes === 720) return '12 hours';
+//   if (minutes === 1440) return '24 hours';
+  
+//   // For any other duration, calculate hours
+//   if (minutes >= 60) {
+//     const hours = minutes / 60;
+//     return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+//   }
+  
+//   return `${minutes} minutes`;
+// };
+
+// // ✅ Get all available duration options (1 hour to 24 hours)
+// const getAllDurationOptions = () => {
+//   return [60, 120, 180, 240, 360, 480, 720, 1440]; // 1h, 2h, 3h, 4h, 6h, 8h, 12h, 24h
+// };
+
+// // ============= CREATE SERVICE =============
+// exports.createService = async (req, res) => {
+//   try {
+//     const userRole = req.user.role;
+
+//     // Authorization check
+//     if (userRole !== "admin" && userRole !== "superadmin" && userRole !== "doctor") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Access denied. Only admin or doctor users can create services.",
+//       });
+//     }
+
+//     const {
+//       name,
+//       category,
+//       description,
+//       basePrice,
+//       equipmentCharges,
+//       taxPercentage,
+//       modes,
+//       supportsDuration,
+//       paymentMode,
+//       icon,
+//       image,
+//       cities,
+//       slotConfig
+//     } = req.body;
+
+//     // Validate required fields
+//     if (!name || !category || !description || !basePrice) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Name, category, description, and base price are required"
+//       });
+//     }
+
+//     // Validate category
+//     if (!['consultation', 'nursing', 'equipment'].includes(category)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Category must be 'consultation', 'nursing', or 'equipment'"
+//       });
+//     }
+
+//     // VALIDATE CITIES
+//     let validatedCities;
+//     try {
+//       validatedCities = await validateCities(cities);
+//     } catch (error) {
+//       return res.status(400).json({
+//         success: false,
+//         message: error.message
+//       });
+//     }
+
+//     // Check duplicate service
+//     const existingService = await Service.findOne({ 
+//       name, 
+//       category,
+//       isDeleted: false 
+//     });
+    
+//     if (existingService) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `${category} service with name '${name}' already exists`,
+//       });
+//     }
+
+//     // Get creator details
+//     const creatorModel = (userRole === "admin" || userRole === "superadmin") ? "Admin" : "Doctor";
+//     const Creator = mongoose.model(creatorModel);
+//     const creatorDetails = await Creator.findById(req.user.id).select(
+//       "firstName lastName email name"
+//     );
+
+//     if (!creatorDetails) {
+//       return res.status(404).json({
+//         success: false,
+//         message: `${creatorModel} not found`,
+//       });
+//     }
+
+//     const creatorName = creatorDetails.firstName 
+//       ? `${creatorDetails.firstName} ${creatorDetails.lastName || ''}`.trim()
+//       : creatorDetails.name || 'Unknown';
+
+//     // ✅ Configure slots - ALL CATEGORIES HAVE FLEXIBLE DURATION
+//     let finalSlotConfig = {};
+//     let defaultDuration = 60; // Default 1 hour
+//     let durationOptions = getAllDurationOptions(); // [60, 120, 180, 240, 360, 480, 720, 1440]
+
+//     if (category === 'consultation') {
+//       finalSlotConfig = {
+//         consultationSlots: {
+//           enabled: true,
+//           startTime: slotConfig?.consultationSlots?.startTime || '09:00',
+//           endTime: slotConfig?.consultationSlots?.endTime || '19:00',
+//           slotDuration: 30
+//         },
+//         nursingSlots: { enabled: false },
+//         equipmentBooking: { enabled: false }
+//       };
+//       defaultDuration = 30;
+//       durationOptions = [30]; // Consultation: fixed 30 min
+//     } else if (category === 'nursing') {
+//       finalSlotConfig = {
+//         consultationSlots: { enabled: false },
+//         nursingSlots: {
+//           enabled: true,
+//           shiftTypes: ['flexible'], // ✅ No fixed shift types
+//           minDuration: 60,
+//           maxDuration: 1440,
+//           available24x7: true,
+//           allowCustomDuration: true // ✅ Patient selects any duration
+//         },
+//         equipmentBooking: { enabled: false }
+//       };
+//       // ✅ Patient can choose: 1h, 2h, 3h, 4h, 6h, 8h, 12h, or 24h
+//     } else if (category === 'equipment') {
+//       finalSlotConfig = {
+//         consultationSlots: { enabled: false },
+//         nursingSlots: { enabled: false },
+//         equipmentBooking: {
+//           enabled: true,
+//           minDuration: 60,
+//           maxDuration: 1440,
+//           available24x7: true
+//         }
+//       };
+//       // ✅ Patient can choose: 1h, 2h, 3h, 4h, 6h, 8h, 12h, or 24h
+//     }
+
+//     // Create service
+//     const service = new Service({
+//       name,
+//       category,
+//       nursingType: null, // ✅ No nursing type restriction
+//       description,
+//       basePrice,
+//       equipmentCharges: equipmentCharges || 0,
+//       taxPercentage: taxPercentage || 18,
+//       modes: modes || ['Home Service'],
+//       supportsDuration: supportsDuration !== undefined ? supportsDuration : true,
+//       defaultDuration,
+//       durationOptions,
+//       paymentMode: paymentMode || 'Both',
+//       icon,
+//       image,
+//       cities: validatedCities.map(city => city._id),
+//       slotConfig: finalSlotConfig,
+//       createdBy: {
+//         userId: req.user.id,
+//         userModel: creatorModel,
+//         name: creatorName,
+//         email: creatorDetails.email
+//       },
+//       isActive: true
+//     });
+
+//     await service.save();
+
+//     // Update creator's service list if they have a services field
+//     if (Creator.schema.path('services')) {
+//       await Creator.findByIdAndUpdate(
+//         req.user.id,
+//         { $addToSet: { services: service._id } },
+//         { new: true }
+//       );
+//     }
+
+//     // Populate response
+//     await service.populate("cities", "name latitude longitude");
+
+//     // ✅ Format response with human-readable durations
+//     const responseSlotInfo = {
+//       type: category,
+//       defaultDuration: formatDuration(defaultDuration),
+//       durationOptions: durationOptions.map(d => formatDuration(d)),
+//       availability: category !== 'consultation' ? '24x7' : '09:00 - 19:00',
+//       timeFormat: '24-hour', // ✅ Always 24-hour format
+//       pricing: `₹${basePrice} per ${category === 'consultation' ? '30 minutes' : 'hour'}`,
+//       note: category !== 'consultation' 
+//         ? 'Patient can select any duration from 1 hour to 24 hours' 
+//         : 'Fixed 30-minute consultation slots'
+//     };
+
+//     res.status(201).json({
+//       success: true,
+//       message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully`,
+//       data: {
+//         service,
+//         availableCities: validatedCities.map(city => ({
+//           id: city._id,
+//           name: city.name,
+//           coordinates: {
+//             latitude: city.latitude,
+//             longitude: city.longitude
+//           }
+//         })),
+//         slotInfo: responseSlotInfo
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error("Error in createService:", error);
+    
+//     if (error.name === 'ValidationError') {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Validation error',
+//         errors: Object.values(error.errors).map(err => err.message)
+//       });
+//     }
+
+//     res.status(500).json({
+//       success: false,
+//       message: "Error creating service",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// // ============= GET ALL SERVICES =============
+// exports.getAllServices = async (req, res) => {
+//   try {
+//     const {
+//       category,
+//       cityId,
+//       isActive,
+//       page = 1,
+//       limit = 10,
+//       sortBy = 'createdAt',
+//       sortOrder = 'desc'
+//     } = req.query;
+
+//     const query = { isDeleted: false };
+
+//     if (category) query.category = category;
+//     if (cityId) query.cities = cityId;
+//     if (isActive !== undefined) query.isActive = isActive === 'true';
+
+//     const skip = (page - 1) * limit;
+//     const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+
+//     const services = await Service.find(query)
+//       .populate('cities', 'name latitude longitude')
+//       .populate('createdBy.userId', 'firstName lastName name email')
+//       .sort(sort)
+//       .skip(skip)
+//       .limit(parseInt(limit));
+
+//     const total = await Service.countDocuments(query);
+
+//     // ✅ Format duration options in response
+//     const formattedServices = services.map(service => {
+//       const serviceObj = service.toObject();
+//       return {
+//         ...serviceObj,
+//         formattedDuration: formatDuration(serviceObj.defaultDuration),
+//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+//       };
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         services: formattedServices,
+//         pagination: {
+//           total,
+//           page: parseInt(page),
+//           pages: Math.ceil(total / limit),
+//           limit: parseInt(limit)
+//         }
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Get all services error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching services',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= GET SERVICE BY ID =============
+// exports.getServiceById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const service = await Service.findById(id)
+//       .populate('cities', 'name latitude longitude')
+//       .populate('createdBy.userId', 'firstName lastName name email phone');
+
+//     if (!service) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Service not found'
+//       });
+//     }
+
+//     const serviceObj = service.toObject();
+//     const formattedService = {
+//       ...serviceObj,
+//       formattedDuration: formatDuration(serviceObj.defaultDuration),
+//       formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+//     };
+
+//     res.status(200).json({
+//       success: true,
+//       data: formattedService
+//     });
+
+//   } catch (error) {
+//     console.error('Get service by ID error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching service',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= GET SERVICES BY CATEGORY =============
+// exports.getServicesByCategory = async (req, res) => {
+//   try {
+//     const { category } = req.params;
+//     const { cityId, isActive = true } = req.query;
+
+//     if (!['consultation', 'nursing', 'equipment'].includes(category)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid category. Must be 'consultation', 'nursing', or 'equipment'"
+//       });
+//     }
+
+//     const query = { 
+//       category, 
+//       isActive,
+//       isDeleted: false 
+//     };
+
+//     if (cityId) {
+//       query.cities = cityId;
+//     }
+
+//     const services = await Service.find(query)
+//       .populate('cities', 'name latitude longitude')
+//       .sort({ createdAt: -1 });
+
+//     const formattedServices = services.map(service => {
+//       const serviceObj = service.toObject();
+//       return {
+//         ...serviceObj,
+//         formattedDuration: formatDuration(serviceObj.defaultDuration),
+//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+//       };
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       category,
+//       count: services.length,
+//       data: formattedServices
+//     });
+
+//   } catch (error) {
+//     console.error('Get services by category error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching services by category',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= UPDATE SERVICE =============
+// exports.updateService = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only admins can update services",
+//       });
+//     }
+
+//     const service = await Service.findById(id);
+
+//     if (!service) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Service not found'
+//       });
+//     }
+
+//     const {
+//       name,
+//       description,
+//       basePrice,
+//       equipmentCharges,
+//       taxPercentage,
+//       modes,
+//       defaultDuration,
+//       durationOptions,
+//       paymentMode,
+//       icon,
+//       image,
+//       cities,
+//       isActive,
+//       slotConfig
+//     } = req.body;
+
+//     // Validate cities if provided
+//     if (cities) {
+//       try {
+//         await validateCities(cities);
+//         service.cities = cities;
+//       } catch (error) {
+//         return res.status(400).json({
+//           success: false,
+//           message: error.message
+//         });
+//       }
+//     }
+
+//     // Update fields
+//     if (name) service.name = name;
+//     if (description) service.description = description;
+//     if (basePrice !== undefined) service.basePrice = basePrice;
+//     if (equipmentCharges !== undefined) service.equipmentCharges = equipmentCharges;
+//     if (taxPercentage !== undefined) service.taxPercentage = taxPercentage;
+//     if (modes) service.modes = modes;
+//     if (defaultDuration !== undefined) service.defaultDuration = defaultDuration;
+//     if (durationOptions) service.durationOptions = durationOptions;
+//     if (paymentMode) service.paymentMode = paymentMode;
+//     if (icon !== undefined) service.icon = icon;
+//     if (image !== undefined) service.image = image;
+//     if (isActive !== undefined) service.isActive = isActive;
+//     if (slotConfig) service.slotConfig = { ...service.slotConfig, ...slotConfig };
+
+//     await service.save();
+//     await service.populate('cities', 'name latitude longitude');
+
+//     const serviceObj = service.toObject();
+//     const formattedService = {
+//       ...serviceObj,
+//       formattedDuration: formatDuration(serviceObj.defaultDuration),
+//       formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+//     };
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Service updated successfully',
+//       data: formattedService
+//     });
+
+//   } catch (error) {
+//     console.error('Update service error:', error);
+    
+//     if (error.name === 'ValidationError') {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Validation error',
+//         errors: Object.values(error.errors).map(err => err.message)
+//       });
+//     }
+
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error updating service',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= DELETE SERVICE (SOFT DELETE) =============
+// exports.deleteService = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only admins can delete services",
+//       });
+//     }
+
+//     const service = await Service.findById(id);
+
+//     if (!service) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Service not found'
+//       });
+//     }
+
+//     service.isDeleted = true;
+//     service.deletedAt = new Date();
+//     service.deletedBy = {
+//       userId: req.user.id,
+//       userModel: 'Admin'
+//     };
+//     service.isActive = false;
+
+//     await service.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Service deleted successfully'
+//     });
+
+//   } catch (error) {
+//     console.error('Delete service error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error deleting service',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= RESTORE SERVICE =============
+// exports.restoreService = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only admins can restore services",
+//       });
+//     }
+
+//     const service = await Service.findOne({ _id: id, isDeleted: true });
+
+//     if (!service) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Deleted service not found'
+//       });
+//     }
+
+//     service.isDeleted = false;
+//     service.deletedAt = null;
+//     service.deletedBy = null;
+//     service.isActive = true;
+
+//     await service.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Service restored successfully',
+//       data: service
+//     });
+
+//   } catch (error) {
+//     console.error('Restore service error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error restoring service',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= TOGGLE SERVICE STATUS =============
+// exports.toggleServiceStatus = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only admins can toggle service status",
+//       });
+//     }
+
+//     const service = await Service.findById(id);
+
+//     if (!service) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Service not found'
+//       });
+//     }
+
+//     service.isActive = !service.isActive;
+//     await service.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: `Service ${service.isActive ? 'activated' : 'deactivated'} successfully`,
+//       data: {
+//         id: service._id,
+//         name: service.name,
+//         isActive: service.isActive
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Toggle service status error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error toggling service status',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= GET AVAILABLE SLOTS FOR SERVICE =============
+// exports.getAvailableSlots = async (req, res) => {
+//   try {
+//     const { serviceId } = req.params;
+//     const { date, partnerId } = req.query;
+
+//     if (!date) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Date is required'
+//       });
+//     }
+
+//     const service = await Service.findById(serviceId);
+    
+//     if (!service || !service.isActive) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Service not found or inactive'
+//       });
+//     }
+
+//     const availableSlots = await Service.getAvailableSlots(
+//       serviceId, 
+//       new Date(date), 
+//       partnerId
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       serviceId,
+//       serviceName: service.name,
+//       serviceCategory: service.category,
+//       date: new Date(date).toDateString(),
+//       data: availableSlots
+//     });
+
+//   } catch (error) {
+//     console.error('Get available slots error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching available slots',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= CALCULATE SERVICE PRICE =============
+// exports.calculateServicePrice = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { duration, includeEquipment } = req.query;
+
+//     const service = await Service.findById(id);
+
+//     if (!service || !service.isActive) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Service not found or inactive'
+//       });
+//     }
+
+//     const pricing = service.calculateTotalPrice(
+//       duration ? parseInt(duration) : null,
+//       includeEquipment === 'true',
+//       null
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       serviceId: service._id,
+//       serviceName: service.name,
+//       category: service.category,
+//       duration: duration ? formatDuration(parseInt(duration)) : formatDuration(service.defaultDuration),
+//       pricing
+//     });
+
+//   } catch (error) {
+//     console.error('Calculate service price error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error calculating service price',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= GET SERVICES BY CITY =============
+// exports.getServicesByCity = async (req, res) => {
+//   try {
+//     const { cityId } = req.params;
+//     const { category } = req.query;
+
+//     const query = {
+//       cities: cityId,
+//       isActive: true,
+//       isDeleted: false
+//     };
+
+//     if (category) {
+//       query.category = category;
+//     }
+
+//     const services = await Service.find(query)
+//       .populate('cities', 'name latitude longitude')
+//       .sort({ category: 1, basePrice: 1 });
+
+//     const city = await City.findById(cityId);
+
+//     const formattedServices = services.map(service => {
+//       const serviceObj = service.toObject();
+//       return {
+//         ...serviceObj,
+//         formattedDuration: formatDuration(serviceObj.defaultDuration),
+//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+//       };
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       city: city ? city.name : 'Unknown',
+//       count: services.length,
+//       data: formattedServices
+//     });
+
+//   } catch (error) {
+//     console.error('Get services by city error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching services by city',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= SEARCH SERVICES =============
+// exports.searchServices = async (req, res) => {
+//   try {
+//     const { query, category, cityId, minPrice, maxPrice } = req.query;
+
+//     const searchQuery = {
+//       isActive: true,
+//       isDeleted: false
+//     };
+
+//     if (query) {
+//       searchQuery.$or = [
+//         { name: { $regex: query, $options: 'i' } },
+//         { description: { $regex: query, $options: 'i' } }
+//       ];
+//     }
+
+//     if (category) {
+//       searchQuery.category = category;
+//     }
+
+//     if (cityId) {
+//       searchQuery.cities = cityId;
+//     }
+
+//     if (minPrice || maxPrice) {
+//       searchQuery.basePrice = {};
+//       if (minPrice) searchQuery.basePrice.$gte = parseFloat(minPrice);
+//       if (maxPrice) searchQuery.basePrice.$lte = parseFloat(maxPrice);
+//     }
+
+//     const services = await Service.find(searchQuery)
+//       .populate('cities', 'name latitude longitude')
+//       .sort({ basePrice: 1 });
+
+//     const formattedServices = services.map(service => {
+//       const serviceObj = service.toObject();
+//       return {
+//         ...serviceObj,
+//         formattedDuration: formatDuration(serviceObj.defaultDuration),
+//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+//       };
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       count: services.length,
+//       data: formattedServices
+//     });
+
+//   } catch (error) {
+//     console.error('Search services error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error searching services',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= GET SERVICE STATISTICS (ADMIN) =============
+// exports.getServiceStatistics = async (req, res) => {
+//   try {
+//     const userRole = req.user.role;
+
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only admins can view service statistics",
+//       });
+//     }
+
+//     const stats = await Promise.all([
+//       Service.aggregate([
+//         { $match: { isDeleted: false } },
+//         {
+//           $group: {
+//             _id: '$category',
+//             count: { $sum: 1 },
+//             active: {
+//               $sum: { $cond: ['$isActive', 1, 0] }
+//             },
+//             avgPrice: { $avg: '$basePrice' }
+//           }
+//         }
+//       ]),
+
+//       Service.countDocuments({ isDeleted: false }),
+//       Service.countDocuments({ isActive: true, isDeleted: false }),
+//       Service.countDocuments({ isActive: false, isDeleted: false })
+//     ]);
+
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         byCategory: stats[0],
+//         totalServices: stats[1],
+//         activeServices: stats[2],
+//         inactiveServices: stats[3]
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Get service statistics error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching service statistics',
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ============= BULK UPDATE SERVICES =============
+// exports.bulkUpdateServices = async (req, res) => {
+//   try {
+//     const userRole = req.user.role;
+
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only admins can perform bulk updates",
+//       });
+//     }
+
+//     const { serviceIds, updates } = req.body;
+
+//     if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Service IDs array is required'
+//       });
+//     }
+
+//     if (!updates || Object.keys(updates).length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Updates object is required'
+//       });
+//     }
+
+//     const result = await Service.updateMany(
+//       { _id: { $in: serviceIds }, isDeleted: false },
+//       { $set: updates }
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       message: `${result.modifiedCount} services updated successfully`,
+//       data: {
+//         matched: result.matchedCount,
+//         modified: result.modifiedCount
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Bulk update services error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error performing bulk update',
+//       error: error.message
+//     });
+//   }
+// };
+
+// module.exports = exports;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ============= CREATE SERVICE =============
 // exports.createService = async (req, res) => {
 //   try {
