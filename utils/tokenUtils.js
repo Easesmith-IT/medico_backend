@@ -531,10 +531,33 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
 };
 
 
+// const clearAuthCookies = (res) => {
+//   res.clearCookie("accessToken");
+//   res.clearCookie("refreshToken");
+//   res.clearCookie("isAuthenticated");
+// };
+
 const clearAuthCookies = (res) => {
-  res.clearCookie("accessToken");
-  res.clearCookie("refreshToken");
-  res.clearCookie("isAuthenticated");
+  const cookieOptions = {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    ...(isProduction && { domain: ".rehabmedico.in" }),
+  };
+
+  // Clear accessToken
+  res.clearCookie("accessToken", cookieOptions);
+
+  // Clear refreshToken
+  res.clearCookie("refreshToken", cookieOptions);
+
+  // Clear isAuthenticated (this one is not httpOnly)
+  res.clearCookie("isAuthenticated", {
+    httpOnly: false,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    ...(isProduction && { domain: ".rehabmedico.in" }),
+  });
 };
 
 module.exports = {
