@@ -1018,7 +1018,8 @@ const protect = (...allowedRoles) => {
       }
 
       const normalizedRole = decoded.role.toLowerCase();
-
+      console.log('Decode Role:',  decoded );
+      console.log('Allowed Roles:', normalizedAllowedRoles);
       if (!normalizedAllowedRoles.includes(normalizedRole)) {
         return next(new AppError(
           `Access denied. Required roles: ${allowedRoles.join(', ')}`,
@@ -1027,6 +1028,7 @@ const protect = (...allowedRoles) => {
       }
 
       // Attach minimal user info for downstream handlers
+      
       req.user = {
         id: decoded.id,
         role: normalizedRole
