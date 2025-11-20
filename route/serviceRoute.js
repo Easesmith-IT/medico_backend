@@ -1,72 +1,150 @@
+// // routes/serviceRoutes.js
+// const express = require("express");
+// const router = express.Router();
+// const serviceController = require("../controller/serviceController");
+// const { protect } = require("../middleware/auth");
+
+// // ==================== PUBLIC ROUTES ====================
+
+// router.get("/getAllServices", serviceController.getAllServices);
+// router.get("/getServiceById/:serviceId", serviceController.getServiceById);
+// router.get("/services/:cityId", serviceController.getServicesByCity);
+// router.get("/creator/:creatorId", serviceController.getServicesByCreator);
+// router.get(
+//   "/availableServices",
+//   protect(),
+//   serviceController.getAvailableServices
+// );
+// router.get("/providers/:serviceId", serviceController.getProvidersByService);
+// router.get("/fullServiceInfo/:serviceId", serviceController.getFullServiceInfo);
+
+// // === PROTECTED ROUTES ===
+// router.post(
+//   "/createService",
+//   protect("admin", "superAdmin"),
+//   serviceController.createService
+// );
+// router.put(
+//   "/updateService/:serviceId",
+//   protect("admin", "doctor"),
+//   serviceController.updateService
+// );
+// router.post(
+//   "/selectService",
+//   protect("doctor"),
+//   serviceController.selectService
+// );
+// router.patch(
+//   "/:serviceId/toggle-active",
+//   protect("admin"),
+//   serviceController.toggleServiceActive
+// );
+
+// module.exports = router;
+
 // routes/serviceRoutes.js
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const serviceController = require("../controller/serviceController");
-const { protect } = require("../middleware/auth");
+const serviceController = require('../controller/serviceController');
+const { 
+  protect, 
+  verifyAdminRole, 
+  verifyDoctorRole 
+} = require('../middleware/auth');
 
-// ==================== PUBLIC ROUTES ====================
+// ============================================
+// PUBLIC ROUTES (No Authentication Required)
+// ============================================
 
-router.get("/getAllServices", serviceController.getAllServices);
-router.get("/getServiceById/:serviceId", serviceController.getServiceById);
-router.get("/services/:cityId", serviceController.getServicesByCity);
-router.get("/creator/:creatorId", serviceController.getServicesByCreator);
-router.get(
-  "/availableServices",
-  protect(),
-  serviceController.getAvailableServices
+// Get All Services
+router.get('/getAllServices', 
+  serviceController.getAllServices
 );
-router.get("/providers/:serviceId", serviceController.getProvidersByService);
-router.get("/fullServiceInfo/:serviceId", serviceController.getFullServiceInfo);
 
-// === PROTECTED ROUTES ===
-router.post(
-  "/createService",
-  protect("admin", "superAdmin"),
+// Search Services
+router.get('/search', 
+  serviceController.searchServices
+);
+
+// Get Services by Category
+router.get('/category/:category', 
+  serviceController.getServicesByCategory
+);
+
+// Get Nursing Services by Type
+router.get('/nursing/:nursingType', 
+  serviceController.getNursingServicesByType
+);
+
+// Get Services by City
+router.get('/city/:cityId', 
+  serviceController.getServicesByCity
+);
+
+// Calculate Service Price
+router.get('/:id/price', 
+  serviceController.calculateServicePrice
+);
+
+// Get Available Slots for Service
+router.get('/:serviceId/slots', 
+  serviceController.getAvailableSlots
+);
+
+// Get Service by ID
+router.get('/:id', 
+  serviceController.getServiceById
+);
+
+// ============================================
+// ADMIN & DOCTOR ROUTES
+// ============================================
+
+// Create Service - Admin & Doctor
+router.post('/createService', 
+  // protect('admin', 'doctor'),
+  protect('admin'),
   serviceController.createService
 );
-router.put(
-  "/updateService/:serviceId",
-  protect("admin", "doctor"),
+
+// ============================================
+// ADMIN ONLY ROUTES
+// ============================================
+
+// Get Service Statistics
+router.get('/admin/statistics', 
+  verifyAdminRole,
+  serviceController.getServiceStatistics
+);
+
+// Bulk Update Services
+router.post('/admin/bulk-update', 
+  verifyAdminRole,
+  serviceController.bulkUpdateServices
+);
+
+// Update Service
+router.put('/:id', 
+  verifyAdminRole,
   serviceController.updateService
 );
-router.post(
-  "/selectService",
-  protect("doctor"),
-  serviceController.selectService
+
+// Delete Service (Soft Delete)
+router.delete('/:id', 
+  verifyAdminRole,
+  serviceController.deleteService
 );
-router.patch(
-  "/:serviceId/toggle-active",
-  protect("admin"),
-  serviceController.toggleServiceActive
+
+// Restore Service
+router.post('/:id/restore', 
+  verifyAdminRole,
+  serviceController.restoreService
+);
+
+// Toggle Service Status
+router.patch('/:id/toggle-status', 
+  verifyAdminRole,
+  serviceController.toggleServiceStatus
 );
 
 module.exports = router;
-
-// Get all services with filters and pagination
-// // GET /api/services?page=1&limit=10&cityId=xxx&isActive=true&search=doctor&sortBy=basePrice&order=asc
-// router.get('/getAllServices', serviceController.getAllServices);
-
-// // Get service by ID
-// // GET /api/services/:serviceId
-// router.get('/:serviceId', serviceController.getServiceById);
-
-// // Get services by city
-// // GET /api/services/city/:cityId
-// router.get('/city/:cityId', serviceController.getServicesByCity);
-
-// // Get services by creator
-// // GET /api/services/creator/:creatorId?role=admin
-// router.get('/creator/:creatorId', serviceController.getServicesByCreator);
-
-// // ==================== PROTECTED ROUTES ====================
-
-// // Create service (Admin or Doctor only)
-// // POST /api/services
-// // router.post('/createService', protect('admin', 'doctor'), serviceController.createService);
-// router.post('/createService', protect('admin', 'doctor'), serviceController.createService);
-
-// // Update service (Admin or Doctor only)
-// // PUT /api/services/:serviceId
-// router.put('/updateService/:serviceId', protect('admin', 'doctor'), serviceController.updateService);
-
-// module.exports = router;
