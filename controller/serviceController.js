@@ -1375,7 +1375,7 @@ exports.toggleServiceActive = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: `Service is now ${service.isActive ? "Active" : "Inactive"}`,
-      data: service,
+      service,
     });
   } catch (error) {
     console.error("Error toggling service active:", error);
