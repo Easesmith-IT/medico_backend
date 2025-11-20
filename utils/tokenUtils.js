@@ -458,42 +458,78 @@ const verifyTokenSafe = (token, tokenType = "access") => {
 /**
  * Set Authentication Cookies
  */
+// const setAuthCookies = (res, accessToken, refreshToken) => {
+//   res.cookie("accessToken", accessToken, {
+//     httpOnly: true,
+//     // secure: process.env.NODE_ENV === "production",
+//     secure: true,
+//     // sameSite: 'strict',
+//     sameSite: "none",
+//     maxAge: 5 * 60 * 1000,
+//     domain: ".rehabmedico.in",
+//   });
+
+//   res.cookie("refreshToken", refreshToken, {
+//     httpOnly: true,
+//     // secure: process.env.NODE_ENV === "production",
+//     secure: true,
+//     // sameSite: 'strict',
+//     sameSite: "none",
+//     maxAge: 90 * 24 * 60 * 60 * 1000,
+//     domain: ".rehabmedico.in",
+//   });
+
+//   res.cookie("isAuthenticated", true, {
+//     httpOnly: false,
+//     // secure: process.env.NODE_ENV === "production",
+//     secure: true,
+//     // sameSite: 'strict',
+//     sameSite: "none",
+//     maxAge: 90 * 24 * 60 * 60 * 1000,
+//     domain: ".rehabmedico.in",
+//   });
+
+//   return {
+//     accessToken,
+//     refreshToken,
+//   };
+// };
+
+const isProduction = process.env.NODE_ENV === "production";
+
 const setAuthCookies = (res, accessToken, refreshToken) => {
-  res.cookie("accessToken", accessToken, {
+  const cookieOptions = {
     httpOnly: true,
-    // secure: process.env.NODE_ENV === "production",
-    secure: true,
-    // sameSite: 'strict',
-    sameSite: "none",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 5 * 60 * 1000,
-    domain: ".rehabmedico.in",
-  });
+  };
 
+  if (isProduction) {
+    cookieOptions.domain = ".rehabmedico.in";
+  }
+
+  // Access Token
+  res.cookie("accessToken", accessToken, cookieOptions);
+
+  // Refresh Token
   res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    // secure: process.env.NODE_ENV === "production",
-    secure: true,
-    // sameSite: 'strict',
-    sameSite: "none",
+    ...cookieOptions,
     maxAge: 90 * 24 * 60 * 60 * 1000,
-    domain: ".rehabmedico.in",
   });
 
+  // Non-httpOnly cookie
   res.cookie("isAuthenticated", true, {
     httpOnly: false,
-    // secure: process.env.NODE_ENV === "production",
-    secure: true,
-    // sameSite: 'strict',
-    sameSite: "none",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 90 * 24 * 60 * 60 * 1000,
-    domain: ".rehabmedico.in",
+    ...(isProduction && { domain: ".rehabmedico.in" }),
   });
 
-  return {
-    accessToken,
-    refreshToken,
-  };
+  return { accessToken, refreshToken };
 };
+
 
 const clearAuthCookies = (res) => {
   res.clearCookie("accessToken");
