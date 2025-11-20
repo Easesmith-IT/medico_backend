@@ -257,10 +257,11 @@ const {
 // ============================================
 
 // Create Booking - Patient Only
-router.post('/create', 
-  protect('patient'),
-  bookingController.createBooking
-);
+// router.post('/create', 
+//   protect('patient'),
+//   bookingController.createBooking
+// );
+router.post('/create', protect('patient'), bookingController.createBooking);
 
 // Get Patient's Bookings
 router.get('/my-bookings', 
