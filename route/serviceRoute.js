@@ -187,9 +187,9 @@ router.get('/:id', serviceController.getServiceById);
 // =====================
 
 // Create Service - Only Admin can
-router.post('/createService', protect('admin'), serviceController.createService);
+// router.post('/createService', protect('admin'), serviceController.createService);
 
-
+router.post('/createService', protect('admin', 'superadmin'), serviceController.createService);
 // =====================
 // ADMIN ONLY ROUTES
 // =====================
