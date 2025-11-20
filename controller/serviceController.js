@@ -795,7 +795,6 @@ exports.createService = async (req, res) => {
       });
     }
 
-    // Ensure email exists to satisfy schema requirement
     if (!req.user.email) {
       return res.status(400).json({
         success: false,
@@ -843,6 +842,16 @@ exports.createService = async (req, res) => {
       });
     }
 
+    // Filter slotConfig to exclude disabled nursingSlots and equipmentBooking
+    let filteredSlotConfig = slotConfig || {};
+
+    if (filteredSlotConfig.nursingSlots && !filteredSlotConfig.nursingSlots.enabled) {
+      delete filteredSlotConfig.nursingSlots;
+    }
+    if (filteredSlotConfig.equipmentBooking && !filteredSlotConfig.equipmentBooking.enabled) {
+      delete filteredSlotConfig.equipmentBooking;
+    }
+
     const service = new Service({
       name, category, description,
       basePrice,
@@ -854,7 +863,7 @@ exports.createService = async (req, res) => {
       timeFormat: selectedTimeFormat,
       icon, image,
       cities: validatedCities.map(city => city._id),
-      slotConfig: slotConfig || {},
+      slotConfig: filteredSlotConfig,
       createdBy: {
         userId: req.user.id,
         userModel: userRole === 'superadmin' ? 'SuperAdmin' : 'Admin',
@@ -867,17 +876,32 @@ exports.createService = async (req, res) => {
 
     await service.save();
     await service.populate('cities', 'name latitude longitude');
+
+    // Filter slotConfig in response similarly
+    const responseSlotConfig = {};
+    if (service.slotConfig.consultationSlots) {
+      responseSlotConfig.consultationSlots = service.slotConfig.consultationSlots;
+    }
+    if (service.slotConfig.nursingSlots && service.slotConfig.nursingSlots.enabled) {
+      responseSlotConfig.nursingSlots = service.slotConfig.nursingSlots;
+    }
+    if (service.slotConfig.equipmentBooking && service.slotConfig.equipmentBooking.enabled) {
+      responseSlotConfig.equipmentBooking = service.slotConfig.equipmentBooking;
+    }
+
+    const responseObj = service.toObject();
+    responseObj.slotConfig = responseSlotConfig;
+
     res.status(201).json({
       success: true,
       message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully.`,
-      data: service
+      data: responseObj
     });
   } catch (error) {
     console.error('Create service error:', error);
     res.status(500).json({ success: false, message: 'Error creating service', error: error.message });
   }
 };
-
 // Get All Services with filters
 exports.getAllServices = async (req, res) => {
   try {
