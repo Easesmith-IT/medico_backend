@@ -7,7 +7,7 @@
 //   try {
 //     const services = await Service.find({ isActive: true })
 //       .select('name description basePrice equipmentCharges modes icon image');
-    
+
 //     res.status(200).json({
 //       success: true,
 //       count: services.length,
@@ -26,9 +26,9 @@
 // exports.getServiceDetails = async (req, res) => {
 //   try {
 //     const { serviceId } = req.params;
-    
+
 //     const service = await Service.findById(serviceId);
-    
+
 //     if (!service) {
 //       return res.status(404).json({
 //         success: false,
@@ -55,7 +55,7 @@
 //     const { serviceType } = req.params;
 //     const { latitude, longitude, maxDistance = 10000 } = req.query; // maxDistance in meters
 
-//     const query = { 
+//     const query = {
 //       verificationStatus: 'approved',
 //       isActive: true,
 //       'availability.serviceAvailability.serviceType': serviceType
@@ -146,7 +146,7 @@
 // exports.getProviderProfile = async (req, res) => {
 //   try {
 //     const { doctorId } = req.params;
-    
+
 //     const doctor = await Doctor.findById(doctorId)
 //       .select('-password -refreshToken -tokenVersion -verificationDocuments');
 
@@ -193,8 +193,6 @@
 
 // module.exports = exports;
 
-
-
 // // controllers/serviceController.js
 // const Service = require('../models/serviceModel');
 // const Doctor = require('../models/doctorModel');
@@ -207,7 +205,7 @@
 //   try {
 //     const services = await Service.find({ isActive: true })
 //       .select('name description basePrice equipmentCharges modes icon image');
-    
+
 //     res.status(200).json({
 //       success: true,
 //       count: services.length,
@@ -226,9 +224,9 @@
 // exports.getServiceDetails = async (req, res) => {
 //   try {
 //     const { serviceId } = req.params;
-    
+
 //     const service = await Service.findById(serviceId);
-    
+
 //     if (!service) {
 //       return res.status(404).json({
 //         success: false,
@@ -255,7 +253,7 @@
 //     const { serviceType } = req.params;
 //     const { latitude, longitude, maxDistance = 10000 } = req.query;
 
-//     const query = { 
+//     const query = {
 //       verificationStatus: 'approved',
 //       isActive: true,
 //       'availability.serviceAvailability.serviceType': serviceType
@@ -344,7 +342,7 @@
 // exports.getProviderProfile = async (req, res) => {
 //   try {
 //     const { doctorId } = req.params;
-    
+
 //     const doctor = await Doctor.findById(doctorId)
 //       .select('-password -refreshToken -tokenVersion -verificationDocuments');
 
@@ -516,16 +514,12 @@
 
 // module.exports = exports;
 
+const Service = require("../models/serviceModel");
+const City = require("../models/availableCities");
+const mongoose = require("mongoose");
 
-
-
-
-const Service = require('../models/serviceModel');
-const City = require('../models/availableCities');
-const mongoose = require('mongoose');
-
-const Admin = require('../models/adminModel');
-const Doctor = require('../models/doctorModel');
+const Admin = require("../models/adminModel");
+const Doctor = require("../models/doctorModel");
 
 // Get All Services with City Names
 // Get all services with filters, sorting, and pagination
@@ -536,9 +530,9 @@ exports.getAllServices = async (req, res) => {
       limit = 10,
       cityId,
       isActive,
-      sortBy = 'createdAt',
-      order = 'desc',
-      search
+      sortBy = "createdAt",
+      order = "desc",
+      search,
     } = req.query;
 
     // Build query object
@@ -546,7 +540,7 @@ exports.getAllServices = async (req, res) => {
 
     // Filter by active status
     if (isActive !== undefined) {
-      query.isActive = isActive === 'true';
+      query.isActive = isActive === "true";
     }
 
     // Filter by city
@@ -557,8 +551,8 @@ exports.getAllServices = async (req, res) => {
     // Search by name or description
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -566,13 +560,13 @@ exports.getAllServices = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Build sort object
-    const sortOrder = order === 'asc' ? 1 : -1;
+    const sortOrder = order === "asc" ? 1 : -1;
     const sortObj = { [sortBy]: sortOrder };
 
     // Fetch services with pagination
     const services = await Service.find(query)
-      .populate('cities', 'name latitude longitude')
-      .populate('createdBy.userId', 'name email')
+      .populate("cities", "name latitude longitude")
+      .populate("createdBy.userId", "name email")
       .sort(sortObj)
       .skip(skip)
       .limit(parseInt(limit));
@@ -587,18 +581,17 @@ exports.getAllServices = async (req, res) => {
       totalServices,
       totalPages,
       currentPage: parseInt(page),
-      data: services
+      data: services,
     });
   } catch (error) {
-    console.error('Error in getAllServices:', error);
+    console.error("Error in getAllServices:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching services',
-      error: error.message
+      message: "Error fetching services",
+      error: error.message,
     });
   }
 };
-
 
 // Create Service (Admin or Doctor)
 // exports.createService = async (req, res) => {
@@ -707,8 +700,7 @@ exports.getAllServices = async (req, res) => {
 //   }
 // };
 
-
-//with check service 
+//with check service
 // exports.createService = async (req, res) => {
 //   try {
 //     const {
@@ -757,7 +749,7 @@ exports.getAllServices = async (req, res) => {
 //     const userRole = req.user.role.toLowerCase();
 //     const isAdmin = userRole === 'admin' || userRole === 'superAdmin';
 //     const creatorModel = isAdmin ? 'Admin' : 'Doctor';
-    
+
 //     const Creator = mongoose.model(creatorModel);
 //     const creatorDetails = await Creator.findById(req.user.id).select('firstName lastName name email');
 
@@ -830,16 +822,15 @@ exports.getAllServices = async (req, res) => {
 //   }
 // };
 
-
 // Create Service (superAdmin or Admin only)
 exports.createService = async (req, res) => {
   try {
     const userRole = req.user.role; // already normalized as 'admin' or other roles
 
-    if (userRole !== 'admin') {
+    if (userRole !== "admin") {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Only admin users can create services.'
+        message: "Access denied. Only admin users can create services.",
       });
     }
 
@@ -856,13 +847,13 @@ exports.createService = async (req, res) => {
       paymentMode,
       icon,
       image,
-      cities
+      cities,
     } = req.body;
 
     if (!cities || !Array.isArray(cities) || cities.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'At least one city must be specified'
+        message: "At least one city must be specified",
       });
     }
 
@@ -870,7 +861,7 @@ exports.createService = async (req, res) => {
     if (validCities.length !== cities.length) {
       return res.status(400).json({
         success: false,
-        message: 'One or more invalid city IDs provided'
+        message: "One or more invalid city IDs provided",
       });
     }
 
@@ -878,19 +869,22 @@ exports.createService = async (req, res) => {
     if (existingService) {
       return res.status(400).json({
         success: false,
-        message: 'Service with this name already exists'
+        message: "Service with this name already exists",
       });
     }
 
     // Creator is always Admin model
-    const creatorModel = 'Admin';
+    const creatorModel = "Admin";
     const Creator = mongoose.model(creatorModel);
-    const creatorDetails = await Creator.findById(req.user.id).select('name email');
+    const creatorDetails = await Creator.findById(req.user.id).select(
+      "firstName email"
+    );
+    console.log("creatorDetails", creatorDetails);
 
     if (!creatorDetails) {
       return res.status(404).json({
         success: false,
-        message: 'Creator not found'
+        message: "Creator not found",
       });
     }
 
@@ -911,10 +905,10 @@ exports.createService = async (req, res) => {
       createdBy: {
         userId: req.user.id,
         userModel: creatorModel,
-        name: creatorDetails.name,
-        email: creatorDetails.email,
-        role: req.user.role
-      }
+        name: creatorDetails?.firstName,
+        email: creatorDetails?.email,
+        role: req.user.role,
+      },
     });
 
     await service.save();
@@ -925,23 +919,22 @@ exports.createService = async (req, res) => {
       { new: true }
     );
 
-    await service.populate('cities', 'name latitude longitude');
+    await service.populate("cities", "name latitude longitude");
 
     res.status(201).json({
       success: true,
-      message: 'Service created successfully',
-      data: service
+      message: "Service created successfully",
+      data: service,
     });
   } catch (error) {
-    console.error('Error in createService:', error);
+    console.error("Error in createService:", error);
     res.status(500).json({
       success: false,
-      message: 'Error creating service',
-      error: error.message
+      message: "Error creating service",
+      error: error.message,
     });
   }
 };
-
 
 //both admin and doctor can create same service name
 // exports.createService = async (req, res) => {
@@ -986,7 +979,7 @@ exports.createService = async (req, res) => {
 //     const userRole = req.user.role.toLowerCase();
 //     const isAdmin = userRole === 'admin' || userRole === 'superAdmin';
 //     const creatorModel = isAdmin ? 'Admin' : 'Doctor';
-    
+
 //     const Creator = mongoose.model(creatorModel);
 //     const creatorDetails = await Creator.findById(req.user.id).select('firstName lastName name email');
 
@@ -1059,12 +1052,6 @@ exports.createService = async (req, res) => {
 //   }
 // };
 
-
-
-
-
-
-
 // Get Services by City
 exports.getServicesByCity = async (req, res) => {
   try {
@@ -1073,7 +1060,7 @@ exports.getServicesByCity = async (req, res) => {
     if (!cityId) {
       return res.status(400).json({
         success: false,
-        message: 'City ID is required'
+        message: "City ID is required",
       });
     }
 
@@ -1082,30 +1069,32 @@ exports.getServicesByCity = async (req, res) => {
     if (!city) {
       return res.status(404).json({
         success: false,
-        message: 'City not found'
+        message: "City not found",
       });
     }
 
-    const services = await Service.find({ 
+    const services = await Service.find({
       isActive: true,
-      cities: cityId 
+      cities: cityId,
     })
-      .select('name description basePrice equipmentCharges modes icon image')
-      .populate('cities', 'name latitude longitude')
+      .select(
+        "name description basePrice equipmentCharges modes icon image isActive"
+      )
+      .populate("cities", "name latitude longitude")
       .sort({ createdAt: -1 });
-    
+
     res.status(200).json({
       success: true,
       city: city.name,
       count: services.length,
-      data: services
+      data: services,
     });
   } catch (error) {
-    console.error('Error in getServicesByCity:', error);
+    console.error("Error in getServicesByCity:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching services',
-      error: error.message
+      message: "Error fetching services",
+      error: error.message,
     });
   }
 };
@@ -1119,7 +1108,7 @@ exports.updateService = async (req, res) => {
     if (!serviceId) {
       return res.status(400).json({
         success: false,
-        message: 'Service ID is required'
+        message: "Service ID is required",
       });
     }
 
@@ -1128,7 +1117,7 @@ exports.updateService = async (req, res) => {
       if (!Array.isArray(updateData.cities) || updateData.cities.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'Cities must be a non-empty array'
+          message: "Cities must be a non-empty array",
         });
       }
 
@@ -1136,7 +1125,7 @@ exports.updateService = async (req, res) => {
       if (validCities.length !== updateData.cities.length) {
         return res.status(400).json({
           success: false,
-          message: 'One or more invalid city IDs provided'
+          message: "One or more invalid city IDs provided",
         });
       }
     }
@@ -1146,33 +1135,30 @@ exports.updateService = async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     )
-      .populate('cities', 'name latitude longitude')
-      .populate('createdBy.userId', 'name email');
+      .populate("cities", "name latitude longitude")
+      .populate("createdBy.userId", "name email");
 
     if (!updatedService) {
       return res.status(404).json({
         success: false,
-        message: 'Service not found'
+        message: "Service not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Service updated successfully',
-      data: updatedService
+      message: "Service updated successfully",
+      data: updatedService,
     });
   } catch (error) {
-    console.error('Error in updateService:', error);
+    console.error("Error in updateService:", error);
     res.status(500).json({
       success: false,
-      message: 'Error updating service',
-      error: error.message
+      message: "Error updating service",
+      error: error.message,
     });
   }
 };
-
-
-
 
 // Get single service by ID
 exports.getServiceById = async (req, res) => {
@@ -1182,31 +1168,31 @@ exports.getServiceById = async (req, res) => {
     if (!serviceId) {
       return res.status(400).json({
         success: false,
-        message: 'Service ID is required'
+        message: "Service ID is required",
       });
     }
 
     const service = await Service.findById(serviceId)
-      .populate('cities', 'name latitude longitude')
-      .populate('createdBy.userId', 'name email');
+      .populate("cities", "name latitude longitude")
+      .populate("createdBy.userId", "name email");
 
     if (!service) {
       return res.status(404).json({
         success: false,
-        message: 'Service not found'
+        message: "Service not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: service
+      data: service,
     });
   } catch (error) {
-    console.error('Error in getServiceById:', error);
+    console.error("Error in getServiceById:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching service',
-      error: error.message
+      message: "Error fetching service",
+      error: error.message,
     });
   }
 };
@@ -1254,7 +1240,6 @@ exports.getServiceById = async (req, res) => {
 //   }
 // };
 
-
 exports.getServicesByCreator = async (req, res) => {
   try {
     const { creatorId } = req.params;
@@ -1263,54 +1248,54 @@ exports.getServicesByCreator = async (req, res) => {
     if (!creatorId) {
       return res.status(400).json({
         success: false,
-        message: 'Creator ID is required'
+        message: "Creator ID is required",
       });
     }
 
     // Validate role - accept admin, superAdmin, and doctor
-    const validRoles = ['admin', 'superAdmin', 'doctor'];
+    const validRoles = ["admin", "superAdmin", "doctor"];
     if (!role || !validRoles.includes(role.toLowerCase())) {
       return res.status(400).json({
         success: false,
-        message: 'Valid role (admin, superAdmin, or doctor) is required'
+        message: "Valid role (admin, superAdmin, or doctor) is required",
       });
     }
 
     // Map superAdmin to Admin model (both use Admin model)
     const roleLower = role.toLowerCase();
-    const creatorModel = (roleLower === 'admin' || roleLower === 'superAdmin') ? 'Admin' : 'Doctor';
+    const creatorModel =
+      roleLower === "admin" || roleLower === "superAdmin" ? "Admin" : "Doctor";
 
     const services = await Service.find({
-      'createdBy.userId': creatorId,
-      'createdBy.userModel': creatorModel
+      "createdBy.userId": creatorId,
+      "createdBy.userModel": creatorModel,
     })
-      .populate('cities', 'name latitude longitude')
+      .populate("cities", "name latitude longitude")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
       count: services.length,
-      data: services
+      data: services,
     });
   } catch (error) {
-    console.error('Error in getServicesByCreator:', error);
+    console.error("Error in getServicesByCreator:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching services',
-      error: error.message
+      message: "Error fetching services",
+      error: error.message,
     });
   }
 };
-
 
 // Select/Assign Service to Doctor (Doctor only)
 exports.selectService = async (req, res) => {
   try {
     // Only doctors can use this endpoint
-    if (req.user.role !== 'doctor') {
+    if (req.user.role !== "doctor") {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. This endpoint is for doctors only.'
+        message: "Access denied. This endpoint is for doctors only.",
       });
     }
 
@@ -1320,20 +1305,20 @@ exports.selectService = async (req, res) => {
     if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'At least one service ID must be provided'
+        message: "At least one service ID must be provided",
       });
     }
 
     // Verify all service IDs exist
-    const validServices = await Service.find({ 
+    const validServices = await Service.find({
       _id: { $in: serviceIds },
-      isActive: true 
+      isActive: true,
     });
 
     if (validServices.length !== serviceIds.length) {
       return res.status(400).json({
         success: false,
-        message: 'One or more invalid or inactive service IDs provided'
+        message: "One or more invalid or inactive service IDs provided",
       });
     }
 
@@ -1342,29 +1327,62 @@ exports.selectService = async (req, res) => {
       req.user.id,
       { $addToSet: { services: { $each: serviceIds } } },
       { new: true }
-    ).populate('services', 'name description basePrice modes');
+    ).populate("services", "name description basePrice modes");
 
     if (!doctor) {
       return res.status(404).json({
         success: false,
-        message: 'Doctor not found'
+        message: "Doctor not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Services selected successfully',
+      message: "Services selected successfully",
       data: {
         doctorId: doctor._id,
-        services: doctor.services
-      }
+        services: doctor.services,
+      },
     });
   } catch (error) {
-    console.error('Error in selectService:', error);
+    console.error("Error in selectService:", error);
     res.status(500).json({
       success: false,
-      message: 'Error selecting services',
-      error: error.message
+      message: "Error selecting services",
+      error: error.message,
+    });
+  }
+};
+
+exports.toggleServiceActive = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    // Find service
+    const service = await Service.findById(serviceId);
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    // Toggle active/inactive
+    service.isActive = !service.isActive;
+    await service.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Service is now ${service.isActive ? "Active" : "Inactive"}`,
+      service,
+    });
+  } catch (error) {
+    console.error("Error toggling service active:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
     });
   }
 };
@@ -1380,26 +1398,24 @@ exports.getAvailableServices = async (req, res) => {
     }
 
     const services = await Service.find(filter)
-      .populate('cities', 'name')
-      .select('name description basePrice modes supportsDuration icon image')
+      .populate("cities", "name")
+      .select("name description basePrice modes supportsDuration icon image")
       .sort({ name: 1 });
 
     res.status(200).json({
       success: true,
       count: services.length,
-      data: services
+      data: services,
     });
   } catch (error) {
-    console.error('Error in getAvailableServices:', error);
+    console.error("Error in getAvailableServices:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching services',
-      error: error.message
+      message: "Error fetching services",
+      error: error.message,
     });
   }
 };
-
-
 
 // controllers/serviceController.js
 
@@ -1411,7 +1427,7 @@ exports.getProvidersByService = async (req, res) => {
 
     // Build query
     const query = {
-      services: serviceId
+      services: serviceId,
     };
     if (cityId) {
       query.cities = cityId;
@@ -1419,15 +1435,15 @@ exports.getProvidersByService = async (req, res) => {
 
     // Assume Medico and Doctor model both have 'services' and 'cities' fields
     const doctors = await Doctor.find(query)
-      .select('name email phone services cities location')
-      .populate('services', 'name')
-      .populate('cities', 'name latitude longitude')
+      .select("name email phone services cities location")
+      .populate("services", "name")
+      .populate("cities", "name latitude longitude")
       .lean();
 
-   const medicos = await Admin.find(query)
-      .select('name email phone services cities location')
-      .populate('services', 'name')
-      .populate('cities', 'name latitude longitude')
+    const medicos = await Admin.find(query)
+      .select("name email phone services cities location")
+      .populate("services", "name")
+      .populate("cities", "name latitude longitude")
       .lean();
 
     // Combine doctors and medicos
@@ -1436,19 +1452,17 @@ exports.getProvidersByService = async (req, res) => {
     res.status(200).json({
       success: true,
       count: providers.length,
-      data: providers
+      data: providers,
     });
   } catch (error) {
-    console.error('Error in getProvidersByService:', error);
+    console.error("Error in getProvidersByService:", error);
     res.status(500).json({
       success: false,
-      message: 'Error getting providers by service',
-      error: error.message
+      message: "Error getting providers by service",
+      error: error.message,
     });
   }
 };
-
-
 
 // controllers/serviceController.js
 
@@ -1460,46 +1474,46 @@ exports.getFullServiceInfo = async (req, res) => {
     // Find the service and populate creator info and cities
     const service = await Service.findById(serviceId)
       .populate({
-        path: 'createdBy.userId',
-        select: 'name email role cities'
+        path: "createdBy.userId",
+        select: "name email role cities",
       })
-      .populate('cities', 'name latitude longitude')
+      .populate("cities", "name latitude longitude")
       .lean();
 
     if (!service) {
       return res.status(404).json({
         success: false,
-        message: 'Service not found'
+        message: "Service not found",
       });
     }
 
     // Find all doctors and medicos offering this service
     const doctors = await Doctor.find({ services: serviceId })
-      .select('name email phone cities location')
-      .populate('cities', 'name latitude longitude')
+      .select("name email phone cities location")
+      .populate("cities", "name latitude longitude")
       .lean();
 
     const medicos = await Medico.find({ services: serviceId })
-      .select('name email phone cities location')
-      .populate('cities', 'name latitude longitude')
+      .select("name email phone cities location")
+      .populate("cities", "name latitude longitude")
       .lean();
 
     // Add providers to the service response
     service.providers = {
       doctors,
-      medicos
+      medicos,
     };
 
     res.status(200).json({
       success: true,
-      data: service
+      data: service,
     });
   } catch (error) {
-    console.error('Error in getFullServiceInfo:', error);
+    console.error("Error in getFullServiceInfo:", error);
     res.status(500).json({
       success: false,
-      message: 'Error getting service info',
-      error: error.message
+      message: "Error getting service info",
+      error: error.message,
     });
   }
 };
