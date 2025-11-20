@@ -12,7 +12,8 @@ router.post('/login', adminController.adminLogin);
 router.post('/verify-signup-otp', adminController.verifySignupOtp);
 // router.post('/resend-login-otp', adminController.resendLoginOtp);
 router.post('/check-auth', adminController.checkAuthStatus);
-router.post('/logout', verifyAccessToken, adminController.logout);
+// router.post('/logout', verifyAccessToken, adminController.logout);
+router.post('/logout', adminController.logout);
 router.post('/logout-all-devices', adminController.logoutAllDevices);
 
 
