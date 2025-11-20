@@ -490,12 +490,12 @@ const Admin = require('../models/adminModel');
  */
 
 
-
 const protect = (...allowedRoles) => {
   return async (req, res, next) => {
     try {
       let token;
 
+      // Extract token from cookies or Authorization header
       if (req.cookies && req.cookies.accessToken) {
         token = req.cookies.accessToken;
       } else if (
@@ -511,29 +511,36 @@ const protect = (...allowedRoles) => {
 
       token = token.trim().replace(/^["']|["']$/g, '');
 
-      if (token === 'undefined' || token === 'null' || token === '') {
+      if (!token || token === 'undefined' || token === 'null' || token === '') {
         return next(new AppError('Invalid token. Please log in again', 401));
       }
 
+      // Verify token to get decoded payload
       let decoded;
       try {
         decoded = verifyToken(token, 'access');
-      } catch (tokenError) {
+      } catch (err) {
         return next(new AppError('Invalid or expired token. Please log in again', 401));
       }
 
-      let currentUser;
-      let userModel;
+      // Fetch current user from DB based on role
+      let currentUser, userModel;
+      const roleLower = decoded.role?.toLowerCase();
 
-      if (decoded.role === 'patient') {
+      if (roleLower === 'patient') {
         currentUser = await Patient.findById(decoded.id).select('tokenVersion isActive');
         userModel = 'Patient';
-      } else if (decoded.role === 'doctor') {
+      } else if (roleLower === 'doctor') {
         currentUser = await Doctor.findById(decoded.id).select('tokenVersion isActive');
         userModel = 'Doctor';
-      } else if (decoded.role === 'admin' || decoded.role === 'superAdmin') {
-        currentUser = await Admin.findById(decoded.id).select('tokenVersion isActive email'); // select email only for admin/superadmin
+      } else if (roleLower === 'admin' || roleLower === 'superadmin' || roleLower === 'subadmin') {
+        currentUser = await Admin.findById(decoded.id).select('tokenVersion isActive email');
         userModel = 'Admin';
+      } else if (roleLower === 'hospital') {
+        currentUser = await Hospital.findById(decoded.id).select('tokenVersion isActive');
+        userModel = 'Hospital';
+      } else {
+        return next(new AppError('Unknown role in token. Access denied.', 403));
       }
 
       if (!currentUser) {
@@ -548,20 +555,23 @@ const protect = (...allowedRoles) => {
         return next(new AppError('Your account has been deactivated. Please contact support', 403));
       }
 
-      const userRoleRaw = decoded.role?.toLowerCase();
-      const normalizedRole = userRoleRaw === 'superadmin' ? 'admin' : userRoleRaw;
-
       req.user = {
         ...currentUser.toObject(),
         id: decoded.id,
-        role: normalizedRole,
-        ...(decoded.role === 'admin' || decoded.role === 'superAdmin' ? { email: currentUser.email } : {}) // include email only for admin/superadmin
+        role: roleLower === 'superadmin' ? 'admin' : roleLower,
+        email: currentUser.email || undefined
       };
       req.userModel = userModel;
 
       if (allowedRoles.length > 0) {
-        if (!allowedRoles.includes(normalizedRole)) {
-          return next(new AppError(`Access denied. Required roles: ${allowedRoles.join(', ')}`, 403));
+        // Normalize allowed roles to lowercase for case-insensitive match
+        const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase());
+
+        if (!normalizedAllowedRoles.includes(req.user.role)) {
+          return next(new AppError(
+            `Access denied. Your role '${req.user.role}' does not have permission. Required roles: ${normalizedAllowedRoles.join(', ')}`,
+            403
+          ));
         }
       }
 
@@ -571,6 +581,7 @@ const protect = (...allowedRoles) => {
     }
   };
 };
+
 
 // const protect = (...allowedRoles) => {
 //   return async (req, res, next) => {
