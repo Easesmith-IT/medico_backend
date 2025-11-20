@@ -34,7 +34,7 @@ router.post(
   protect("doctor"),
   serviceController.selectService
 );
-router.post(
+router.patch(
   "/:serviceId/toggle-active",
   protect("admin"),
   serviceController.toggleServiceActive
