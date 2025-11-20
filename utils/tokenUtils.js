@@ -339,7 +339,8 @@ const generateAccessToken = (userId, userRole, tokenVersion = 0) => {
 
   const payload = {
     id: userId,
-    role: userRole,
+    // role: userRole,
+       role: userRole.toLowerCase(), 
     tokenVersion,
     type: "access",
   };
