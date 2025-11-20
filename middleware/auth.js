@@ -1019,7 +1019,7 @@ const protect = (...allowedRoles) => {
 
       const normalizedRole = decoded.role.toLowerCase();
       console.log('Decode Role:',  decoded );
-      console.log('Allowed Roles:', normalizedAllowedRoles);
+      // console.log('Allowed Roles:', normalizedAllowedRoles);
       if (!normalizedAllowedRoles.includes(normalizedRole)) {
         return next(new AppError(
           `Access denied. Required roles: ${allowedRoles.join(', ')}`,
