@@ -700,6 +700,91 @@ const validateCities = async (cityIds) => {
 
 // Create Service (only admin)
 // Create Service (only admin & superadmin)
+// exports.createService = async (req, res) => {
+//   try {
+//     const userRole = req.user.role;
+//     if (!['admin', 'superadmin'].includes(userRole)) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'Access denied. Only admins and superadmins can create services.'
+//       });
+//     }
+
+//     const {
+//       name, category, description,
+//       basePrice, equipmentCharges,
+//       taxPercentage, modes, supportsDuration,
+//       paymentMode, icon, image,
+//       cities, slotConfig, timeFormat
+//     } = req.body;
+
+//     if (!name || !category || !description || !basePrice) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Name, category, description, and base price are required.'
+//       });
+//     }
+
+//     const selectedTimeFormat = timeFormat || '24-hour';
+//     if (!['12-hour', '24-hour'].includes(selectedTimeFormat)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Time format must be '12-hour' or '24-hour'."
+//       });
+//     }
+
+//     let validatedCities;
+//     try {
+//       validatedCities = await validateCities(cities);
+//     } catch (error) {
+//       return res.status(400).json({ success: false, message: error.message });
+//     }
+
+//     const existingService = await Service.findOne({
+//       name, category, isDeleted: false
+//     });
+//     if (existingService) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `${category} service with name '${name}' already exists`
+//       });
+//     }
+
+//     const service = new Service({
+//       name, category, description,
+//       basePrice,
+//       equipmentCharges: equipmentCharges || 0,
+//       taxPercentage: taxPercentage || 18,
+//       modes: modes || ['Home Service'],
+//       supportsDuration: supportsDuration !== undefined ? supportsDuration : true,
+//       paymentMode: paymentMode || 'Both',
+//       timeFormat: selectedTimeFormat,
+//       icon, image,
+//       cities: validatedCities.map(city => city._id),
+//       slotConfig: slotConfig || {},
+//       createdBy: {
+//         userId: req.user.id,
+//         userModel: userRole === 'superadmin' ? 'SuperAdmin' : 'Admin',
+//         name: req.user.name || 'Admin User',
+//         email: req.user.email || ''
+//       },
+//       isActive: true,
+//       isDeleted: false
+//     });
+
+//     await service.save();
+//     await service.populate('cities', 'name latitude longitude');
+//     res.status(201).json({
+//       success: true,
+//       message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully.`,
+//       data: service
+//     });
+//   } catch (error) {
+//     console.error('Create service error:', error);
+//     res.status(500).json({ success: false, message: 'Error creating service', error: error.message });
+//   }
+// };
+
 exports.createService = async (req, res) => {
   try {
     const userRole = req.user.role;
@@ -707,6 +792,14 @@ exports.createService = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Only admins and superadmins can create services.'
+      });
+    }
+
+    // Ensure email exists to satisfy schema requirement
+    if (!req.user.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Authenticated user email is required to create service.'
       });
     }
 
@@ -766,7 +859,7 @@ exports.createService = async (req, res) => {
         userId: req.user.id,
         userModel: userRole === 'superadmin' ? 'SuperAdmin' : 'Admin',
         name: req.user.name || 'Admin User',
-        email: req.user.email || ''
+        email: req.user.email
       },
       isActive: true,
       isDeleted: false
@@ -784,7 +877,6 @@ exports.createService = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error creating service', error: error.message });
   }
 };
-
 
 // Get All Services with filters
 exports.getAllServices = async (req, res) => {
