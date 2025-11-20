@@ -111,7 +111,7 @@ const serviceSchema = new mongoose.Schema({
   // Service name
   name: { 
     type: String, 
-    required: true,
+    required: false,
     enum: [
       'Doctor Visit', 
       'Nursing', // Can be 24-hour or consultation-based
