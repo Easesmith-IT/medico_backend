@@ -182,7 +182,7 @@ const serviceSchema = new mongoose.Schema({
   slotConfig: {
     // For consultation services (30-minute slots, 9 AM - 7 PM)
     consultationSlots: {
-      enabled: { type: Boolean, default: false },
+      enabled: { type: Boolean, default: true},
       startTime: { 
         type: String, 
         default: '09:00',
