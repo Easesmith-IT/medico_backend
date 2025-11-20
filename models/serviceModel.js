@@ -467,6 +467,21 @@ serviceSchema.methods.calculateTotalPrice = function(duration = null, includeEqu
   };
 };
 
+
+// Add this before module.exports
+serviceSchema.methods.formatDuration = function(minutes) {
+  if (minutes === 60) return 'hourly';
+  if (minutes === 720) return '12-hour';
+  if (minutes === 1440) return '24-hour';
+  return `${minutes} minutes`;
+};
+
+// Add a method to get formatted duration options
+serviceSchema.methods.getFormattedDurationOptions = function() {
+  return this.durationOptions.map(minutes => this.formatDuration(minutes));
+};
+
+
 module.exports = mongoose.model('Service', serviceSchema);
 
 
