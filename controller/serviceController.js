@@ -1,933 +1,215 @@
-// // // controllers/serviceController.js
-// // const Service = require('../models/serviceModel');
-// // const Doctor = require('../models/doctorModel');
-
-// // // Get All Available Services
-// // exports.getAllServices = async (req, res) => {
-// //   try {
-// //     const services = await Service.find({ isActive: true })
-// //       .select('name description basePrice equipmentCharges modes icon image');
-
-// //     res.status(200).json({
-// //       success: true,
-// //       count: services.length,
-// //       data: services
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error fetching services',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // // Get Service Details
-// // exports.getServiceDetails = async (req, res) => {
-// //   try {
-// //     const { serviceId } = req.params;
-
-// //     const service = await Service.findById(serviceId);
-
-// //     if (!service) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: 'Service not found'
-// //       });
-// //     }
-
-// //     res.status(200).json({
-// //       success: true,
-// //       data: service
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error fetching service details',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // // Get Verified Providers by Service
-// // exports.getProvidersByService = async (req, res) => {
-// //   try {
-// //     const { serviceType } = req.params;
-// //     const { latitude, longitude, maxDistance = 10000 } = req.query; // maxDistance in meters
-
-// //     const query = {
-// //       verificationStatus: 'approved',
-// //       isActive: true,
-// //       'availability.serviceAvailability.serviceType': serviceType
-// //     };
-
-// //     let doctors;
-
-// //     // Location-based filtering if coordinates provided
-// //     if (latitude && longitude) {
-// //       doctors = await Doctor.aggregate([
-// //         {
-// //           $geoNear: {
-// //             near: {
-// //               type: 'Point',
-// //               coordinates: [parseFloat(longitude), parseFloat(latitude)]
-// //             },
-// //             distanceField: 'distance',
-// //             maxDistance: parseInt(maxDistance),
-// //             spherical: true,
-// //             query: {
-// //               verificationStatus: 'approved',
-// //               isActive: true
-// //             }
-// //           }
-// //         },
-// //         {
-// //           $match: {
-// //             'availability.serviceAvailability.serviceType': serviceType
-// //           }
-// //         },
-// //         {
-// //           $project: {
-// //             firstName: 1,
-// //             profilePhoto: 1,
-// //             specialization: 1,
-// //             yearsOfExperience: 1,
-// //             averageRating: 1,
-// //             totalReviews: 1,
-// //             consultationFees: 1,
-// //             'availability.serviceAvailability': 1,
-// //             distance: 1
-// //           }
-// //         },
-// //         {
-// //           $sort: { averageRating: -1, distance: 1 }
-// //         }
-// //       ]);
-// //     } else {
-// //       doctors = await Doctor.find(query)
-// //         .select('firstName profilePhoto specialization yearsOfExperience averageRating totalReviews consultationFees availability.serviceAvailability')
-// //         .sort({ averageRating: -1 });
-// //     }
-
-// //     // Filter service availability for requested service type
-// //     const providers = doctors.map(doctor => {
-// //       const serviceAvailability = doctor.availability?.serviceAvailability?.find(
-// //         sa => sa.serviceType === serviceType
-// //       );
-
-// //       return {
-// //         _id: doctor._id,
-// //         name: doctor.firstName,
-// //         photo: doctor.profilePhoto,
-// //         specialization: doctor.specialization,
-// //         experience: doctor.yearsOfExperience,
-// //         rating: doctor.averageRating,
-// //         reviewCount: doctor.totalReviews,
-// //         pricing: serviceAvailability?.pricing || { basePrice: doctor.consultationFees },
-// //         distance: doctor.distance ? (doctor.distance / 1000).toFixed(2) : null // Convert to km
-// //       };
-// //     });
-
-// //     res.status(200).json({
-// //       success: true,
-// //       count: providers.length,
-// //       data: providers
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error fetching providers',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // // Get Provider Full Profile
-// // exports.getProviderProfile = async (req, res) => {
-// //   try {
-// //     const { doctorId } = req.params;
-
-// //     const doctor = await Doctor.findById(doctorId)
-// //       .select('-password -refreshToken -tokenVersion -verificationDocuments');
-
-// //     if (!doctor) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: 'Provider not found'
-// //       });
-// //     }
-
-// //     // Get ratings and reviews from bookings
-// //     const bookings = await Booking.find({
-// //       doctorId,
-// //       'feedback.rating': { $exists: true }
-// //     })
-// //       .populate('patientId', 'name profilePhoto')
-// //       .select('feedback createdAt')
-// //       .sort({ 'feedback.submittedAt': -1 })
-// //       .limit(10);
-
-// //     const reviews = bookings.map(b => ({
-// //       patientName: b.patientId.name,
-// //       patientPhoto: b.patientId.profilePhoto,
-// //       rating: b.feedback.rating,
-// //       review: b.feedback.review,
-// //       date: b.feedback.submittedAt
-// //     }));
-
-// //     res.status(200).json({
-// //       success: true,
-// //       data: {
-// //         ...doctor.toObject(),
-// //         reviews
-// //       }
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error fetching provider profile',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // module.exports = exports;
-
-// // // controllers/serviceController.js
-// // const Service = require('../models/serviceModel');
-// // const Doctor = require('../models/doctorModel');
-// // const Booking = require('../models/bookingModel'); // IMPORTANT: Add this
-
-// // // ==================== PUBLIC CONTROLLERS ====================
-
-// // // Get All Available Services
-// // exports.getAllServices = async (req, res) => {
-// //   try {
-// //     const services = await Service.find({ isActive: true })
-// //       .select('name description basePrice equipmentCharges modes icon image');
-
-// //     res.status(200).json({
-// //       success: true,
-// //       count: services.length,
-// //       data: services
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error fetching services',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // // Get Service Details
-// // exports.getServiceDetails = async (req, res) => {
-// //   try {
-// //     const { serviceId } = req.params;
-
-// //     const service = await Service.findById(serviceId);
-
-// //     if (!service) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: 'Service not found'
-// //       });
-// //     }
-
-// //     res.status(200).json({
-// //       success: true,
-// //       data: service
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error fetching service details',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // // Get Verified Providers by Service
-// // exports.getProvidersByService = async (req, res) => {
-// //   try {
-// //     const { serviceType } = req.params;
-// //     const { latitude, longitude, maxDistance = 10000 } = req.query;
-
-// //     const query = {
-// //       verificationStatus: 'approved',
-// //       isActive: true,
-// //       'availability.serviceAvailability.serviceType': serviceType
-// //     };
-
-// //     let doctors;
-
-// //     if (latitude && longitude) {
-// //       doctors = await Doctor.aggregate([
-// //         {
-// //           $geoNear: {
-// //             near: {
-// //               type: 'Point',
-// //               coordinates: [parseFloat(longitude), parseFloat(latitude)]
-// //             },
-// //             distanceField: 'distance',
-// //             maxDistance: parseInt(maxDistance),
-// //             spherical: true,
-// //             query: {
-// //               verificationStatus: 'approved',
-// //               isActive: true
-// //             }
-// //           }
-// //         },
-// //         {
-// //           $match: {
-// //             'availability.serviceAvailability.serviceType': serviceType
-// //           }
-// //         },
-// //         {
-// //           $project: {
-// //             firstName: 1,
-// //             profilePhoto: 1,
-// //             specialization: 1,
-// //             yearsOfExperience: 1,
-// //             averageRating: 1,
-// //             totalReviews: 1,
-// //             consultationFees: 1,
-// //             'availability.serviceAvailability': 1,
-// //             distance: 1
-// //           }
-// //         },
-// //         {
-// //           $sort: { averageRating: -1, distance: 1 }
-// //         }
-// //       ]);
-// //     } else {
-// //       doctors = await Doctor.find(query)
-// //         .select('firstName profilePhoto specialization yearsOfExperience averageRating totalReviews consultationFees availability.serviceAvailability')
-// //         .sort({ averageRating: -1 });
-// //     }
-
-// //     const providers = doctors.map(doctor => {
-// //       const serviceAvailability = doctor.availability?.serviceAvailability?.find(
-// //         sa => sa.serviceType === serviceType
-// //       );
-
-// //       return {
-// //         _id: doctor._id,
-// //         name: doctor.firstName,
-// //         photo: doctor.profilePhoto,
-// //         specialization: doctor.specialization,
-// //         experience: doctor.yearsOfExperience,
-// //         rating: doctor.averageRating,
-// //         reviewCount: doctor.totalReviews,
-// //         pricing: serviceAvailability?.pricing || { basePrice: doctor.consultationFees },
-// //         distance: doctor.distance ? (doctor.distance / 1000).toFixed(2) : null
-// //       };
-// //     });
-
-// //     res.status(200).json({
-// //       success: true,
-// //       count: providers.length,
-// //       data: providers
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error fetching providers',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // // Get Provider Full Profile
-// // exports.getProviderProfile = async (req, res) => {
-// //   try {
-// //     const { doctorId } = req.params;
-
-// //     const doctor = await Doctor.findById(doctorId)
-// //       .select('-password -refreshToken -tokenVersion -verificationDocuments');
-
-// //     if (!doctor) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: 'Provider not found'
-// //       });
-// //     }
-
-// //     // Get ratings and reviews from bookings
-// //     const bookings = await Booking.find({
-// //       doctorId,
-// //       'feedback.rating': { $exists: true }
-// //     })
-// //       .populate('patientId', 'name profilePhoto')
-// //       .select('feedback createdAt')
-// //       .sort({ 'feedback.submittedAt': -1 })
-// //       .limit(10);
-
-// //     const reviews = bookings.map(b => ({
-// //       patientName: b.patientId?.name || 'Anonymous',
-// //       patientPhoto: b.patientId?.profilePhoto || null,
-// //       rating: b.feedback.rating,
-// //       review: b.feedback.review,
-// //       date: b.feedback.submittedAt
-// //     }));
-
-// //     res.status(200).json({
-// //       success: true,
-// //       data: {
-// //         ...doctor.toObject(),
-// //         reviews
-// //       }
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error fetching provider profile',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // // ==================== ADMIN CONTROLLERS ====================
-
-// // // Create Service (Admin)
-// // exports.createService = async (req, res) => {
-// //   try {
-// //     const {
-// //       name,
-// //       description,
-// //       basePrice,
-// //       equipmentCharges,
-// //       taxPercentage,
-// //       modes,
-// //       supportsDuration,
-// //       defaultDuration,
-// //       durationOptions,
-// //       paymentMode,
-// //       icon,
-// //       image
-// //     } = req.body;
-
-// //     // Check if service already exists
-// //     const existingService = await Service.findOne({ name });
-// //     if (existingService) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'Service with this name already exists'
-// //       });
-// //     }
-
-// //     const service = new Service({
-// //       name,
-// //       description,
-// //       basePrice,
-// //       equipmentCharges,
-// //       taxPercentage: taxPercentage || 18,
-// //       modes,
-// //       supportsDuration,
-// //       defaultDuration: defaultDuration || 30,
-// //       durationOptions,
-// //       paymentMode,
-// //       icon,
-// //       image
-// //     });
-
-// //     await service.save();
-
-// //     res.status(201).json({
-// //       success: true,
-// //       message: 'Service created successfully',
-// //       data: service
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error creating service',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // // Update Service (Admin)
-// // exports.updateService = async (req, res) => {
-// //   try {
-// //     const { serviceId } = req.params;
-// //     const updateData = req.body;
-
-// //     const service = await Service.findByIdAndUpdate(
-// //       serviceId,
-// //       updateData,
-// //       { new: true, runValidators: true }
-// //     );
-
-// //     if (!service) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: 'Service not found'
-// //       });
-// //     }
-
-// //     res.status(200).json({
-// //       success: true,
-// //       message: 'Service updated successfully',
-// //       data: service
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error updating service',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // // Delete/Deactivate Service (Admin)
-// // exports.deleteService = async (req, res) => {
-// //   try {
-// //     const { serviceId } = req.params;
-
-// //     const service = await Service.findByIdAndUpdate(
-// //       serviceId,
-// //       { isActive: false },
-// //       { new: true }
-// //     );
-
-// //     if (!service) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: 'Service not found'
-// //       });
-// //     }
-
-// //     res.status(200).json({
-// //       success: true,
-// //       message: 'Service deactivated successfully',
-// //       data: service
-// //     });
-// //   } catch (error) {
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error deactivating service',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // module.exports = exports;
-// //original before
-// const Service = require("../models/serviceModel");
-// const City = require("../models/availableCities");
-// const mongoose = require("mongoose");
-
-// const Admin = require("../models/adminModel");
-// const Doctor = require("../models/doctorModel");
-
-// // Get All Services with City Names
-// // Get all services with filters, sorting, and pagination
-// exports.getAllServices = async (req, res) => {
-//   try {
-//     const {
-//       page = 1,
-//       limit = 10,
-//       cityId,
-//       isActive,
-//       sortBy = "createdAt",
-//       order = "desc",
-//       search,
-//     } = req.query;
-
-//     // Build query object
-//     const query = {};
-
-//     // Filter by active status
-//     if (isActive !== undefined) {
-//       query.isActive = isActive === "true";
-//     }
-
-//     // Filter by city
-//     if (cityId) {
-//       query.cities = cityId;
-//     }
-
-//     // Search by name or description
-//     if (search) {
-//       query.$or = [
-//         { name: { $regex: search, $options: "i" } },
-//         { description: { $regex: search, $options: "i" } },
-//       ];
-//     }
-
-//     // Calculate pagination
-//     const skip = (parseInt(page) - 1) * parseInt(limit);
-
-//     // Build sort object
-//     const sortOrder = order === "asc" ? 1 : -1;
-//     const sortObj = { [sortBy]: sortOrder };
-
-//     // Fetch services with pagination
-//     const services = await Service.find(query)
-//       .populate("cities", "name latitude longitude")
-//       .populate("createdBy.userId", "name email")
-//       .sort(sortObj)
-//       .skip(skip)
-//       .limit(parseInt(limit));
-
-//     // Get total count for pagination
-//     const totalServices = await Service.countDocuments(query);
-//     const totalPages = Math.ceil(totalServices / parseInt(limit));
-
-//     res.status(200).json({
-//       success: true,
-//       count: services.length,
-//       totalServices,
-//       totalPages,
-//       currentPage: parseInt(page),
-//       data: services,
-//     });
-//   } catch (error) {
-//     console.error("Error in getAllServices:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error fetching services",
-//       error: error.message,
-//     });
+// const mongoose = require('mongoose');
+// const Service = require('../models/serviceModel');
+// const City = require('../models/availableCities');
+// const Admin = require('../models/adminModel');
+// const Doctor = require('../models/doctorModel');
+
+// // ============= HELPER FUNCTIONS =============
+
+// const formatDuration = (minutes) => {
+//   if (minutes === 30) return '0.5 hours';
+//   if (minutes === 45) return '0.75 hours';
+//   if (minutes === 60) return '1 hour';
+//   if (minutes === 90) return '1.5 hours';
+//   if (minutes === 120) return '2 hours';
+//   if (minutes === 150) return '2.5 hours';
+//   if (minutes === 180) return '3 hours';
+//   if (minutes === 240) return '4 hours';
+//   if (minutes === 360) return '6 hours';
+//   if (minutes === 480) return '8 hours';
+//   if (minutes === 720) return '12 hours';
+//   if (minutes === 1440) return '24 hours';
+//   if (minutes >= 60) {
+//     const hours = minutes / 60;
+//     return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
 //   }
+//   return `${minutes / 60} hours`;
 // };
 
-// // Create Service (Admin or Doctor)
-// // exports.createService = async (req, res) => {
-// //   try {
-// //     const {
-// //       name,
-// //       description,
-// //       basePrice,
-// //       equipmentCharges,
-// //       taxPercentage,
-// //       modes,
-// //       supportsDuration,
-// //       defaultDuration,
-// //       durationOptions,
-// //       paymentMode,
-// //       icon,
-// //       image,
-// //       cities // Array of city IDs
-// //     } = req.body;
+// const getFlexibleDurationOptions = () => [
+//   { minutes: 60, label: '1 hour' },
+//   { minutes: 90, label: '1.5 hours' },
+//   { minutes: 120, label: '2 hours' },
+//   { minutes: 150, label: '2.5 hours' },
+//   { minutes: 180, label: '3 hours' },
+//   { minutes: 240, label: '4 hours' },
+//   { minutes: 360, label: '6 hours' },
+//   { minutes: 480, label: '8 hours' },
+//   { minutes: 720, label: '12 hours' },
+//   { minutes: 1440, label: '24 hours' }
+// ];
 
-// //     // Validate cities
-// //     if (!cities || !Array.isArray(cities) || cities.length === 0) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'At least one city must be specified'
-// //       });
-// //     }
+// const formatTime = (time24, format = '24-hour') => {
+//   if (!time24) return null;
+//   const [hours, minutes] = time24.split(':').map(Number);
+//   if (format === '12-hour') {
+//     const period = hours >= 12 ? 'PM' : 'AM';
+//     const hours12 = hours % 12 || 12;
+//     return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
+//   }
+//   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+// };
 
-// //     // Verify all city IDs exist
-// //     const validCities = await City.find({ _id: { $in: cities } });
-// //     if (validCities.length !== cities.length) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'One or more invalid city IDs provided'
-// //       });
-// //     }
+// const validateCities = async (cityIds) => {
+//   if (!cityIds || !Array.isArray(cityIds) || cityIds.length === 0) {
+//     throw new Error('At least one city must be specified');
+//   }
+//   const validCities = await City.find({ _id: { $in: cityIds } });
+//   if (validCities.length !== cityIds.length) {
+//     const validCityIds = validCities.map(city => city._id.toString());
+//     const invalidIds = cityIds.filter(id => !validCityIds.includes(id.toString()));
+//     throw new Error(`Invalid city IDs: ${invalidIds.join(', ')}. Please ensure all cities exist in the system.`);
+//   }
+//   return validCities;
+// };
 
-// //     // Check if service already exists
-// //     const existingService = await Service.findOne({ name });
-// //     if (existingService) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'Service with this name already exists'
-// //       });
-// //     }
-
-// //     // Get creator details from authenticated user
-// //     const creatorModel = req.user.role === 'admin' ? 'Admin' : 'Doctor';
-// //     const Creator = mongoose.model(creatorModel);
-// //     const creatorDetails = await Creator.findById(req.user.id).select('name email');
-
-// //     if (!creatorDetails) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: 'Creator not found'
-// //       });
-// //     }
-
-// //     // Create service
-// //     const service = new Service({
-// //       name,
-// //       description,
-// //       basePrice,
-// //       equipmentCharges,
-// //       taxPercentage: taxPercentage || 18,
-// //       modes,
-// //       supportsDuration,
-// //       defaultDuration: defaultDuration || 30,
-// //       durationOptions,
-// //       paymentMode,
-// //       icon,
-// //       image,
-// //       cities,
-// //       createdBy: {
-// //         userId: req.user.id,
-// //         userModel: creatorModel,
-// //         name: creatorDetails.name,
-// //         email: creatorDetails.email
-// //       }
-// //     });
-
-// //     await service.save();
-
-// //     // Add service to creator's services array
-// //     await Creator.findByIdAndUpdate(
-// //       req.user.id,
-// //       { $addToSet: { services: service._id } },
-// //       { new: true }
-// //     );
-
-// //     // Populate before sending response
-// //     await service.populate('cities', 'name latitude longitude');
-
-// //     res.status(201).json({
-// //       success: true,
-// //       message: 'Service created successfully',
-// //       data: service
-// //     });
-// //   } catch (error) {
-// //     console.error('Error in createService:', error);
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error creating service',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// //with check service
-// // exports.createService = async (req, res) => {
-// //   try {
-// //     const {
-// //       name,
-// //       description,
-// //       basePrice,
-// //       equipmentCharges,
-// //       taxPercentage,
-// //       modes,
-// //       supportsDuration,
-// //       defaultDuration,
-// //       durationOptions,
-// //       paymentMode,
-// //       icon,
-// //       image,
-// //       cities
-// //     } = req.body;
-
-// //     // Validate cities
-// //     if (!cities || !Array.isArray(cities) || cities.length === 0) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'At least one city must be specified'
-// //       });
-// //     }
-
-// //     // Verify all city IDs exist
-// //     const validCities = await City.find({ _id: { $in: cities } });
-// //     if (validCities.length !== cities.length) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'One or more invalid city IDs provided'
-// //       });
-// //     }
-
-// //     // Check if service already exists
-// //     const existingService = await Service.findOne({ name });
-// //     if (existingService) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'Service with this name already exists'
-// //       });
-// //     }
-
-// //     // Determine creator model - handle admin, superAdmin, and doctor
-// //     const userRole = req.user.role.toLowerCase();
-// //     const isAdmin = userRole === 'admin' || userRole === 'superAdmin';
-// //     const creatorModel = isAdmin ? 'Admin' : 'Doctor';
-
-// //     const Creator = mongoose.model(creatorModel);
-// //     const creatorDetails = await Creator.findById(req.user.id).select('firstName lastName name email');
-
-// //     if (!creatorDetails) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: 'Creator not found'
-// //       });
-// //     }
-
-// //     // Build creator name (handle different name formats)
-// //     let creatorName;
-// //     if (creatorDetails.firstName && creatorDetails.lastName) {
-// //       creatorName = `${creatorDetails.firstName} ${creatorDetails.lastName}`;
-// //     } else if (creatorDetails.firstName) {
-// //       creatorName = creatorDetails.firstName;
-// //     } else if (creatorDetails.name) {
-// //       creatorName = creatorDetails.name;
-// //     } else {
-// //       creatorName = 'Unknown';
-// //     }
-
-// //     // Create service
-// //     const service = new Service({
-// //       name,
-// //       description,
-// //       basePrice,
-// //       equipmentCharges,
-// //       taxPercentage: taxPercentage || 18,
-// //       modes,
-// //       supportsDuration,
-// //       defaultDuration: defaultDuration || 30,
-// //       durationOptions,
-// //       paymentMode,
-// //       icon,
-// //       image,
-// //       cities,
-// //       createdBy: {
-// //         userId: req.user.id,
-// //         userModel: creatorModel,
-// //         name: creatorName,
-// //         email: creatorDetails.email
-// //       }
-// //     });
-
-// //     await service.save();
-
-// //     // Add service to creator's services array
-// //     await Creator.findByIdAndUpdate(
-// //       req.user.id,
-// //       { $addToSet: { services: service._id } },
-// //       { new: true }
-// //     );
-
-// //     // Populate before sending response
-// //     await service.populate('cities', 'name latitude longitude');
-
-// //     res.status(201).json({
-// //       success: true,
-// //       message: 'Service created successfully',
-// //       data: service
-// //     });
-// //   } catch (error) {
-// //     console.error('Error in createService:', error);
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error creating service',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // Create Service (superAdmin or Admin only)
+// // ============= CREATE SERVICE =============
 // exports.createService = async (req, res) => {
 //   try {
-//     const userRole = req.user.role; // already normalized as 'admin' or other roles
-
-//     if (userRole !== "admin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Access denied. Only admin users can create services.",
-//       });
+//     const userRole = req.user.role;
+//     if (userRole !== "admin" && userRole !== "superadmin" && userRole !== "doctor") {
+//       return res.status(403).json({ success: false, message: "Access denied. Only admin or doctor users can create services." });
 //     }
-
-//     const {
-//       name,
-//       description,
-//       basePrice,
-//       equipmentCharges,
-//       taxPercentage,
-//       modes,
-//       supportsDuration,
-//       defaultDuration,
-//       durationOptions,
-//       paymentMode,
-//       icon,
-//       image,
-//       cities,
-//     } = req.body;
-
-//     if (!cities || !Array.isArray(cities) || cities.length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "At least one city must be specified",
-//       });
+//     const { name, category, description, basePrice, equipmentCharges, taxPercentage, modes, supportsDuration, paymentMode, icon, image, cities, slotConfig, timeFormat } = req.body;
+//     if (!name || !category || !description || !basePrice) {
+//       return res.status(400).json({ success: false, message: "Name, category, description, and base price are required" });
 //     }
-
-//     const validCities = await City.find({ _id: { $in: cities } });
-//     if (validCities.length !== cities.length) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "One or more invalid city IDs provided",
-//       });
+//     if (!['consultation', 'nursing', 'equipment'].includes(category)) {
+//       return res.status(400).json({ success: false, message: "Category must be 'consultation', 'nursing', or 'equipment'" });
 //     }
-
-//     const existingService = await Service.findOne({ name });
+//     const selectedTimeFormat = timeFormat || '24-hour';
+//     if (!['12-hour', '24-hour'].includes(selectedTimeFormat)) {
+//       return res.status(400).json({ success: false, message: "Time format must be either '12-hour' or '24-hour'" });
+//     }
+//     let validatedCities;
+//     try {
+//       validatedCities = await validateCities(cities);
+//     } catch (error) {
+//       return res.status(400).json({ success: false, message: error.message });
+//     }
+//     const existingService = await Service.findOne({ name, category, isDeleted: false });
 //     if (existingService) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Service with this name already exists",
-//       });
+//       return res.status(400).json({ success: false, message: `${category} service with name '${name}' already exists` });
 //     }
-
-//     // Creator is always Admin model
-//     const creatorModel = "Admin";
+//     const creatorModel = (userRole === "admin" || userRole === "superadmin") ? "Admin" : "Doctor";
 //     const Creator = mongoose.model(creatorModel);
-//     const creatorDetails = await Creator.findById(req.user.id).select(
-//       "firstName email"
-//     );
-//     console.log("creatorDetails", creatorDetails);
-
+//     const creatorDetails = await Creator.findById(req.user.id).select("firstName lastName email name");
 //     if (!creatorDetails) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Creator not found",
-//       });
+//       return res.status(404).json({ success: false, message: `${creatorModel} not found` });
 //     }
-
+//     const creatorName = creatorDetails.firstName
+//       ? `${creatorDetails.firstName} ${creatorDetails.lastName || ''}`.trim()
+//       : creatorDetails.name || 'Unknown';
+//     let finalSlotConfig = {}, defaultDuration = 60, durationOptions = [];
+//     if (category === 'consultation') {
+//       finalSlotConfig = {
+//         consultationSlots: {
+//           enabled: true,
+//           startTime: slotConfig?.consultationSlots?.startTime || '09:00',
+//           endTime: slotConfig?.consultationSlots?.endTime || '19:00',
+//           slotDuration: 30
+//         }
+//       };
+//       defaultDuration = 30;
+//       durationOptions = [30];
+//     } else if (category === 'nursing') {
+//       const flexibleOptions = getFlexibleDurationOptions();
+//       durationOptions = flexibleOptions.map(opt => opt.minutes);
+//       finalSlotConfig = {
+//         nursingSlots: {
+//           enabled: true,
+//           shiftTypes: ['flexible'],
+//           minDuration: 60,
+//           maxDuration: 1440,
+//           available24x7: true,
+//           allowCustomDuration: true,
+//           flexibleDurationOptions: flexibleOptions
+//         }
+//       };
+//     } else if (category === 'equipment') {
+//       const flexibleOptions = getFlexibleDurationOptions();
+//       durationOptions = flexibleOptions.map(opt => opt.minutes);
+//       finalSlotConfig = {
+//         equipmentBooking: {
+//           enabled: true,
+//           minDuration: 60,
+//           maxDuration: 1440,
+//           available24x7: true,
+//           flexibleDurationOptions: flexibleOptions
+//         }
+//       };
+//     }
 //     const service = new Service({
 //       name,
+//       category,
+//       nursingType: null,
 //       description,
 //       basePrice,
-//       equipmentCharges,
+//       equipmentCharges: equipmentCharges || 0,
 //       taxPercentage: taxPercentage || 18,
-//       modes,
-//       supportsDuration,
-//       defaultDuration: defaultDuration || 30,
+//       modes: modes || ['Home Service'],
+//       supportsDuration: supportsDuration !== undefined ? supportsDuration : true,
+//       defaultDuration,
 //       durationOptions,
-//       paymentMode,
+//       paymentMode: paymentMode || 'Both',
+//       timeFormat: selectedTimeFormat,
 //       icon,
 //       image,
-//       cities,
+//       cities: validatedCities.map(city => city._id),
+//       slotConfig: finalSlotConfig,
 //       createdBy: {
 //         userId: req.user.id,
 //         userModel: creatorModel,
-//         name: creatorDetails?.firstName,
-//         email: creatorDetails?.email,
-//         role: req.user.role,
+//         name: creatorName,
+//         email: creatorDetails.email
 //       },
+//       isActive: true
 //     });
-
 //     await service.save();
-
-//     await Creator.findByIdAndUpdate(
-//       req.user.id,
-//       { $addToSet: { services: service._id } },
-//       { new: true }
-//     );
-
+//     if (Creator.schema.path('services')) {
+//       await Creator.findByIdAndUpdate(req.user.id, { $addToSet: { services: service._id } }, { new: true });
+//     }
 //     await service.populate("cities", "name latitude longitude");
-
+//     const responseSlotInfo = {
+//       type: category,
+//       defaultDuration: formatDuration(defaultDuration),
+//       durationOptions: category === 'consultation'
+//         ? ['30 minutes']
+//         : getFlexibleDurationOptions().map(opt => opt.label),
+//       availability: category === 'consultation'
+//         ? `${formatTime('09:00', selectedTimeFormat)} - ${formatTime('19:00', selectedTimeFormat)}`
+//         : '24x7 (Patient can select any time)',
+//       timeFormat: selectedTimeFormat,
+//       pricing: `₹${basePrice} per hour`,
+//       selectionMode: category === 'consultation'
+//         ? 'Fixed 30-minute slots'
+//         : 'Patient selects start time and duration',
+//       instructions: category !== 'consultation'
+//         ? 'Patient can book service for any duration from 1 hour to 24 hours at any time of the day'
+//         : 'Fixed consultation slots available from 9 AM to 7 PM'
+//     };
 //     res.status(201).json({
 //       success: true,
-//       message: "Service created successfully",
-//       data: service,
+//       message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully`,
+//       data: {
+//         service,
+//         availableCities: validatedCities.map(city => ({
+//           id: city._id,
+//           name: city.name,
+//           coordinates: { latitude: city.latitude, longitude: city.longitude }
+//         })),
+//         slotInfo: responseSlotInfo
+//       }
 //     });
 //   } catch (error) {
 //     console.error("Error in createService:", error);
+//     if (error.name === 'ValidationError') {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Validation error',
+//         errors: Object.values(error.errors).map(err => err.message)
+//       });
+//     }
 //     res.status(500).json({
 //       success: false,
 //       message: "Error creating service",
@@ -936,612 +218,452 @@
 //   }
 // };
 
-// //both admin and doctor can create same service name
-// // exports.createService = async (req, res) => {
-// //   try {
-// //     const {
-// //       name,
-// //       description,
-// //       basePrice,
-// //       equipmentCharges,
-// //       taxPercentage,
-// //       modes,
-// //       supportsDuration,
-// //       defaultDuration,
-// //       durationOptions,
-// //       paymentMode,
-// //       icon,
-// //       image,
-// //       cities
-// //     } = req.body;
+// // ============= GET ALL SERVICES =============
 
-// //     // Validate cities
-// //     if (!cities || !Array.isArray(cities) || cities.length === 0) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'At least one city must be specified'
-// //       });
-// //     }
+// exports.getAllServices = async (req, res) => {
+//   try {
+//     const { category, cityId, isActive, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', timeFormat = '24-hour' } = req.query;
+//     const query = { isDeleted: false };
+//     if (category) query.category = category;
+//     if (cityId) query.cities = cityId;
+//     if (isActive !== undefined) query.isActive = isActive === 'true';
+//     const skip = (page - 1) * limit;
+//     const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+//     const services = await Service.find(query)
+//       .populate('cities', 'name latitude longitude')
+//       .populate('createdBy.userId', 'firstName lastName name email')
+//       .sort(sort)
+//       .skip(skip)
+//       .limit(parseInt(limit));
+//     const total = await Service.countDocuments(query);
+//     const formattedServices = services.map(service => {
+//       const serviceObj = service.toObject();
+//       return {
+//         ...serviceObj,
+//         formattedDuration: formatDuration(serviceObj.defaultDuration),
+//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
+//         displayTimeFormat: timeFormat
+//       };
+//     });
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         services: formattedServices,
+//         pagination: {
+//           total,
+//           page: parseInt(page),
+//           pages: Math.ceil(total / limit),
+//           limit: parseInt(limit)
+//         }
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Get all services error:', error);
+//     res.status(500).json({ success: false, message: 'Error fetching services', error: error.message });
+//   }
+// };
 
-// //     // Verify all city IDs exist
-// //     const validCities = await City.find({ _id: { $in: cities } });
-// //     if (validCities.length !== cities.length) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'One or more invalid city IDs provided'
-// //       });
-// //     }
+// // ============= GET SERVICE BY ID =============
+// exports.getServiceById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { timeFormat = '24-hour' } = req.query;
+//     const service = await Service.findById(id)
+//       .populate('cities', 'name latitude longitude')
+//       .populate('createdBy.userId', 'firstName lastName name email phone');
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Service not found' });
+//     }
+//     const serviceObj = service.toObject();
+//     const formattedService = {
+//       ...serviceObj,
+//       formattedDuration: formatDuration(serviceObj.defaultDuration),
+//       formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
+//       displayTimeFormat: timeFormat
+//     };
+//     res.status(200).json({ success: true, data: formattedService });
+//   } catch (error) {
+//     console.error('Get service by ID error:', error);
+//     res.status(500).json({ success: false, message: 'Error fetching service', error: error.message });
+//   }
+// };
 
-// //     // REMOVED: Duplicate service name check
-// //     // This allows multiple doctors to create services with the same name
+// // ============= UPDATE SERVICE =============
+// exports.updateService = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({ success: false, message: "Only admins can update services" });
+//     }
+//     const service = await Service.findById(id);
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Service not found' });
+//     }
+//     const { name, description, basePrice, equipmentCharges, taxPercentage, modes, defaultDuration, durationOptions, paymentMode, timeFormat, icon, image, cities, isActive, slotConfig } = req.body;
+//     if (cities) {
+//       try {
+//         await validateCities(cities);
+//         service.cities = cities;
+//       } catch (error) {
+//         return res.status(400).json({ success: false, message: error.message });
+//       }
+//     }
+//     if (name) service.name = name;
+//     if (description) service.description = description;
+//     if (basePrice !== undefined) service.basePrice = basePrice;
+//     if (equipmentCharges !== undefined) service.equipmentCharges = equipmentCharges;
+//     if (taxPercentage !== undefined) service.taxPercentage = taxPercentage;
+//     if (modes) service.modes = modes;
+//     if (defaultDuration !== undefined) service.defaultDuration = defaultDuration;
+//     if (durationOptions) service.durationOptions = durationOptions;
+//     if (paymentMode) service.paymentMode = paymentMode;
+//     if (timeFormat) service.timeFormat = timeFormat;
+//     if (icon !== undefined) service.icon = icon;
+//     if (image !== undefined) service.image = image;
+//     if (isActive !== undefined) service.isActive = isActive;
+//     if (slotConfig) service.slotConfig = { ...service.slotConfig, ...slotConfig };
+//     await service.save();
+//     await service.populate('cities', 'name latitude longitude');
+//     const serviceObj = service.toObject();
+//     const formattedService = {
+//       ...serviceObj,
+//       formattedDuration: formatDuration(serviceObj.defaultDuration),
+//       formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
+//     };
+//     res.status(200).json({ success: true, message: 'Service updated successfully', data: formattedService });
+//   } catch (error) {
+//     console.error('Update service error:', error);
+//     if (error.name === 'ValidationError') {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Validation error',
+//         errors: Object.values(error.errors).map(err => err.message)
+//       });
+//     }
+//     res.status(500).json({ success: false, message: 'Error updating service', error: error.message });
+//   }
+// };
 
-// //     // Determine creator model - handle admin, superAdmin, and doctor
-// //     const userRole = req.user.role.toLowerCase();
-// //     const isAdmin = userRole === 'admin' || userRole === 'superAdmin';
-// //     const creatorModel = isAdmin ? 'Admin' : 'Doctor';
+// // ============= DELETE SERVICE (SOFT DELETE) =============
+// exports.deleteService = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({ success: false, message: "Only admins can delete services" });
+//     }
+//     const service = await Service.findById(id);
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Service not found' });
+//     }
+//     service.isDeleted = true;
+//     service.deletedAt = new Date();
+//     service.deletedBy = { userId: req.user.id, userModel: 'Admin' };
+//     service.isActive = false;
+//     await service.save();
+//     res.status(200).json({ success: true, message: 'Service deleted successfully' });
+//   } catch (error) {
+//     console.error('Delete service error:', error);
+//     res.status(500).json({ success: false, message: 'Error deleting service', error: error.message });
+//   }
+// };
 
-// //     const Creator = mongoose.model(creatorModel);
-// //     const creatorDetails = await Creator.findById(req.user.id).select('firstName lastName name email');
+// // ============= RESTORE SERVICE =============
+// exports.restoreService = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({ success: false, message: "Only admins can restore services" });
+//     }
+//     const service = await Service.findOne({ _id: id, isDeleted: true });
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Deleted service not found' });
+//     }
+//     service.isDeleted = false;
+//     service.deletedAt = null;
+//     service.deletedBy = null;
+//     service.isActive = true;
+//     await service.save();
+//     res.status(200).json({ success: true, message: 'Service restored successfully', data: service });
+//   } catch (error) {
+//     console.error('Restore service error:', error);
+//     res.status(500).json({ success: false, message: 'Error restoring service', error: error.message });
+//   }
+// };
 
-// //     if (!creatorDetails) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: 'Creator not found'
-// //       });
-// //     }
+// // ============= TOGGLE SERVICE STATUS =============
+// exports.toggleServiceStatus = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({ success: false, message: "Only admins can toggle service status" });
+//     }
+//     const service = await Service.findById(id);
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Service not found' });
+//     }
+//     service.isActive = !service.isActive;
+//     await service.save();
+//     res.status(200).json({
+//       success: true,
+//       message: `Service ${service.isActive ? 'activated' : 'deactivated'} successfully`,
+//       data: { id: service._id, name: service.name, isActive: service.isActive }
+//     });
+//   } catch (error) {
+//     console.error('Toggle service status error:', error);
+//     res.status(500).json({ success: false, message: 'Error toggling service status', error: error.message });
+//   }
+// };
 
-// //     // Build creator name (handle different name formats)
-// //     let creatorName;
-// //     if (creatorDetails.firstName && creatorDetails.lastName) {
-// //       creatorName = `${creatorDetails.firstName} ${creatorDetails.lastName}`;
-// //     } else if (creatorDetails.firstName) {
-// //       creatorName = creatorDetails.firstName;
-// //     } else if (creatorDetails.name) {
-// //       creatorName = creatorDetails.name;
-// //     } else {
-// //       creatorName = 'Unknown';
-// //     }
+// // ============= GET AVAILABLE SLOTS FOR SERVICE =============
+// exports.getAvailableSlots = async (req, res) => {
+//   try {
+//     const { serviceId } = req.params;
+//     const { date, partnerId, timeFormat = '24-hour' } = req.query;
+//     if (!date) {
+//       return res.status(400).json({ success: false, message: 'Date is required' });
+//     }
+//     const service = await Service.findById(serviceId);
+//     if (!service || !service.isActive) {
+//       return res.status(404).json({ success: false, message: 'Service not found or inactive' });
+//     }
+//     const availableSlots = await Service.getAvailableSlots(serviceId, new Date(date), partnerId);
+//     res.status(200).json({
+//       success: true,
+//       serviceId,
+//       serviceName: service.name,
+//       serviceCategory: service.category,
+//       date: new Date(date).toDateString(),
+//       timeFormat,
+//       data: availableSlots
+//     });
+//   } catch (error) {
+//     console.error('Get available slots error:', error);
+//     res.status(500).json({ success: false, message: 'Error fetching available slots', error: error.message });
+//   }
+// };
 
-// //     // Create service
-// //     const service = new Service({
-// //       name,
-// //       description,
-// //       basePrice,
-// //       equipmentCharges,
-// //       taxPercentage: taxPercentage || 18,
-// //       modes,
-// //       supportsDuration,
-// //       defaultDuration: defaultDuration || 30,
-// //       durationOptions,
-// //       paymentMode,
-// //       icon,
-// //       image,
-// //       cities,
-// //       createdBy: {
-// //         userId: req.user.id,
-// //         userModel: creatorModel,
-// //         name: creatorName,
-// //         email: creatorDetails.email
-// //       }
-// //     });
+// // ============= CALCULATE SERVICE PRICE =============
+// exports.calculateServicePrice = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { duration, includeEquipment } = req.query;
+//     const service = await Service.findById(id);
+//     if (!service || !service.isActive) {
+//       return res.status(404).json({ success: false, message: 'Service not found or inactive' });
+//     }
+//     const pricing = service.calculateTotalPrice(
+//       duration ? parseInt(duration) : null,
+//       includeEquipment === 'true',
+//       null
+//     );
+//     res.status(200).json({
+//       success: true,
+//       serviceId: service._id,
+//       serviceName: service.name,
+//       category: service.category,
+//       duration: duration ? formatDuration(parseInt(duration)) : formatDuration(service.defaultDuration),
+//       pricing
+//     });
+//   } catch (error) {
+//     console.error('Calculate service price error:', error);
+//     res.status(500).json({ success: false, message: 'Error calculating service price', error: error.message });
+//   }
+// };
 
-// //     await service.save();
-
-// //     // Add service to creator's services array
-// //     await Creator.findByIdAndUpdate(
-// //       req.user.id,
-// //       { $addToSet: { services: service._id } },
-// //       { new: true }
-// //     );
-
-// //     // Populate before sending response
-// //     await service.populate('cities', 'name latitude longitude');
-
-// //     res.status(201).json({
-// //       success: true,
-// //       message: 'Service created successfully',
-// //       data: service
-// //     });
-// //   } catch (error) {
-// //     console.error('Error in createService:', error);
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error creating service',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// // Get Services by City
+// // ============= GET SERVICES BY CITY =============
 // exports.getServicesByCity = async (req, res) => {
 //   try {
 //     const { cityId } = req.params;
-
-//     if (!cityId) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "City ID is required",
-//       });
-//     }
-
-//     // Verify city exists
-//     const city = await City.findById(cityId);
-//     if (!city) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "City not found",
-//       });
-//     }
-
-//     const services = await Service.find({
-//       isActive: true,
+//     const { category, timeFormat = '24-hour' } = req.query;
+//     const query = {
 //       cities: cityId,
-//     })
-//       .select(
-//         "name description basePrice equipmentCharges modes icon image isActive"
-//       )
-//       .populate("cities", "name latitude longitude")
-//       .sort({ createdAt: -1 });
-
-//     res.status(200).json({
-//       success: true,
-//       city: city.name,
-//       count: services.length,
-//       data: services,
-//     });
-//   } catch (error) {
-//     console.error("Error in getServicesByCity:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error fetching services",
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // Update Service
-// exports.updateService = async (req, res) => {
-//   try {
-//     const { serviceId } = req.params;
-//     const updateData = req.body;
-
-//     if (!serviceId) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Service ID is required",
-//       });
-//     }
-
-//     // If cities are being updated, validate them
-//     if (updateData.cities) {
-//       if (!Array.isArray(updateData.cities) || updateData.cities.length === 0) {
-//         return res.status(400).json({
-//           success: false,
-//           message: "Cities must be a non-empty array",
-//         });
-//       }
-
-//       const validCities = await City.find({ _id: { $in: updateData.cities } });
-//       if (validCities.length !== updateData.cities.length) {
-//         return res.status(400).json({
-//           success: false,
-//           message: "One or more invalid city IDs provided",
-//         });
-//       }
-//     }
-
-//     const updatedService = await Service.findByIdAndUpdate(
-//       serviceId,
-//       updateData,
-//       { new: true, runValidators: true }
-//     )
-//       .populate("cities", "name latitude longitude")
-//       .populate("createdBy.userId", "name email");
-
-//     if (!updatedService) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Service not found",
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Service updated successfully",
-//       data: updatedService,
-//     });
-//   } catch (error) {
-//     console.error("Error in updateService:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error updating service",
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // Get single service by ID
-// exports.getServiceById = async (req, res) => {
-//   try {
-//     const { serviceId } = req.params;
-
-//     if (!serviceId) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Service ID is required",
-//       });
-//     }
-
-//     const service = await Service.findById(serviceId)
-//       .populate("cities", "name latitude longitude")
-//       .populate("createdBy.userId", "name email");
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Service not found",
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       data: service,
-//     });
-//   } catch (error) {
-//     console.error("Error in getServiceById:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error fetching service",
-//       error: error.message,
-//     });
-//   }
-// };
-// // Get services by creator ID
-// // exports.getServicesByCreator = async (req, res) => {
-// //   try {
-// //     const { creatorId } = req.params;
-// //     const { role } = req.query; // 'admin' or 'doctor'
-
-// //     if (!creatorId) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'Creator ID is required'
-// //       });
-// //     }
-
-// //     if (!role || !['admin', 'doctor'].includes(role.toLowerCase())) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'Valid role (admin or doctor) is required'
-// //       });
-// //     }
-
-// //     const creatorModel = role.toLowerCase() === 'admin' ? 'Admin' : 'Doctor';
-
-// //     const services = await Service.find({
-// //       'createdBy.userId': creatorId,
-// //       'createdBy.userModel': creatorModel
-// //     })
-// //       .populate('cities', 'name latitude longitude')
-// //       .sort({ createdAt: -1 });
-
-// //     res.status(200).json({
-// //       success: true,
-// //       count: services.length,
-// //       data: services
-// //     });
-// //   } catch (error) {
-// //     console.error('Error in getServicesByCreator:', error);
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Error fetching services',
-// //       error: error.message
-// //     });
-// //   }
-// // };
-
-// exports.getServicesByCreator = async (req, res) => {
-//   try {
-//     const { creatorId } = req.params;
-//     const { role } = req.query; // 'admin', 'superAdmin', or 'doctor'
-
-//     if (!creatorId) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Creator ID is required",
-//       });
-//     }
-
-//     // Validate role - accept admin, superAdmin, and doctor
-//     const validRoles = ["admin", "superAdmin", "doctor"];
-//     if (!role || !validRoles.includes(role.toLowerCase())) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Valid role (admin, superAdmin, or doctor) is required",
-//       });
-//     }
-
-//     // Map superAdmin to Admin model (both use Admin model)
-//     const roleLower = role.toLowerCase();
-//     const creatorModel =
-//       roleLower === "admin" || roleLower === "superAdmin" ? "Admin" : "Doctor";
-
-//     const services = await Service.find({
-//       "createdBy.userId": creatorId,
-//       "createdBy.userModel": creatorModel,
-//     })
-//       .populate("cities", "name latitude longitude")
-//       .sort({ createdAt: -1 });
-
-//     res.status(200).json({
-//       success: true,
-//       count: services.length,
-//       data: services,
-//     });
-//   } catch (error) {
-//     console.error("Error in getServicesByCreator:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error fetching services",
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // Select/Assign Service to Doctor (Doctor only)
-// exports.selectService = async (req, res) => {
-//   try {
-//     // Only doctors can use this endpoint
-//     if (req.user.role !== "doctor") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Access denied. This endpoint is for doctors only.",
-//       });
-//     }
-
-//     const { serviceIds } = req.body; // Array of service IDs to select
-
-//     // Validate input
-//     if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "At least one service ID must be provided",
-//       });
-//     }
-
-//     // Verify all service IDs exist
-//     const validServices = await Service.find({
-//       _id: { $in: serviceIds },
 //       isActive: true,
+//       isDeleted: false
+//     };
+//     if (category) query.category = category;
+//     const services = await Service.find(query)
+//       .populate('cities', 'name latitude longitude')
+//       .sort({ category: 1, basePrice: 1 });
+//     const city = await City.findById(cityId);
+//     const formattedServices = services.map(service => {
+//       const serviceObj = service.toObject();
+//       return {
+//         ...serviceObj,
+//         formattedDuration: formatDuration(serviceObj.defaultDuration),
+//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
+//         displayTimeFormat: timeFormat
+//       };
 //     });
-
-//     if (validServices.length !== serviceIds.length) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "One or more invalid or inactive service IDs provided",
-//       });
-//     }
-
-//     // Update doctor's services
-//     const doctor = await Doctor.findByIdAndUpdate(
-//       req.user.id,
-//       { $addToSet: { services: { $each: serviceIds } } },
-//       { new: true }
-//     ).populate("services", "name description basePrice modes");
-
-//     if (!doctor) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Doctor not found",
-//       });
-//     }
-
 //     res.status(200).json({
 //       success: true,
-//       message: "Services selected successfully",
-//       data: {
-//         doctorId: doctor._id,
-//         services: doctor.services,
-//       },
+//       city: city ? city.name : 'Unknown',
+//       count: services.length,
+//       data: formattedServices
 //     });
 //   } catch (error) {
-//     console.error("Error in selectService:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error selecting services",
-//       error: error.message,
-//     });
+//     console.error('Get services by city error:', error);
+//     res.status(500).json({ success: false, message: 'Error fetching services by city', error: error.message });
 //   }
 // };
 
-// exports.toggleServiceActive = async (req, res) => {
+// // ============== SEARCH SERVICES ==============
+// exports.searchServices = async (req, res) => {
 //   try {
-//     const { serviceId } = req.params;
+//     const { query: search, category, cityId, minPrice, maxPrice, timeFormat = '24-hour' } = req.query;
+//     const searchQuery = { isActive: true, isDeleted: false };
+//     if (search) {
+//       searchQuery.$or = [
+//         { name: { $regex: search, $options: 'i' } },
+//         { description: { $regex: search, $options: 'i' } }
+//       ];
+//     }
+//     if (category) searchQuery.category = category;
+//     if (cityId) searchQuery.cities = cityId;
+//     if (minPrice || maxPrice) {
+//       searchQuery.basePrice = {};
+//       if (minPrice) searchQuery.basePrice.$gte = parseFloat(minPrice);
+//       if (maxPrice) searchQuery.basePrice.$lte = parseFloat(maxPrice);
+//     }
+//     const services = await Service.find(searchQuery)
+//       .populate('cities', 'name latitude longitude')
+//       .sort({ basePrice: 1 });
+//     const formattedServices = services.map(service => {
+//       const serviceObj = service.toObject();
+//       return {
+//         ...serviceObj,
+//         formattedDuration: formatDuration(serviceObj.defaultDuration),
+//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
+//         displayTimeFormat: timeFormat
+//       };
+//     });
+//     res.status(200).json({ success: true, count: services.length, data: formattedServices });
+//   } catch (error) {
+//     console.error('Search services error:', error);
+//     res.status(500).json({ success: false, message: 'Error searching services', error: error.message });
+//   }
+// };
 
-//     // Find service
-//     const service = await Service.findById(serviceId);
+// // ============= GET SERVICE STATISTICS (ADMIN) =============
+// exports.getServiceStatistics = async (req, res) => {
+//   try {
+//     const userRole = req.user.role;
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({ success: false, message: "Only admins can view service statistics" });
+//     }
+//     const stats = await Promise.all([
+//       Service.aggregate([
+//         { $match: { isDeleted: false } },
+//         {
+//           $group: {
+//             _id: '$category',
+//             count: { $sum: 1 },
+//             active: { $sum: { $cond: ['$isActive', 1, 0] } },
+//             avgPrice: { $avg: '$basePrice' }
+//           }
+//         }
+//       ]),
+//       Service.countDocuments({ isDeleted: false }),
+//       Service.countDocuments({ isActive: true, isDeleted: false }),
+//       Service.countDocuments({ isActive: false, isDeleted: false })
+//     ]);
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         byCategory: stats[0],
+//         totalServices: stats[1],
+//         activeServices: stats[2],
+//         inactiveServices: stats[3]
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Get service statistics error:', error);
+//     res.status(500).json({ success: false, message: 'Error fetching service statistics', error: error.message });
+//   }
+// };
 
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Service not found",
-//       });
+// // ============= BULK UPDATE SERVICES =============
+// exports.bulkUpdateServices = async (req, res) => {
+//   try {
+//     const userRole = req.user.role;
+//     if (userRole !== "admin" && userRole !== "superadmin") {
+//       return res.status(403).json({ success: false, message: "Only admins can perform bulk updates" });
+//     }
+//     const { serviceIds, updates } = req.body;
+//     if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
+//       return res.status(400).json({ success: false, message: 'Service IDs array is required' });
+//     }
+//     if (!updates || Object.keys(updates).length === 0) {
+//       return res.status(400).json({ success: false, message: 'Updates object is required' });
+//     }
+//     const result = await Service.updateMany(
+//       { _id: { $in: serviceIds }, isDeleted: false },
+//       { $set: updates }
+//     );
+//     res.status(200).json({
+//       success: true,
+//       message: `${result.modifiedCount} services updated successfully`,
+//       data: { matched: result.matchedCount, modified: result.modifiedCount }
+//     });
+//   } catch (error) {
+//     console.error('Bulk update services error:', error);
+//     res.status(500).json({ success: false, message: 'Error performing bulk update', error: error.message });
+//   }
+// };
+// // ============= GET NURSING SERVICES BY TYPE =============
+// exports.getNursingServicesByType = async (req, res) => {
+//   try {
+//     const { nursingType } = req.params;
+//     const { cityId, isActive = true, timeFormat = '24-hour' } = req.query;
+
+//     const validNursingTypes = ['hourly', 'full-day', 'full-night', '12-hour', '24-hour'];
+//     if (!validNursingTypes.includes(nursingType)) {
+//       return res.status(400).json({ success: false, message: 'Invalid nursingType parameter' });
 //     }
 
-//     // Toggle active/inactive
-//     service.isActive = !service.isActive;
-//     await service.save();
+//     let query = {
+//       category: 'nursing',
+//       nursingType,
+//       isActive,
+//       isDeleted: false,
+//     };
+//     if (cityId) query.cities = cityId;
+
+//     const services = await Service.find(query)
+//       .populate('cities', 'name latitude longitude')
+//       .sort({ createdAt: -1 });
+
+//     const formattedServices = services.map(service => {
+//       const serviceObj = service.toObject();
+//       return {
+//         ...serviceObj,
+//         formattedDuration: formatDuration(serviceObj.defaultDuration),
+//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
+//         displayTimeFormat: timeFormat,
+//       };
+//     });
 
 //     return res.status(200).json({
 //       success: true,
-//       message: `Service is now ${service.isActive ? "Active" : "Inactive"}`,
-//       service,
-//     });
-//   } catch (error) {
-//     console.error("Error toggling service active:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Internal server error",
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // Get Available Services for Selection (All authenticated users)
-// exports.getAvailableServices = async (req, res) => {
-//   try {
-//     const { cityId } = req.query;
-
-//     const filter = { isActive: true };
-//     if (cityId) {
-//       filter.cities = cityId;
-//     }
-
-//     const services = await Service.find(filter)
-//       .populate("cities", "name")
-//       .select("name description basePrice modes supportsDuration icon image")
-//       .sort({ name: 1 });
-
-//     res.status(200).json({
-//       success: true,
+//       nursingType,
 //       count: services.length,
-//       data: services,
+//       data: formattedServices,
 //     });
 //   } catch (error) {
-//     console.error("Error in getAvailableServices:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error fetching services",
-//       error: error.message,
-//     });
+//     console.error('Error fetching nursing services:', error);
+//     res.status(500).json({ success: false, message: 'Failed to fetch nursing services', error: error.message });
 //   }
 // };
-
-// // controllers/serviceController.js
-
-// // Get list of Doctors/Medico providers by Service ID and optional City ID
-// exports.getProvidersByService = async (req, res) => {
-//   try {
-//     const { serviceId } = req.params;
-//     const { cityId } = req.query;
-
-//     // Build query
-//     const query = {
-//       services: serviceId,
-//     };
-//     if (cityId) {
-//       query.cities = cityId;
-//     }
-
-//     // Assume Medico and Doctor model both have 'services' and 'cities' fields
-//     const doctors = await Doctor.find(query)
-//       .select("name email phone services cities location")
-//       .populate("services", "name")
-//       .populate("cities", "name latitude longitude")
-//       .lean();
-
-//     const medicos = await Admin.find(query)
-//       .select("name email phone services cities location")
-//       .populate("services", "name")
-//       .populate("cities", "name latitude longitude")
-//       .lean();
-
-//     // Combine doctors and medicos
-//     const providers = [...doctors, ...medicos];
-
-//     res.status(200).json({
-//       success: true,
-//       count: providers.length,
-//       data: providers,
-//     });
-//   } catch (error) {
-//     console.error("Error in getProvidersByService:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error getting providers by service",
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // controllers/serviceController.js
-
-// // Get full service info by Service ID, including provider info
-// exports.getFullServiceInfo = async (req, res) => {
-//   try {
-//     const { serviceId } = req.params;
-
-//     // Find the service and populate creator info and cities
-//     const service = await Service.findById(serviceId)
-//       .populate({
-//         path: "createdBy.userId",
-//         select: "name email role cities",
-//       })
-//       .populate("cities", "name latitude longitude")
-//       .lean();
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Service not found",
-//       });
-//     }
-
-//     // Find all doctors and medicos offering this service
-//     const doctors = await Doctor.find({ services: serviceId })
-//       .select("name email phone cities location")
-//       .populate("cities", "name latitude longitude")
-//       .lean();
-
-//     const medicos = await Medico.find({ services: serviceId })
-//       .select("name email phone cities location")
-//       .populate("cities", "name latitude longitude")
-//       .lean();
-
-//     // Add providers to the service response
-//     service.providers = {
-//       doctors,
-//       medicos,
-//     };
-
-//     res.status(200).json({
-//       success: true,
-//       data: service,
-//     });
-//   } catch (error) {
-//     console.error("Error in getFullServiceInfo:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error getting service info",
-//       error: error.message,
-//     });
-//   }
-// };
-
-
-
-
-
-
-// controllers/serviceController.js
 const mongoose = require('mongoose');
 const Service = require('../models/serviceModel');
 const City = require('../models/availableCities');
 const Admin = require('../models/adminModel');
 const Doctor = require('../models/doctorModel');
 
-
-
-
-// const mongoose = require('mongoose');
-// const Service = require('../models/serviceModel');
-// const City = require('../models/availableCities');
-// const Admin = require('../models/adminModel');
-// const Doctor = require('../models/doctorModel');
-
-// ============= HELPER FUNCTIONS =============
-
-// ✅ Format duration in HOURS (not minutes)
+// Helper: Format duration labels
 const formatDuration = (minutes) => {
   if (minutes === 30) return '0.5 hours';
   if (minutes === 45) return '0.75 hours';
@@ -1555,364 +677,102 @@ const formatDuration = (minutes) => {
   if (minutes === 480) return '8 hours';
   if (minutes === 720) return '12 hours';
   if (minutes === 1440) return '24 hours';
-  
-  // For any other duration
   if (minutes >= 60) {
     const hours = minutes / 60;
     return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
   }
-  
   return `${minutes / 60} hours`;
 };
 
-// ✅ Convert minutes to hours
-const minutesToHours = (minutes) => {
-  return minutes / 60;
-};
-
-// ✅ Convert hours to minutes
-const hoursToMinutes = (hours) => {
-  return hours * 60;
-};
-
-// ✅ Format time based on user preference (12-hour or 24-hour)
-const formatTime = (time24, format = '24-hour') => {
-  if (!time24) return null;
-  
-  const [hours, minutes] = time24.split(':').map(Number);
-  
-  if (format === '12-hour') {
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hours12 = hours % 12 || 12;
-    return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
-  }
-  
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-};
-
-// ✅ Parse time from 12-hour or 24-hour format
-const parseTime = (timeString) => {
-  if (!timeString) return null;
-  
-  // Check if it's 12-hour format
-  const time12Regex = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
-  const match = timeString.match(time12Regex);
-  
-  if (match) {
-    let hours = parseInt(match[1]);
-    const minutes = parseInt(match[2]);
-    const period = match[3].toUpperCase();
-    
-    if (period === 'PM' && hours !== 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
-    
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  }
-  
-  // Assume 24-hour format
-  return timeString;
-};
-
-// ✅ Get all available duration options for flexible services
-const getFlexibleDurationOptions = () => {
-  return [
-    { minutes: 60, label: '1 hour' },
-    { minutes: 90, label: '1.5 hours' },
-    { minutes: 120, label: '2 hours' },
-    { minutes: 150, label: '2.5 hours' },
-    { minutes: 180, label: '3 hours' },
-    { minutes: 240, label: '4 hours' },
-    { minutes: 360, label: '6 hours' },
-    { minutes: 480, label: '8 hours' },
-    { minutes: 720, label: '12 hours' },
-    { minutes: 1440, label: '24 hours' }
-  ];
-};
-
-// ✅ Validate duration for service category
-const validateDuration = (duration, category) => {
-  if (category === 'consultation') {
-    return duration === 30; // Fixed 30 minutes
-  }
-  
-  // For nursing and equipment: 1 hour to 24 hours
-  return duration >= 60 && duration <= 1440;
-};
-
+// Helper: Validate city IDs
 const validateCities = async (cityIds) => {
   if (!cityIds || !Array.isArray(cityIds) || cityIds.length === 0) {
     throw new Error('At least one city must be specified');
   }
-
   const validCities = await City.find({ _id: { $in: cityIds } });
-  
   if (validCities.length !== cityIds.length) {
     const validCityIds = validCities.map(city => city._id.toString());
     const invalidIds = cityIds.filter(id => !validCityIds.includes(id.toString()));
-    
-    throw new Error(
-      `Invalid city IDs: ${invalidIds.join(', ')}. Please ensure all cities exist in the system.`
-    );
+    throw new Error(`Invalid city IDs: ${invalidIds.join(', ')}`);
   }
-
   return validCities;
 };
 
-// ============= CREATE SERVICE =============
+// Create Service (only admin)
 exports.createService = async (req, res) => {
   try {
     const userRole = req.user.role;
-
-    // Authorization check
-    if (userRole !== "admin" && userRole !== "superadmin" && userRole !== "doctor") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Only admin or doctor users can create services.",
-      });
+    if (!['admin', 'superadmin'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Access denied. Only admins can create services.' });
     }
-
     const {
-      name,
-      category,
-      description,
-      basePrice,
-      equipmentCharges,
-      taxPercentage,
-      modes,
-      supportsDuration,
-      paymentMode,
-      icon,
-      image,
-      cities,
-      slotConfig,
-      timeFormat // ✅ NEW: Allow admin to set default time format (12-hour or 24-hour)
+      name, category, description,
+      basePrice, equipmentCharges,
+      taxPercentage, modes, supportsDuration,
+      paymentMode, icon, image,
+      cities, slotConfig, timeFormat
     } = req.body;
 
-    // Validate required fields
     if (!name || !category || !description || !basePrice) {
-      return res.status(400).json({
-        success: false,
-        message: "Name, category, description, and base price are required"
-      });
+      return res.status(400).json({ success: false, message: 'Name, category, description, and base price are required.' });
     }
 
-    // Validate category
-    if (!['consultation', 'nursing', 'equipment'].includes(category)) {
-      return res.status(400).json({
-        success: false,
-        message: "Category must be 'consultation', 'nursing', or 'equipment'"
-      });
-    }
-
-    // Validate time format
     const selectedTimeFormat = timeFormat || '24-hour';
     if (!['12-hour', '24-hour'].includes(selectedTimeFormat)) {
-      return res.status(400).json({
-        success: false,
-        message: "Time format must be either '12-hour' or '24-hour'"
-      });
+      return res.status(400).json({ success: false, message: "Time format must be '12-hour' or '24-hour'." });
     }
 
-    // VALIDATE CITIES
     let validatedCities;
     try {
       validatedCities = await validateCities(cities);
     } catch (error) {
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
+      return res.status(400).json({ success: false, message: error.message });
     }
 
-    // Check duplicate service
-    const existingService = await Service.findOne({ 
-      name, 
-      category,
-      isDeleted: false 
-    });
-    
+    const existingService = await Service.findOne({ name, category, isDeleted: false });
     if (existingService) {
-      return res.status(400).json({
-        success: false,
-        message: `${category} service with name '${name}' already exists`,
-      });
+      return res.status(400).json({ success: false, message: `${category} service with name '${name}' already exists` });
     }
 
-    // Get creator details
-    const creatorModel = (userRole === "admin" || userRole === "superadmin") ? "Admin" : "Doctor";
-    const Creator = mongoose.model(creatorModel);
-    const creatorDetails = await Creator.findById(req.user.id).select(
-      "firstName lastName email name"
-    );
-
-    if (!creatorDetails) {
-      return res.status(404).json({
-        success: false,
-        message: `${creatorModel} not found`,
-      });
-    }
-
-    const creatorName = creatorDetails.firstName 
-      ? `${creatorDetails.firstName} ${creatorDetails.lastName || ''}`.trim()
-      : creatorDetails.name || 'Unknown';
-
-    // ✅ Configure slots based on category
-    let finalSlotConfig = {};
-    let defaultDuration = 60; // Default 1 hour
-    let durationOptions = [];
-
-    if (category === 'consultation') {
-      // Fixed 30-minute consultation slots
-      finalSlotConfig = {
-        consultationSlots: {
-          enabled: true,
-          startTime: slotConfig?.consultationSlots?.startTime || '09:00',
-          endTime: slotConfig?.consultationSlots?.endTime || '19:00',
-          slotDuration: 30
-        },
-        nursingSlots: { enabled: false },
-        equipmentBooking: { enabled: false }
-      };
-      defaultDuration = 30;
-      durationOptions = [30]; // Only 30 minutes for consultation
-    } else if (category === 'nursing' || category === 'equipment') {
-      // ✅ Flexible duration: Patient can select any duration from 1 hour to 24 hours
-      const flexibleOptions = getFlexibleDurationOptions();
-      durationOptions = flexibleOptions.map(opt => opt.minutes);
-      
-      finalSlotConfig = {
-        consultationSlots: { enabled: false },
-        nursingSlots: category === 'nursing' ? {
-          enabled: true,
-          shiftTypes: ['flexible'], // No fixed shift types
-          minDuration: 60, // 1 hour minimum
-          maxDuration: 1440, // 24 hours maximum
-          available24x7: true,
-          allowCustomDuration: true,
-          flexibleDurationOptions: flexibleOptions
-        } : { enabled: false },
-        equipmentBooking: category === 'equipment' ? {
-          enabled: true,
-          minDuration: 60, // 1 hour minimum
-          maxDuration: 1440, // 24 hours maximum
-          available24x7: true,
-          flexibleDurationOptions: flexibleOptions
-        } : { enabled: false }
-      };
-    }
-
-    // Create service
     const service = new Service({
-      name,
-      category,
-      nursingType: null,
-      description,
+      name, category, description,
       basePrice,
       equipmentCharges: equipmentCharges || 0,
       taxPercentage: taxPercentage || 18,
       modes: modes || ['Home Service'],
       supportsDuration: supportsDuration !== undefined ? supportsDuration : true,
-      defaultDuration,
-      durationOptions,
       paymentMode: paymentMode || 'Both',
-      timeFormat: selectedTimeFormat, // ✅ Store time format preference
-      icon,
-      image,
+      timeFormat: selectedTimeFormat,
+      icon, image,
       cities: validatedCities.map(city => city._id),
-      slotConfig: finalSlotConfig,
+      slotConfig: slotConfig || {},
       createdBy: {
         userId: req.user.id,
-        userModel: creatorModel,
-        name: creatorName,
-        email: creatorDetails.email
+        userModel: 'Admin',
+        name: req.user.name || 'Admin User',
+        email: req.user.email || ''
       },
-      isActive: true
+      isActive: true,
+      isDeleted: false
     });
 
     await service.save();
-
-    // Update creator's service list
-    if (Creator.schema.path('services')) {
-      await Creator.findByIdAndUpdate(
-        req.user.id,
-        { $addToSet: { services: service._id } },
-        { new: true }
-      );
-    }
-
-    // Populate response
-    await service.populate("cities", "name latitude longitude");
-
-    // ✅ Format response with human-readable durations
-    const responseSlotInfo = {
-      type: category,
-      defaultDuration: formatDuration(defaultDuration),
-      durationOptions: category === 'consultation' 
-        ? ['30 minutes'] 
-        : getFlexibleDurationOptions().map(opt => opt.label),
-      availability: category === 'consultation' 
-        ? `${formatTime('09:00', selectedTimeFormat)} - ${formatTime('19:00', selectedTimeFormat)}` 
-        : '24x7 (Patient can select any time)',
-      timeFormat: selectedTimeFormat,
-      pricing: `₹${basePrice} per hour`,
-      selectionMode: category === 'consultation' 
-        ? 'Fixed 30-minute slots' 
-        : 'Patient selects start time and duration',
-      instructions: category !== 'consultation'
-        ? 'Patient can book service for any duration from 1 hour to 24 hours at any time of the day'
-        : 'Fixed consultation slots available from 9 AM to 7 PM'
-    };
-
-    res.status(201).json({
+    await service.populate('cities', 'name latitude longitude');
+    return res.status(201).json({
       success: true,
-      message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully`,
-      data: {
-        service,
-        availableCities: validatedCities.map(city => ({
-          id: city._id,
-          name: city.name,
-          coordinates: {
-            latitude: city.latitude,
-            longitude: city.longitude
-          }
-        })),
-        slotInfo: responseSlotInfo
-      }
+      message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully.`,
+      data: service
     });
-
   } catch (error) {
-    console.error("Error in createService:", error);
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: Object.values(error.errors).map(err => err.message)
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: "Error creating service",
-      error: error.message,
-    });
+    console.error('Create service error:', error);
+    res.status(500).json({ success: false, message: 'Error creating service', error: error.message });
   }
 };
 
-// ============= GET ALL SERVICES =============
+// Get All Services with filters
 exports.getAllServices = async (req, res) => {
   try {
-    const {
-      category,
-      cityId,
-      isActive,
-      page = 1,
-      limit = 10,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-      timeFormat = '24-hour' // ✅ User's preferred time format
-    } = req.query;
-
+    const { category, cityId, isActive, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', timeFormat = '24-hour' } = req.query;
     const query = { isDeleted: false };
 
     if (category) query.category = category;
@@ -1924,23 +784,16 @@ exports.getAllServices = async (req, res) => {
 
     const services = await Service.find(query)
       .populate('cities', 'name latitude longitude')
-      .populate('createdBy.userId', 'firstName lastName name email')
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit));
 
     const total = await Service.countDocuments(query);
-
-    // ✅ Format duration options in response
-    const formattedServices = services.map(service => {
-      const serviceObj = service.toObject();
-      return {
-        ...serviceObj,
-        formattedDuration: formatDuration(serviceObj.defaultDuration),
-        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
-        displayTimeFormat: timeFormat
-      };
-    });
+    const formattedServices = services.map(service => ({
+      ...service.toObject(),
+      formattedDuration: formatDuration(service.defaultDuration),
+      displayTimeFormat: timeFormat
+    }));
 
     res.status(200).json({
       success: true,
@@ -1954,165 +807,63 @@ exports.getAllServices = async (req, res) => {
         }
       }
     });
-
   } catch (error) {
     console.error('Get all services error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching services',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error fetching services', error: error.message });
   }
 };
 
-// ============= GET SERVICE BY ID =============
+// Get Service By ID
 exports.getServiceById = async (req, res) => {
   try {
     const { id } = req.params;
     const { timeFormat = '24-hour' } = req.query;
-
     const service = await Service.findById(id)
       .populate('cities', 'name latitude longitude')
       .populate('createdBy.userId', 'firstName lastName name email phone');
-
     if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
+      return res.status(404).json({ success: false, message: 'Service not found' });
     }
-
     const serviceObj = service.toObject();
-    const formattedService = {
-      ...serviceObj,
-      formattedDuration: formatDuration(serviceObj.defaultDuration),
-      formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
-      displayTimeFormat: timeFormat
-    };
+    serviceObj.formattedDuration = formatDuration(service.defaultDuration);
+    serviceObj.displayTimeFormat = timeFormat;
 
-    res.status(200).json({
-      success: true,
-      data: formattedService
-    });
-
+    res.status(200).json({ success: true, data: serviceObj });
   } catch (error) {
     console.error('Get service by ID error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching service',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error fetching service', error: error.message });
   }
 };
 
-// ============= GET SERVICES BY CATEGORY =============
-exports.getServicesByCategory = async (req, res) => {
-  try {
-    const { category } = req.params;
-    const { cityId, isActive = true, timeFormat = '24-hour' } = req.query;
-
-    if (!['consultation', 'nursing', 'equipment'].includes(category)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid category. Must be 'consultation', 'nursing', or 'equipment'"
-      });
-    }
-
-    const query = { 
-      category, 
-      isActive,
-      isDeleted: false 
-    };
-
-    if (cityId) {
-      query.cities = cityId;
-    }
-
-    const services = await Service.find(query)
-      .populate('cities', 'name latitude longitude')
-      .sort({ createdAt: -1 });
-
-    const formattedServices = services.map(service => {
-      const serviceObj = service.toObject();
-      return {
-        ...serviceObj,
-        formattedDuration: formatDuration(serviceObj.defaultDuration),
-        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
-        displayTimeFormat: timeFormat
-      };
-    });
-
-    res.status(200).json({
-      success: true,
-      category,
-      count: services.length,
-      data: formattedServices
-    });
-
-  } catch (error) {
-    console.error('Get services by category error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching services by category',
-      error: error.message
-    });
-  }
-};
-
-// ============= UPDATE SERVICE =============
+// Update Service
 exports.updateService = async (req, res) => {
   try {
     const { id } = req.params;
     const userRole = req.user.role;
-
-    if (userRole !== "admin" && userRole !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admins can update services",
-      });
+    if (!['admin', 'superadmin'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Only admins can update services' });
     }
 
     const service = await Service.findById(id);
-
     if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
+      return res.status(404).json({ success: false, message: 'Service not found' });
     }
 
     const {
-      name,
-      description,
-      basePrice,
-      equipmentCharges,
-      taxPercentage,
-      modes,
-      defaultDuration,
-      durationOptions,
-      paymentMode,
-      timeFormat,
-      icon,
-      image,
-      cities,
-      isActive,
-      slotConfig
+      name, description, basePrice, equipmentCharges,
+      taxPercentage, modes, defaultDuration, durationOptions,
+      paymentMode, timeFormat, icon, image, cities,
+      isActive, slotConfig
     } = req.body;
 
-    // Validate cities if provided
     if (cities) {
       try {
         await validateCities(cities);
         service.cities = cities;
       } catch (error) {
-        return res.status(400).json({
-          success: false,
-          message: error.message
-        });
+        return res.status(400).json({ success: false, message: error.message });
       }
     }
-
-    // Update fields
     if (name) service.name = name;
     if (description) service.description = description;
     if (basePrice !== undefined) service.basePrice = basePrice;
@@ -2131,150 +882,79 @@ exports.updateService = async (req, res) => {
     await service.save();
     await service.populate('cities', 'name latitude longitude');
 
-    const serviceObj = service.toObject();
-    const formattedService = {
-      ...serviceObj,
-      formattedDuration: formatDuration(serviceObj.defaultDuration),
-      formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
-    };
-
-    res.status(200).json({
-      success: true,
-      message: 'Service updated successfully',
-      data: formattedService
-    });
-
+    res.status(200).json({ success: true, message: 'Service updated successfully', data: service });
   } catch (error) {
     console.error('Update service error:', error);
-    
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: Object.values(error.errors).map(err => err.message)
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Error updating service',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error updating service', error: error.message });
   }
 };
 
-// ============= DELETE SERVICE (SOFT DELETE) =============
+// Delete Service (Soft Delete)
 exports.deleteService = async (req, res) => {
   try {
     const { id } = req.params;
     const userRole = req.user.role;
-
-    if (userRole !== "admin" && userRole !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admins can delete services",
-      });
+    if (!['admin', 'superadmin'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Only admins can delete services' });
     }
 
     const service = await Service.findById(id);
-
     if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
+      return res.status(404).json({ success: false, message: 'Service not found' });
     }
 
     service.isDeleted = true;
     service.deletedAt = new Date();
-    service.deletedBy = {
-      userId: req.user.id,
-      userModel: 'Admin'
-    };
+    service.deletedBy = { userId: req.user.id, userModel: 'Admin' };
     service.isActive = false;
-
     await service.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Service deleted successfully'
-    });
-
+    res.status(200).json({ success: true, message: 'Service deleted successfully' });
   } catch (error) {
     console.error('Delete service error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting service',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error deleting service', error: error.message });
   }
 };
 
-// ============= RESTORE SERVICE =============
+// Restore Service
 exports.restoreService = async (req, res) => {
   try {
     const { id } = req.params;
     const userRole = req.user.role;
-
-    if (userRole !== "admin" && userRole !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admins can restore services",
-      });
+    if (!['admin', 'superadmin'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Only admins can restore services' });
     }
 
     const service = await Service.findOne({ _id: id, isDeleted: true });
-
     if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Deleted service not found'
-      });
+      return res.status(404).json({ success: false, message: 'Deleted service not found' });
     }
 
     service.isDeleted = false;
     service.deletedAt = null;
     service.deletedBy = null;
     service.isActive = true;
-
     await service.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Service restored successfully',
-      data: service
-    });
-
+    res.status(200).json({ success: true, message: 'Service restored successfully', data: service });
   } catch (error) {
     console.error('Restore service error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error restoring service',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error restoring service', error: error.message });
   }
 };
 
-// ============= TOGGLE SERVICE STATUS =============
+// Toggle Service Status
 exports.toggleServiceStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const userRole = req.user.role;
-
-    if (userRole !== "admin" && userRole !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admins can toggle service status",
-      });
+    if (!['admin', 'superadmin'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Only admins can toggle service status' });
     }
 
     const service = await Service.findById(id);
-
     if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
+      return res.status(404).json({ success: false, message: 'Service not found' });
     }
 
     service.isActive = !service.isActive;
@@ -2283,87 +963,150 @@ exports.toggleServiceStatus = async (req, res) => {
     res.status(200).json({
       success: true,
       message: `Service ${service.isActive ? 'activated' : 'deactivated'} successfully`,
-      data: {
-        id: service._id,
-        name: service.name,
-        isActive: service.isActive
-      }
+      data: { id: service._id, name: service.name, isActive: service.isActive }
     });
-
   } catch (error) {
     console.error('Toggle service status error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error toggling service status',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error toggling service status', error: error.message });
   }
 };
 
-// ============= GET AVAILABLE SLOTS FOR SERVICE =============
-exports.getAvailableSlots = async (req, res) => {
+// Search Services
+exports.searchServices = async (req, res) => {
   try {
-    const { serviceId } = req.params;
-    const { date, partnerId, timeFormat = '24-hour' } = req.query;
+    const { query: search, category, cityId, minPrice, maxPrice, timeFormat = '24-hour' } = req.query;
+    const searchQuery = { isActive: true, isDeleted: false };
 
-    if (!date) {
-      return res.status(400).json({
-        success: false,
-        message: 'Date is required'
-      });
+    if (search) {
+      searchQuery.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+    if (category) searchQuery.category = category;
+    if (cityId) searchQuery.cities = cityId;
+    if (minPrice || maxPrice) {
+      searchQuery.basePrice = {};
+      if (minPrice) searchQuery.basePrice.$gte = parseFloat(minPrice);
+      if (maxPrice) searchQuery.basePrice.$lte = parseFloat(maxPrice);
     }
 
-    const service = await Service.findById(serviceId);
-    
-    if (!service || !service.isActive) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found or inactive'
-      });
+    const services = await Service.find(searchQuery)
+      .populate('cities', 'name latitude longitude')
+      .sort({ basePrice: 1 });
+
+    const formattedServices = services.map(service => ({
+      ...service.toObject(),
+      formattedDuration: formatDuration(service.defaultDuration),
+      displayTimeFormat: timeFormat
+    }));
+
+    res.status(200).json({ success: true, count: services.length, data: formattedServices });
+  } catch (error) {
+    console.error('Search services error:', error);
+    res.status(500).json({ success: false, message: 'Error searching services', error: error.message });
+  }
+};
+
+// Get Services by Category
+exports.getServicesByCategory = async (req, res) => {
+  try {
+    const { category } = req.params;
+    const services = await Service.find({ category, isDeleted: false, isActive: true })
+      .populate('cities', 'name latitude longitude')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, count: services.length, data: services });
+  } catch (error) {
+    console.error('Get services by category error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching services by category', error: error.message });
+  }
+};
+
+// Get Nursing Services by Type
+exports.getNursingServicesByType = async (req, res) => {
+  try {
+    const { nursingType } = req.params;
+    const { cityId, isActive = true, timeFormat = '24-hour' } = req.query;
+
+    const validNursingTypes = ['hourly', 'full-day', 'full-night', '12-hour', '24-hour'];
+    if (!validNursingTypes.includes(nursingType)) {
+      return res.status(400).json({ success: false, message: 'Invalid nursingType parameter' });
     }
 
-    const availableSlots = await Service.getAvailableSlots(
-      serviceId, 
-      new Date(date), 
-      partnerId
-    );
+    let query = {
+
+      category: 'nursing',
+      nursingType,
+      isActive,
+      isDeleted: false,
+    };
+    if (cityId) query.cities = cityId;
+
+    const services = await Service.find(query)
+      .populate('cities', 'name latitude longitude')
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
-      serviceId,
-      serviceName: service.name,
-      serviceCategory: service.category,
-      date: new Date(date).toDateString(),
-      timeFormat,
-      data: availableSlots
+      nursingType,
+      count: services.length,
+      data: services,
+      displayTimeFormat: timeFormat
     });
-
   } catch (error) {
-    console.error('Get available slots error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching available slots',
-      error: error.message
-    });
+    console.error('Error fetching nursing services:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch nursing services', error: error.message });
   }
 };
 
-// ============= CALCULATE SERVICE PRICE =============
+// Get Services by City
+exports.getServicesByCity = async (req, res) => {
+  try {
+    const { cityId } = req.params;
+    const { category, timeFormat = '24-hour' } = req.query;
+    const query = {
+      cities: cityId,
+      isActive: true,
+      isDeleted: false
+    };
+    if (category) query.category = category;
+    const services = await Service.find(query)
+      .populate('cities', 'name latitude longitude')
+      .sort({ category: 1, basePrice: 1 });
+    const city = await City.findById(cityId);
+
+    const formattedServices = services.map(service => ({
+      ...service.toObject(),
+      formattedDuration: formatDuration(service.defaultDuration),
+      displayTimeFormat: timeFormat
+    }));
+
+    res.status(200).json({
+      success: true,
+      city: city ? city.name : 'Unknown',
+      count: services.length,
+      data: formattedServices
+    });
+  } catch (error) {
+    console.error('Get services by city error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching services by city', error: error.message });
+  }
+};
+
+// Calculate Service Price
 exports.calculateServicePrice = async (req, res) => {
   try {
     const { id } = req.params;
     const { duration, includeEquipment } = req.query;
-
     const service = await Service.findById(id);
 
     if (!service || !service.isActive) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found or inactive'
-      });
+      return res.status(404).json({ success: false, message: 'Service not found or inactive' });
     }
 
-    const pricing = service.calculateTotalPrice(
+    // Assuming calculateTotalPrice is a method in serviceModel which you have defined
+    const price = service.calculateTotalPrice(
       duration ? parseInt(duration) : null,
       includeEquipment === 'true',
       null
@@ -2375,207 +1118,100 @@ exports.calculateServicePrice = async (req, res) => {
       serviceName: service.name,
       category: service.category,
       duration: duration ? formatDuration(parseInt(duration)) : formatDuration(service.defaultDuration),
-      pricing
+      pricing: price
     });
-
   } catch (error) {
     console.error('Calculate service price error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error calculating service price',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error calculating service price', error: error.message });
   }
 };
 
-// ============= GET SERVICES BY CITY =============
-exports.getServicesByCity = async (req, res) => {
+// Get Available Slots for Service
+exports.getAvailableSlots = async (req, res) => {
   try {
-    const { cityId } = req.params;
-    const { category, timeFormat = '24-hour' } = req.query;
-
-    const query = {
-      cities: cityId,
-      isActive: true,
-      isDeleted: false
-    };
-
-    if (category) {
-      query.category = category;
+    const { serviceId } = req.params;
+    const { date, partnerId, timeFormat = '24-hour' } = req.query;
+    if (!date) {
+      return res.status(400).json({ success: false, message: 'Date is required' });
     }
 
-    const services = await Service.find(query)
-      .populate('cities', 'name latitude longitude')
-      .sort({ category: 1, basePrice: 1 });
+    const service = await Service.findById(serviceId);
 
-    const city = await City.findById(cityId);
+    if (!service || !service.isActive) {
+      return res.status(404).json({ success: false, message: 'Service not found or inactive' });
+    }
 
-    const formattedServices = services.map(service => {
-      const serviceObj = service.toObject();
-      return {
-        ...serviceObj,
-        formattedDuration: formatDuration(serviceObj.defaultDuration),
-        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
-        displayTimeFormat: timeFormat
-      };
-    });
+    // Assuming Service.getAvailableSlots is a static method you have defined to return slots
+    const slots = await Service.getAvailableSlots(serviceId, new Date(date), partnerId);
 
     res.status(200).json({
       success: true,
-      city: city ? city.name : 'Unknown',
-      count: services.length,
-      data: formattedServices
+      serviceId,
+      serviceName: service.name,
+      serviceCategory: service.category,
+      date: new Date(date).toDateString(),
+      timeFormat,
+      data: slots
     });
-
   } catch (error) {
-    console.error('Get services by city error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching services by city',
-      error: error.message
-    });
+    console.error('Get available slots error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching available slots', error: error.message });
   }
 };
 
-// ============= SEARCH SERVICES =============
-exports.searchServices = async (req, res) => {
-  try {
-    const { query, category, cityId, minPrice, maxPrice, timeFormat = '24-hour' } = req.query;
-
-    const searchQuery = {
-      isActive: true,
-      isDeleted: false
-    };
-
-    if (query) {
-      searchQuery.$or = [
-        { name: { $regex: query, $options: 'i' } },
-        { description: { $regex: query, $options: 'i' } }
-      ];
-    }
-
-    if (category) {
-      searchQuery.category = category;
-    }
-
-    if (cityId) {
-      searchQuery.cities = cityId;
-    }
-
-    if (minPrice || maxPrice) {
-      searchQuery.basePrice = {};
-      if (minPrice) searchQuery.basePrice.$gte = parseFloat(minPrice);
-      if (maxPrice) searchQuery.basePrice.$lte = parseFloat(maxPrice);
-    }
-
-    const services = await Service.find(searchQuery)
-      .populate('cities', 'name latitude longitude')
-      .sort({ basePrice: 1 });
-
-    const formattedServices = services.map(service => {
-      const serviceObj = service.toObject();
-      return {
-        ...serviceObj,
-        formattedDuration: formatDuration(serviceObj.defaultDuration),
-        formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d)),
-        displayTimeFormat: timeFormat
-      };
-    });
-
-    res.status(200).json({
-      success: true,
-      count: services.length,
-      data: formattedServices
-    });
-
-  } catch (error) {
-    console.error('Search services error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error searching services',
-      error: error.message
-    });
-  }
-};
-
-// ============= GET SERVICE STATISTICS (ADMIN) =============
+// Get Service Statistics (Admin)
 exports.getServiceStatistics = async (req, res) => {
   try {
     const userRole = req.user.role;
-
-    if (userRole !== "admin" && userRole !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admins can view service statistics",
-      });
+    if (!['admin', 'superadmin'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Only admins can view service statistics' });
     }
 
-    const stats = await Promise.all([
-      Service.aggregate([
-        { $match: { isDeleted: false } },
-        {
-          $group: {
-            _id: '$category',
-            count: { $sum: 1 },
-            active: {
-              $sum: { $cond: ['$isActive', 1, 0] }
-            },
-            avgPrice: { $avg: '$basePrice' }
-          }
+    const stats = await Service.aggregate([
+      { $match: { isDeleted: false } },
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 },
+          active: { $sum: { $cond: ['$isActive', 1, 0] } },
+          avgPrice: { $avg: '$basePrice' }
         }
-      ]),
-
-      Service.countDocuments({ isDeleted: false }),
-      Service.countDocuments({ isActive: true, isDeleted: false }),
-      Service.countDocuments({ isActive: false, isDeleted: false })
+      }
     ]);
+
+    const totalServices = await Service.countDocuments({ isDeleted: false });
+    const activeServices = await Service.countDocuments({ isActive: true, isDeleted: false });
+    const inactiveServices = await Service.countDocuments({ isActive: false, isDeleted: false });
 
     res.status(200).json({
       success: true,
       data: {
-        byCategory: stats[0],
-        totalServices: stats[1],
-        activeServices: stats[2],
-        inactiveServices: stats[3]
+        byCategory: stats,
+        totalServices,
+        activeServices,
+        inactiveServices
       }
     });
-
   } catch (error) {
     console.error('Get service statistics error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching service statistics',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error fetching service statistics', error: error.message });
   }
 };
 
-// ============= BULK UPDATE SERVICES =============
+// Bulk Update Services
 exports.bulkUpdateServices = async (req, res) => {
   try {
     const userRole = req.user.role;
-
-    if (userRole !== "admin" && userRole !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admins can perform bulk updates",
-      });
+    if (!['admin', 'superadmin'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Only admins can perform bulk updates' });
     }
 
     const { serviceIds, updates } = req.body;
-
     if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Service IDs array is required'
-      });
+      return res.status(400).json({ success: false, message: 'Service IDs array is required' });
     }
-
     if (!updates || Object.keys(updates).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Updates object is required'
-      });
+      return res.status(400).json({ success: false, message: 'Updates object is required' });
     }
 
     const result = await Service.updateMany(
@@ -2586,1994 +1222,11 @@ exports.bulkUpdateServices = async (req, res) => {
     res.status(200).json({
       success: true,
       message: `${result.modifiedCount} services updated successfully`,
-      data: {
-        matched: result.matchedCount,
-        modified: result.modifiedCount
-      }
+      data: { matched: result.matchedCount, modified: result.modifiedCount }
     });
-
   } catch (error) {
     console.error('Bulk update services error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error performing bulk update',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error performing bulk update', error: error.message });
   }
 };
 
-module.exports = exports;
-
-
-
-// ============= HELPER FUNCTIONS =============
-// const validateCities = async (cityIds) => {
-//   if (!cityIds || !Array.isArray(cityIds) || cityIds.length === 0) {
-//     throw new Error('At least one city must be specified');
-//   }
-
-//   const validCities = await City.find({ _id: { $in: cityIds } });
-  
-//   if (validCities.length !== cityIds.length) {
-//     const validCityIds = validCities.map(city => city._id.toString());
-//     const invalidIds = cityIds.filter(id => !validCityIds.includes(id.toString()));
-    
-//     throw new Error(
-//       `Invalid city IDs: ${invalidIds.join(', ')}. Please ensure all cities exist in the system.`
-//     );
-//   }
-
-//   return validCities;
-// };
-
-// // ✅ Universal format - shows "X hours" instead of minutes
-// const formatDuration = (minutes) => {
-//   // Hours format
-//   if (minutes === 30) return '30 minutes';
-//   if (minutes === 60) return '1 hour';
-//   if (minutes === 120) return '2 hours';
-//   if (minutes === 180) return '3 hours';
-//   if (minutes === 240) return '4 hours';
-//   if (minutes === 360) return '6 hours';
-//   if (minutes === 480) return '8 hours';
-//   if (minutes === 720) return '12 hours';
-//   if (minutes === 1440) return '24 hours';
-  
-//   // For any other duration, calculate hours
-//   if (minutes >= 60) {
-//     const hours = minutes / 60;
-//     return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-//   }
-  
-//   return `${minutes} minutes`;
-// };
-
-// // ✅ Get all available duration options (1 hour to 24 hours)
-// const getAllDurationOptions = () => {
-//   return [60, 120, 180, 240, 360, 480, 720, 1440]; // 1h, 2h, 3h, 4h, 6h, 8h, 12h, 24h
-// };
-
-// // ============= CREATE SERVICE =============
-// exports.createService = async (req, res) => {
-//   try {
-//     const userRole = req.user.role;
-
-//     // Authorization check
-//     if (userRole !== "admin" && userRole !== "superadmin" && userRole !== "doctor") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Access denied. Only admin or doctor users can create services.",
-//       });
-//     }
-
-//     const {
-//       name,
-//       category,
-//       description,
-//       basePrice,
-//       equipmentCharges,
-//       taxPercentage,
-//       modes,
-//       supportsDuration,
-//       paymentMode,
-//       icon,
-//       image,
-//       cities,
-//       slotConfig
-//     } = req.body;
-
-//     // Validate required fields
-//     if (!name || !category || !description || !basePrice) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Name, category, description, and base price are required"
-//       });
-//     }
-
-//     // Validate category
-//     if (!['consultation', 'nursing', 'equipment'].includes(category)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Category must be 'consultation', 'nursing', or 'equipment'"
-//       });
-//     }
-
-//     // VALIDATE CITIES
-//     let validatedCities;
-//     try {
-//       validatedCities = await validateCities(cities);
-//     } catch (error) {
-//       return res.status(400).json({
-//         success: false,
-//         message: error.message
-//       });
-//     }
-
-//     // Check duplicate service
-//     const existingService = await Service.findOne({ 
-//       name, 
-//       category,
-//       isDeleted: false 
-//     });
-    
-//     if (existingService) {
-//       return res.status(400).json({
-//         success: false,
-//         message: `${category} service with name '${name}' already exists`,
-//       });
-//     }
-
-//     // Get creator details
-//     const creatorModel = (userRole === "admin" || userRole === "superadmin") ? "Admin" : "Doctor";
-//     const Creator = mongoose.model(creatorModel);
-//     const creatorDetails = await Creator.findById(req.user.id).select(
-//       "firstName lastName email name"
-//     );
-
-//     if (!creatorDetails) {
-//       return res.status(404).json({
-//         success: false,
-//         message: `${creatorModel} not found`,
-//       });
-//     }
-
-//     const creatorName = creatorDetails.firstName 
-//       ? `${creatorDetails.firstName} ${creatorDetails.lastName || ''}`.trim()
-//       : creatorDetails.name || 'Unknown';
-
-//     // ✅ Configure slots - ALL CATEGORIES HAVE FLEXIBLE DURATION
-//     let finalSlotConfig = {};
-//     let defaultDuration = 60; // Default 1 hour
-//     let durationOptions = getAllDurationOptions(); // [60, 120, 180, 240, 360, 480, 720, 1440]
-
-//     if (category === 'consultation') {
-//       finalSlotConfig = {
-//         consultationSlots: {
-//           enabled: true,
-//           startTime: slotConfig?.consultationSlots?.startTime || '09:00',
-//           endTime: slotConfig?.consultationSlots?.endTime || '19:00',
-//           slotDuration: 30
-//         },
-//         nursingSlots: { enabled: false },
-//         equipmentBooking: { enabled: false }
-//       };
-//       defaultDuration = 30;
-//       durationOptions = [30]; // Consultation: fixed 30 min
-//     } else if (category === 'nursing') {
-//       finalSlotConfig = {
-//         consultationSlots: { enabled: false },
-//         nursingSlots: {
-//           enabled: true,
-//           shiftTypes: ['flexible'], // ✅ No fixed shift types
-//           minDuration: 60,
-//           maxDuration: 1440,
-//           available24x7: true,
-//           allowCustomDuration: true // ✅ Patient selects any duration
-//         },
-//         equipmentBooking: { enabled: false }
-//       };
-//       // ✅ Patient can choose: 1h, 2h, 3h, 4h, 6h, 8h, 12h, or 24h
-//     } else if (category === 'equipment') {
-//       finalSlotConfig = {
-//         consultationSlots: { enabled: false },
-//         nursingSlots: { enabled: false },
-//         equipmentBooking: {
-//           enabled: true,
-//           minDuration: 60,
-//           maxDuration: 1440,
-//           available24x7: true
-//         }
-//       };
-//       // ✅ Patient can choose: 1h, 2h, 3h, 4h, 6h, 8h, 12h, or 24h
-//     }
-
-//     // Create service
-//     const service = new Service({
-//       name,
-//       category,
-//       nursingType: null, // ✅ No nursing type restriction
-//       description,
-//       basePrice,
-//       equipmentCharges: equipmentCharges || 0,
-//       taxPercentage: taxPercentage || 18,
-//       modes: modes || ['Home Service'],
-//       supportsDuration: supportsDuration !== undefined ? supportsDuration : true,
-//       defaultDuration,
-//       durationOptions,
-//       paymentMode: paymentMode || 'Both',
-//       icon,
-//       image,
-//       cities: validatedCities.map(city => city._id),
-//       slotConfig: finalSlotConfig,
-//       createdBy: {
-//         userId: req.user.id,
-//         userModel: creatorModel,
-//         name: creatorName,
-//         email: creatorDetails.email
-//       },
-//       isActive: true
-//     });
-
-//     await service.save();
-
-//     // Update creator's service list if they have a services field
-//     if (Creator.schema.path('services')) {
-//       await Creator.findByIdAndUpdate(
-//         req.user.id,
-//         { $addToSet: { services: service._id } },
-//         { new: true }
-//       );
-//     }
-
-//     // Populate response
-//     await service.populate("cities", "name latitude longitude");
-
-//     // ✅ Format response with human-readable durations
-//     const responseSlotInfo = {
-//       type: category,
-//       defaultDuration: formatDuration(defaultDuration),
-//       durationOptions: durationOptions.map(d => formatDuration(d)),
-//       availability: category !== 'consultation' ? '24x7' : '09:00 - 19:00',
-//       timeFormat: '24-hour', // ✅ Always 24-hour format
-//       pricing: `₹${basePrice} per ${category === 'consultation' ? '30 minutes' : 'hour'}`,
-//       note: category !== 'consultation' 
-//         ? 'Patient can select any duration from 1 hour to 24 hours' 
-//         : 'Fixed 30-minute consultation slots'
-//     };
-
-//     res.status(201).json({
-//       success: true,
-//       message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully`,
-//       data: {
-//         service,
-//         availableCities: validatedCities.map(city => ({
-//           id: city._id,
-//           name: city.name,
-//           coordinates: {
-//             latitude: city.latitude,
-//             longitude: city.longitude
-//           }
-//         })),
-//         slotInfo: responseSlotInfo
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error("Error in createService:", error);
-    
-//     if (error.name === 'ValidationError') {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Validation error',
-//         errors: Object.values(error.errors).map(err => err.message)
-//       });
-//     }
-
-//     res.status(500).json({
-//       success: false,
-//       message: "Error creating service",
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // ============= GET ALL SERVICES =============
-// exports.getAllServices = async (req, res) => {
-//   try {
-//     const {
-//       category,
-//       cityId,
-//       isActive,
-//       page = 1,
-//       limit = 10,
-//       sortBy = 'createdAt',
-//       sortOrder = 'desc'
-//     } = req.query;
-
-//     const query = { isDeleted: false };
-
-//     if (category) query.category = category;
-//     if (cityId) query.cities = cityId;
-//     if (isActive !== undefined) query.isActive = isActive === 'true';
-
-//     const skip = (page - 1) * limit;
-//     const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
-
-//     const services = await Service.find(query)
-//       .populate('cities', 'name latitude longitude')
-//       .populate('createdBy.userId', 'firstName lastName name email')
-//       .sort(sort)
-//       .skip(skip)
-//       .limit(parseInt(limit));
-
-//     const total = await Service.countDocuments(query);
-
-//     // ✅ Format duration options in response
-//     const formattedServices = services.map(service => {
-//       const serviceObj = service.toObject();
-//       return {
-//         ...serviceObj,
-//         formattedDuration: formatDuration(serviceObj.defaultDuration),
-//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
-//       };
-//     });
-
-//     res.status(200).json({
-//       success: true,
-//       data: {
-//         services: formattedServices,
-//         pagination: {
-//           total,
-//           page: parseInt(page),
-//           pages: Math.ceil(total / limit),
-//           limit: parseInt(limit)
-//         }
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Get all services error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching services',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET SERVICE BY ID =============
-// exports.getServiceById = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-
-//     const service = await Service.findById(id)
-//       .populate('cities', 'name latitude longitude')
-//       .populate('createdBy.userId', 'firstName lastName name email phone');
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found'
-//       });
-//     }
-
-//     const serviceObj = service.toObject();
-//     const formattedService = {
-//       ...serviceObj,
-//       formattedDuration: formatDuration(serviceObj.defaultDuration),
-//       formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
-//     };
-
-//     res.status(200).json({
-//       success: true,
-//       data: formattedService
-//     });
-
-//   } catch (error) {
-//     console.error('Get service by ID error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching service',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET SERVICES BY CATEGORY =============
-// exports.getServicesByCategory = async (req, res) => {
-//   try {
-//     const { category } = req.params;
-//     const { cityId, isActive = true } = req.query;
-
-//     if (!['consultation', 'nursing', 'equipment'].includes(category)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Invalid category. Must be 'consultation', 'nursing', or 'equipment'"
-//       });
-//     }
-
-//     const query = { 
-//       category, 
-//       isActive,
-//       isDeleted: false 
-//     };
-
-//     if (cityId) {
-//       query.cities = cityId;
-//     }
-
-//     const services = await Service.find(query)
-//       .populate('cities', 'name latitude longitude')
-//       .sort({ createdAt: -1 });
-
-//     const formattedServices = services.map(service => {
-//       const serviceObj = service.toObject();
-//       return {
-//         ...serviceObj,
-//         formattedDuration: formatDuration(serviceObj.defaultDuration),
-//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
-//       };
-//     });
-
-//     res.status(200).json({
-//       success: true,
-//       category,
-//       count: services.length,
-//       data: formattedServices
-//     });
-
-//   } catch (error) {
-//     console.error('Get services by category error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching services by category',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= UPDATE SERVICE =============
-// exports.updateService = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin" && userRole !== "superadmin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can update services",
-//       });
-//     }
-
-//     const service = await Service.findById(id);
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found'
-//       });
-//     }
-
-//     const {
-//       name,
-//       description,
-//       basePrice,
-//       equipmentCharges,
-//       taxPercentage,
-//       modes,
-//       defaultDuration,
-//       durationOptions,
-//       paymentMode,
-//       icon,
-//       image,
-//       cities,
-//       isActive,
-//       slotConfig
-//     } = req.body;
-
-//     // Validate cities if provided
-//     if (cities) {
-//       try {
-//         await validateCities(cities);
-//         service.cities = cities;
-//       } catch (error) {
-//         return res.status(400).json({
-//           success: false,
-//           message: error.message
-//         });
-//       }
-//     }
-
-//     // Update fields
-//     if (name) service.name = name;
-//     if (description) service.description = description;
-//     if (basePrice !== undefined) service.basePrice = basePrice;
-//     if (equipmentCharges !== undefined) service.equipmentCharges = equipmentCharges;
-//     if (taxPercentage !== undefined) service.taxPercentage = taxPercentage;
-//     if (modes) service.modes = modes;
-//     if (defaultDuration !== undefined) service.defaultDuration = defaultDuration;
-//     if (durationOptions) service.durationOptions = durationOptions;
-//     if (paymentMode) service.paymentMode = paymentMode;
-//     if (icon !== undefined) service.icon = icon;
-//     if (image !== undefined) service.image = image;
-//     if (isActive !== undefined) service.isActive = isActive;
-//     if (slotConfig) service.slotConfig = { ...service.slotConfig, ...slotConfig };
-
-//     await service.save();
-//     await service.populate('cities', 'name latitude longitude');
-
-//     const serviceObj = service.toObject();
-//     const formattedService = {
-//       ...serviceObj,
-//       formattedDuration: formatDuration(serviceObj.defaultDuration),
-//       formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
-//     };
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Service updated successfully',
-//       data: formattedService
-//     });
-
-//   } catch (error) {
-//     console.error('Update service error:', error);
-    
-//     if (error.name === 'ValidationError') {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Validation error',
-//         errors: Object.values(error.errors).map(err => err.message)
-//       });
-//     }
-
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error updating service',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= DELETE SERVICE (SOFT DELETE) =============
-// exports.deleteService = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin" && userRole !== "superadmin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can delete services",
-//       });
-//     }
-
-//     const service = await Service.findById(id);
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found'
-//       });
-//     }
-
-//     service.isDeleted = true;
-//     service.deletedAt = new Date();
-//     service.deletedBy = {
-//       userId: req.user.id,
-//       userModel: 'Admin'
-//     };
-//     service.isActive = false;
-
-//     await service.save();
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Service deleted successfully'
-//     });
-
-//   } catch (error) {
-//     console.error('Delete service error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error deleting service',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= RESTORE SERVICE =============
-// exports.restoreService = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin" && userRole !== "superadmin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can restore services",
-//       });
-//     }
-
-//     const service = await Service.findOne({ _id: id, isDeleted: true });
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Deleted service not found'
-//       });
-//     }
-
-//     service.isDeleted = false;
-//     service.deletedAt = null;
-//     service.deletedBy = null;
-//     service.isActive = true;
-
-//     await service.save();
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Service restored successfully',
-//       data: service
-//     });
-
-//   } catch (error) {
-//     console.error('Restore service error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error restoring service',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= TOGGLE SERVICE STATUS =============
-// exports.toggleServiceStatus = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin" && userRole !== "superadmin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can toggle service status",
-//       });
-//     }
-
-//     const service = await Service.findById(id);
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found'
-//       });
-//     }
-
-//     service.isActive = !service.isActive;
-//     await service.save();
-
-//     res.status(200).json({
-//       success: true,
-//       message: `Service ${service.isActive ? 'activated' : 'deactivated'} successfully`,
-//       data: {
-//         id: service._id,
-//         name: service.name,
-//         isActive: service.isActive
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Toggle service status error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error toggling service status',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET AVAILABLE SLOTS FOR SERVICE =============
-// exports.getAvailableSlots = async (req, res) => {
-//   try {
-//     const { serviceId } = req.params;
-//     const { date, partnerId } = req.query;
-
-//     if (!date) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Date is required'
-//       });
-//     }
-
-//     const service = await Service.findById(serviceId);
-    
-//     if (!service || !service.isActive) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found or inactive'
-//       });
-//     }
-
-//     const availableSlots = await Service.getAvailableSlots(
-//       serviceId, 
-//       new Date(date), 
-//       partnerId
-//     );
-
-//     res.status(200).json({
-//       success: true,
-//       serviceId,
-//       serviceName: service.name,
-//       serviceCategory: service.category,
-//       date: new Date(date).toDateString(),
-//       data: availableSlots
-//     });
-
-//   } catch (error) {
-//     console.error('Get available slots error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching available slots',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= CALCULATE SERVICE PRICE =============
-// exports.calculateServicePrice = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { duration, includeEquipment } = req.query;
-
-//     const service = await Service.findById(id);
-
-//     if (!service || !service.isActive) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found or inactive'
-//       });
-//     }
-
-//     const pricing = service.calculateTotalPrice(
-//       duration ? parseInt(duration) : null,
-//       includeEquipment === 'true',
-//       null
-//     );
-
-//     res.status(200).json({
-//       success: true,
-//       serviceId: service._id,
-//       serviceName: service.name,
-//       category: service.category,
-//       duration: duration ? formatDuration(parseInt(duration)) : formatDuration(service.defaultDuration),
-//       pricing
-//     });
-
-//   } catch (error) {
-//     console.error('Calculate service price error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error calculating service price',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET SERVICES BY CITY =============
-// exports.getServicesByCity = async (req, res) => {
-//   try {
-//     const { cityId } = req.params;
-//     const { category } = req.query;
-
-//     const query = {
-//       cities: cityId,
-//       isActive: true,
-//       isDeleted: false
-//     };
-
-//     if (category) {
-//       query.category = category;
-//     }
-
-//     const services = await Service.find(query)
-//       .populate('cities', 'name latitude longitude')
-//       .sort({ category: 1, basePrice: 1 });
-
-//     const city = await City.findById(cityId);
-
-//     const formattedServices = services.map(service => {
-//       const serviceObj = service.toObject();
-//       return {
-//         ...serviceObj,
-//         formattedDuration: formatDuration(serviceObj.defaultDuration),
-//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
-//       };
-//     });
-
-//     res.status(200).json({
-//       success: true,
-//       city: city ? city.name : 'Unknown',
-//       count: services.length,
-//       data: formattedServices
-//     });
-
-//   } catch (error) {
-//     console.error('Get services by city error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching services by city',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= SEARCH SERVICES =============
-// exports.searchServices = async (req, res) => {
-//   try {
-//     const { query, category, cityId, minPrice, maxPrice } = req.query;
-
-//     const searchQuery = {
-//       isActive: true,
-//       isDeleted: false
-//     };
-
-//     if (query) {
-//       searchQuery.$or = [
-//         { name: { $regex: query, $options: 'i' } },
-//         { description: { $regex: query, $options: 'i' } }
-//       ];
-//     }
-
-//     if (category) {
-//       searchQuery.category = category;
-//     }
-
-//     if (cityId) {
-//       searchQuery.cities = cityId;
-//     }
-
-//     if (minPrice || maxPrice) {
-//       searchQuery.basePrice = {};
-//       if (minPrice) searchQuery.basePrice.$gte = parseFloat(minPrice);
-//       if (maxPrice) searchQuery.basePrice.$lte = parseFloat(maxPrice);
-//     }
-
-//     const services = await Service.find(searchQuery)
-//       .populate('cities', 'name latitude longitude')
-//       .sort({ basePrice: 1 });
-
-//     const formattedServices = services.map(service => {
-//       const serviceObj = service.toObject();
-//       return {
-//         ...serviceObj,
-//         formattedDuration: formatDuration(serviceObj.defaultDuration),
-//         formattedDurationOptions: serviceObj.durationOptions.map(d => formatDuration(d))
-//       };
-//     });
-
-//     res.status(200).json({
-//       success: true,
-//       count: services.length,
-//       data: formattedServices
-//     });
-
-//   } catch (error) {
-//     console.error('Search services error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error searching services',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET SERVICE STATISTICS (ADMIN) =============
-// exports.getServiceStatistics = async (req, res) => {
-//   try {
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin" && userRole !== "superadmin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can view service statistics",
-//       });
-//     }
-
-//     const stats = await Promise.all([
-//       Service.aggregate([
-//         { $match: { isDeleted: false } },
-//         {
-//           $group: {
-//             _id: '$category',
-//             count: { $sum: 1 },
-//             active: {
-//               $sum: { $cond: ['$isActive', 1, 0] }
-//             },
-//             avgPrice: { $avg: '$basePrice' }
-//           }
-//         }
-//       ]),
-
-//       Service.countDocuments({ isDeleted: false }),
-//       Service.countDocuments({ isActive: true, isDeleted: false }),
-//       Service.countDocuments({ isActive: false, isDeleted: false })
-//     ]);
-
-//     res.status(200).json({
-//       success: true,
-//       data: {
-//         byCategory: stats[0],
-//         totalServices: stats[1],
-//         activeServices: stats[2],
-//         inactiveServices: stats[3]
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Get service statistics error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching service statistics',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= BULK UPDATE SERVICES =============
-// exports.bulkUpdateServices = async (req, res) => {
-//   try {
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin" && userRole !== "superadmin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can perform bulk updates",
-//       });
-//     }
-
-//     const { serviceIds, updates } = req.body;
-
-//     if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Service IDs array is required'
-//       });
-//     }
-
-//     if (!updates || Object.keys(updates).length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Updates object is required'
-//       });
-//     }
-
-//     const result = await Service.updateMany(
-//       { _id: { $in: serviceIds }, isDeleted: false },
-//       { $set: updates }
-//     );
-
-//     res.status(200).json({
-//       success: true,
-//       message: `${result.modifiedCount} services updated successfully`,
-//       data: {
-//         matched: result.matchedCount,
-//         modified: result.modifiedCount
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Bulk update services error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error performing bulk update',
-//       error: error.message
-//     });
-//   }
-// };
-
-// module.exports = exports;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ============= CREATE SERVICE =============
-// exports.createService = async (req, res) => {
-//   try {
-//     const userRole = req.user.role;
-
-//     // Authorization check
-//     if (userRole !== "admin" && userRole !== "doctor") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Access denied. Only admin or doctor users can create services.",
-//       });
-//     }
-
-//     const {
-//       name,
-//       category,
-//       nursingType,
-//       description,
-//       basePrice,
-//       equipmentCharges,
-//       taxPercentage,
-//       modes,
-//       supportsDuration,
-//       defaultDuration,
-//       durationOptions,
-//       paymentMode,
-//       icon,
-//       image,
-//       cities,
-//       slotConfig
-//     } = req.body;
-
-//     // Validate required fields
-//     if (!name || !category || !description || !basePrice) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Name, category, description, and base price are required"
-//       });
-//     }
-
-//     // Validate category
-//     if (!['consultation', 'nursing', 'equipment'].includes(category)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Category must be 'consultation', 'nursing', or 'equipment'"
-//       });
-//     }
-
-//     // Validate nursing type if category is nursing
-//     if (category === 'nursing' && !nursingType) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Nursing type is required for nursing services (hourly, full-day, full-night, 12-hour, 24-hour)"
-//       });
-//     }
-
-//     // Validate cities
-//     if (!cities || !Array.isArray(cities) || cities.length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "At least one city must be specified",
-//       });
-//     }
-
-//     const validCities = await City.find({ _id: { $in: cities } });
-//     if (validCities.length !== cities.length) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "One or more invalid city IDs provided",
-//       });
-//     }
-
-//     // Check duplicate service
-//     const existingService = await Service.findOne({ 
-//       name, 
-//       category,
-//       isDeleted: false 
-//     });
-    
-//     if (existingService) {
-//       return res.status(400).json({
-//         success: false,
-//         message: `${category} service with name '${name}' already exists`,
-//       });
-//     }
-
-//     // Get creator details
-//     const creatorModel = userRole === "admin" ? "Admin" : "Doctor";
-//     const Creator = mongoose.model(creatorModel);
-//     const creatorDetails = await Creator.findById(req.user.id).select(
-//       "firstName lastName email name"
-//     );
-
-//     if (!creatorDetails) {
-//       return res.status(404).json({
-//         success: false,
-//         message: `${creatorModel} not found`,
-//       });
-//     }
-
-//     const creatorName = creatorDetails.firstName 
-//       ? `${creatorDetails.firstName} ${creatorDetails.lastName || ''}`.trim()
-//       : creatorDetails.name || 'Unknown';
-
-//     // Configure slot settings based on category
-//     let finalSlotConfig = {};
-
-//     if (category === 'consultation') {
-//       finalSlotConfig = {
-//         consultationSlots: {
-//           enabled: true,
-//           startTime: slotConfig?.consultationSlots?.startTime || '09:00',
-//           endTime: slotConfig?.consultationSlots?.endTime || '19:00',
-//           slotDuration: 30
-//         },
-//         nursingSlots: { enabled: false },
-//         equipmentBooking: { enabled: false }
-//       };
-//     } else if (category === 'nursing') {
-//       const shiftTypes = [];
-      
-//       switch (nursingType) {
-//         case 'hourly':
-//           shiftTypes.push('hourly');
-//           break;
-//         case 'full-day':
-//         case '24-hour':
-//           shiftTypes.push('24-hour');
-//           break;
-//         case 'full-night':
-//           shiftTypes.push('night-shift');
-//           break;
-//         case '12-hour':
-//           shiftTypes.push('12-hour', 'day-shift', 'night-shift');
-//           break;
-//         default:
-//           shiftTypes.push('hourly', '8-hour', '12-hour', '24-hour', 'day-shift', 'night-shift');
-//       }
-
-//       finalSlotConfig = {
-//         consultationSlots: { enabled: false },
-//         nursingSlots: {
-//           enabled: true,
-//           shiftTypes,
-//           minDuration: nursingType === 'hourly' ? 60 : (nursingType === '24-hour' || nursingType === 'full-day' ? 1440 : 720),
-//           maxDuration: 1440,
-//           available24x7: true,
-//           allowCustomDuration: nursingType === 'hourly'
-//         },
-//         equipmentBooking: { enabled: false }
-//       };
-//     } else if (category === 'equipment') {
-//       finalSlotConfig = {
-//         consultationSlots: { enabled: false },
-//         nursingSlots: { enabled: false },
-//         equipmentBooking: {
-//           enabled: true,
-//           minDuration: slotConfig?.equipmentBooking?.minDuration || 60,
-//           maxDuration: slotConfig?.equipmentBooking?.maxDuration || 720,
-//           available24x7: true
-//         }
-//       };
-//     }
-
-//     // Create service
-//     const service = new Service({
-//       name,
-//       category,
-//       nursingType: category === 'nursing' ? nursingType : null,
-//       description,
-//       basePrice,
-//       equipmentCharges: equipmentCharges || 0,
-//       taxPercentage: taxPercentage || 18,
-//       modes: modes || ['Home Service'],
-//       supportsDuration: supportsDuration !== undefined ? supportsDuration : (category !== 'consultation'),
-//       defaultDuration: category === 'consultation' ? 30 : (category === 'nursing' && nursingType === '24-hour' ? 1440 : 60),
-//       durationOptions: durationOptions || (
-//         category === 'consultation' ? [30] : 
-//         category === 'nursing' ? [60, 480, 720, 1440] : 
-//         [60, 120, 180, 240, 360, 480, 720]
-//       ),
-//       paymentMode: paymentMode || 'Both',
-//       icon,
-//       image,
-//       cities,
-//       slotConfig: finalSlotConfig,
-//       createdBy: {
-//         userId: req.user.id,
-//         userModel: creatorModel,
-//         name: creatorName,
-//         email: creatorDetails.email
-//       },
-//       isActive: true
-//     });
-
-//     await service.save();
-
-//     // Update creator's service list if they have a services field
-//     if (Creator.schema.path('services')) {
-//       await Creator.findByIdAndUpdate(
-//         req.user.id,
-//         { $addToSet: { services: service._id } },
-//         { new: true }
-//       );
-//     }
-
-//     // Populate response
-//     await service.populate("cities", "name latitude longitude");
-
-//     res.status(201).json({
-//       success: true,
-//       message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully`,
-//       data: {
-//         service,
-//         slotInfo: category === 'consultation' 
-//           ? {
-//               type: 'consultation',
-//               slotDuration: '30 minutes',
-//               availableHours: '09:00 - 19:00',
-//               slotsPerDay: 20
-//             }
-//           : category === 'nursing'
-//           ? {
-//               type: 'nursing',
-//               nursingType,
-//               shiftTypes: finalSlotConfig.nursingSlots.shiftTypes,
-//               minDuration: `${finalSlotConfig.nursingSlots.minDuration} minutes`,
-//               maxDuration: `${finalSlotConfig.nursingSlots.maxDuration} minutes`,
-//               availability: '24x7',
-//               pricing: nursingType === 'hourly' ? 'Per hour' : `Per ${nursingType}`
-//             }
-//           : {
-//               type: 'equipment',
-//               minDuration: `${finalSlotConfig.equipmentBooking.minDuration} minutes`,
-//               maxDuration: `${finalSlotConfig.equipmentBooking.maxDuration} minutes`,
-//               availability: '24x7'
-//             }
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error("Error in createService:", error);
-    
-//     if (error.name === 'ValidationError') {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Validation error',
-//         errors: Object.values(error.errors).map(err => err.message)
-//       });
-//     }
-
-//     res.status(500).json({
-//       success: false,
-//       message: "Error creating service",
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // ============= GET ALL SERVICES =============
-// exports.getAllServices = async (req, res) => {
-//   try {
-//     const {
-//       category,
-//       cityId,
-//       isActive,
-//       nursingType,
-//       page = 1,
-//       limit = 10,
-//       sortBy = 'createdAt',
-//       sortOrder = 'desc'
-//     } = req.query;
-
-//     const query = { isDeleted: false };
-
-//     // Apply filters
-//     if (category) query.category = category;
-//     if (cityId) query.cities = cityId;
-//     if (isActive !== undefined) query.isActive = isActive === 'true';
-//     if (nursingType) query.nursingType = nursingType;
-
-//     const skip = (page - 1) * limit;
-//     const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
-
-//     const services = await Service.find(query)
-//       .populate('cities', 'name state country')
-//       .populate('createdBy.userId', 'firstName lastName name email')
-//       .sort(sort)
-//       .skip(skip)
-//       .limit(parseInt(limit));
-
-//     const total = await Service.countDocuments(query);
-
-//     res.status(200).json({
-//       success: true,
-//       data: {
-//         services,
-//         pagination: {
-//           total,
-//           page: parseInt(page),
-//           pages: Math.ceil(total / limit),
-//           limit: parseInt(limit)
-//         }
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Get all services error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching services',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET SERVICE BY ID =============
-// exports.getServiceById = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-
-//     const service = await Service.findById(id)
-//       .populate('cities', 'name state country latitude longitude')
-//       .populate('createdBy.userId', 'firstName lastName name email phone');
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found'
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       data: service
-//     });
-
-//   } catch (error) {
-//     console.error('Get service by ID error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching service',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET SERVICES BY CATEGORY =============
-// exports.getServicesByCategory = async (req, res) => {
-//   try {
-//     const { category } = req.params;
-//     const { cityId, isActive = true } = req.query;
-
-//     if (!['consultation', 'nursing', 'equipment'].includes(category)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Invalid category. Must be 'consultation', 'nursing', or 'equipment'"
-//       });
-//     }
-
-//     const query = { 
-//       category, 
-//       isActive,
-//       isDeleted: false 
-//     };
-
-//     if (cityId) {
-//       query.cities = cityId;
-//     }
-
-//     const services = await Service.find(query)
-//       .populate('cities', 'name state')
-//       .sort({ createdAt: -1 });
-
-//     res.status(200).json({
-//       success: true,
-//       category,
-//       count: services.length,
-//       data: services
-//     });
-
-//   } catch (error) {
-//     console.error('Get services by category error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching services by category',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET NURSING SERVICES BY TYPE =============
-// exports.getNursingServicesByType = async (req, res) => {
-//   try {
-//     const { nursingType } = req.params;
-//     const { cityId } = req.query;
-
-//     const validNursingTypes = ['hourly', 'full-day', 'full-night', '12-hour', '24-hour'];
-    
-//     if (!validNursingTypes.includes(nursingType)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: `Invalid nursing type. Must be one of: ${validNursingTypes.join(', ')}`
-//       });
-//     }
-
-//     const query = { 
-//       category: 'nursing',
-//       nursingType,
-//       isActive: true,
-//       isDeleted: false 
-//     };
-
-//     if (cityId) {
-//       query.cities = cityId;
-//     }
-
-//     const services = await Service.find(query)
-//       .populate('cities', 'name state')
-//       .sort({ basePrice: 1 });
-
-//     res.status(200).json({
-//       success: true,
-//       nursingType,
-//       count: services.length,
-//       data: services
-//     });
-
-//   } catch (error) {
-//     console.error('Get nursing services by type error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching nursing services',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= UPDATE SERVICE =============
-// exports.updateService = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const userRole = req.user.role;
-
-//     // Authorization check
-//     if (userRole !== "admin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can update services",
-//       });
-//     }
-
-//     const service = await Service.findById(id);
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found'
-//       });
-//     }
-
-//     const {
-//       name,
-//       description,
-//       basePrice,
-//       equipmentCharges,
-//       taxPercentage,
-//       modes,
-//       defaultDuration,
-//       durationOptions,
-//       paymentMode,
-//       icon,
-//       image,
-//       cities,
-//       isActive,
-//       slotConfig
-//     } = req.body;
-
-//     // Validate cities if provided
-//     if (cities) {
-//       const validCities = await City.find({ _id: { $in: cities } });
-//       if (validCities.length !== cities.length) {
-//         return res.status(400).json({
-//           success: false,
-//           message: "One or more invalid city IDs provided",
-//         });
-//       }
-//     }
-
-//     // Update fields
-//     if (name) service.name = name;
-//     if (description) service.description = description;
-//     if (basePrice !== undefined) service.basePrice = basePrice;
-//     if (equipmentCharges !== undefined) service.equipmentCharges = equipmentCharges;
-//     if (taxPercentage !== undefined) service.taxPercentage = taxPercentage;
-//     if (modes) service.modes = modes;
-//     if (defaultDuration !== undefined) service.defaultDuration = defaultDuration;
-//     if (durationOptions) service.durationOptions = durationOptions;
-//     if (paymentMode) service.paymentMode = paymentMode;
-//     if (icon !== undefined) service.icon = icon;
-//     if (image !== undefined) service.image = image;
-//     if (cities) service.cities = cities;
-//     if (isActive !== undefined) service.isActive = isActive;
-//     if (slotConfig) service.slotConfig = { ...service.slotConfig, ...slotConfig };
-
-//     await service.save();
-//     await service.populate('cities', 'name state country');
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Service updated successfully',
-//       data: service
-//     });
-
-//   } catch (error) {
-//     console.error('Update service error:', error);
-    
-//     if (error.name === 'ValidationError') {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Validation error',
-//         errors: Object.values(error.errors).map(err => err.message)
-//       });
-//     }
-
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error updating service',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= DELETE SERVICE (SOFT DELETE) =============
-// exports.deleteService = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can delete services",
-//       });
-//     }
-
-//     const service = await Service.findById(id);
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found'
-//       });
-//     }
-
-//     // Soft delete
-//     service.isDeleted = true;
-//     service.deletedAt = new Date();
-//     service.deletedBy = {
-//       userId: req.user.id,
-//       userModel: 'Admin'
-//     };
-//     service.isActive = false;
-
-//     await service.save();
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Service deleted successfully'
-//     });
-
-//   } catch (error) {
-//     console.error('Delete service error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error deleting service',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= RESTORE SERVICE =============
-// exports.restoreService = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can restore services",
-//       });
-//     }
-
-//     const service = await Service.findOne({ _id: id, isDeleted: true });
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Deleted service not found'
-//       });
-//     }
-
-//     service.isDeleted = false;
-//     service.deletedAt = null;
-//     service.deletedBy = null;
-//     service.isActive = true;
-
-//     await service.save();
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Service restored successfully',
-//       data: service
-//     });
-
-//   } catch (error) {
-//     console.error('Restore service error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error restoring service',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= TOGGLE SERVICE STATUS =============
-// exports.toggleServiceStatus = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can toggle service status",
-//       });
-//     }
-
-//     const service = await Service.findById(id);
-
-//     if (!service) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found'
-//       });
-//     }
-
-//     service.isActive = !service.isActive;
-//     await service.save();
-
-//     res.status(200).json({
-//       success: true,
-//       message: `Service ${service.isActive ? 'activated' : 'deactivated'} successfully`,
-//       data: {
-//         id: service._id,
-//         name: service.name,
-//         isActive: service.isActive
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Toggle service status error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error toggling service status',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET AVAILABLE SLOTS FOR SERVICE =============
-// exports.getAvailableSlots = async (req, res) => {
-//   try {
-//     const { serviceId } = req.params;
-//     const { date, partnerId } = req.query;
-
-//     if (!date) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Date is required'
-//       });
-//     }
-
-//     const service = await Service.findById(serviceId);
-    
-//     if (!service || !service.isActive) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found or inactive'
-//       });
-//     }
-
-//     const availableSlots = await Service.getAvailableSlots(
-//       serviceId, 
-//       new Date(date), 
-//       partnerId
-//     );
-
-//     res.status(200).json({
-//       success: true,
-//       serviceId,
-//       serviceName: service.name,
-//       serviceCategory: service.category,
-//       date: new Date(date).toDateString(),
-//       data: availableSlots
-//     });
-
-//   } catch (error) {
-//     console.error('Get available slots error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching available slots',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= CALCULATE SERVICE PRICE =============
-// exports.calculateServicePrice = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { duration, includeEquipment, shiftType } = req.query;
-
-//     const service = await Service.findById(id);
-
-//     if (!service || !service.isActive) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service not found or inactive'
-//       });
-//     }
-
-//     // Validate shift type for nursing services
-//     if (service.category === 'nursing' && shiftType) {
-//       if (!service.slotConfig.nursingSlots.shiftTypes.includes(shiftType)) {
-//         return res.status(400).json({
-//           success: false,
-//           message: `Invalid shift type for this service. Available: ${service.slotConfig.nursingSlots.shiftTypes.join(', ')}`
-//         });
-//       }
-//     }
-
-//     const pricing = service.calculateTotalPrice(
-//       duration ? parseInt(duration) : null,
-//       includeEquipment === 'true',
-//       shiftType
-//     );
-
-//     res.status(200).json({
-//       success: true,
-//       serviceId: service._id,
-//       serviceName: service.name,
-//       category: service.category,
-//       ...(shiftType && { shiftType }),
-//       ...(duration && { duration: `${duration} minutes` }),
-//       pricing
-//     });
-
-//   } catch (error) {
-//     console.error('Calculate service price error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error calculating service price',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET SERVICES BY CITY =============
-// exports.getServicesByCity = async (req, res) => {
-//   try {
-//     const { cityId } = req.params;
-//     const { category } = req.query;
-
-//     const query = {
-//       cities: cityId,
-//       isActive: true,
-//       isDeleted: false
-//     };
-
-//     if (category) {
-//       query.category = category;
-//     }
-
-//     const services = await Service.find(query)
-//       .populate('cities', 'name state')
-//       .sort({ category: 1, basePrice: 1 });
-
-//     const city = await City.findById(cityId);
-
-//     res.status(200).json({
-//       success: true,
-//       city: city ? city.name : 'Unknown',
-//       count: services.length,
-//       data: services
-//     });
-
-//   } catch (error) {
-//     console.error('Get services by city error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching services by city',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= SEARCH SERVICES =============
-// exports.searchServices = async (req, res) => {
-//   try {
-//     const { query, category, cityId, minPrice, maxPrice } = req.query;
-
-//     const searchQuery = {
-//       isActive: true,
-//       isDeleted: false
-//     };
-
-//     // Text search
-//     if (query) {
-//       searchQuery.$or = [
-//         { name: { $regex: query, $options: 'i' } },
-//         { description: { $regex: query, $options: 'i' } }
-//       ];
-//     }
-
-//     // Category filter
-//     if (category) {
-//       searchQuery.category = category;
-//     }
-
-//     // City filter
-//     if (cityId) {
-//       searchQuery.cities = cityId;
-//     }
-
-//     // Price range filter
-//     if (minPrice || maxPrice) {
-//       searchQuery.basePrice = {};
-//       if (minPrice) searchQuery.basePrice.$gte = parseFloat(minPrice);
-//       if (maxPrice) searchQuery.basePrice.$lte = parseFloat(maxPrice);
-//     }
-
-//     const services = await Service.find(searchQuery)
-//       .populate('cities', 'name state')
-//       .sort({ basePrice: 1 });
-
-//     res.status(200).json({
-//       success: true,
-//       count: services.length,
-//       data: services
-//     });
-
-//   } catch (error) {
-//     console.error('Search services error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error searching services',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= GET SERVICE STATISTICS (ADMIN) =============
-// exports.getServiceStatistics = async (req, res) => {
-//   try {
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can view service statistics",
-//       });
-//     }
-
-//     const stats = await Promise.all([
-//       // Total services by category
-//       Service.aggregate([
-//         { $match: { isDeleted: false } },
-//         {
-//           $group: {
-//             _id: '$category',
-//             count: { $sum: 1 },
-//             active: {
-//               $sum: { $cond: ['$isActive', 1, 0] }
-//             },
-//             avgPrice: { $avg: '$basePrice' }
-//           }
-//         }
-//       ]),
-
-//       // Nursing services by type
-//       Service.aggregate([
-//         { 
-//           $match: { 
-//             category: 'nursing',
-//             isDeleted: false 
-//           } 
-//         },
-//         {
-//           $group: {
-//             _id: '$nursingType',
-//             count: { $sum: 1 }
-//           }
-//         }
-//       ]),
-
-//       // Total counts
-//       Service.countDocuments({ isDeleted: false }),
-//       Service.countDocuments({ isActive: true, isDeleted: false }),
-//       Service.countDocuments({ isActive: false, isDeleted: false })
-//     ]);
-
-//     res.status(200).json({
-//       success: true,
-//       data: {
-//         byCategory: stats[0],
-//         nursingByType: stats[1],
-//         totalServices: stats[2],
-//         activeServices: stats[3],
-//         inactiveServices: stats[4]
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Get service statistics error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error fetching service statistics',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // ============= BULK UPDATE SERVICES =============
-// exports.bulkUpdateServices = async (req, res) => {
-//   try {
-//     const userRole = req.user.role;
-
-//     if (userRole !== "admin") {
-//       return res.status(403).json({
-//         success: false,
-//         message: "Only admins can perform bulk updates",
-//       });
-//     }
-
-//     const { serviceIds, updates } = req.body;
-
-//     if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Service IDs array is required'
-//       });
-//     }
-
-//     if (!updates || Object.keys(updates).length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Updates object is required'
-//       });
-//     }
-
-//     const result = await Service.updateMany(
-//       { _id: { $in: serviceIds }, isDeleted: false },
-//       { $set: updates }
-//     );
-
-//     res.status(200).json({
-//       success: true,
-//       message: `${result.modifiedCount} services updated successfully`,
-//       data: {
-//         matched: result.matchedCount,
-//         modified: result.modifiedCount
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Bulk update services error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error performing bulk update',
-//       error: error.message
-//     });
-//   }
-// };
-
-// module.exports = exports;
