@@ -210,6 +210,8 @@ router.delete('/:id', verifyAdminRole, serviceController.deleteService);
 router.post('/:id/restore', verifyAdminRole, serviceController.restoreService);
 
 // Toggle Service Status
-router.patch('/:id/toggle-status', verifyAdminRole, serviceController.toggleServiceStatus);
+// router.patch('/:id/toggle-status', verifyAdminRole, serviceController.toggleServiceStatus);
+router.patch('/:id/toggle-status', protect('admin', 'superadmin'), serviceController.toggleServiceStatus);
+
 
 module.exports = router;
