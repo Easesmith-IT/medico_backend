@@ -7,7 +7,7 @@ const cityRoute= require('../route/cityRoute');
 const articleRoute= require('../route/articleRoute');
 const bookingRoute= require('../route/bookingRoute');
 const serviceRoute= require('../route/serviceRoute');
-
+const serviceProviderRoute= require('../route/serviceProvider');
 
 const router = express.Router();
 
@@ -20,5 +20,5 @@ router.use('/city',cityRoute);
 router.use('/article',articleRoute);
 router.use('/booking',bookingRoute);
 router.use('/service',serviceRoute);
-
+router.use('/serviceProvider',serviceProviderRoute)
 module.exports = router;

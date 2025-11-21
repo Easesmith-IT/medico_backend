@@ -12,6 +12,10 @@ const serviceProviderSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  ownerName:{
+    type: String,
+    required: false,
+  },
   age: {
     type: Number,
     required: true,
