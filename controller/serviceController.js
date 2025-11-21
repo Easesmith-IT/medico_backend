@@ -662,27 +662,29 @@ const Service = require('../models/serviceModel');
 const City = require('../models/availableCities');
 const Admin = require('../models/adminModel');
 const Doctor = require('../models/doctorModel');
+const { autoFilterSlots } = require('../utils/timeFIlter');
+const { formatDuration } = require('../utils/timeFormat');
 
 // Helper: Format duration labels
-const formatDuration = (minutes) => {
-  if (minutes === 30) return '0.5 hours';
-  if (minutes === 45) return '0.75 hours';
-  if (minutes === 60) return '1 hour';
-  if (minutes === 90) return '1.5 hours';
-  if (minutes === 120) return '2 hours';
-  if (minutes === 150) return '2.5 hours';
-  if (minutes === 180) return '3 hours';
-  if (minutes === 240) return '4 hours';
-  if (minutes === 360) return '6 hours';
-  if (minutes === 480) return '8 hours';
-  if (minutes === 720) return '12 hours';
-  if (minutes === 1440) return '24 hours';
-  if (minutes >= 60) {
-    const hours = minutes / 60;
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-  }
-  return `${minutes / 60} hours`;
-};
+// const formatDuration = (minutes) => {
+//   if (minutes === 30) return '0.5 hours';
+//   if (minutes === 45) return '0.75 hours';
+//   if (minutes === 60) return '1 hour';
+//   if (minutes === 90) return '1.5 hours';
+//   if (minutes === 120) return '2 hours';
+//   if (minutes === 150) return '2.5 hours';
+//   if (minutes === 180) return '3 hours';
+//   if (minutes === 240) return '4 hours';
+//   if (minutes === 360) return '6 hours';
+//   if (minutes === 480) return '8 hours';
+//   if (minutes === 720) return '12 hours';
+//   if (minutes === 1440) return '24 hours';
+//   if (minutes >= 60) {
+//     const hours = minutes / 60;
+//     return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+//   }
+//   return `${minutes / 60} hours`;
+// };
 
 // Helper: Validate city IDs
 const validateCities = async (cityIds) => {
@@ -698,8 +700,7 @@ const validateCities = async (cityIds) => {
   return validCities;
 };
 
-// Create Service (only admin)
-// Create Service (only admin & superadmin)
+
 // exports.createService = async (req, res) => {
 //   try {
 //     const userRole = req.user.role;
@@ -707,6 +708,13 @@ const validateCities = async (cityIds) => {
 //       return res.status(403).json({
 //         success: false,
 //         message: 'Access denied. Only admins and superadmins can create services.'
+//       });
+//     }
+
+//     if (!req.user.email) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Authenticated user email is required to create service.'
 //       });
 //     }
 
@@ -750,6 +758,16 @@ const validateCities = async (cityIds) => {
 //       });
 //     }
 
+//     // Filter slotConfig to exclude disabled nursingSlots and equipmentBooking
+//     let filteredSlotConfig = slotConfig || {};
+
+//     if (filteredSlotConfig.nursingSlots && !filteredSlotConfig.nursingSlots.enabled) {
+//       delete filteredSlotConfig.nursingSlots;
+//     }
+//     if (filteredSlotConfig.equipmentBooking && !filteredSlotConfig.equipmentBooking.enabled) {
+//       delete filteredSlotConfig.equipmentBooking;
+//     }
+
 //     const service = new Service({
 //       name, category, description,
 //       basePrice,
@@ -761,12 +779,12 @@ const validateCities = async (cityIds) => {
 //       timeFormat: selectedTimeFormat,
 //       icon, image,
 //       cities: validatedCities.map(city => city._id),
-//       slotConfig: slotConfig || {},
+//       slotConfig: filteredSlotConfig,
 //       createdBy: {
 //         userId: req.user.id,
 //         userModel: userRole === 'superadmin' ? 'SuperAdmin' : 'Admin',
 //         name: req.user.name || 'Admin User',
-//         email: req.user.email || ''
+//         email: req.user.email
 //       },
 //       isActive: true,
 //       isDeleted: false
@@ -774,10 +792,26 @@ const validateCities = async (cityIds) => {
 
 //     await service.save();
 //     await service.populate('cities', 'name latitude longitude');
+
+//     // Filter slotConfig in response similarly
+//     const responseSlotConfig = {};
+//     if (service.slotConfig.consultationSlots) {
+//       responseSlotConfig.consultationSlots = service.slotConfig.consultationSlots;
+//     }
+//     if (service.slotConfig.nursingSlots && service.slotConfig.nursingSlots.enabled) {
+//       responseSlotConfig.nursingSlots = service.slotConfig.nursingSlots;
+//     }
+//     if (service.slotConfig.equipmentBooking && service.slotConfig.equipmentBooking.enabled) {
+//       responseSlotConfig.equipmentBooking = service.slotConfig.equipmentBooking;
+//     }
+
+//     const responseObj = service.toObject();
+//     responseObj.slotConfig = responseSlotConfig;
+
 //     res.status(201).json({
 //       success: true,
 //       message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully.`,
-//       data: service
+//       data: responseObj
 //     });
 //   } catch (error) {
 //     console.error('Create service error:', error);
@@ -785,9 +819,11 @@ const validateCities = async (cityIds) => {
 //   }
 // };
 
+
 exports.createService = async (req, res) => {
   try {
-    const userRole = req.user.role;
+    const userRole = req.user.role.toLowerCase();
+
     if (!['admin', 'superadmin'].includes(userRole)) {
       return res.status(403).json({
         success: false,
@@ -803,22 +839,31 @@ exports.createService = async (req, res) => {
     }
 
     const {
-      name, category, description,
-      basePrice, equipmentCharges,
-      taxPercentage, modes, supportsDuration,
-      paymentMode, icon, image,
-      cities, slotConfig, timeFormat
+      name,
+      category,
+      nursingType,           // Required for nursing category
+      description,
+      basePrice,
+      equipmentCharges = 0,
+      taxPercentage = 18,
+      modes = ['Home Service'],
+      supportsDuration = true,
+      paymentMode = 'Both',
+      icon,
+      image,
+      cities,
+      slotConfig = {},
+      timeFormat = '24-hour'
     } = req.body;
 
-    if (!name || !category || !description || !basePrice) {
+    if (!name || !category || !description || basePrice == null) {
       return res.status(400).json({
         success: false,
         message: 'Name, category, description, and base price are required.'
       });
     }
 
-    const selectedTimeFormat = timeFormat || '24-hour';
-    if (!['12-hour', '24-hour'].includes(selectedTimeFormat)) {
+    if (!['12-hour', '24-hour'].includes(timeFormat)) {
       return res.status(400).json({
         success: false,
         message: "Time format must be '12-hour' or '24-hour'."
@@ -833,7 +878,9 @@ exports.createService = async (req, res) => {
     }
 
     const existingService = await Service.findOne({
-      name, category, isDeleted: false
+      name,
+      category,
+      isDeleted: false
     });
     if (existingService) {
       return res.status(400).json({
@@ -842,28 +889,30 @@ exports.createService = async (req, res) => {
       });
     }
 
-    // Filter slotConfig to exclude disabled nursingSlots and equipmentBooking
-    let filteredSlotConfig = slotConfig || {};
-
-    if (filteredSlotConfig.nursingSlots && !filteredSlotConfig.nursingSlots.enabled) {
-      delete filteredSlotConfig.nursingSlots;
+    // Filter out disabled nursingSlots and equipmentBooking from slotConfig
+    if (slotConfig.nursingSlots && !slotConfig.nursingSlots.enabled) {
+      delete slotConfig.nursingSlots;
     }
-    if (filteredSlotConfig.equipmentBooking && !filteredSlotConfig.equipmentBooking.enabled) {
-      delete filteredSlotConfig.equipmentBooking;
+    if (slotConfig.equipmentBooking && !slotConfig.equipmentBooking.enabled) {
+      delete slotConfig.equipmentBooking;
     }
 
     const service = new Service({
-      name, category, description,
+      name,
+      category,
+      nursingType,
+      description,
       basePrice,
-      equipmentCharges: equipmentCharges || 0,
-      taxPercentage: taxPercentage || 18,
-      modes: modes || ['Home Service'],
-      supportsDuration: supportsDuration !== undefined ? supportsDuration : true,
-      paymentMode: paymentMode || 'Both',
-      timeFormat: selectedTimeFormat,
-      icon, image,
-      cities: validatedCities.map(city => city._id),
-      slotConfig: filteredSlotConfig,
+      equipmentCharges,
+      taxPercentage,
+      modes,
+      supportsDuration,
+      paymentMode,
+      timeFormat,
+      icon,
+      image,
+      cities: validatedCities.map(c => c._id),
+      slotConfig,
       createdBy: {
         userId: req.user.id,
         userModel: userRole === 'superadmin' ? 'SuperAdmin' : 'Admin',
@@ -877,31 +926,26 @@ exports.createService = async (req, res) => {
     await service.save();
     await service.populate('cities', 'name latitude longitude');
 
-    // Filter slotConfig in response similarly
-    const responseSlotConfig = {};
-    if (service.slotConfig.consultationSlots) {
-      responseSlotConfig.consultationSlots = service.slotConfig.consultationSlots;
-    }
-    if (service.slotConfig.nursingSlots && service.slotConfig.nursingSlots.enabled) {
-      responseSlotConfig.nursingSlots = service.slotConfig.nursingSlots;
-    }
-    if (service.slotConfig.equipmentBooking && service.slotConfig.equipmentBooking.enabled) {
-      responseSlotConfig.equipmentBooking = service.slotConfig.equipmentBooking;
-    }
+    // Filter slotConfig to include only enabled, relevant slots
+    const filteredSlotConfig = autoFilterSlots(service.slotConfig, service.category, service.timeFormat);
 
     const responseObj = service.toObject();
-    responseObj.slotConfig = responseSlotConfig;
+    responseObj.slotConfig = filteredSlotConfig;
+    responseObj.formattedDuration = formatDuration(service.defaultDuration);
 
     res.status(201).json({
       success: true,
       message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully.`,
       data: responseObj
     });
+
   } catch (error) {
     console.error('Create service error:', error);
     res.status(500).json({ success: false, message: 'Error creating service', error: error.message });
   }
 };
+
+
 // Get All Services with filters
 exports.getAllServices = async (req, res) => {
   try {
@@ -947,17 +991,63 @@ exports.getAllServices = async (req, res) => {
 };
 
 // Get Service By ID
+// exports.getServiceById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { timeFormat = '24-hour' } = req.query;
+//     const service = await Service.findById(id)
+//       .populate('cities', 'name latitude longitude')
+//       .populate('createdBy.userId', 'firstName lastName name email phone');
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Service not found' });
+//     }
+//     const serviceObj = service.toObject();
+//     serviceObj.formattedDuration = formatDuration(service.defaultDuration);
+//     serviceObj.displayTimeFormat = timeFormat;
+
+//     res.status(200).json({ success: true, data: serviceObj });
+//   } catch (error) {
+//     console.error('Get service by ID error:', error);
+//     res.status(500).json({ success: false, message: 'Error fetching service', error: error.message });
+//   }
+// };
 exports.getServiceById = async (req, res) => {
   try {
     const { id } = req.params;
     const { timeFormat = '24-hour' } = req.query;
+
     const service = await Service.findById(id)
-      .populate('cities', 'name latitude longitude')
-      .populate('createdBy.userId', 'firstName lastName name email phone');
+      .populate('cities', 'name latitude longitude');
+
     if (!service) {
       return res.status(404).json({ success: false, message: 'Service not found' });
     }
+
+    // Normalize userModel for population
+    const userModel = service.createdBy.userModel === 'SuperAdmin' ? 'Admin' : service.createdBy.userModel;
+
+    // Populate createdBy.userId with normalized model
+    await service.populate({
+      path: 'createdBy.userId',
+      select: 'firstName lastName name email phone',
+      model: userModel
+    });
+
     const serviceObj = service.toObject();
+
+    // Filter slotConfig by enabled flags
+    const filteredSlotConfig = {};
+    if (service.slotConfig.consultationSlots) {
+      filteredSlotConfig.consultationSlots = service.slotConfig.consultationSlots;
+    }
+    if (service.slotConfig.nursingSlots && service.slotConfig.nursingSlots.enabled) {
+      filteredSlotConfig.nursingSlots = service.slotConfig.nursingSlots;
+    }
+    if (service.slotConfig.equipmentBooking && service.slotConfig.equipmentBooking.enabled) {
+      filteredSlotConfig.equipmentBooking = service.slotConfig.equipmentBooking;
+    }
+    serviceObj.slotConfig = filteredSlotConfig;
+
     serviceObj.formattedDuration = formatDuration(service.defaultDuration);
     serviceObj.displayTimeFormat = timeFormat;
 
@@ -967,6 +1057,7 @@ exports.getServiceById = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error fetching service', error: error.message });
   }
 };
+
 
 // Update Service
 exports.updateService = async (req, res) => {
@@ -1194,26 +1285,67 @@ exports.getNursingServicesByType = async (req, res) => {
 };
 
 // Get Services by City
+// exports.getServicesByCity = async (req, res) => {
+//   try {
+//     const { cityId } = req.params;
+//     const { category, timeFormat = '24-hour' } = req.query;
+//     const query = {
+//       cities: cityId,
+//       isActive: true,
+//       isDeleted: false
+//     };
+//     if (category) query.category = category;
+//     const services = await Service.find(query)
+//       .populate('cities', 'name latitude longitude')
+//       .sort({ category: 1, basePrice: 1 });
+//     const city = await City.findById(cityId);
+
+//     const formattedServices = services.map(service => ({
+//       ...service.toObject(),
+//       formattedDuration: formatDuration(service.defaultDuration),
+//       displayTimeFormat: timeFormat
+//     }));
+
+//     res.status(200).json({
+//       success: true,
+//       city: city ? city.name : 'Unknown',
+//       count: services.length,
+//       data: formattedServices
+//     });
+//   } catch (error) {
+//     console.error('Get services by city error:', error);
+//     res.status(500).json({ success: false, message: 'Error fetching services by city', error: error.message });
+//   }
+// };
 exports.getServicesByCity = async (req, res) => {
   try {
     const { cityId } = req.params;
     const { category, timeFormat = '24-hour' } = req.query;
+
     const query = {
       cities: cityId,
       isActive: true,
       isDeleted: false
     };
-    if (category) query.category = category;
+
+    if (category) {
+      query.category = category;
+    }
+
     const services = await Service.find(query)
       .populate('cities', 'name latitude longitude')
       .sort({ category: 1, basePrice: 1 });
+
     const city = await City.findById(cityId);
 
-    const formattedServices = services.map(service => ({
-      ...service.toObject(),
-      formattedDuration: formatDuration(service.defaultDuration),
-      displayTimeFormat: timeFormat
-    }));
+    const formattedServices = services.map(service => {
+      return {
+        ...service.toObject(),
+        slotConfig: autoFilterSlots(service.slotConfig, service.category, timeFormat),
+        formattedDuration: formatDuration(service.defaultDuration),
+        displayTimeFormat: timeFormat
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -1223,10 +1355,13 @@ exports.getServicesByCity = async (req, res) => {
     });
   } catch (error) {
     console.error('Get services by city error:', error);
-    res.status(500).json({ success: false, message: 'Error fetching services by city', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching services by city',
+      error: error.message
+    });
   }
 };
-
 // Calculate Service Price
 exports.calculateServicePrice = async (req, res) => {
   try {
