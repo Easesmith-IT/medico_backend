@@ -4,7 +4,7 @@ const { protect } = require('../middleware/auth');
 const   serviceProviderController = require('../controller/providerController');
 
 // Only allow superadmin and subadmin to create service provider
-router.post('/service-provider', protect('superadmin', 'subadmin'),serviceProviderController.createServiceProvider);
+router.post('/createservice-provider', protect('superadmin', 'subadmin'),serviceProviderController.createServiceProvider);
 
 
 
@@ -13,7 +13,7 @@ router.post('/service-provider', protect('superadmin', 'subadmin'),serviceProvid
 
 // Get all service providers - can be public or protected as needed
 router.get(
-  '/service-providers',
+  '/getAllServiceProviders',
   // optionally add protect() if you want to restrict access
   serviceProviderController.getAllServiceProviders
 );
