@@ -179,7 +179,7 @@ router.get('/:id/price', serviceController.calculateServicePrice);
 router.get('/:serviceId/slots', serviceController.getAvailableSlots);
 
 // Get Service by ID
-router.get('/:id', serviceController.getServiceById);
+router.get('/getServiceById/:id', serviceController.getServiceById);
 
 
 // =====================
