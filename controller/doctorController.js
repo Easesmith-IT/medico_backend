@@ -1458,7 +1458,7 @@ exports.getServiceAvailability = async (req, res) => {
       });
     }
 
-    // ❌ REMOVE THIS CHECK
+    //  REMOVE THIS CHECK
     // if (!doctor.isActive) {
     //   return res.status(403).json({ 
     //     success: false, 

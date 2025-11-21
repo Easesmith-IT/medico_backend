@@ -267,7 +267,7 @@ const serviceSchema = new mongoose.Schema({
     },
     userModel: {
       type: String,
-      enum: ['Admin', 'Doctor'],
+      enum: ['Admin', 'SuperAdmin'],
       required: true
     },
     name: {
