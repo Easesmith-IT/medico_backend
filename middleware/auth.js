@@ -986,60 +986,73 @@ const Admin = require('../models/adminModel');
 // };
 
 const protect = (...allowedRoles) => {
-  const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase());
+  const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase());
 
-  return (req, res, next) => {
-    try {
-      let token;
+  return async (req, res, next) => {
+    try {
+      let token;
 
-      if (req.cookies && req.cookies.accessToken) {
-        token = req.cookies.accessToken;
-      } else if (
-        req.headers.authorization &&
-        req.headers.authorization.startsWith('Bearer')
-      ) {
-        token = req.headers.authorization.split(' ')[1];
-      }
+      if (req.cookies && req.cookies.accessToken) {
+        token = req.cookies.accessToken;
+      } else if (
+        req.headers.authorization &&
+        req.headers.authorization.startsWith('Bearer')
+      ) {
+        token = req.headers.authorization.split(' ')[1];
+      }
 
-      if (!token) {
-        return next(new AppError('You are not logged in. Please log in to get access', 401));
-      }
+      if (!token) {
+        return next(new AppError('You are not logged in. Please log in to get access', 401));
+      }
 
-      token = token.trim().replace(/^["']|["']$/g, '');
+      token = token.trim().replace(/^["']|["']$/g, '');
 
-      if (!token || token === 'undefined' || token === 'null') {
-        return next(new AppError('Invalid token. Please log in again', 401));
-      }
+      if (!token || token === 'undefined' || token === 'null') {
+        return next(new AppError('Invalid token. Please log in again', 401));
+      }
 
-      const decoded = verifyToken(token, 'access');
+      const decoded = verifyToken(token, 'access');
 
-      if (!decoded || !decoded.role || !decoded.id) {
-        return next(new AppError('Invalid token payload', 401));
-      }
+      if (!decoded || !decoded.role || !decoded.id) {
+        return next(new AppError('Invalid token payload', 401));
+      }
 
-      const normalizedRole = decoded.role.toLowerCase();
-      console.log('Decode Role:',  decoded );
-      // console.log('Allowed Roles:', normalizedAllowedRoles);
-      if (!normalizedAllowedRoles.includes(normalizedRole)) {
-        return next(new AppError(
-          `Access denied. Required roles: ${allowedRoles.join(', ')}`,
-          403
-        ));
-      }
+      const normalizedRole = decoded.role.toLowerCase();
 
-      // Attach minimal user info for downstream handlers
-      
-      req.user = {
-        id: decoded.id,
-        role: normalizedRole
-      };
+      if (!normalizedAllowedRoles.includes(normalizedRole)) {
+        return next(new AppError(
+          `Access denied. Required roles: ${allowedRoles.join(', ')}`,
+          403
+        ));
+      }
 
-      next();
-    } catch (error) {
-      next(error);
-    }
-  };
+      // --- Fetch email from database based on role ---
+      let userDoc;
+      if (normalizedRole === 'admin' || normalizedRole === 'superadmin') {
+        userDoc = await Admin.findById(decoded.id).select('email');
+      } else if (normalizedRole === 'doctor') {
+        userDoc = await Doctor.findById(decoded.id).select('email');
+      } else if (normalizedRole === 'patient') {
+        userDoc = await Patient.findById(decoded.id).select('email');
+      } // Add more roles as needed
+
+      if (!userDoc || !userDoc.email) {
+        return next(new AppError('Authenticated user email is required to create service.', 401));
+      }
+
+      req.user = {
+        id: decoded.id,
+        role: normalizedRole,
+        email: userDoc.email
+      };
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
 };
+
 const verifyAccessToken = (req, res, next) => {
   try {
     const token = req.cookies?.accessToken;
