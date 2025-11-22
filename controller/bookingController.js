@@ -5,23 +5,113 @@ const { autoFilterSlots } = require('../utils/timeFIlter');
 const { formatDuration } = require('../utils/timeFormat');
 
 // Book Service by Patient Id (logged-in user)
+// exports.createBooking = async (req, res) => {
+//   try {
+//     const patientId = req.user.id;
+//     const {
+//       serviceId, cityId, date, startTime, duration, address, notes,
+//       paymentType, paymentId, transactionId, paymentGateway, timeFormat = '24-hour',
+//       preferredPartnerId
+//     } = req.body;
+
+//     if (!serviceId || !cityId || !date || !startTime || !duration || !address) {
+//       return res.status(400).json({ success: false, message: 'Missing required fields' });
+//     }
+
+//     const service = await Service.findOne({ _id: serviceId, isActive: true, isDeleted: false });
+//     if (!service) return res.status(404).json({ success: false, message: 'Service not found' });
+
+//     // Validate duration based on service category
+//     if (service.category === 'consultation' && duration !== 30) {
+//       return res.status(400).json({ success: false, message: 'Consultation services must be 30 minutes' });
+//     }
+//     if (['nursing', 'equipment'].includes(service.category) && (duration < 60 || duration > 1440)) {
+//       return res.status(400).json({ success: false, message: 'Duration must be between 1 hour and 24 hours' });
+//     }
+
+//     // Build start and end time strings
+//     const [startHour, startMinute] = startTime.split(':').map(Number);
+//     const startDateTime = new Date(date);
+//     startDateTime.setHours(startHour, startMinute, 0, 0);
+
+//     const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
+//     const endTimeStr = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`;
+
+//     // Calculate pricing
+//     const pricing = service.calculateTotalPrice(duration, false, null);
+
+//     // Prepare booking document
+//     const booking = new Booking({
+//       patientId,
+//       serviceId,
+//       cityId,
+//       serviceType: service.name,
+//       serviceCategory: service.category,
+//       serviceMode: service.modes[0] || 'Home Service',
+//       appointmentDate: new Date(date),
+//       slotTime: {
+//         startTime,
+//         endTime: endTimeStr,
+//         displayFormat: timeFormat
+//       },
+//       duration,
+//       durationFormatted: formatDuration(duration),
+//       location: {
+//         type: 'home',
+//         address
+//       },
+//       pricing,
+//       paymentType,
+//       paymentId,
+//       transactionId,
+//       paymentGateway,
+//       notes,
+//       status: 'Pending',
+//       partner: preferredPartnerId || null
+//     });
+
+//     await booking.save();
+
+//     res.status(201).json({ success: true, message: 'Booking created', data: booking });
+//   } catch (error) {
+//     console.error('Create booking error:', error);
+//     res.status(500).json({ success: false, message: 'Error creating booking', error: error.message });
+//   }
+// };
+
+
+
+
+
 exports.createBooking = async (req, res) => {
   try {
     const patientId = req.user.id;
     const {
-      serviceId, cityId, date, startTime, duration, address, notes,
-      paymentType, paymentId, transactionId, paymentGateway, timeFormat = '24-hour',
+      serviceId,
+      cityId,
+      date,
+      startTime,
+      duration,
+      address,
+      notes,
+      paymentType,
+      paymentId,
+      transactionId,
+      paymentGateway,
+      timeFormat = '24-hour',
       preferredPartnerId
     } = req.body;
 
+    // Validate required fields
     if (!serviceId || !cityId || !date || !startTime || !duration || !address) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
+    // Fetch active service data
     const service = await Service.findOne({ _id: serviceId, isActive: true, isDeleted: false });
     if (!service) return res.status(404).json({ success: false, message: 'Service not found' });
 
-    // Validate duration based on service category
+    // Validate duration by service category
     if (service.category === 'consultation' && duration !== 30) {
       return res.status(400).json({ success: false, message: 'Consultation services must be 30 minutes' });
     }
@@ -29,25 +119,41 @@ exports.createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Duration must be between 1 hour and 24 hours' });
     }
 
-    // Build start and end time strings
+    // Parse start time string into Date
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const startDateTime = new Date(date);
     startDateTime.setHours(startHour, startMinute, 0, 0);
 
+    // Calculate end time
     const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
     const endTimeStr = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`;
 
-    // Calculate pricing
-    const pricing = service.calculateTotalPrice(duration, false, null);
+    // Calculate pricing components
+    const pricingSubtotal = service.basePrice + (service.equipmentCharges || 0);
+    const taxesAmount = (pricingSubtotal * service.taxPercentage) / 100;
+    const totalAmount = pricingSubtotal + taxesAmount;
 
-    // Prepare booking document
+    const pricing = {
+      basePrice: service.basePrice,
+      equipmentCharges: service.equipmentCharges || 0,
+      subtotal: pricingSubtotal,
+      taxPercentage: service.taxPercentage,
+      taxes: taxesAmount,
+      discount: 0,
+      couponCode: '',
+      partnerCommission: 0,       // Set as needed
+      medicoRevenue: 0,           // Set as needed
+      totalAmount
+    };
+
+    // Compose booking document
     const booking = new Booking({
       patientId,
       serviceId,
       cityId,
       serviceType: service.name,
       serviceCategory: service.category,
-      serviceMode: service.modes[0] || 'Home Service',
+      serviceMode: service.modes?.[0] || 'Home Service',
       appointmentDate: new Date(date),
       slotTime: {
         startTime,
@@ -61,7 +167,7 @@ exports.createBooking = async (req, res) => {
         address
       },
       pricing,
-      paymentType,
+      paymentType: paymentType || 'Prepaid',
       paymentId,
       transactionId,
       paymentGateway,
@@ -78,7 +184,6 @@ exports.createBooking = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error creating booking', error: error.message });
   }
 };
-
 // Get Service/Appointment Request Summary info by Service Id with status filter
 exports.getServiceSummary = async (req, res) => {
   try {
