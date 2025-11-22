@@ -166,13 +166,13 @@ const { protect } = require('../middleware/auth');
 router.post('/create', protect(['patient']), bookingController.createBooking);
 
 // Admin or Provider can get service appointment summaries by service ID
-router.get('/service-summary/:serviceId', protect(['admin', 'provider']), bookingController.getServiceSummary);
+// router.get('/service-summary/:serviceId', protect(['admin', 'provider']), bookingController.getServiceSummary);
+router.get('/patient/:patientId/bookings',bookingController.getBookedServicesByPatientId);
+// // Patient can get all their bookings with optional filters
+// router.get('/my-bookings', protect(['patient']), bookingController.getPatientBookings);
 
-// Patient can get all their bookings with optional filters
-router.get('/my-bookings', protect(['patient']), bookingController.getPatientBookings);
-
-// Patient can reschedule their booking by booking ID
-router.put('/reschedule/:bookingId', protect(['patient']), bookingController.rescheduleBooking);
+// // Patient can reschedule their booking by booking ID
+// router.put('/reschedule/:bookingId', protect(['patient']), bookingController.rescheduleBooking);
 
 
 module.exports = router;
