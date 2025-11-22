@@ -28,8 +28,8 @@ const { protect } = require('../middleware/auth');
 router.post('/create', protect(['patient']), bookingController.createBooking);
 
 // Admin/Provider get service summaries by service ID
-router.get('/service-summary/:serviceId', protect(['admin', 'provider']), bookingController.getServiceSummaryByServiceId);
-
+// router.get('/service-summary/:serviceId', protect(['admin', 'provider']), bookingController.getServiceSummaryByServiceId);
+router.get('/service-summary/:serviceId', bookingController.getServiceSummaryByServiceId);
 // Get bookings by patient ID
 router.get('/patient/:patientId/bookings', protect(['admin', 'patient']), bookingController.getBookedServicesByPatientId);
 
