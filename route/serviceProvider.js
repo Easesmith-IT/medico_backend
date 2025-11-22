@@ -3,6 +3,10 @@ const router = express.Router();
 const { protect } = require('../middleware/auth');
 const   serviceProviderController = require('../controller/providerController');
 
+
+
+
+router.get('/service-providers/by-service/:serviceId', serviceProviderController.getProvidersByServiceId);
 // Only allow superadmin and subadmin to create service provider
 router.post('/createservice-provider', protect('superadmin', 'subadmin'),serviceProviderController.createServiceProvider);
 
@@ -38,6 +42,10 @@ router.delete(
   protect('superadmin', 'subadmin'),
   serviceProviderController.deleteServiceProvider
 );
+
+
+
+
 
 module.exports = router;
 

@@ -424,3 +424,33 @@ exports.deleteServiceProvider = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+// Get list of service providers by Service ID
+exports.getProvidersByServiceId = async (req, res) => {
+  try {
+    const { serviceId } = req.params; // or req.query if you want it as a query param
+
+    if (!serviceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Service ID is required',
+      });
+    }
+
+    const providers = await ServiceProvider.find({ 'services.serviceId': serviceId, isDeleted: { $ne: true } })
+      .populate('services.serviceId')
+      .populate('serviceCities')
+      .populate('approvedBy.adminId');
+
+    res.status(200).json({
+      success: true,
+      message: 'Service providers fetched successfully',
+      data: providers,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch service providers by Service ID',
+      error: error.message,
+    });
+  }
+};
