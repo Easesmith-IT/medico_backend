@@ -1,311 +1,181 @@
+// controllers/bookingController.js
 const Booking = require('../models/bookingModel');
 const Service = require('../models/serviceModel');
-const mongoose = require('mongoose');
 const { autoFilterSlots } = require('../utils/timeFIlter');
 const { formatDuration } = require('../utils/timeFormat');
 
-// Book Service by Patient Id (logged-in user)
-// exports.createBooking = async (req, res) => {
-//   try {
-//     const patientId = req.user.id;
-//     const {
-//       serviceId, cityId, date, startTime, duration, address, notes,
-//       paymentType, paymentId, transactionId, paymentGateway, timeFormat = '24-hour',
-//       preferredPartnerId
-//     } = req.body;
-
-//     if (!serviceId || !cityId || !date || !startTime || !duration || !address) {
-//       return res.status(400).json({ success: false, message: 'Missing required fields' });
-//     }
-
-//     const service = await Service.findOne({ _id: serviceId, isActive: true, isDeleted: false });
-//     if (!service) return res.status(404).json({ success: false, message: 'Service not found' });
-
-//     // Validate duration based on service category
-//     if (service.category === 'consultation' && duration !== 30) {
-//       return res.status(400).json({ success: false, message: 'Consultation services must be 30 minutes' });
-//     }
-//     if (['nursing', 'equipment'].includes(service.category) && (duration < 60 || duration > 1440)) {
-//       return res.status(400).json({ success: false, message: 'Duration must be between 1 hour and 24 hours' });
-//     }
-
-//     // Build start and end time strings
-//     const [startHour, startMinute] = startTime.split(':').map(Number);
-//     const startDateTime = new Date(date);
-//     startDateTime.setHours(startHour, startMinute, 0, 0);
-
-//     const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
-//     const endTimeStr = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`;
-
-//     // Calculate pricing
-//     const pricing = service.calculateTotalPrice(duration, false, null);
-
-//     // Prepare booking document
-//     const booking = new Booking({
-//       patientId,
-//       serviceId,
-//       cityId,
-//       serviceType: service.name,
-//       serviceCategory: service.category,
-//       serviceMode: service.modes[0] || 'Home Service',
-//       appointmentDate: new Date(date),
-//       slotTime: {
-//         startTime,
-//         endTime: endTimeStr,
-//         displayFormat: timeFormat
-//       },
-//       duration,
-//       durationFormatted: formatDuration(duration),
-//       location: {
-//         type: 'home',
-//         address
-//       },
-//       pricing,
-//       paymentType,
-//       paymentId,
-//       transactionId,
-//       paymentGateway,
-//       notes,
-//       status: 'Pending',
-//       partner: preferredPartnerId || null
-//     });
-
-//     await booking.save();
-
-//     res.status(201).json({ success: true, message: 'Booking created', data: booking });
-//   } catch (error) {
-//     console.error('Create booking error:', error);
-//     res.status(500).json({ success: false, message: 'Error creating booking', error: error.message });
-//   }
-// };
-
-
-
-
-
 exports.createBooking = async (req, res) => {
   try {
-    const patientId = req.user.id;
+    const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
+
     const {
       serviceId,
-      cityId,
-      date,
-      startTime,
-      duration,
-      address,
+      appointmentDate,  // 'YYYY-MM-DD'
+      startTime,        // 'HH:mm' e.g. "10:00"
+      endTime,          // 'HH:mm' e.g. "10:30"
+      duration,         // optional minutes
+      shiftType,        // optional string
+      servicePartnerId, // optional ObjectId
       notes,
-      paymentType,
-      paymentId,
-      transactionId,
-      paymentGateway,
-      timeFormat = '24-hour',
-      preferredPartnerId
+      category,         // optional string
+      modes             // optional array of strings
     } = req.body;
 
-    // Validate required fields
-    if (!serviceId || !cityId || !date || !startTime || !duration || !address) {
-      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'patientId, serviceId, appointmentDate, startTime, and endTime are required'
+      });
     }
 
-    // Fetch active service data
-    const service = await Service.findOne({ _id: serviceId, isActive: true, isDeleted: false });
-    if (!service) return res.status(404).json({ success: false, message: 'Service not found' });
+    const service = await Service.findById(serviceId);
 
-    // Validate duration by service category
-    if (service.category === 'consultation' && duration !== 30) {
-      return res.status(400).json({ success: false, message: 'Consultation services must be 30 minutes' });
-    }
-    if (['nursing', 'equipment'].includes(service.category) && (duration < 60 || duration > 1440)) {
-      return res.status(400).json({ success: false, message: 'Duration must be between 1 hour and 24 hours' });
+    if (!service || !service.isActive || service.isDeleted) {
+      return res.status(404).json({ success: false, message: 'Service not found or inactive' });
     }
 
-    // Parse start time string into Date
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const startDateTime = new Date(date);
-    startDateTime.setHours(startHour, startMinute, 0, 0);
+    // Use category and modes from Service if not provided in request
+    const bookingCategory = category || service.category || null;
+    const bookingModes = Array.isArray(modes) && modes.length > 0 ? modes : service.modes || [];
 
-    // Calculate end time
-    const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
-    const endTimeStr = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`;
+    // Check slot conflicts
+    const dayStart = new Date(appointmentDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(appointmentDate);
+    dayEnd.setHours(23, 59, 59, 999);
 
-    // Calculate pricing components
-    const pricingSubtotal = service.basePrice + (service.equipmentCharges || 0);
-    const taxesAmount = (pricingSubtotal * service.taxPercentage) / 100;
-    const totalAmount = pricingSubtotal + taxesAmount;
-
-    const pricing = {
-      basePrice: service.basePrice,
-      equipmentCharges: service.equipmentCharges || 0,
-      subtotal: pricingSubtotal,
-      taxPercentage: service.taxPercentage,
-      taxes: taxesAmount,
-      discount: 0,
-      couponCode: '',
-      partnerCommission: 0,       // Set as needed
-      medicoRevenue: 0,           // Set as needed
-      totalAmount
+    const conflictQuery = {
+      serviceId,
+      appointmentDate: { $gte: dayStart, $lte: dayEnd },
+      status: { $nin: ['Cancelled', 'Rejected'] },
+      'slotTime.startTime': startTime,
+      'slotTime.endTime': endTime
     };
 
-    // Compose booking document
-    const booking = new Booking({
+    if (servicePartnerId) {
+      conflictQuery.servicePartnerId = servicePartnerId;
+    }
+
+    const existingBooking = await Booking.findOne(conflictQuery);
+    if (existingBooking) {
+      return res.status(409).json({
+        success: false,
+        message: 'Slot already booked. Choose another slot.'
+      });
+    }
+
+    // Calculate duration (if not provided, use difference between start and end time)
+    let bookingDuration = duration;
+    if (!bookingDuration) {
+      const [sh, sm] = startTime.split(':').map(Number);
+      const [eh, em] = endTime.split(':').map(Number);
+      bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+      if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+    }
+
+    // Calculate pricing snapshot
+    const pricing = service.calculateTotalPrice(
+      bookingDuration,
+      false, // includeEquipment - adjust if needed
+      shiftType || null
+    );
+
+    const newBooking = new Booking({
       patientId,
       serviceId,
-      cityId,
-      serviceType: service.name,
-      serviceCategory: service.category,
-      serviceMode: service.modes?.[0] || 'Home Service',
-      appointmentDate: new Date(date),
-      slotTime: {
-        startTime,
-        endTime: endTimeStr,
-        displayFormat: timeFormat
-      },
-      duration,
-      durationFormatted: formatDuration(duration),
-      location: {
-        type: 'home',
-        address
-      },
-      pricing,
-      paymentType: paymentType || 'Prepaid',
-      paymentId,
-      transactionId,
-      paymentGateway,
-      notes,
+      category: bookingCategory,
+      modes: bookingModes,
+      servicePartnerId: servicePartnerId || null,
+      appointmentDate: new Date(appointmentDate),
+      slotTime: { startTime, endTime },
+      duration: bookingDuration,
+      shiftType: shiftType || null,
       status: 'Pending',
-      partner: preferredPartnerId || null
+      pricing,
+      notes: notes || '',
+      createdBy: {
+        userId: patientId,
+        userModel: 'Patient'
+      }
     });
 
-    await booking.save();
+    await newBooking.save();
 
-    res.status(201).json({ success: true, message: 'Booking created', data: booking });
+    res.status(201).json({
+      success: true,
+      message: 'Booking created successfully',
+      data: {
+        ...newBooking.toObject(),
+        formattedDuration: formatDuration(bookingDuration),
+      }
+    });
   } catch (error) {
-    console.error('Create booking error:', error);
-    res.status(500).json({ success: false, message: 'Error creating booking', error: error.message });
-  }
-};
-// Get Service/Appointment Request Summary info by Service Id with status filter
-exports.getServiceSummary = async (req, res) => {
-  try {
-    const { serviceId } = req.params;
-    const { status } = req.query;
-
-    const query = { serviceId };
-    if (status) query.status = status;
-
-    const bookings = await Booking.find(query)
-      .populate('patientId', 'firstName lastName email phone')
-      .sort({ appointmentDate: -1 });
-
-    const summary = bookings.map(b => ({
-      bookingId: b._id,
-      patientName: `${b.patientId.firstName} ${b.patientId.lastName}`,
-      appointmentDate: b.appointmentDate,
-      status: b.status,
-      durationFormatted: b.durationFormatted,
-      notes: b.notes
-    }));
-
-    res.json({ success: true, data: summary });
-  } catch (error) {
-    console.error('Get service summary error:', error);
-    res.status(500).json({ success: false, message: 'Error fetching summary', error: error.message });
+    console.error('Error creating booking:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating booking',
+      error: error.message
+    });
   }
 };
 
-// Get all booked services by logged-in Patient Id with filters for status and date range (Today, Week, Custom)
-exports.getPatientBookings = async (req, res) => {
+
+
+
+exports.getBookedServicesByPatientId = async (req, res) => {
   try {
-    const patientId = req.user.id;
-    const { status, dateFilter, startDate, endDate } = req.query;
-    const query = { patientId };
+    const patientId = req.user && req.user.id ? req.user.id : req.params.patientId;
 
-    if (status) query.status = status;
+    if (!patientId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Patient ID is required'
+      });
+    }
 
-    const now = new Date();
-    if (dateFilter === 'today') {
-      query.appointmentDate = {
-        $gte: new Date(now.setHours(0, 0, 0, 0)),
-        $lte: new Date(now.setHours(23, 59, 59, 999)),
-      };
-    } else if (dateFilter === 'week') {
-      const firstDay = new Date(now.setDate(now.getDate() - now.getDay()));
-      const lastDay = new Date(now.setDate(now.getDate() - now.getDay() + 6));
-      query.appointmentDate = {
-        $gte: new Date(firstDay.setHours(0, 0, 0, 0)),
-        $lte: new Date(lastDay.setHours(23, 59, 59, 999)),
-      };
-    } else if (dateFilter === 'custom' && startDate && endDate) {
+    const { status, dateFilterType, startDate, endDate } = req.query;
+
+    let query = { patientId };
+
+    if (status) {
+      query.status = status;
+    }
+
+    // Date filters
+    if (dateFilterType === 'today') {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
+    } else if (dateFilterType === 'week') {
+      const now = new Date();
+      const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+      firstDayOfWeek.setHours(0, 0, 0, 0);
+      const lastDayOfWeek = new Date(firstDayOfWeek);
+      lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+      lastDayOfWeek.setHours(23, 59, 59, 999);
+      query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
+    } else if (dateFilterType === 'custom' && startDate && endDate) {
       query.appointmentDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
     }
 
     const bookings = await Booking.find(query)
-      .populate('serviceId', 'name category')
-      .populate('servicePartnerId', 'firstName lastName phone')
-      .sort({ appointmentDate: -1 });
+      .populate('serviceId', 'name category modes')
+      .populate('servicePartnerId', 'name email phone')
+      .sort({ appointmentDate: 1 });
 
-    res.json({ success: true, data: bookings });
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: bookings
+    });
   } catch (error) {
-    console.error('Get patient bookings error:', error);
-    res.status(500).json({ success: false, message: 'Error fetching bookings', error: error.message });
+    console.error('Get booked services error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching booked services',
+      error: error.message
+    });
   }
 };
-
-// Reschedule service by booking id: change slot, date or partner (status dependent)
-exports.rescheduleBooking = async (req, res) => {
-  try {
-    const patientId = req.user.id;
-    const { bookingId } = req.params;
-    const { newDate, newStartTime, newPartnerId, reason } = req.body;
-
-    if (!newDate || !newStartTime) {
-      return res.status(400).json({ success: false, message: 'New date and start time are required' });
-    }
-
-    const booking = await Booking.findOne({ _id: bookingId, patientId });
-    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
-
-    if (!['Pending', 'Approved', 'Confirmed', 'Scheduled'].includes(booking.status)) {
-      return res.status(400).json({ success: false, message: 'Booking cannot be rescheduled in current status' });
-    }
-
-    const [hours, minutes] = newStartTime.split(':').map(Number);
-    const startDateTime = new Date(newDate);
-    startDateTime.setHours(hours, minutes, 0, 0);
-    const endDateTime = new Date(startDateTime.getTime() + booking.duration * 60000);
-    const endTimeStr = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`;
-
-    // Check for slot conflict with partner or self
-    const conflict = await Booking.findOne({
-      _id: { $ne: bookingId },
-      servicePartnerId: newPartnerId || booking.servicePartnerId,
-      appointmentDate: new Date(newDate),
-      'slotTime.startTime': { $lt: endTimeStr },
-      'slotTime.endTime': { $gt: newStartTime },
-      status: { $nin: ['Cancelled', 'Disapproved'] },
-    });
-    if (conflict) return res.status(400).json({ success: false, message: 'Selected time slot is not available' });
-
-    booking.appointmentDate = new Date(newDate);
-    booking.slotTime.startTime = newStartTime;
-    booking.slotTime.endTime = endTimeStr;
-    if (newPartnerId) booking.servicePartnerId = newPartnerId;
-    booking.status = 'Rescheduled';
-    booking.rescheduleHistory.push({
-      oldDate: booking.appointmentDate,
-      oldSlot: { startTime: booking.slotTime.startTime, endTime: booking.slotTime.endTime },
-      newDate: new Date(newDate),
-      newSlot: { startTime: newStartTime, endTime: endTimeStr },
-      rescheduledBy: 'Patient',
-      rescheduledAt: new Date(),
-      reason,
-    });
-
-    await booking.save();
-    res.json({ success: true, message: 'Booking rescheduled successfully', data: booking });
-  } catch (error) {
-    console.error('Reschedule booking error:', error);
-    res.status(500).json({ success: false, message: 'Error rescheduling booking', error: error.message });
-  }
-};
-
