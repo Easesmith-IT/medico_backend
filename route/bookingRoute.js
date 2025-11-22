@@ -174,5 +174,6 @@ router.get('/my-bookings', protect(['patient']), bookingController.getPatientBoo
 // Patient can reschedule their booking by booking ID
 router.put('/reschedule/:bookingId', protect(['patient']), bookingController.rescheduleBooking);
 
+
 module.exports = router;
 
