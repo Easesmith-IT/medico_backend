@@ -363,50 +363,117 @@ exports.cancelBooking = async (req, res) => {
 
 //getAllBooking 
 // Admin: Get all bookings and details
+// exports.getAllBookings = async (req, res) => {
+//   try {
+//     // Parse optional admin filters from query
+//     const { status, startDate, endDate, serviceId, patientId, partnerId } = req.query;
+
+//     let query = {};
+
+//     // Filter by status
+//     if (status) query.status = status;
+
+//     // Filter by Service
+//     if (serviceId) query.serviceId = serviceId;
+
+//     // Filter by Patient
+//     if (patientId) query.patientId = patientId;
+
+//     // Filter by Service Partner
+//     if (partnerId) query.servicePartnerId = partnerId;
+
+//     // Date range filter
+//     if (startDate && endDate) {
+//       query.appointmentDate = {
+//         $gte: new Date(startDate),
+//         $lte: new Date(endDate)
+//       };
+//     }
+
+//     // Get all bookings, populate references for full details
+//     const bookings = await Booking.find(query)
+//       .populate('patientId', 'name email phone')
+//       .populate('serviceId', 'name category modes')
+//       .populate('servicePartnerId', 'name email phone')
+//       .sort({ appointmentDate: -1 });
+
+//     res.status(200).json({
+//       success: true,
+//       count: bookings.length,
+//       data: bookings
+//     });
+//   } catch (error) {
+//     console.error('Error getting all booking details:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching all bookings',
+//       error: error.message
+//     });
+//   }
+// };
 exports.getAllBookings = async (req, res) => {
   try {
-    // Parse optional admin filters from query
-    const { status, startDate, endDate, serviceId, patientId, partnerId } = req.query;
+    const {
+      status,
+      startDate,
+      endDate,
+      serviceId,
+      patientId,
+      servicePartnerId,
+      category,
+      shiftType,
+      mode,
+      page = 1,        // Default pagination page
+      limit = 20       // Default pagination limit
+    } = req.query;
 
     let query = {};
 
-    // Filter by status
     if (status) query.status = status;
-
-    // Filter by Service
     if (serviceId) query.serviceId = serviceId;
-
-    // Filter by Patient
     if (patientId) query.patientId = patientId;
+    if (servicePartnerId) query.servicePartnerId = servicePartnerId;
+    if (category) query.category = category;
+    if (shiftType) query.shiftType = shiftType;
+    if (mode) query.modes = mode;  // Assuming you want to filter bookings containing this mode
 
-    // Filter by Service Partner
-    if (partnerId) query.servicePartnerId = partnerId;
-
-    // Date range filter
     if (startDate && endDate) {
       query.appointmentDate = {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       };
+    } else if (startDate) {
+      query.appointmentDate = { $gte: new Date(startDate) };
+    } else if (endDate) {
+      query.appointmentDate = { $lte: new Date(endDate) };
     }
 
-    // Get all bookings, populate references for full details
+    // Pagination handling
+    const skip = (page - 1) * limit;
+
     const bookings = await Booking.find(query)
       .populate('patientId', 'name email phone')
       .populate('serviceId', 'name category modes')
       .populate('servicePartnerId', 'name email phone')
-      .sort({ appointmentDate: -1 });
+      .sort({ appointmentDate: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const totalCount = await Booking.countDocuments(query);
 
     res.status(200).json({
       success: true,
       count: bookings.length,
+      totalCount,
+      page: parseInt(page),
+      limit: parseInt(limit),
       data: bookings
     });
   } catch (error) {
-    console.error('Error getting all booking details:', error);
+    console.error('Error fetching bookings with filters:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching all bookings',
+      message: 'Error fetching bookings',
       error: error.message
     });
   }
