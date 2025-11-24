@@ -42,7 +42,15 @@ router.get('/my-bookings', protect(['patient']), (req, res, next) => {
 // Reschedule booking (patient)
 router.put('/reschedule/:bookingId', protect(['patient']), bookingController.rescheduleBooking);
 
+
+
+router.get('/bookings', bookingController.getAllBookings);
+
+
 // Cancel booking (patient)
 router.put('/cancel/:bookingId', protect(['patient']), bookingController.cancelBooking);
+
+
+
 
 module.exports = router;

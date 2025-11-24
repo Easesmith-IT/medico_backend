@@ -182,6 +182,9 @@ exports.getBookedServicesByPatientId = async (req, res) => {
 
 
 
+
+
+
 exports.getServiceSummaryByServiceId = async (req, res) => {
   try {
     const { serviceId } = req.params;
@@ -352,6 +355,58 @@ exports.cancelBooking = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error cancelling booking',
+      error: error.message
+    });
+  }
+};
+
+
+//getAllBooking 
+// Admin: Get all bookings and details
+exports.getAllBookings = async (req, res) => {
+  try {
+    // Parse optional admin filters from query
+    const { status, startDate, endDate, serviceId, patientId, partnerId } = req.query;
+
+    let query = {};
+
+    // Filter by status
+    if (status) query.status = status;
+
+    // Filter by Service
+    if (serviceId) query.serviceId = serviceId;
+
+    // Filter by Patient
+    if (patientId) query.patientId = patientId;
+
+    // Filter by Service Partner
+    if (partnerId) query.servicePartnerId = partnerId;
+
+    // Date range filter
+    if (startDate && endDate) {
+      query.appointmentDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    // Get all bookings, populate references for full details
+    const bookings = await Booking.find(query)
+      .populate('patientId', 'name email phone')
+      .populate('serviceId', 'name category modes')
+      .populate('servicePartnerId', 'name email phone')
+      .sort({ appointmentDate: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: bookings
+    });
+  } catch (error) {
+    console.error('Error getting all booking details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching all bookings',
       error: error.message
     });
   }
