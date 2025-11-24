@@ -421,10 +421,9 @@ exports.getAllBookings = async (req, res) => {
       patientId,
       servicePartnerId,
       category,
-      shiftType,
       mode,
-      page = 1,        // Default pagination page
-      limit = 20       // Default pagination limit
+      page = 1,
+      limit = 10
     } = req.query;
 
     let query = {};
@@ -434,8 +433,7 @@ exports.getAllBookings = async (req, res) => {
     if (patientId) query.patientId = patientId;
     if (servicePartnerId) query.servicePartnerId = servicePartnerId;
     if (category) query.category = category;
-    if (shiftType) query.shiftType = shiftType;
-    if (mode) query.modes = mode;  // Assuming you want to filter bookings containing this mode
+    if (mode) query.modes = mode; // mode matches elements in modes array
 
     if (startDate && endDate) {
       query.appointmentDate = {
@@ -448,7 +446,6 @@ exports.getAllBookings = async (req, res) => {
       query.appointmentDate = { $lte: new Date(endDate) };
     }
 
-    // Pagination handling
     const skip = (page - 1) * limit;
 
     const bookings = await Booking.find(query)
