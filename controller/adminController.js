@@ -1221,6 +1221,7 @@ const {
 const Booking = require("../models/bookingModel");
 const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
+const Service = require('../models/serviceModel');
 
 // ============================================
 // ADMIN SIGNUP - STEP 1: Create Account
@@ -2747,6 +2748,26 @@ exports.updateBookingStatus = async (req, res) => {
 
 
 
+exports.getServiceNames = async (req, res) => {
+  try {
+    const services = await Service.find(
+      { isDeleted: false }, // Only active data
+      { name: 1 } // Projection: return only name + _id
+    ).sort({ name: 1 }); // Sorted alphabetically (optional)
+
+    res.status(200).json({
+      success: true,
+      count: services.length,
+      data: services,
+    });
+  } catch (error) {
+    console.error("Error fetching service names:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch service names",
+    });
+  }
+};
 
 
 module.exports = exports;

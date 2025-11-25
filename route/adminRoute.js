@@ -64,4 +64,7 @@ router.get('/admin/doctor/:doctorId/cities', verifyAccessToken,adminController.g
 // Get all doctors in a specific city
 router.get('/admin/city/:cityId/doctors', verifyAccessToken,adminController.getDoctorsByCity);
 
+
+router.get("/services/names", adminController.getServiceNames);
+
 module.exports = router;
