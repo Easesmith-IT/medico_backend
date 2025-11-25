@@ -483,7 +483,7 @@ exports.getByIdBooking = async (req, res) => {
     }
 
     const booking = await Booking.findById(bookingId)
-      .populate('patientId', 'name email phone')
+      .populate('patientId', 'firstName email phone')
       .populate('serviceId', 'name category modes')
       .populate('servicePartnerId', 'name email phone');
 
