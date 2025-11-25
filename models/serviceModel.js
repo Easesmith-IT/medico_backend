@@ -107,210 +107,231 @@
 
 const mongoose = require('mongoose');
 
-const serviceSchema = new mongoose.Schema({
-  // Service name
-  name: { 
-    type: String, 
-    required: true,
-    // enum: [
-    //   'Doctor Visit', 
-    //   'Nursing', // Can be 24-hour or consultation-based
-    //   'Physiotherapy', 
-    //   'Attendant Care', 
-    //   'Ventilator', 
-    //   'Oxygen Therapy'
-    // ]
-  },
-
-  // Service category for slot generation logic
-  category: {
-    type: String,
-    enum: ['consultation', 'nursing', 'equipment'], // Added 'nursing' as separate category
-    required: true
-  },
-
-  // Sub-category for nursing services
-  nursingType: {
-    type: String,
-    enum: ['hourly', 'full-day', 'full-night', '12-hour', '24-hour', null],
-    default: null,
-    validate: {
-      validator: function(value) {
-        // Only validate if category is 'nursing'
-        if (this.category === 'nursing') {
-          return value !== null;
-        }
-        return true;
-      },
-      message: 'Nursing type is required for nursing services'
-    }
-  },
-
-  // Description
-  description: { 
-    type: String, 
-    required: true 
-  },
-
-  // Pricing
-  basePrice: { 
-    type: Number, 
-    required: true,
-    min: [0, 'Base price cannot be negative']
-  },
-  equipmentCharges: { 
-    type: Number, 
-    default: 0,
-    min: [0, 'Equipment charges cannot be negative']
-  },
-  taxPercentage: { 
-    type: Number, 
-    required: true, 
-    default: 18,
-    min: [0, 'Tax percentage cannot be negative'],
-    max: [100, 'Tax percentage cannot exceed 100']
-  },
-
-  // Modes (Home/Clinic)
-  modes: [{
-    type: String,
-    enum: ['Home Service', 'Visit Provider Location'],
-    required: true
-  }],
-
-  // Slot Configuration
-  slotConfig: {
-    // For consultation services (30-minute slots, 9 AM - 7 PM)
-    consultationSlots: {
-      enabled: { type: Boolean, default: true},
-      startTime: { 
-        type: String, 
-        default: '09:00',
-        validate: {
-          validator: function(v) {
-            return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
-          },
-          message: 'Invalid time format'
-        }
-      },
-      endTime: { 
-        type: String, 
-        default: '19:00',
-        validate: {
-          validator: function(v) {
-            return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
-          },
-          message: 'Invalid time format'
-        }
-      },
-      slotDuration: { 
-        type: Number, 
-        default: 30, // minutes
-        enum: [15, 30, 45, 60]
-      }
-    },
-    
-    // For nursing services (flexible: hourly, 12-hour, 24-hour)
-    nursingSlots: {
-      enabled: { type: Boolean, default: false },
-      shiftTypes: [{
-        type: String,
-        enum: ['hourly', '8-hour', '12-hour', '24-hour', 'day-shift', 'night-shift']
-      }],
-      minDuration: { type: Number, default: 60 }, // minimum 1 hour
-      maxDuration: { type: Number, default: 1440 }, // maximum 24 hours
-      available24x7: { type: Boolean, default: true },
-      allowCustomDuration: { type: Boolean, default: true }
-    },
-
-    // For equipment services (24-hour format, flexible duration)
-    equipmentBooking: {
-      enabled: { type: Boolean, default: false },
-      minDuration: { type: Number, default: 60 }, // minimum 1 hour
-      maxDuration: { type: Number, default: 720 }, // maximum 12 hours
-      available24x7: { type: Boolean, default: true }
-    }
-  },
-
-  // Duration options
-  supportsDuration: { 
-    type: Boolean, 
-    default: false 
-  },
-  defaultDuration: { 
-    type: Number, 
-    default: 30 
-  },
-  durationOptions: [{
-    type: Number,
-    validate: {
-      validator: function(v) {
-        return v > 0 && v <= 1440;
-      },
-      message: 'Duration must be between 1 and 1440 minutes (24 hours)'
-    }
-  }],
-
-  // Available Cities
-  cities: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'City',
-    required: true
-  }],
-
-  // Creator Details (Admin / Doctor)
-  createdBy: {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      refPath: 'createdBy.userModel',
-      required: true
-    },
-    userModel: {
-      type: String,
-      enum: ['Admin', 'SuperAdmin'],
-      required: true
-    },
+const serviceSchema = new mongoose.Schema(
+  {
+    // Service name
     name: {
       type: String,
-      required: true
+      required: true,
+      // enum: [
+      //   'Doctor Visit',
+      //   'Nursing', // Can be 24-hour or consultation-based
+      //   'Physiotherapy',
+      //   'Attendant Care',
+      //   'Ventilator',
+      //   'Oxygen Therapy'
+      // ]
     },
-    email: {
+
+    // Service category for slot generation logic
+    category: {
+      type: String,
+      enum: ["consultation", "nursing", "equipment"], // Added 'nursing' as separate category
+      required: true,
+    },
+
+    // Sub-category for nursing services
+    nursingType: {
+      type: String,
+      enum: ["hourly", "full-day", "full-night", "12-hour", "24-hour", null],
+      default: null,
+      validate: {
+        validator: function (value) {
+          // Only validate if category is 'nursing'
+          if (this.category === "nursing") {
+            return value !== null;
+          }
+          return true;
+        },
+        message: "Nursing type is required for nursing services",
+      },
+    },
+
+    // Description
+    description: {
       type: String,
       required: true,
-      lowercase: true,
-      trim: true
-    }
+    },
+
+    timeFormat: {
+      type: String,
+    },
+
+    // Pricing
+    basePrice: {
+      type: Number,
+      required: true,
+      min: [0, "Base price cannot be negative"],
+    },
+    equipmentCharges: {
+      type: Number,
+      default: 0,
+      min: [0, "Equipment charges cannot be negative"],
+    },
+    taxPercentage: {
+      type: Number,
+      required: true,
+      default: 18,
+      min: [0, "Tax percentage cannot be negative"],
+      max: [100, "Tax percentage cannot exceed 100"],
+    },
+
+    // Modes (Home/Clinic)
+    modes: [
+      {
+        type: String,
+        enum: ["Home Service", "Visit Provider Location"],
+        required: true,
+      },
+    ],
+
+    // Slot Configuration
+    slotConfig: {
+      // For consultation services (30-minute slots, 9 AM - 7 PM)
+      consultationSlots: {
+        enabled: { type: Boolean, default: true },
+        startTime: {
+          type: String,
+          default: "09:00",
+          validate: {
+            validator: function (v) {
+              return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+            },
+            message: "Invalid time format",
+          },
+        },
+        endTime: {
+          type: String,
+          default: "19:00",
+          validate: {
+            validator: function (v) {
+              return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+            },
+            message: "Invalid time format",
+          },
+        },
+        slotDuration: {
+          type: Number,
+          default: 30, // minutes
+          enum: [15, 30, 45, 60],
+        },
+      },
+
+      // For nursing services (flexible: hourly, 12-hour, 24-hour)
+      nursingSlots: {
+        enabled: { type: Boolean, default: false },
+        shiftTypes: [
+          {
+            type: String,
+            enum: [
+              "hourly",
+              "8-hour",
+              "12-hour",
+              "24-hour",
+              "day-shift",
+              "night-shift",
+            ],
+          },
+        ],
+        minDuration: { type: Number, default: 60 }, // minimum 1 hour
+        maxDuration: { type: Number, default: 1440 }, // maximum 24 hours
+        available24x7: { type: Boolean, default: true },
+        allowCustomDuration: { type: Boolean, default: true },
+      },
+
+      // For equipment services (24-hour format, flexible duration)
+      equipmentBooking: {
+        enabled: { type: Boolean, default: false },
+        minDuration: { type: Number, default: 60 }, // minimum 1 hour
+        maxDuration: { type: Number, default: 720 }, // maximum 12 hours
+        available24x7: { type: Boolean, default: true },
+      },
+    },
+
+    // Duration options
+    supportsDuration: {
+      type: Boolean,
+      default: false,
+    },
+    defaultDuration: {
+      type: Number,
+      default: 30,
+    },
+    durationOptions: [
+      {
+        type: Number,
+        validate: {
+          validator: function (v) {
+            return v > 0 && v <= 1440;
+          },
+          message: "Duration must be between 1 and 1440 minutes (24 hours)",
+        },
+      },
+    ],
+
+    // Available Cities
+    cities: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "City",
+        required: true,
+      },
+    ],
+
+    // Creator Details (Admin / Doctor)
+    createdBy: {
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        refPath: "createdBy.userModel",
+        required: true,
+      },
+      userModel: {
+        type: String,
+        enum: ["Admin", "SuperAdmin"],
+        required: true,
+      },
+      name: {
+        type: String,
+        required: true,
+      },
+      email: {
+        type: String,
+        required: true,
+        lowercase: true,
+        trim: true,
+      },
+    },
+
+    // Payment Mode
+    paymentMode: {
+      type: String,
+      enum: ["Prepaid", "Postpaid", "Both"],
+      default: "Both",
+    },
+
+    // Active/Inactive
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+
+    // Media
+    icon: String,
+    image: String,
+
+    // Soft delete
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: Date,
+    deletedBy: {
+      userId: mongoose.Schema.Types.ObjectId,
+      userModel: String,
+    },
   },
-
-  // Payment Mode
-  paymentMode: {
-    type: String,
-    enum: ['Prepaid', 'Postpaid', 'Both'],
-    default: 'Both'
-  },
-
-  // Active/Inactive
-  isActive: { 
-    type: Boolean, 
-    default: true 
-  },
-
-  // Media
-  icon: String,
-  image: String,
-
-  // Soft delete
-  isDeleted: { 
-    type: Boolean, 
-    default: false 
-  },
-  deletedAt: Date,
-  deletedBy: {
-    userId: mongoose.Schema.Types.ObjectId,
-    userModel: String
-  }
-
-}, { timestamps: true });
+  { timestamps: true }
+);
 
 // ============= INDEXES =============
 serviceSchema.index({ name: 1, isActive: 1 });
