@@ -1218,7 +1218,7 @@ const {
   setAuthCookies,
   clearAuthCookies,
 } = require("../utils/tokenUtils");
-
+const Booking = require("../models/bookingModel");
 const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
 
