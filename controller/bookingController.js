@@ -475,3 +475,32 @@ exports.getAllBookings = async (req, res) => {
     });
   }
 };
+exports.getByIdBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: 'Booking ID is required' });
+    }
+
+    const booking = await Booking.findById(bookingId)
+      .populate('patientId', 'name email phone')
+      .populate('serviceId', 'name category modes')
+      .populate('servicePartnerId', 'name email phone');
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: booking
+    });
+  } catch (error) {
+    console.error('Get booking by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching booking',
+      error: error.message
+    });
+  }
+};

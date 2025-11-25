@@ -46,7 +46,7 @@ router.put('/reschedule/:bookingId', protect(['patient']), bookingController.res
 
 router.get('/getAllBookings', bookingController.getAllBookings);
 
-
+router.get('/bookings/:bookingId', bookingController.getByIdBooking);
 // Cancel booking (patient)
 router.put('/cancel/:bookingId', protect(['patient']), bookingController.cancelBooking);
 
