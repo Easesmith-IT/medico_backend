@@ -205,7 +205,7 @@ router.post('/admin/bulk-update', verifyAdminRole, serviceController.bulkUpdateS
 router.patch(
   '/services/:id',
   protect('admin', 'superadmin'), // Only allow these roles
-  updateService
+  serviceController.updateService
 );
 // Delete Service (Soft Delete)
 router.delete('/:id', verifyAdminRole, serviceController.deleteService);
