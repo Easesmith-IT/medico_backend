@@ -41,7 +41,7 @@
 //     if (req.user && (req.user.role === 'superadmin' || req.user.role === 'subadmin')) {
 //       data.approvedBy = {
 //         adminId: req.user.id,
-//         adminName: req.user.email || 'Admin' 
+//         adminName: req.user.email || 'Admin'
 //       };
 //       data.approvalStatus = 'Approved';
 //       data.isActive = true;
@@ -260,33 +260,35 @@
 //   }
 // };
 
-
-const ServiceProvider = require('../models/serviceProviderModel');
+const ServiceProvider = require("../models/serviceProviderModel");
 
 // Create service provider
 exports.createServiceProvider = async (req, res) => {
   try {
     const data = req.body;
-    if (req.user && (req.user.role === 'superadmin' || req.user.role === 'subadmin')) {
+    if (
+      req.user &&
+      (req.user.role === "superadmin" || req.user.role === "subadmin")
+    ) {
       data.approvedBy = {
         adminId: req.user.id,
-        adminName: req.user.email || 'Admin'
+        adminName: req.user.email || "Admin",
       };
-      data.approvalStatus = 'Approved';
+      data.approvalStatus = "Approved";
       data.isActive = true;
     }
     const newProvider = await ServiceProvider.create(data);
     res.status(201).json({
       success: true,
-      message: 'Service provider created successfully',
-      data: newProvider
+      message: "Service provider created successfully",
+      data: newProvider,
     });
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: 'Duplicate field value',
-        details: error.keyValue
+        message: "Duplicate field value",
+        details: error.keyValue,
       });
     }
     res.status(500).json({ success: false, message: error.message });
@@ -303,31 +305,31 @@ exports.getAllServiceProviders = async (req, res) => {
       serviceId,
       page = 1,
       limit = 10,
-      search
+      search,
     } = req.query;
 
     const filter = {};
     if (approvalStatus) filter.approvalStatus = approvalStatus;
-    if (typeof isActive !== 'undefined') filter.isActive = isActive === 'true';
+    if (typeof isActive !== "undefined") filter.isActive = isActive === "true";
     if (cityId) filter.serviceCities = cityId;
-    if (serviceId) filter['services.serviceId'] = serviceId;
+    if (serviceId) filter["services.serviceId"] = serviceId;
 
     if (search) {
       filter.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { ownerName: { $regex: search, $options: 'i' } },
-        { mobile: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { registrationNumber: { $regex: search, $options: 'i' } },
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { ownerName: { $regex: search, $options: "i" } },
+        { mobile: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { registrationNumber: { $regex: search, $options: "i" } },
       ];
     }
 
     const skip = (Number(page) - 1) * Number(limit);
     const [providers, total] = await Promise.all([
       ServiceProvider.find(filter)
-        .populate('services.serviceId')
-        .populate('serviceCities')
+        .populate("services.serviceId")
+        .populate("serviceCities")
         .skip(skip)
         .limit(Number(limit))
         .sort({ createdAt: -1 }),
@@ -336,14 +338,14 @@ exports.getAllServiceProviders = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Service providers fetched successfully',
+      message: "Service providers fetched successfully",
       data: providers,
       pagination: {
         total,
         page: Number(page),
         limit: Number(limit),
-        totalPages: Math.ceil(total / Number(limit))
-      }
+        totalPages: Math.ceil(total / Number(limit)),
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -355,13 +357,22 @@ exports.getServiceProviderById = async (req, res) => {
   try {
     const { id } = req.params;
     const provider = await ServiceProvider.findById(id)
-      .populate('services.serviceId')
-      .populate('serviceCities')
-      .populate('approvedBy.adminId');
+      .populate("services.serviceId")
+      .populate("serviceCities")
+      .populate("approvedBy.adminId");
 
-    if (!provider) return res.status(404).json({ success: false, message: 'Service provider not found' });
+    if (!provider)
+      return res
+        .status(404)
+        .json({ success: false, message: "Service provider not found" });
 
-    res.status(200).json({ success: true, message: 'Service provider fetched successfully', data: provider });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Service provider fetched successfully",
+        data: provider,
+      });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -373,26 +384,42 @@ exports.updateServiceProvider = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    if (updateData.permanentAddress?.sameAsCurrent && updateData.currentAddress) {
+    if (
+      updateData.permanentAddress?.sameAsCurrent &&
+      updateData.currentAddress
+    ) {
       updateData.permanentAddress = {
         ...updateData.currentAddress,
         sameAsCurrent: true,
       };
     }
 
-    const updated = await ServiceProvider.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true })
-      .populate('services.serviceId')
-      .populate('serviceCities')
-      .populate('approvedBy.adminId');
+    const updated = await ServiceProvider.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    )
+      .populate("services.serviceId")
+      .populate("serviceCities")
+      .populate("approvedBy.adminId");
 
-    if (!updated) return res.status(404).json({ success: false, message: 'Service provider not found' });
+    if (!updated)
+      return res
+        .status(404)
+        .json({ success: false, message: "Service provider not found" });
 
-    res.status(200).json({ success: true, message: 'Service provider updated successfully', data: updated });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Service provider updated successfully",
+        data: updated,
+      });
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: 'Duplicate field value',
+        message: "Duplicate field value",
         details: error.keyValue,
       });
     }
@@ -407,19 +434,27 @@ exports.deleteServiceProvider = async (req, res) => {
     const adminId = req.user?.id;
 
     const provider = await ServiceProvider.findById(id);
-    if (!provider) return res.status(404).json({ success: false, message: 'Service provider not found' });
+    if (!provider)
+      return res
+        .status(404)
+        .json({ success: false, message: "Service provider not found" });
 
     provider.isDeleted = true;
     provider.deletedAt = new Date();
     provider.deletedBy = {
       userId: adminId,
-      userModel: 'Admin',
+      userModel: "Admin",
     };
     provider.isActive = false;
     provider.isAvailable = false;
     await provider.save();
 
-    res.status(200).json({ success: true, message: 'Service provider deleted (soft) successfully' });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Service provider deleted (soft) successfully",
+      });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -432,25 +467,67 @@ exports.getProvidersByServiceId = async (req, res) => {
     if (!serviceId) {
       return res.status(400).json({
         success: false,
-        message: 'Service ID is required',
+        message: "Service ID is required",
       });
     }
 
-    const providers = await ServiceProvider.find({ 'services.serviceId': serviceId, isDeleted: { $ne: true } })
-      .populate('services.serviceId')
-      .populate('serviceCities')
-      .populate('approvedBy.adminId');
+    const providers = await ServiceProvider.find({
+      "services.serviceId": serviceId,
+      isDeleted: { $ne: true },
+    })
+      .populate("services.serviceId")
+      .populate("serviceCities")
+      .populate("approvedBy.adminId");
 
     res.status(200).json({
       success: true,
-      message: 'Service providers fetched successfully',
+      message: "Service providers fetched successfully",
       data: providers,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch service providers by Service ID',
+      message: "Failed to fetch service providers by Service ID",
       error: error.message,
     });
+  }
+};
+
+exports.toggleStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.user.role;
+    if (!["superadmin", "subadmin"].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only admins can toggle status",
+      });
+    }
+
+    const serviceProvider = await ServiceProvider.findById(id);
+    if (!serviceProvider) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Service provider not found" });
+    }
+
+    serviceProvider.isActive = !serviceProvider.isActive;
+    await serviceProvider.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Service Provider ${
+        serviceProvider.isActive ? "activated" : "deactivated"
+      } successfully`,
+    });
+  } catch (error) {
+    console.error("Toggle service provider status error:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Error toggling service provider status",
+        error: error.message,
+      });
   }
 };
