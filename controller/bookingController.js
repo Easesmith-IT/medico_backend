@@ -426,6 +426,10 @@ exports.getAllBookings = async (req, res) => {
       limit = 10
     } = req.query;
 
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
     let query = {};
 
     if (status) query.status = status;
@@ -433,7 +437,7 @@ exports.getAllBookings = async (req, res) => {
     if (patientId) query.patientId = patientId;
     if (servicePartnerId) query.servicePartnerId = servicePartnerId;
     if (category) query.category = category;
-    if (mode) query.modes = mode; // mode matches elements in modes array
+    if (mode) query.modes = { $in: [mode] };
 
     if (startDate && endDate) {
       query.appointmentDate = {
@@ -446,24 +450,23 @@ exports.getAllBookings = async (req, res) => {
       query.appointmentDate = { $lte: new Date(endDate) };
     }
 
-    const skip = (page - 1) * limit;
-
-    const bookings = await Booking.find(query)
-      .populate('patientId', 'name email phone')
-      .populate('serviceId', 'name category modes')
-      .populate('servicePartnerId', 'name email phone')
-      .sort({ appointmentDate: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const totalCount = await Booking.countDocuments(query);
+    const [bookings, totalCount] = await Promise.all([
+      Booking.find(query)
+        .populate('patientId', 'firstName email phone')
+        .populate('serviceId', 'name category modes')
+        .populate('servicePartnerId', 'name email phone')
+        .sort({ appointmentDate: -1 })
+        .skip(skip)
+        .limit(limitNum),
+      Booking.countDocuments(query)
+    ]);
 
     res.status(200).json({
       success: true,
       count: bookings.length,
       totalCount,
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page: pageNum,
+      limit: limitNum,
       data: bookings
     });
   } catch (error) {
@@ -475,6 +478,7 @@ exports.getAllBookings = async (req, res) => {
     });
   }
 };
+
 exports.getByIdBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
