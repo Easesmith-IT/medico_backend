@@ -42,6 +42,7 @@ router.delete('/patients/:id', verifyAccessToken, adminController.deletePatient)
 router.get('/reports/dashboard', verifyAccessToken, adminController.getDashboardStats);
 router.get('/reports/doctors', verifyAccessToken, adminController.getDoctorStats);
 
+router.patch('/bookings/:bookingId/status',adminController.updateBookingStatus);
 
 
 //add doc by cities 

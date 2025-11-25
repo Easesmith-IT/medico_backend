@@ -2695,6 +2695,52 @@ exports.getDoctorsByCity = catchAsync(async (req, res, next) => {
 
 
 
+// Admin: Update booking status (approve/cancel/reject/etc.)
+exports.updateBookingStatus = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { status, reason } = req.body; // status required, reason optional
+
+    if (!bookingId || !status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking ID and new status are required'
+      });
+    }
+
+    // Allowed statuses (customize as needed)
+    const allowedStatuses = ['Approved', 'Cancelled', 'Rejected', 'Pending', 'Rescheduled'];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Status must be one of: ${allowedStatuses.join(', ')}`
+      });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    booking.status = status;
+    if (reason) booking.statusReason = reason; // Optionally store action reason
+    await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Booking ${status.toLowerCase()} successfully`,
+      data: booking
+    });
+  } catch (error) {
+    console.error('Admin booking status update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating booking status',
+      error: error.message
+    });
+  }
+};
 
 
 
