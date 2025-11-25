@@ -2699,7 +2699,7 @@ exports.getDoctorsByCity = catchAsync(async (req, res, next) => {
 exports.updateBookingStatus = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { status, reason } = req.body; // status required, reason optional
+    const { status, reason } = req.body;
 
     if (!bookingId || !status) {
       return res.status(400).json({
@@ -2708,9 +2708,7 @@ exports.updateBookingStatus = async (req, res) => {
       });
     }
 
-    // Allowed statuses (customize as needed)
     const allowedStatuses = ['Approved', 'Cancelled', 'Rejected', 'Pending', 'Rescheduled'];
-
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -2718,14 +2716,18 @@ exports.updateBookingStatus = async (req, res) => {
       });
     }
 
-    const booking = await Booking.findById(bookingId);
+    // Update only status and reason, don't revalidate full document
+    const updateFields = { status };
+    if (reason) updateFields.statusReason = reason;
+
+    const booking = await Booking.findByIdAndUpdate(
+      bookingId,
+      { $set: updateFields },
+      { new: true }
+    );
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
-
-    booking.status = status;
-    if (reason) booking.statusReason = reason; // Optionally store action reason
-    await booking.save();
 
     res.status(200).json({
       success: true,
