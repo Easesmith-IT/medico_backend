@@ -53,4 +53,5 @@ router.put('/cancel/:bookingId', protect(['patient']), bookingController.cancelB
 
 
 
+
 module.exports = router;
