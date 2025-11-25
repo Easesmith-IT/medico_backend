@@ -1,54 +1,54 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { protect } = require('../middleware/auth');
-const   serviceProviderController = require('../controller/providerController');
+const { protect } = require("../middleware/auth");
+const serviceProviderController = require("../controller/providerController");
 
-
-
-
-router.get('/service-providers/by-service/:serviceId', serviceProviderController.getProvidersByServiceId);
+router.get(
+  "/service-providers/by-service/:serviceId",
+  serviceProviderController.getProvidersByServiceId
+);
 // Only allow superadmin and subadmin to create service provider
-router.post('/createservice-provider', protect('superadmin', 'subadmin'),serviceProviderController.createServiceProvider);
-
-
-
-
-
+router.post(
+  "/createservice-provider",
+  protect("superadmin", "subadmin"),
+  serviceProviderController.createServiceProvider
+);
 
 // Get all service providers - can be public or protected as needed
 router.get(
-  '/getAllServiceProviders',
+  "/getAllServiceProviders",
   // optionally add protect() if you want to restrict access
   serviceProviderController.getAllServiceProviders
 );
 
 // Get service provider by ID - can be public or protected as needed
 router.get(
-  '/service-provider/:id',
+  "/service-provider/:id",
   // optionally add protect() if you want to restrict access
   serviceProviderController.getServiceProviderById
 );
 
 // Update service provider by ID - admin only
 router.put(
-  '/service-provider/:id',
-  protect('superadmin', 'subadmin'),
+  "/service-provider/:id",
+  protect("superadmin", "subadmin"),
   serviceProviderController.updateServiceProvider
 );
 
 // Soft delete service provider by ID - admin only
 router.delete(
-  '/service-provider/:id',
-  protect('superadmin', 'subadmin'),
+  "/service-provider/:id",
+  protect("superadmin", "subadmin"),
   serviceProviderController.deleteServiceProvider
 );
 
-
-
-
+router.patch(
+  "/:id/toggle-status",
+  protect("superadmin", "subadmin"),
+  serviceProviderController.toggleStatus
+);
 
 module.exports = router;
-
 
 // const express = require('express');
 // const router = express.Router();
