@@ -1060,12 +1060,64 @@ exports.getServiceById = async (req, res) => {
 
 
 // Update Service
+// exports.updateService = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+//     if (!['admin', 'superadmin'].includes(userRole)) {
+//       return res.status(403).json({ success: false, message: 'Only admins can update services' });
+//     }
+
+//     const service = await Service.findById(id);
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Service not found' });
+//     }
+
+//     const {
+//       name, description, basePrice, equipmentCharges,
+//       taxPercentage, modes, defaultDuration, durationOptions,
+//       paymentMode, timeFormat, icon, image, cities,
+//       isActive, slotConfig
+//     } = req.body;
+
+//     if (cities) {
+//       try {
+//         await validateCities(cities);
+//         service.cities = cities;
+//       } catch (error) {
+//         return res.status(400).json({ success: false, message: error.message });
+//       }
+//     }
+//     if (name) service.name = name;
+//     if (description) service.description = description;
+//     if (basePrice !== undefined) service.basePrice = basePrice;
+//     if (equipmentCharges !== undefined) service.equipmentCharges = equipmentCharges;
+//     if (taxPercentage !== undefined) service.taxPercentage = taxPercentage;
+//     if (modes) service.modes = modes;
+//     if (defaultDuration !== undefined) service.defaultDuration = defaultDuration;
+//     if (durationOptions) service.durationOptions = durationOptions;
+//     if (paymentMode) service.paymentMode = paymentMode;
+//     if (timeFormat) service.timeFormat = timeFormat;
+//     if (icon !== undefined) service.icon = icon;
+//     if (image !== undefined) service.image = image;
+//     if (isActive !== undefined) service.isActive = isActive;
+//     if (slotConfig) service.slotConfig = { ...service.slotConfig, ...slotConfig };
+
+//     await service.save();
+//     await service.populate('cities', 'name latitude longitude');
+
+//     res.status(200).json({ success: true, message: 'Service updated successfully', data: service });
+//   } catch (error) {
+//     console.error('Update service error:', error);
+//     res.status(500).json({ success: false, message: 'Error updating service', error: error.message });
+//   }
+// };
 exports.updateService = async (req, res) => {
   try {
+    // The protect middleware will already have set req.user if the user is authenticated and authorized
     const { id } = req.params;
-    const userRole = req.user.role;
-    if (!['admin', 'superadmin'].includes(userRole)) {
-      return res.status(403).json({ success: false, message: 'Only admins can update services' });
+    if (!req.user || !['admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
     const service = await Service.findById(id);
@@ -1073,12 +1125,15 @@ exports.updateService = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Service not found' });
     }
 
+    // extract and update fields as before...
     const {
       name, description, basePrice, equipmentCharges,
       taxPercentage, modes, defaultDuration, durationOptions,
       paymentMode, timeFormat, icon, image, cities,
       isActive, slotConfig
     } = req.body;
+
+    // ... rest of your update code remains unchanged ...
 
     if (cities) {
       try {
@@ -1106,12 +1161,17 @@ exports.updateService = async (req, res) => {
     await service.save();
     await service.populate('cities', 'name latitude longitude');
 
-    res.status(200).json({ success: true, message: 'Service updated successfully', data: service });
+    res.status(200).json({
+      success: true,
+      message: 'Service updated successfully',
+      data: service,
+    });
   } catch (error) {
     console.error('Update service error:', error);
     res.status(500).json({ success: false, message: 'Error updating service', error: error.message });
   }
 };
+
 
 // Delete Service (Soft Delete)
 exports.deleteService = async (req, res) => {

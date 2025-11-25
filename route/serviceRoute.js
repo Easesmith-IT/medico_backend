@@ -201,8 +201,12 @@ router.get('/admin/statistics', verifyAdminRole, serviceController.getServiceSta
 router.post('/admin/bulk-update', verifyAdminRole, serviceController.bulkUpdateServices);
 
 // Update Service
-router.put('/:id', verifyAdminRole, serviceController.updateService);
-
+// router.put('/updateService/:id', verifyAdminRole, serviceController.updateService);
+router.patch(
+  '/services/:id',
+  protect('admin', 'superadmin'), // Only allow these roles
+  serviceController.updateService
+);
 // Delete Service (Soft Delete)
 router.delete('/:id', verifyAdminRole, serviceController.deleteService);
 
