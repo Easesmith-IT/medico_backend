@@ -1221,6 +1221,8 @@ const {
 const Booking = require("../models/bookingModel");
 const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
+const Service = require('../models/serviceModel');
+const ServiceProvider = require("../models/serviceProviderModel");
 
 // ============================================
 // ADMIN SIGNUP - STEP 1: Create Account
@@ -2172,6 +2174,180 @@ exports.exportPatients = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.exportAppointments = catchAsync(async (req, res, next) => {
+  const { from, to, format = "csv" } = req.query;
+
+  // ----------------------------
+  // 🧠 Dynamic Filter (ONLY DATE)
+  // ----------------------------
+  const query = {};
+
+  if (from || to) {
+    query.appointmentDate = {};
+    if (from) {
+      const start = new Date(from);
+      start.setHours(0, 0, 0, 0);
+      query.appointmentDate.$gte = start;
+    }
+    if (to) {
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+      query.appointmentDate.$lte = end;
+    }
+  }
+
+  // ----------------------------
+  // 📦 Fetch with populated fields
+  // ----------------------------
+  const appointments = await Booking.find(query)
+    .populate("patientId", "firstName lastName phone email")
+    .populate("serviceId", "name basePrice")
+    .populate("servicePartnerId", "firstName lastName")
+    .lean();
+
+  if (!appointments.length) {
+    return res.status(404).json({ message: "No appointments found" });
+  }
+
+  // ----------------------------
+  // 📤 EXPORT AS CSV
+  // ----------------------------
+  if (format === "csv") {
+    const flat = appointments.map((a) => ({
+      patientName: `${a.patientId?.firstName || ""} ${
+        a.patientId?.lastName || ""
+      }`,
+      patientPhone: a.patientId?.phone || "—",
+      serviceName: a.serviceId?.name || "—",
+      partnerName: a.servicePartnerId
+        ? `${a.servicePartnerId.firstName} ${a.servicePartnerId.lastName}`
+        : "—",
+      appointmentDate: new Date(a.appointmentDate).toLocaleDateString(),
+      slot: `${a.slotTime?.startTime} - ${a.slotTime?.endTime}`,
+      status: a.status,
+      totalAmount: a.pricing?.totalAmount || "—",
+      createdAt: new Date(a.createdAt).toLocaleString(),
+    }));
+
+    const csvFields = [
+      "patientName",
+      "patientPhone",
+      "serviceName",
+      "partnerName",
+      "appointmentDate",
+      "slot",
+      "status",
+      "totalAmount",
+      "createdAt",
+    ];
+
+    const parser = new Parser({ fields: csvFields });
+    const csv = parser.parse(flat);
+
+    res.header("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=appointments.csv"
+    );
+    res.write("\uFEFF");
+    return res.end(csv);
+  }
+
+  // ----------------------------
+  // 📄 EXPORT AS PDF
+  // ----------------------------
+  if (format === "pdf") {
+    const doc = new PDFDocument({ margin: 40, size: "A4" });
+    const fileName = "appointments.pdf";
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
+    doc.pipe(res);
+
+    doc.fontSize(20).font("Helvetica-Bold").text("Appointment Report", {
+      align: "center",
+    });
+
+    doc.moveDown(1);
+    doc.fontSize(12).text(`Total Appointments: ${appointments.length}`);
+    doc.moveDown(1.5);
+
+    const headers = [
+      "Patient",
+      "Service",
+      "Partner",
+      "Date",
+      "Slot",
+      "Status",
+      "Amount",
+    ];
+    const colWidths = [90, 90, 90, 60, 70, 60, 60];
+    let x = 40;
+    let y = doc.y;
+
+    doc
+      .rect(x - 5, y - 2, 520, 20)
+      .fill("#f0f0f0")
+      .stroke();
+    doc.fillColor("black").font("Helvetica-Bold");
+
+    headers.forEach((h, i) => {
+      doc.text(h, x, y, { width: colWidths[i] });
+      x += colWidths[i];
+    });
+
+    y += 22;
+    doc
+      .moveTo(35, y - 5)
+      .lineTo(560, y - 5)
+      .stroke();
+
+    doc.font("Helvetica").fontSize(10);
+
+    appointments.forEach((a, index) => {
+      const row = [
+        `${a.patientId?.firstName || ""} ${a.patientId?.lastName || ""}`,
+        a.serviceId?.name || "-",
+        a.servicePartnerId
+          ? `${a.servicePartnerId.firstName} ${a.servicePartnerId.lastName}`
+          : "-",
+        new Date(a.appointmentDate).toLocaleDateString(),
+        `${a.slotTime?.startTime} - ${a.slotTime?.endTime}`,
+        a.status,
+        a.pricing?.totalAmount || "-",
+      ];
+
+      if (index % 2 === 0) {
+        doc
+          .rect(35, y - 2, 520, 18)
+          .fill("#fafafa")
+          .stroke();
+        doc.fillColor("black");
+      }
+
+      let xPos = 40;
+      row.forEach((cell, i) => {
+        doc.text(String(cell), xPos, y, { width: colWidths[i] });
+        xPos += colWidths[i];
+      });
+
+      y += 18;
+      if (y > 750) {
+        doc.addPage();
+        y = 50;
+      }
+    });
+
+    doc.end();
+    return;
+  }
+
+  return res.status(400).json({
+    message: "Invalid format. Use ?format=csv or ?format=pdf",
+  });
+});
+
+
 exports.getAllPatients = catchAsync(async (req, res, next) => {
   const {
     page = 1,
@@ -2747,6 +2923,68 @@ exports.updateBookingStatus = async (req, res) => {
 
 
 
+exports.getServiceNames = async (req, res) => {
+  try {
+    const services = await Service.find(
+      { isDeleted: false }, // Only active data
+      { name: 1 } // Projection: return only name + _id
+    ).sort({ name: 1 }); // Sorted alphabetically (optional)
+
+    res.status(200).json({
+      success: true,
+      count: services.length,
+      data: services,
+    });
+  } catch (error) {
+    console.error("Error fetching service names:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch service names",
+    });
+  }
+};
+
+exports.getPatientNames = async (req, res) => {
+  try {
+    const patients = await Patient.find(
+      { isActive: true }, // Fetch only active patients (optional)
+      { firstName: 1, lastName: 1 } // Projection: return only name + _id
+    ).sort({ firstName: 1 }); // Alphabetical order
+
+    res.status(200).json({
+      success: true,
+      count: patients.length,
+      data: patients,
+    });
+  } catch (error) {
+    console.error("Error fetching patient names:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch patient names",
+    });
+  }
+};
+
+exports.getServiceProviderNames = async (req, res) => {
+  try {
+    const providers = await ServiceProvider.find(
+      { isDeleted: false }, // Only active/non-deleted
+      { firstName: 1, lastName: 1, ownerName: 1 } // Projection
+    ).sort({ firstName: 1 }); // Sort A → Z
+
+    res.status(200).json({
+      success: true,
+      count: providers.length,
+      data: providers,
+    });
+  } catch (error) {
+    console.error("Error fetching service provider names:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch service provider names",
+    });
+  }
+};
 
 
 module.exports = exports;
