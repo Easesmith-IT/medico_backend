@@ -1202,15 +1202,15 @@
 
 // controllers/adminController.js
 
-const catchAsync = require('../utils/catchAsync');
-const AppError = require('../utils/appError');
-const Admin = require('../models/adminModel');
-const Doctor = require('../models/doctorModel');
-const Patient = require('../models/patientModel');
-const Otp = require('../models/otpModel');
-const { sendOtp } = require('../utils/otpUtils');
-const bcrypt = require('bcryptjs');
-const City = require('../models/availableCities'); 
+const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
+const Admin = require("../models/adminModel");
+const Doctor = require("../models/doctorModel");
+const Patient = require("../models/patientModel");
+const Otp = require("../models/otpModel");
+const { sendOtp } = require("../utils/otpUtils");
+const bcrypt = require("bcryptjs");
+const City = require("../models/availableCities");
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -1221,7 +1221,7 @@ const {
 const Booking = require("../models/bookingModel");
 const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
-const Service = require('../models/serviceModel');
+const Service = require("../models/serviceModel");
 const ServiceProvider = require("../models/serviceProviderModel");
 
 // ============================================
@@ -2064,107 +2064,106 @@ exports.exportPatients = catchAsync(async (req, res, next) => {
   // ----------------------------
   // 📄 EXPORT AS PDF
   // ----------------------------
- if (format === "pdf") {
-   const doc = new PDFDocument({ margin: 40, size: "A4" });
-   const fileName = "patients.pdf";
+  if (format === "pdf") {
+    const doc = new PDFDocument({ margin: 40, size: "A4" });
+    const fileName = "patients.pdf";
 
-   res.setHeader("Content-Type", "application/pdf");
-   res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
-   doc.pipe(res);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
+    doc.pipe(res);
 
-   // ----------------------------
-   // 🏷️ Title
-   // ----------------------------
-   doc
-     .fontSize(20)
-     .font("Helvetica-Bold")
-     .text("Patient Records Report", { align: "center" });
-   doc.moveDown(1);
-   doc
-     .fontSize(12)
-     .font("Helvetica")
-     .text(`Total Patients: ${patients.length}`);
-   doc.moveDown(1.5);
+    // ----------------------------
+    // 🏷️ Title
+    // ----------------------------
+    doc
+      .fontSize(20)
+      .font("Helvetica-Bold")
+      .text("Patient Records Report", { align: "center" });
+    doc.moveDown(1);
+    doc
+      .fontSize(12)
+      .font("Helvetica")
+      .text(`Total Patients: ${patients.length}`);
+    doc.moveDown(1.5);
 
-   // ----------------------------
-   // 🧾 Table Header
-   // ----------------------------
-   const headers = [
-     "Name",
-     "Email",
-     "Phone",
-     "DOB",
-     "Gender",
-     "Blood",
-     "City",
-   ];
-   const colWidths = [70, 160, 70, 60, 55, 45, 60, 75, 55];
-   const startX = 40;
-   let y = doc.y;
+    // ----------------------------
+    // 🧾 Table Header
+    // ----------------------------
+    const headers = [
+      "Name",
+      "Email",
+      "Phone",
+      "DOB",
+      "Gender",
+      "Blood",
+      "City",
+    ];
+    const colWidths = [70, 160, 70, 60, 55, 45, 60, 75, 55];
+    const startX = 40;
+    let y = doc.y;
 
-   // Draw header background
-   doc
-     .rect(startX - 5, y - 2, 520, 20)
-     .fill("#f0f0f0")
-     .stroke();
-   doc.fillColor("black").font("Helvetica-Bold");
+    // Draw header background
+    doc
+      .rect(startX - 5, y - 2, 520, 20)
+      .fill("#f0f0f0")
+      .stroke();
+    doc.fillColor("black").font("Helvetica-Bold");
 
-   let x = startX;
-   headers.forEach((header, i) => {
-     doc.text(header, x, y, { width: colWidths[i], align: "left" });
-     x += colWidths[i];
-   });
+    let x = startX;
+    headers.forEach((header, i) => {
+      doc.text(header, x, y, { width: colWidths[i], align: "left" });
+      x += colWidths[i];
+    });
 
-   y += 22;
-   doc
-     .moveTo(startX - 5, y - 5)
-     .lineTo(560, y - 5)
-     .stroke();
+    y += 22;
+    doc
+      .moveTo(startX - 5, y - 5)
+      .lineTo(560, y - 5)
+      .stroke();
 
-   // ----------------------------
-   // 📋 Table Rows
-   // ----------------------------
-   doc.font("Helvetica").fontSize(10);
-   patients.forEach((p, index) => {
-     const row = [
-       p.firstName || "-",
-       p.email || "-",
-       p.phone || "-",
-       p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString() : "-",
-       p.gender || "-",
-       p.bloodGroup || "-",
-       p.address?.city || "-",
-     ];
+    // ----------------------------
+    // 📋 Table Rows
+    // ----------------------------
+    doc.font("Helvetica").fontSize(10);
+    patients.forEach((p, index) => {
+      const row = [
+        p.firstName || "-",
+        p.email || "-",
+        p.phone || "-",
+        p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString() : "-",
+        p.gender || "-",
+        p.bloodGroup || "-",
+        p.address?.city || "-",
+      ];
 
-     // Alternate row color
-     if (index % 2 === 0) {
-       doc
-         .rect(startX - 5, y - 2, 520, 18)
-         .fill("#fafafa")
-         .stroke();
-       doc.fillColor("black");
-     }
+      // Alternate row color
+      if (index % 2 === 0) {
+        doc
+          .rect(startX - 5, y - 2, 520, 18)
+          .fill("#fafafa")
+          .stroke();
+        doc.fillColor("black");
+      }
 
-     let x = startX;
-     row.forEach((cell, i) => {
-       doc.text(String(cell), x, y, { width: colWidths[i], align: "left" });
-       x += colWidths[i];
-     });
+      let x = startX;
+      row.forEach((cell, i) => {
+        doc.text(String(cell), x, y, { width: colWidths[i], align: "left" });
+        x += colWidths[i];
+      });
 
-     y += 18;
-     if (y > 750) {
-       doc.addPage();
-       y = 50;
-     }
-   });
+      y += 18;
+      if (y > 750) {
+        doc.addPage();
+        y = 50;
+      }
+    });
 
-   // ----------------------------
-   // ✅ End PDF
-   // ----------------------------
-   doc.end();
-   return;
- }
-
+    // ----------------------------
+    // ✅ End PDF
+    // ----------------------------
+    doc.end();
+    return;
+  }
 
   // ----------------------------
   // ❌ Unsupported format
@@ -2183,16 +2182,16 @@ exports.exportAppointments = catchAsync(async (req, res, next) => {
   const query = {};
 
   if (from || to) {
-    query.appointmentDate = {};
+    query.createdAt = {};
     if (from) {
       const start = new Date(from);
       start.setHours(0, 0, 0, 0);
-      query.appointmentDate.$gte = start;
+      query.createdAt.$gte = start;
     }
     if (to) {
       const end = new Date(to);
       end.setHours(23, 59, 59, 999);
-      query.appointmentDate.$lte = end;
+      query.createdAt.$lte = end;
     }
   }
 
@@ -2347,7 +2346,6 @@ exports.exportAppointments = catchAsync(async (req, res, next) => {
   });
 });
 
-
 exports.getAllPatients = catchAsync(async (req, res, next) => {
   const {
     page = 1,
@@ -2500,44 +2498,39 @@ exports.getDoctorStats = catchAsync(async (req, res, next) => {
   });
 });
 
-
-
-
-//added doctor city 
+//added doctor city
 exports.addDoctorToCities = catchAsync(async (req, res, next) => {
   const { doctorId, cityIds } = req.body;
 
-  console.log('');
-  console.log('ADMIN: ADD DOCTOR TO CITIES');
-  console.log('='.repeat(60));
+  console.log("");
+  console.log("ADMIN: ADD DOCTOR TO CITIES");
+  console.log("=".repeat(60));
   console.log(`Doctor ID: ${doctorId}`);
   console.log(`Cities count: ${cityIds?.length || 0}`);
 
   // Validate input
   if (!doctorId) {
-    return next(new AppError('Doctor ID is required', 400));
+    return next(new AppError("Doctor ID is required", 400));
   }
 
   if (!cityIds || !Array.isArray(cityIds) || cityIds.length === 0) {
     return next(
       new AppError(
-        'Please provide an array of cityIds with at least one city',
+        "Please provide an array of cityIds with at least one city",
         400
       )
     );
   }
 
   // Validate MongoDB ObjectId format
-  const mongoose = require('mongoose');
+  const mongoose = require("mongoose");
   if (!mongoose.Types.ObjectId.isValid(doctorId)) {
-    return next(new AppError('Invalid doctor ID format', 400));
+    return next(new AppError("Invalid doctor ID format", 400));
   }
 
   for (const cityId of cityIds) {
     if (!mongoose.Types.ObjectId.isValid(cityId)) {
-      return next(
-        new AppError(`Invalid city ID format: ${cityId}`, 400)
-      );
+      return next(new AppError(`Invalid city ID format: ${cityId}`, 400));
     }
   }
 
@@ -2545,44 +2538,41 @@ exports.addDoctorToCities = catchAsync(async (req, res, next) => {
   const doctor = await Doctor.findById(doctorId);
 
   if (!doctor) {
-    return next(new AppError('Doctor not found', 404));
+    return next(new AppError("Doctor not found", 404));
   }
 
-  console.log(`Doctor: ${doctor.firstName} ${doctor.lastName || ''}`);
+  console.log(`Doctor: ${doctor.firstName} ${doctor.lastName || ""}`);
 
   // Verify all cities exist
   const cities = await City.find({ _id: { $in: cityIds } });
 
   if (cities.length !== cityIds.length) {
-    const foundCityIds = cities.map(c => c._id.toString());
+    const foundCityIds = cities.map((c) => c._id.toString());
     const missingCityIds = cityIds.filter(
-      id => !foundCityIds.includes(id.toString())
+      (id) => !foundCityIds.includes(id.toString())
     );
     return next(
-      new AppError(
-        `Some cities not found: ${missingCityIds.join(', ')}`,
-        404
-      )
+      new AppError(`Some cities not found: ${missingCityIds.join(", ")}`, 404)
     );
   }
 
-  console.log('SUCCESS: All cities verified');
+  console.log("SUCCESS: All cities verified");
 
   // Add cities to doctor (avoid duplicates)
-  const existingCityIds = doctor.cities.map(id => id.toString());
+  const existingCityIds = doctor.cities.map((id) => id.toString());
   const newCityIds = cityIds.filter(
-    id => !existingCityIds.includes(id.toString())
+    (id) => !existingCityIds.includes(id.toString())
   );
 
-  const duplicateCityIds = cityIds.filter(
-    id => existingCityIds.includes(id.toString())
+  const duplicateCityIds = cityIds.filter((id) =>
+    existingCityIds.includes(id.toString())
   );
 
   if (newCityIds.length === 0) {
-    console.log('INFO: Doctor already added to all these cities');
+    console.log("INFO: Doctor already added to all these cities");
     return res.status(200).json({
       success: true,
-      message: 'Doctor is already associated with all these cities',
+      message: "Doctor is already associated with all these cities",
       alreadyAdded: duplicateCityIds.length,
       newlyAdded: 0,
       data: {
@@ -2592,9 +2582,9 @@ exports.addDoctorToCities = catchAsync(async (req, res, next) => {
           lastName: doctor.lastName,
           email: doctor.email,
           phone: doctor.phone,
-          totalCities: doctor.cities.length
-        }
-      }
+          totalCities: doctor.cities.length,
+        },
+      },
     });
   }
 
@@ -2603,20 +2593,22 @@ exports.addDoctorToCities = catchAsync(async (req, res, next) => {
 
   console.log(`SUCCESS: Doctor added to ${newCityIds.length} new cities`);
   if (duplicateCityIds.length > 0) {
-    console.log(`INFO: ${duplicateCityIds.length} cities were already associated`);
+    console.log(
+      `INFO: ${duplicateCityIds.length} cities were already associated`
+    );
   }
-  console.log('='.repeat(60));
-  console.log('');
+  console.log("=".repeat(60));
+  console.log("");
 
   // Populate city details before response
-  await doctor.populate('cities', 'name latitude longitude');
+  await doctor.populate("cities", "name latitude longitude");
 
   res.status(200).json({
     success: true,
     message: `Doctor added to ${newCityIds.length} cities successfully${
       duplicateCityIds.length > 0
         ? ` (${duplicateCityIds.length} already associated)`
-        : ''
+        : ""
     }`,
     newlyAdded: newCityIds.length,
     alreadyAdded: duplicateCityIds.length,
@@ -2630,9 +2622,9 @@ exports.addDoctorToCities = catchAsync(async (req, res, next) => {
         medicalRegistrationNumber: doctor.medicalRegistrationNumber,
         specialization: doctor.specialization,
         cities: doctor.cities,
-        totalCities: doctor.cities.length
-      }
-    }
+        totalCities: doctor.cities.length,
+      },
+    },
   });
 });
 
@@ -2643,47 +2635,47 @@ exports.addDoctorToCities = catchAsync(async (req, res, next) => {
 exports.removeDoctorFromCities = catchAsync(async (req, res, next) => {
   const { doctorId, cityIds } = req.body;
 
-  console.log('');
-  console.log('ADMIN: REMOVE DOCTOR FROM CITIES');
-  console.log('='.repeat(60));
+  console.log("");
+  console.log("ADMIN: REMOVE DOCTOR FROM CITIES");
+  console.log("=".repeat(60));
 
   if (!doctorId) {
-    return next(new AppError('Doctor ID is required', 400));
+    return next(new AppError("Doctor ID is required", 400));
   }
 
   if (!cityIds || !Array.isArray(cityIds) || cityIds.length === 0) {
     return next(
       new AppError(
-        'Please provide an array of cityIds with at least one city',
+        "Please provide an array of cityIds with at least one city",
         400
       )
     );
   }
 
-  const mongoose = require('mongoose');
+  const mongoose = require("mongoose");
   if (!mongoose.Types.ObjectId.isValid(doctorId)) {
-    return next(new AppError('Invalid doctor ID format', 400));
+    return next(new AppError("Invalid doctor ID format", 400));
   }
 
   const doctor = await Doctor.findById(doctorId);
 
   if (!doctor) {
-    return next(new AppError('Doctor not found', 404));
+    return next(new AppError("Doctor not found", 404));
   }
 
   const initialCount = doctor.cities.length;
   doctor.cities = doctor.cities.filter(
-    id => !cityIds.includes(id.toString())
+    (id) => !cityIds.includes(id.toString())
   );
 
   const removedCount = initialCount - doctor.cities.length;
 
   await doctor.save();
-  await doctor.populate('cities', 'name latitude longitude');
+  await doctor.populate("cities", "name latitude longitude");
 
   console.log(`SUCCESS: Removed doctor from ${removedCount} cities`);
-  console.log('='.repeat(60));
-  console.log('');
+  console.log("=".repeat(60));
+  console.log("");
 
   res.status(200).json({
     success: true,
@@ -2697,9 +2689,9 @@ exports.removeDoctorFromCities = catchAsync(async (req, res, next) => {
         email: doctor.email,
         phone: doctor.phone,
         cities: doctor.cities,
-        totalCities: doctor.cities.length
-      }
-    }
+        totalCities: doctor.cities.length,
+      },
+    },
   });
 });
 
@@ -2710,27 +2702,27 @@ exports.removeDoctorFromCities = catchAsync(async (req, res, next) => {
 exports.updateDoctorCities = catchAsync(async (req, res, next) => {
   const { doctorId, cityIds } = req.body;
 
-  console.log('');
-  console.log('ADMIN: UPDATE DOCTOR CITIES (REPLACE ALL)');
-  console.log('='.repeat(60));
+  console.log("");
+  console.log("ADMIN: UPDATE DOCTOR CITIES (REPLACE ALL)");
+  console.log("=".repeat(60));
 
   if (!doctorId) {
-    return next(new AppError('Doctor ID is required', 400));
+    return next(new AppError("Doctor ID is required", 400));
   }
 
   if (!cityIds || !Array.isArray(cityIds)) {
-    return next(new AppError('Please provide an array of cityIds', 400));
+    return next(new AppError("Please provide an array of cityIds", 400));
   }
 
-  const mongoose = require('mongoose');
+  const mongoose = require("mongoose");
   if (!mongoose.Types.ObjectId.isValid(doctorId)) {
-    return next(new AppError('Invalid doctor ID format', 400));
+    return next(new AppError("Invalid doctor ID format", 400));
   }
 
   const doctor = await Doctor.findById(doctorId);
 
   if (!doctor) {
-    return next(new AppError('Doctor not found', 404));
+    return next(new AppError("Doctor not found", 404));
   }
 
   // Verify all cities exist (if cityIds is not empty)
@@ -2738,15 +2730,12 @@ exports.updateDoctorCities = catchAsync(async (req, res, next) => {
     const cities = await City.find({ _id: { $in: cityIds } });
 
     if (cities.length !== cityIds.length) {
-      const foundCityIds = cities.map(c => c._id.toString());
+      const foundCityIds = cities.map((c) => c._id.toString());
       const missingCityIds = cityIds.filter(
-        id => !foundCityIds.includes(id.toString())
+        (id) => !foundCityIds.includes(id.toString())
       );
       return next(
-        new AppError(
-          `Some cities not found: ${missingCityIds.join(', ')}`,
-          404
-        )
+        new AppError(`Some cities not found: ${missingCityIds.join(", ")}`, 404)
       );
     }
   }
@@ -2754,11 +2743,13 @@ exports.updateDoctorCities = catchAsync(async (req, res, next) => {
   const previousCount = doctor.cities.length;
   doctor.cities = cityIds;
   await doctor.save();
-  await doctor.populate('cities', 'name latitude longitude');
+  await doctor.populate("cities", "name latitude longitude");
 
-  console.log(`SUCCESS: Doctor cities updated from ${previousCount} to ${cityIds.length}`);
-  console.log('='.repeat(60));
-  console.log('');
+  console.log(
+    `SUCCESS: Doctor cities updated from ${previousCount} to ${cityIds.length}`
+  );
+  console.log("=".repeat(60));
+  console.log("");
 
   res.status(200).json({
     success: true,
@@ -2773,9 +2764,9 @@ exports.updateDoctorCities = catchAsync(async (req, res, next) => {
         email: doctor.email,
         phone: doctor.phone,
         cities: doctor.cities,
-        totalCities: doctor.cities.length
-      }
-    }
+        totalCities: doctor.cities.length,
+      },
+    },
   });
 });
 
@@ -2787,21 +2778,21 @@ exports.getDoctorCities = catchAsync(async (req, res, next) => {
   const { doctorId } = req.params;
 
   if (!doctorId) {
-    return next(new AppError('Doctor ID is required', 400));
+    return next(new AppError("Doctor ID is required", 400));
   }
 
-  const mongoose = require('mongoose');
+  const mongoose = require("mongoose");
   if (!mongoose.Types.ObjectId.isValid(doctorId)) {
-    return next(new AppError('Invalid doctor ID format', 400));
+    return next(new AppError("Invalid doctor ID format", 400));
   }
 
   const doctor = await Doctor.findById(doctorId).populate(
-    'cities',
-    'name latitude longitude'
+    "cities",
+    "name latitude longitude"
   );
 
   if (!doctor) {
-    return next(new AppError('Doctor not found', 404));
+    return next(new AppError("Doctor not found", 404));
   }
 
   res.status(200).json({
@@ -2812,11 +2803,11 @@ exports.getDoctorCities = catchAsync(async (req, res, next) => {
         firstName: doctor.firstName,
         lastName: doctor.lastName,
         email: doctor.email,
-        phone: doctor.phone
+        phone: doctor.phone,
       },
       cities: doctor.cities,
-      totalCities: doctor.cities.length
-    }
+      totalCities: doctor.cities.length,
+    },
   });
 });
 
@@ -2828,28 +2819,28 @@ exports.getDoctorsByCity = catchAsync(async (req, res, next) => {
   const { cityId, page = 1, limit = 10 } = req.query;
 
   if (!cityId) {
-    return next(new AppError('City ID is required', 400));
+    return next(new AppError("City ID is required", 400));
   }
 
-  const mongoose = require('mongoose');
+  const mongoose = require("mongoose");
   if (!mongoose.Types.ObjectId.isValid(cityId)) {
-    return next(new AppError('Invalid city ID format', 400));
+    return next(new AppError("Invalid city ID format", 400));
   }
 
   // Check if city exists
   const city = await City.findById(cityId);
   if (!city) {
-    return next(new AppError('City not found', 404));
+    return next(new AppError("City not found", 404));
   }
 
   const skip = (page - 1) * limit;
 
   const doctors = await Doctor.find({ cities: cityId })
-    .select('-password -tokenVersion -verificationDocuments')
+    .select("-password -tokenVersion -verificationDocuments")
     .skip(skip)
     .limit(parseInt(limit))
-    .populate('cities', 'name')
-    .sort('-createdAt');
+    .populate("cities", "name")
+    .sort("-createdAt");
 
   const total = await Doctor.countDocuments({ cities: cityId });
 
@@ -2859,17 +2850,15 @@ exports.getDoctorsByCity = catchAsync(async (req, res, next) => {
       id: city._id,
       name: city.name,
       latitude: city.latitude,
-      longitude: city.longitude
+      longitude: city.longitude,
     },
     results: doctors.length,
     totalPages: Math.ceil(total / limit),
     currentPage: parseInt(page),
     totalDoctors: total,
-    data: { doctors }
+    data: { doctors },
   });
 });
-
-
 
 // Admin: Update booking status (approve/cancel/reject/etc.)
 exports.updateBookingStatus = async (req, res) => {
@@ -2880,15 +2869,21 @@ exports.updateBookingStatus = async (req, res) => {
     if (!bookingId || !status) {
       return res.status(400).json({
         success: false,
-        message: 'Booking ID and new status are required'
+        message: "Booking ID and new status are required",
       });
     }
 
-    const allowedStatuses = ['Approved', 'Cancelled', 'Rejected', 'Pending', 'Rescheduled'];
+    const allowedStatuses = [
+      "Approved",
+      "Cancelled",
+      "Rejected",
+      "Pending",
+      "Rescheduled",
+    ];
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: `Status must be one of: ${allowedStatuses.join(', ')}`
+        message: `Status must be one of: ${allowedStatuses.join(", ")}`,
       });
     }
 
@@ -2902,26 +2897,25 @@ exports.updateBookingStatus = async (req, res) => {
       { new: true }
     );
     if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found" });
     }
 
     res.status(200).json({
       success: true,
       message: `Booking ${status.toLowerCase()} successfully`,
-      data: booking
+      data: booking,
     });
   } catch (error) {
-    console.error('Admin booking status update error:', error);
+    console.error("Admin booking status update error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error updating booking status',
-      error: error.message
+      message: "Error updating booking status",
+      error: error.message,
     });
   }
 };
-
-
-
 
 exports.getServiceNames = async (req, res) => {
   try {
@@ -2985,6 +2979,5 @@ exports.getServiceProviderNames = async (req, res) => {
     });
   }
 };
-
 
 module.exports = exports;
