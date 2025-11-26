@@ -655,65 +655,104 @@ exports.getAllBookings = async (req, res) => {
       }
     }
 
+    // const aggregationPipeline = [
+    //   { $match: match },
+    //   {
+    //     $lookup: {
+    //       from: 'patients',
+    //       localField: 'patientId',
+    //       foreignField: '_id',
+    //       as: 'patient'
+    //     }
+    //   },
+    //   { $unwind: "$patient" },
+    //   {
+    //     $lookup: {
+    //       from: 'availablecities',
+    //       localField: 'patient.city',
+    //       foreignField: '_id',
+    //       as: 'patient.city'
+    //     }
+    //   },
+    //   { $unwind: { path: "$patient.city", preserveNullAndEmptyArrays: true } },
+    //   {
+    //     $lookup: {
+    //       from: 'services',
+    //       localField: 'serviceId',
+    //       foreignField: '_id',
+    //       as: 'service'
+    //     }
+    //   },
+    //   { $unwind: "$service" },
+    //   {
+    //     $lookup: {
+    //       from: 'doctors',
+    //       localField: 'servicePartnerId',
+    //       foreignField: '_id',
+    //       as: 'servicePartner'
+    //     }
+    //   },
+    //   { $unwind: { path: "$servicePartner", preserveNullAndEmptyArrays: true } },
+    //   {
+    //     $lookup: {
+    //       from: 'availablecities',
+    //       localField: 'servicePartner.city',
+    //       foreignField: '_id',
+    //       as: 'servicePartner.city'
+    //     }
+    //   },
+    //   { $unwind: { path: "$servicePartner.city", preserveNullAndEmptyArrays: true } }
+    // ];
+
     const aggregationPipeline = [
       { $match: match },
+
+      // --- Patient Lookup ---
       {
         $lookup: {
-          from: 'patients',
-          localField: 'patientId',
-          foreignField: '_id',
-          as: 'patient'
-        }
+          from: "patients",
+          localField: "patientId",
+          foreignField: "_id",
+          as: "patient",
+        },
       },
       { $unwind: "$patient" },
+
+      // --- Service Lookup ---
       {
         $lookup: {
-          from: 'availablecities',
-          localField: 'patient.city',
-          foreignField: '_id',
-          as: 'patient.city'
-        }
-      },
-      { $unwind: { path: "$patient.city", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: 'services',
-          localField: 'serviceId',
-          foreignField: '_id',
-          as: 'service'
-        }
+          from: "services",
+          localField: "serviceId",
+          foreignField: "_id",
+          as: "service",
+        },
       },
       { $unwind: "$service" },
+
+      // --- Service Partner Lookup ---
       {
         $lookup: {
-          from: 'doctors',
-          localField: 'servicePartnerId',
-          foreignField: '_id',
-          as: 'servicePartner'
-        }
+          from: "doctors",
+          localField: "servicePartnerId",
+          foreignField: "_id",
+          as: "servicePartner",
+        },
       },
-      { $unwind: { path: "$servicePartner", preserveNullAndEmptyArrays: true } },
       {
-        $lookup: {
-          from: 'availablecities',
-          localField: 'servicePartner.city',
-          foreignField: '_id',
-          as: 'servicePartner.city'
-        }
+        $unwind: {
+          path: "$servicePartner",
+          preserveNullAndEmptyArrays: true,
+        },
       },
-      { $unwind: { path: "$servicePartner.city", preserveNullAndEmptyArrays: true } }
     ];
 
-    if (city) {
+
+    if (city && mongoose.Types.ObjectId.isValid(city)) {
       aggregationPipeline.push({
-        $match: {
-          $or: [
-            { "patient.city.name": new RegExp(city, 'i') },
-            { "servicePartner.city.name": new RegExp(city, 'i') }
-          ]
-        }
+        $match: { city: new mongoose.Types.ObjectId(city) },
       });
     }
+
 
     if (search) {
       aggregationPipeline.push({
