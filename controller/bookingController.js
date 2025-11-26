@@ -3,6 +3,122 @@ const Booking = require('../models/bookingModel');
 const Service = require('../models/serviceModel');
 const { autoFilterSlots } = require('../utils/timeFIlter');
 const { formatDuration } = require('../utils/timeFormat');
+const City = require('../models/availableCities');
+const mongoose = require("mongoose");
+// exports.createBooking = async (req, res) => {
+//   try {
+//     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
+
+//     const {
+//       serviceId,
+//       appointmentDate,  // 'YYYY-MM-DD'
+//       startTime,        // 'HH:mm' e.g. "10:00"
+//       endTime,          // 'HH:mm' e.g. "10:30"
+//       duration,         // optional minutes
+//       shiftType,        // optional string
+//       servicePartnerId, // optional ObjectId
+//       notes,
+//       category,         // optional string
+//       modes             // optional array of strings
+//     } = req.body;
+
+//     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'patientId, serviceId, appointmentDate, startTime, and endTime are required'
+//       });
+//     }
+
+//     const service = await Service.findById(serviceId);
+
+//     if (!service || !service.isActive || service.isDeleted) {
+//       return res.status(404).json({ success: false, message: 'Service not found or inactive' });
+//     }
+
+//     // Use category and modes from Service if not provided in request
+//     const bookingCategory = category || service.category || null;
+//     const bookingModes = Array.isArray(modes) && modes.length > 0 ? modes : service.modes || [];
+
+//     // Check slot conflicts
+//     const dayStart = new Date(appointmentDate);
+//     dayStart.setHours(0, 0, 0, 0);
+//     const dayEnd = new Date(appointmentDate);
+//     dayEnd.setHours(23, 59, 59, 999);
+
+//     const conflictQuery = {
+//       serviceId,
+//       appointmentDate: { $gte: dayStart, $lte: dayEnd },
+//       status: { $nin: ['Cancelled', 'Rejected'] },
+//       'slotTime.startTime': startTime,
+//       'slotTime.endTime': endTime
+//     };
+
+//     if (servicePartnerId) {
+//       conflictQuery.servicePartnerId = servicePartnerId;
+//     }
+
+//     const existingBooking = await Booking.findOne(conflictQuery);
+//     if (existingBooking) {
+//       return res.status(409).json({
+//         success: false,
+//         message: 'Slot already booked. Choose another slot.'
+//       });
+//     }
+
+//     // Calculate duration (if not provided, use difference between start and end time)
+//     let bookingDuration = duration;
+//     if (!bookingDuration) {
+//       const [sh, sm] = startTime.split(':').map(Number);
+//       const [eh, em] = endTime.split(':').map(Number);
+//       bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+//       if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+//     }
+
+//     // Calculate pricing snapshot
+//     const pricing = service.calculateTotalPrice(
+//       bookingDuration,
+//       false, // includeEquipment - adjust if needed
+//       shiftType || null
+//     );
+
+//     const newBooking = new Booking({
+//       patientId,
+//       serviceId,
+//       category: bookingCategory,
+//       modes: bookingModes,
+//       servicePartnerId: servicePartnerId || null,
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime: { startTime, endTime },
+//       duration: bookingDuration,
+//       shiftType: shiftType || null,
+//       status: 'Pending',
+//       pricing,
+//       notes: notes || '',
+//       createdBy: {
+//         userId: patientId,
+//         userModel: 'Patient'
+//       }
+//     });
+
+//     await newBooking.save();
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Booking created successfully',
+//       data: {
+//         ...newBooking.toObject(),
+//         formattedDuration: formatDuration(bookingDuration),
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Error creating booking:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error creating booking',
+//       error: error.message
+//     });
+//   }
+// };
 
 exports.createBooking = async (req, res) => {
   try {
@@ -11,8 +127,8 @@ exports.createBooking = async (req, res) => {
     const {
       serviceId,
       appointmentDate,  // 'YYYY-MM-DD'
-      startTime,        // 'HH:mm' e.g. "10:00"
-      endTime,          // 'HH:mm' e.g. "10:30"
+      startTime,        // 'HH:mm'
+      endTime,          // 'HH:mm'
       duration,         // optional minutes
       shiftType,        // optional string
       servicePartnerId, // optional ObjectId
@@ -29,9 +145,17 @@ exports.createBooking = async (req, res) => {
     }
 
     const service = await Service.findById(serviceId);
-
     if (!service || !service.isActive || service.isDeleted) {
       return res.status(404).json({ success: false, message: 'Service not found or inactive' });
+    }
+
+    // Verify city from availableCities collection if cityId provided in request body
+    let bookingCity = null;
+    if (req.body.cityId) {
+      bookingCity = await City.findById(req.body.cityId);
+      if (!bookingCity) {
+        return res.status(400).json({ success: false, message: 'Invalid city selected' });
+      }
     }
 
     // Use category and modes from Service if not provided in request
@@ -51,7 +175,6 @@ exports.createBooking = async (req, res) => {
       'slotTime.startTime': startTime,
       'slotTime.endTime': endTime
     };
-
     if (servicePartnerId) {
       conflictQuery.servicePartnerId = servicePartnerId;
     }
@@ -64,7 +187,7 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    // Calculate duration (if not provided, use difference between start and end time)
+    // Calculate duration (if not provided, difference between start and end times)
     let bookingDuration = duration;
     if (!bookingDuration) {
       const [sh, sm] = startTime.split(':').map(Number);
@@ -76,7 +199,7 @@ exports.createBooking = async (req, res) => {
     // Calculate pricing snapshot
     const pricing = service.calculateTotalPrice(
       bookingDuration,
-      false, // includeEquipment - adjust if needed
+      false,
       shiftType || null
     );
 
@@ -93,6 +216,7 @@ exports.createBooking = async (req, res) => {
       status: 'Pending',
       pricing,
       notes: notes || '',
+      city: bookingCity ? bookingCity._id : undefined,
       createdBy: {
         userId: patientId,
         userModel: 'Patient'
@@ -101,11 +225,14 @@ exports.createBooking = async (req, res) => {
 
     await newBooking.save();
 
+    // Populate city details before sending response
+    const populatedBooking = await newBooking.populate('city', 'name latitude longitude');
+
     res.status(201).json({
       success: true,
       message: 'Booking created successfully',
       data: {
-        ...newBooking.toObject(),
+        ...populatedBooking.toObject(),
         formattedDuration: formatDuration(bookingDuration),
       }
     });
@@ -118,8 +245,6 @@ exports.createBooking = async (req, res) => {
     });
   }
 };
-
-
 
 
 exports.getBookedServicesByPatientId = async (req, res) => {
@@ -491,7 +616,7 @@ exports.getAllBookings = async (req, res) => {
       mode,
       city,
       search,
-      filterBy, // 'today' | 'week' | undefined
+      filterBy,
       page = 1,
       limit = 10
     } = req.query;
@@ -500,67 +625,123 @@ exports.getAllBookings = async (req, res) => {
     const limitNum = parseInt(limit, 10) || 10;
     const skip = (pageNum - 1) * limitNum;
 
-    let query = {};
+    const match = {};
 
-    if (status) query.status = status;
-    if (serviceId) query.serviceId = serviceId;
-    if (patientId) query.patientId = patientId;
-    if (servicePartnerId) query.servicePartnerId = servicePartnerId;
-    if (category) query.category = category;
-    if (mode) query.modes = { $in: [mode] };
+    if (status) match.status = status;
+    if (serviceId) match.serviceId = new mongoose.Types.ObjectId(serviceId);
+    if (patientId) match.patientId = new mongoose.Types.ObjectId(patientId);
+    if (servicePartnerId) match.servicePartnerId = new mongoose.Types.ObjectId(servicePartnerId);
+    if (category) match.category = category;
+    if (mode) match.modes = mode;
 
-    // Date filters: quick filters (today/week) override custom start/end
     const now = new Date();
     if (filterBy === 'today') {
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const endD = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      query.appointmentDate = { $gte: start, $lt: endD };
+      match.appointmentDate = {
+        $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        $lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+      };
     } else if (filterBy === 'week') {
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
-      const endD = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      query.appointmentDate = { $gte: start, $lt: endD };
+      match.appointmentDate = {
+        $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6),
+        $lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+      };
     } else if (startDate || endDate) {
-      const dateQuery = {};
-      if (startDate) dateQuery.$gte = new Date(startDate);
+      match.appointmentDate = {};
+      if (startDate) match.appointmentDate.$gte = new Date(startDate);
       if (endDate) {
         const e = new Date(endDate);
         e.setHours(23, 59, 59, 999);
-        dateQuery.$lte = e;
+        match.appointmentDate.$lte = e;
       }
-      query.appointmentDate = dateQuery;
     }
 
-    // City filter (search for city in servicePartnerCity or patientCity field)
+    const aggregationPipeline = [
+      { $match: match },
+      {
+        $lookup: {
+          from: 'patients',
+          localField: 'patientId',
+          foreignField: '_id',
+          as: 'patient'
+        }
+      },
+      { $unwind: "$patient" },
+      {
+        $lookup: {
+          from: 'availablecities',
+          localField: 'patient.city',
+          foreignField: '_id',
+          as: 'patient.city'
+        }
+      },
+      { $unwind: { path: "$patient.city", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'services',
+          localField: 'serviceId',
+          foreignField: '_id',
+          as: 'service'
+        }
+      },
+      { $unwind: "$service" },
+      {
+        $lookup: {
+          from: 'doctors',
+          localField: 'servicePartnerId',
+          foreignField: '_id',
+          as: 'servicePartner'
+        }
+      },
+      { $unwind: { path: "$servicePartner", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'availablecities',
+          localField: 'servicePartner.city',
+          foreignField: '_id',
+          as: 'servicePartner.city'
+        }
+      },
+      { $unwind: { path: "$servicePartner.city", preserveNullAndEmptyArrays: true } }
+    ];
+
     if (city) {
-      const cityRegex = new RegExp(city, 'i');
-      query.$or = [
-        { servicePartnerCity: cityRegex },
-        { patientCity: cityRegex }
-      ];
+      aggregationPipeline.push({
+        $match: {
+          $or: [
+            { "patient.city.name": new RegExp(city, 'i') },
+            { "servicePartner.city.name": new RegExp(city, 'i') }
+          ]
+        }
+      });
     }
 
-    // Search filter, matches multiple fields with partial match
     if (search) {
-      const searchRegex = new RegExp(search, 'i');
-      query.$or = [
-        ...(query.$or || []),
-        { patientName: searchRegex },
-        { patientPhone: searchRegex },
-        { serviceName: searchRegex },
-        { servicePartnerName: searchRegex }
-      ];
+      aggregationPipeline.push({
+        $match: {
+          $or: [
+            { "patient.firstName": new RegExp(search, "i") },
+            { "patient.phone": new RegExp(search, "i") },
+            { "service.name": new RegExp(search, "i") },
+            { "servicePartner.name": new RegExp(search, "i") }
+          ]
+        }
+      });
     }
 
-    const [bookings, totalCount] = await Promise.all([
-      Booking.find(query)
-        .populate('patientId', 'firstName email phone city')
-        .populate('serviceId', 'name category modes')
-        .populate('servicePartnerId', 'name email phone city')
-        .sort({ appointmentDate: -1 })
-        .skip(skip)
-        .limit(limitNum),
-      Booking.countDocuments(query)
-    ]);
+    aggregationPipeline.push(
+      { $sort: { appointmentDate: -1 } },
+      {
+        $facet: {
+          paginatedResults: [{ $skip: skip }, { $limit: limitNum }],
+          totalCount: [{ $count: "count" }]
+        }
+      }
+    );
+
+    const results = await Booking.aggregate(aggregationPipeline);
+
+    const bookings = results[0]?.paginatedResults || [];
+    const totalCount = results[0]?.totalCount[0]?.count || 0;
 
     res.status(200).json({
       success: true,
