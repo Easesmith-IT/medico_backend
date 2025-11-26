@@ -14,6 +14,12 @@ router.post("/check-auth", adminController.checkAuthStatus);
 router.post("/logout", adminController.logout);
 router.post("/logout-all-devices", adminController.logoutAllDevices);
 
+router.get("/subadmins", adminController.getSubAdmins);
+router.patch(
+  "/subadmins/:id/toggle-status",
+  adminController.toggleSubAdminStatus
+);
+
 router.get("/services/names", adminController.getServiceNames);
 router.get("/patients/names", adminController.getPatientNames);
 router.get("/service-providers/names", adminController.getServiceProviderNames);
