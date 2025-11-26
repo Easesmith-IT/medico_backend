@@ -509,7 +509,7 @@ exports.getAllBookings = async (req, res) => {
     if (category) query.category = category;
     if (mode) query.modes = { $in: [mode] };
 
-    // Date filters: quick filters first (today/week), then custom start/end
+    // Date filters: quick filters (today/week) override custom start/end
     const now = new Date();
     if (filterBy === 'today') {
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -530,28 +530,24 @@ exports.getAllBookings = async (req, res) => {
       query.appointmentDate = dateQuery;
     }
 
-    // City filter (assuming city stored on servicePartner or patient or booking)
+    // City filter (search for city in servicePartnerCity or patientCity field)
     if (city) {
-      // if city is on booking itself
-      // query.city = new RegExp(city, 'i');
-
-      // if city is on servicePartner or patient, use $or + regex on denormalized fields
+      const cityRegex = new RegExp(city, 'i');
       query.$or = [
-        { servicePartnerCity: new RegExp(city, 'i') },
-        { patientCity: new RegExp(city, 'i') }
+        { servicePartnerCity: cityRegex },
+        { patientCity: cityRegex }
       ];
     }
 
-    // Search filter (by name, email, phone etc. depending on how you store it)
+    // Search filter, matches multiple fields with partial match
     if (search) {
-      const regex = new RegExp(search, 'i');
-      // If you have denormalized fields on booking
+      const searchRegex = new RegExp(search, 'i');
       query.$or = [
         ...(query.$or || []),
-        { patientName: regex },
-        { patientPhone: regex },
-        { serviceName: regex },
-        { servicePartnerName: regex }
+        { patientName: searchRegex },
+        { patientPhone: searchRegex },
+        { serviceName: searchRegex },
+        { servicePartnerName: searchRegex }
       ];
     }
 
@@ -568,8 +564,8 @@ exports.getAllBookings = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      count: bookings.length,   // page count
-      totalCount,               // total matching bookings
+      count: bookings.length,
+      totalCount,
       page: pageNum,
       limit: limitNum,
       data: bookings
@@ -583,6 +579,7 @@ exports.getAllBookings = async (req, res) => {
     });
   }
 };
+
 
 exports.getByIdBooking = async (req, res) => {
   try {
