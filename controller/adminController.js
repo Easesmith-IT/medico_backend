@@ -2056,7 +2056,7 @@ exports.exportPatients = catchAsync(async (req, res, next) => {
     const csv = parser.parse(flatPatients);
 
     res.header("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", "attachment; filename=patients.csv");
+    res.setHeader("Content-Disposition", "attachment; filename=PATIENTS.csv");
     res.write("\uFEFF"); // Add UTF-8 BOM
     return res.end(csv);
   }
@@ -2246,7 +2246,7 @@ exports.exportAppointments = catchAsync(async (req, res, next) => {
     res.header("Content-Type", "text/csv; charset=utf-8");
     res.setHeader(
       "Content-Disposition",
-      "attachment; filename=appointments.csv"
+      "attachment; filename=APPOINTMENTS.csv"
     );
     res.write("\uFEFF");
     return res.end(csv);
