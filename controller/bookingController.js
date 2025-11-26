@@ -411,6 +411,73 @@ exports.cancelBooking = async (req, res) => {
 //     });
 //   }
 // };
+// exports.getAllBookings = async (req, res) => {
+//   try {
+//     const {
+//       status,
+//       startDate,
+//       endDate,
+//       serviceId,
+//       patientId,
+//       servicePartnerId,
+//       category,
+//       mode,
+//       page = 1,
+//       limit = 10
+//     } = req.query;
+
+//     const pageNum = parseInt(page, 10);
+//     const limitNum = parseInt(limit, 10);
+//     const skip = (pageNum - 1) * limitNum;
+
+//     let query = {};
+
+//     if (status) query.status = status;
+//     if (serviceId) query.serviceId = serviceId;
+//     if (patientId) query.patientId = patientId;
+//     if (servicePartnerId) query.servicePartnerId = servicePartnerId;
+//     if (category) query.category = category;
+//     if (mode) query.modes = { $in: [mode] };
+
+//     if (startDate && endDate) {
+//       query.appointmentDate = {
+//         $gte: new Date(startDate),
+//         $lte: new Date(endDate)
+//       };
+//     } else if (startDate) {
+//       query.appointmentDate = { $gte: new Date(startDate) };
+//     } else if (endDate) {
+//       query.appointmentDate = { $lte: new Date(endDate) };
+//     }
+
+//     const [bookings, totalCount] = await Promise.all([
+//       Booking.find(query)
+//         .populate('patientId', 'firstName email phone')
+//         .populate('serviceId', 'name category modes')
+//         .populate('servicePartnerId', 'name email phone')
+//         .sort({ appointmentDate: -1 })
+//         .skip(skip)
+//         .limit(limitNum),
+//       Booking.countDocuments(query)
+//     ]);
+
+//     res.status(200).json({
+//       success: true,
+//       count: bookings.length,
+//       totalCount,
+//       page: pageNum,
+//       limit: limitNum,
+//       data: bookings
+//     });
+//   } catch (error) {
+//     console.error('Error fetching bookings with filters:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching bookings',
+//       error: error.message
+//     });
+//   }
+// };
 exports.getAllBookings = async (req, res) => {
   try {
     const {
@@ -422,12 +489,15 @@ exports.getAllBookings = async (req, res) => {
       servicePartnerId,
       category,
       mode,
+      city,
+      search,
+      filterBy, // 'today' | 'week' | undefined
       page = 1,
       limit = 10
     } = req.query;
 
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
     const skip = (pageNum - 1) * limitNum;
 
     let query = {};
@@ -439,22 +509,57 @@ exports.getAllBookings = async (req, res) => {
     if (category) query.category = category;
     if (mode) query.modes = { $in: [mode] };
 
-    if (startDate && endDate) {
-      query.appointmentDate = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    } else if (startDate) {
-      query.appointmentDate = { $gte: new Date(startDate) };
-    } else if (endDate) {
-      query.appointmentDate = { $lte: new Date(endDate) };
+    // Date filters: quick filters first (today/week), then custom start/end
+    const now = new Date();
+    if (filterBy === 'today') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endD = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      query.appointmentDate = { $gte: start, $lt: endD };
+    } else if (filterBy === 'week') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+      const endD = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      query.appointmentDate = { $gte: start, $lt: endD };
+    } else if (startDate || endDate) {
+      const dateQuery = {};
+      if (startDate) dateQuery.$gte = new Date(startDate);
+      if (endDate) {
+        const e = new Date(endDate);
+        e.setHours(23, 59, 59, 999);
+        dateQuery.$lte = e;
+      }
+      query.appointmentDate = dateQuery;
+    }
+
+    // City filter (assuming city stored on servicePartner or patient or booking)
+    if (city) {
+      // if city is on booking itself
+      // query.city = new RegExp(city, 'i');
+
+      // if city is on servicePartner or patient, use $or + regex on denormalized fields
+      query.$or = [
+        { servicePartnerCity: new RegExp(city, 'i') },
+        { patientCity: new RegExp(city, 'i') }
+      ];
+    }
+
+    // Search filter (by name, email, phone etc. depending on how you store it)
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      // If you have denormalized fields on booking
+      query.$or = [
+        ...(query.$or || []),
+        { patientName: regex },
+        { patientPhone: regex },
+        { serviceName: regex },
+        { servicePartnerName: regex }
+      ];
     }
 
     const [bookings, totalCount] = await Promise.all([
       Booking.find(query)
-        .populate('patientId', 'firstName email phone')
+        .populate('patientId', 'firstName email phone city')
         .populate('serviceId', 'name category modes')
-        .populate('servicePartnerId', 'name email phone')
+        .populate('servicePartnerId', 'name email phone city')
         .sort({ appointmentDate: -1 })
         .skip(skip)
         .limit(limitNum),
@@ -463,8 +568,8 @@ exports.getAllBookings = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      count: bookings.length,
-      totalCount,
+      count: bookings.length,   // page count
+      totalCount,               // total matching bookings
       page: pageNum,
       limit: limitNum,
       data: bookings
