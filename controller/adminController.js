@@ -1528,6 +1528,102 @@ exports.logoutAllDevices = catchAsync(async (req, res, next) => {
   });
 });
 
+
+// GET /api/admin/subadmins
+exports.getSubAdmins = catchAsync(async (req, res, next) => {
+  let { status, isActive, search, page = 1, limit = 20 } = req.query;
+
+  page = parseInt(page);
+  limit = parseInt(limit);
+
+  const filter = { role: "subAdmin" };
+
+  // Status filter
+  if (status) filter.status = status;
+
+  // isActive filter
+  if (typeof isActive !== "undefined") {
+    filter.isActive = isActive === "true";
+  }
+
+  // Search filter: name, email, phone
+  if (search) {
+    const regex = new RegExp(search, "i");
+    filter.$or = [
+      { firstName: regex },
+      { lastName: regex },
+      { email: regex },
+      { phone: regex },
+    ];
+  }
+
+  const skip = (page - 1) * limit;
+
+  const subAdmins = await Admin.find(filter)
+    .select(
+      "firstName lastName email phone role status isActive createdAt permissions"
+    )
+    .skip(skip)
+    .limit(limit)
+    .sort({ createdAt: -1 });
+
+  const count = await Admin.countDocuments(filter);
+
+  res.status(200).json({
+    status: "success",
+    results: subAdmins.length,
+    pagination: {
+      total: count,
+      page,
+      limit,
+      pages: Math.ceil(count / limit),
+    },
+    data: subAdmins,
+  });
+});
+
+
+// PATCH /api/admin/subadmins/:id/toggle-status
+exports.toggleSubAdminStatus = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  // -----------------------
+  // Fetch admin
+  // -----------------------
+  const admin = await Admin.findById(id);
+
+  if (!admin) {
+    return next(new AppError("Admin not found", 404));
+  }
+
+  // Prevent disabling superAdmin accounts
+  if (admin.role !== "subAdmin") {
+    return next(new AppError("Only subAdmin accounts can be toggled", 403));
+  }
+
+  // -----------------------
+  // Toggle status
+  // -----------------------
+  admin.status = admin.status === "active" ? "inactive" : "active";
+
+  await admin.save();
+
+  res.status(200).json({
+    status: "success",
+    message: `Subadmin status updated to ${admin.status}`,
+    data: {
+      _id: admin._id,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      email: admin.email,
+      status: admin.status,
+      isActive: admin.isActive,
+    },
+  });
+});
+
+
+
 // ============================================
 // GET PROFILE
 // ============================================
