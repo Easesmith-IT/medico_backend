@@ -208,7 +208,7 @@ router.patch(
   serviceController.updateService
 );
 // Delete Service (Soft Delete)
-router.delete('/:id', verifyAdminRole, serviceController.deleteService);
+router.delete('/deleteService/:id', verifyAdminRole, serviceController.deleteService);
 
 // Restore Service
 router.post('/:id/restore', verifyAdminRole, serviceController.restoreService);

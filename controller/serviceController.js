@@ -1112,6 +1112,9 @@ exports.getServiceById = async (req, res) => {
 //     res.status(500).json({ success: false, message: 'Error updating service', error: error.message });
 //   }
 // };
+
+
+
 exports.updateService = async (req, res) => {
   try {
     // The protect middleware will already have set req.user if the user is authenticated and authorized
@@ -1174,12 +1177,51 @@ exports.updateService = async (req, res) => {
 
 
 // Delete Service (Soft Delete)
+// exports.deleteService = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+//     if (!['admin', 'superadmin'].includes(userRole)) {
+//       return res.status(403).json({ success: false, message: 'Only admins can delete services' });
+//     }
+
+//     const service = await Service.findById(id);
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Service not found' });
+//     }
+
+//     service.isDeleted = true;
+//     service.deletedAt = new Date();
+//     service.deletedBy = { userId: req.user.id, userModel: 'Admin' };
+//     service.isActive = false;
+//     await service.save();
+
+//     res.status(200).json({ success: true, message: 'Service deleted successfully' });
+//   } catch (error) {
+//     console.error('Delete service error:', error);
+//     res.status(500).json({ success: false, message: 'Error deleting service', error: error.message });
+//   }
+// };
+
+
+
 exports.deleteService = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // req.user set by protect middleware
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
     const userRole = req.user.role;
     if (!['admin', 'superadmin'].includes(userRole)) {
       return res.status(403).json({ success: false, message: 'Only admins can delete services' });
+    }
+
+    // Validate MongoDB ObjectId format
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ success: false, message: 'Invalid service id' });
     }
 
     const service = await Service.findById(id);
@@ -1187,18 +1229,20 @@ exports.deleteService = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Service not found' });
     }
 
+    // Soft delete
     service.isDeleted = true;
     service.deletedAt = new Date();
     service.deletedBy = { userId: req.user.id, userModel: 'Admin' };
     service.isActive = false;
     await service.save();
 
-    res.status(200).json({ success: true, message: 'Service deleted successfully' });
+    return res.status(200).json({ success: true, message: 'Service deleted successfully' });
   } catch (error) {
     console.error('Delete service error:', error);
-    res.status(500).json({ success: false, message: 'Error deleting service', error: error.message });
+    return res.status(500).json({ success: false, message: 'Error deleting service', error: error.message });
   }
 };
+
 
 // Restore Service
 exports.restoreService = async (req, res) => {
@@ -1226,7 +1270,40 @@ exports.restoreService = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error restoring service', error: error.message });
   }
 };
+// exports.deleteService = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     if (!req.user) {
+//       return res.status(401).json({ success: false, message: 'Unauthorized' });
+//     }
+//     const userRole = req.user.role;
+//     if (!['admin', 'superadmin'].includes(userRole)) {
+//       return res.status(403).json({ success: false, message: 'Only admins can delete services' });
+//     }
 
+//     // Optional: Validate id format (if using MongoDB ObjectId)
+//     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+//       return res.status(400).json({ success: false, message: 'Invalid service id' });
+//     }
+
+//     const service = await Service.findById(id);
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Service not found' });
+//     }
+
+//     // Soft delete the service
+//     service.isDeleted = true;
+//     service.deletedAt = new Date();
+//     service.deletedBy = { userId: req.user.id, userModel: 'Admin' };
+//     service.isActive = false;
+//     await service.save();
+
+//     res.status(200).json({ success: true, message: 'Service deleted successfully' });
+//   } catch (error) {
+//     console.error('Delete service error:', error);
+//     res.status(500).json({ success: false, message: 'Error deleting service', error: error.message });
+//   }
+// };
 // Toggle Service Status
 exports.toggleServiceStatus = async (req, res) => {
   try {
