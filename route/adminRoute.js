@@ -3,7 +3,7 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controller/adminController");
-const { verifyAccessToken } = require("../middleware/auth");
+const { verifyAccessToken, protect } = require("../middleware/auth");
 
 router.post("/signup", adminController.adminSignup);
 router.post("/login", adminController.adminLogin);
@@ -85,6 +85,18 @@ router.get(
   "/bookings/export",
   verifyAccessToken,
   adminController.exportAppointments
+);
+
+router.post(
+  "/bookings/create",
+  protect("superadmin", "subadmin"),
+  adminController.createBookingByAdmin
+);
+
+router.patch(
+  "/bookings/update/:bookingId",
+  protect("superadmin", "subadmin"),
+  adminController.updateBookingByAdmin
 );
 
 //add doc by cities
