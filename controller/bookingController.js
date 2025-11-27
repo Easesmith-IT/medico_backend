@@ -786,9 +786,10 @@ exports.getAllBookings = async (req, res) => {
       success: true,
       count: bookings.length,
       totalCount,
+      totalPages: Math.ceil(totalCount / limitNum),
       page: pageNum,
       limit: limitNum,
-      data: bookings
+      data: bookings,
     });
   } catch (error) {
     console.error('Error fetching bookings with filters:', error);
