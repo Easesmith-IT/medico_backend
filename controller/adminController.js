@@ -1223,6 +1223,7 @@ const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
 const Service = require("../models/serviceModel");
 const ServiceProvider = require("../models/serviceProviderModel");
+const { formatDuration } = require("../utils/timeFormat");
 
 // ============================================
 // ADMIN SIGNUP - STEP 1: Create Account
@@ -1528,7 +1529,6 @@ exports.logoutAllDevices = catchAsync(async (req, res, next) => {
   });
 });
 
-
 // GET /api/admin/subadmins
 exports.getSubAdmins = catchAsync(async (req, res, next) => {
   let { status, isActive, search, page = 1, limit = 20 } = req.query;
@@ -1582,7 +1582,6 @@ exports.getSubAdmins = catchAsync(async (req, res, next) => {
   });
 });
 
-
 // PATCH /api/admin/subadmins/:id/toggle-status
 exports.toggleSubAdminStatus = catchAsync(async (req, res, next) => {
   const { id } = req.params;
@@ -1621,8 +1620,6 @@ exports.toggleSubAdminStatus = catchAsync(async (req, res, next) => {
     },
   });
 });
-
-
 
 // ============================================
 // GET PROFILE
@@ -1882,6 +1879,8 @@ exports.getAllDoctors = catchAsync(async (req, res, next) => {
     .skip(skip)
     .limit(parseInt(limit))
     .sort("-createdAt");
+
+  console.log("doctors", doctors);
 
   const total = await Doctor.countDocuments(filter);
 
@@ -2441,6 +2440,382 @@ exports.exportAppointments = catchAsync(async (req, res, next) => {
     message: "Invalid format. Use ?format=csv or ?format=pdf",
   });
 });
+
+exports.createBookingByAdmin = async (req, res) => {
+  try {
+    const adminId = req.user?.id; // Admin logged in
+
+    if (!adminId) {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    const {
+      patientId,
+      serviceId,
+      appointmentDate, // 'YYYY-MM-DD'
+      startTime, // 'HH:mm'
+      endTime, // 'HH:mm'
+      duration,
+      shiftType,
+      servicePartnerId,
+      notes,
+      category,
+      modes,
+      cityId,
+    } = req.body;
+
+    // ----------------------------
+    // Required fields
+    // ----------------------------
+    if (
+      !patientId ||
+      !serviceId ||
+      !appointmentDate ||
+      !startTime ||
+      !endTime
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "patientId, serviceId, appointmentDate, startTime and endTime are required",
+      });
+    }
+
+    // ----------------------------
+    // Validate Service
+    // ----------------------------
+    const service = await Service.findById(serviceId);
+    if (!service || !service.isActive || service.isDeleted) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Service not found or inactive" });
+    }
+
+    // ----------------------------
+    // Validate Patient Exists
+    // ----------------------------
+    const patient = await Patient.findById(patientId);
+    console.log("patient", patient);
+
+    if (!patient) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Patient not found" });
+    }
+
+    // ----------------------------
+    // Validate City (optional)
+    // ----------------------------
+    let bookingCity = null;
+    if (cityId) {
+      bookingCity = await City.findById(cityId);
+      if (!bookingCity) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid city selected" });
+      }
+    }
+
+    // ----------------------------
+    // Prepare category & modes
+    // ----------------------------
+    const bookingCategory = category || service.category || null;
+    const bookingModes =
+      Array.isArray(modes) && modes.length > 0 ? modes : service.modes || [];
+
+    // ----------------------------
+    // Check Slot Conflict
+    // ----------------------------
+    const dayStart = new Date(appointmentDate);
+    dayStart.setHours(0, 0, 0, 0);
+
+    const dayEnd = new Date(appointmentDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const conflictQuery = {
+      serviceId,
+      appointmentDate: { $gte: dayStart, $lte: dayEnd },
+      status: { $nin: ["Cancelled", "Rejected"] },
+      "slotTime.startTime": startTime,
+      "slotTime.endTime": endTime,
+    };
+
+    if (servicePartnerId) {
+      conflictQuery.servicePartnerId = servicePartnerId;
+    }
+
+    const existingBooking = await Booking.findOne(conflictQuery);
+    if (existingBooking) {
+      return res.status(409).json({
+        success: false,
+        message: "Slot already booked. Choose another slot.",
+      });
+    }
+
+    // ----------------------------
+    // Auto-calc Duration
+    // ----------------------------
+    let bookingDuration = duration;
+    if (!bookingDuration) {
+      const [sh, sm] = startTime.split(":").map(Number);
+      const [eh, em] = endTime.split(":").map(Number);
+      bookingDuration = eh * 60 + em - (sh * 60 + sm);
+
+      if (bookingDuration <= 0) {
+        bookingDuration = service.defaultDuration || 30;
+      }
+    }
+
+    // ----------------------------
+    // Calculate Price Snapshot
+    // ----------------------------
+    const pricing = service.calculateTotalPrice(
+      bookingDuration,
+      false,
+      shiftType || null
+    );
+
+    // ----------------------------
+    // Create Booking
+    // ----------------------------
+    const newBooking = new Booking({
+      patientId,
+      serviceId,
+      category: bookingCategory,
+      modes: bookingModes,
+      servicePartnerId: servicePartnerId || null,
+      appointmentDate: new Date(appointmentDate),
+      slotTime: { startTime, endTime },
+      duration: bookingDuration,
+      shiftType: shiftType || null,
+      status: "Approved", // Admin-created bookings are usually auto-approved
+      pricing,
+      notes: notes || "",
+      city: bookingCity ? bookingCity._id : undefined,
+      createdBy: {
+        userId: adminId,
+        userModel: "Admin",
+      },
+    });
+
+    await newBooking.save();
+
+    // Populate city for response
+    const populatedBooking = await newBooking.populate(
+      "city",
+      "name latitude longitude"
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Booking created successfully by admin",
+      data: {
+        ...populatedBooking.toObject(),
+        formattedDuration: formatDuration(bookingDuration),
+      },
+    });
+  } catch (error) {
+    console.error("Admin Booking Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error creating booking by admin",
+      error: error.message,
+    });
+  }
+};
+
+exports.updateBookingByAdmin = async (req, res) => {
+  try {
+    const adminId = req.user?.id;
+
+    if (!adminId) {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { bookingId } = req.params;
+
+    const {
+      appointmentDate,
+      startTime,
+      endTime,
+      duration,
+      servicePartnerId,
+      status,
+      statusReason,
+      notes,
+      category,
+      modes,
+      shiftType,
+      cityId,
+    } = req.body;
+
+    // ------------------------------------------------------------
+    // Fetch booking
+    // ------------------------------------------------------------
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found" });
+    }
+
+    // ------------------------------------------------------------
+    // Patient/service cannot be changed by admin
+    // ------------------------------------------------------------
+    const service = await Service.findById(booking.serviceId);
+    if (!service) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Service missing for booking" });
+    }
+
+    // ------------------------------------------------------------
+    // Update City if provided
+    // ------------------------------------------------------------
+    if (cityId) {
+      const city = await City.findById(cityId);
+      if (!city) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid city" });
+      }
+      booking.city = cityId;
+    }
+
+    // ------------------------------------------------------------
+    // Update category/modes
+    // ------------------------------------------------------------
+    if (category) booking.category = category;
+    if (Array.isArray(modes)) booking.modes = modes;
+
+    // ------------------------------------------------------------
+    // Update notes
+    // ------------------------------------------------------------
+    if (notes !== undefined) booking.notes = notes;
+
+    // ------------------------------------------------------------
+    // Update status
+    // ------------------------------------------------------------
+    if (status) {
+      booking.status = status;
+      if (statusReason) booking.statusReason = statusReason;
+    }
+
+    // ------------------------------------------------------------
+    // Update partner assignment
+    // ------------------------------------------------------------
+    if (servicePartnerId !== undefined) {
+      booking.servicePartnerId = servicePartnerId || null;
+    }
+
+    // ------------------------------------------------------------
+    // Update time + conflict check
+    // ------------------------------------------------------------
+    if (appointmentDate || startTime || endTime) {
+      const newDate = appointmentDate
+        ? new Date(appointmentDate)
+        : booking.appointmentDate;
+
+      const newStart = startTime || booking.slotTime.startTime;
+      const newEnd = endTime || booking.slotTime.endTime;
+
+      // Check conflict
+      const dayStart = new Date(newDate);
+      dayStart.setHours(0, 0, 0, 0);
+
+      const dayEnd = new Date(newDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const conflictQuery = {
+        _id: { $ne: bookingId }, // exclude current booking
+        serviceId: booking.serviceId,
+        appointmentDate: { $gte: dayStart, $lte: dayEnd },
+        status: { $nin: ["Cancelled", "Rejected"] },
+        "slotTime.startTime": newStart,
+        "slotTime.endTime": newEnd,
+      };
+
+      if (servicePartnerId) {
+        conflictQuery.servicePartnerId = servicePartnerId;
+      }
+
+      console.log("conflictQuery", conflictQuery);
+
+      const conflict = await Booking.findOne(conflictQuery);
+      if (conflict) {
+        return res.status(409).json({
+          success: false,
+          message: "Updated slot conflicts with another booking",
+        });
+      }
+
+      // Apply updated values
+      booking.appointmentDate = newDate;
+      booking.slotTime.startTime = newStart;
+      booking.slotTime.endTime = newEnd;
+    }
+
+    // ------------------------------------------------------------
+    // Update duration (auto or manual)
+    // ------------------------------------------------------------
+    let finalDuration = duration;
+
+    const st = booking.slotTime.startTime;
+    const et = booking.slotTime.endTime;
+
+    if (!finalDuration) {
+      const [sh, sm] = st.split(":").map(Number);
+      const [eh, em] = et.split(":").map(Number);
+
+      finalDuration = eh * 60 + em - (sh * 60 + sm);
+      if (finalDuration <= 0) {
+        finalDuration = service.defaultDuration || 30;
+      }
+    }
+
+    booking.duration = finalDuration;
+
+    // ------------------------------------------------------------
+    // Recalculate pricing snapshot
+    // ------------------------------------------------------------
+    booking.pricing = service.calculateTotalPrice(
+      finalDuration,
+      false,
+      shiftType || booking.shiftType
+    );
+
+    if (shiftType) booking.shiftType = shiftType;
+
+    // ------------------------------------------------------------
+    // Save with updatedBy info
+    // ------------------------------------------------------------
+    booking.createdBy = {
+      userId: adminId,
+      userModel: "Admin",
+    };
+
+    await booking.save();
+
+    // Populate city for response
+    const populated = await booking.populate("city", "name latitude longitude");
+
+    res.status(200).json({
+      success: true,
+      message: "Booking updated successfully",
+      data: {
+        ...populated.toObject(),
+        formattedDuration: formatDuration(finalDuration),
+      },
+    });
+  } catch (error) {
+    console.error("Admin Update Booking Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error updating booking",
+      error: error.message,
+    });
+  }
+};
 
 exports.getAllPatients = catchAsync(async (req, res, next) => {
   const {
@@ -3017,8 +3392,12 @@ exports.getServiceNames = async (req, res) => {
   try {
     const services = await Service.find(
       { isDeleted: false }, // Only active data
-      { name: 1 } // Projection: return only name + _id
-    ).sort({ name: 1 }); // Sorted alphabetically (optional)
+      {
+        name: 1,
+        "slotConfig.consultationSlots.startTime": 1,
+        "slotConfig.consultationSlots.endTime": 1,
+      }
+    ).sort({ createdAt: 1 });
 
     res.status(200).json({
       success: true,
@@ -3055,12 +3434,44 @@ exports.getPatientNames = async (req, res) => {
   }
 };
 
+// exports.getServiceProviderNames = async (req, res) => {
+//   try {
+//     const providers = await ServiceProvider.find(
+//       { isDeleted: false }, // Only active/non-deleted
+//       { firstName: 1, lastName: 1, ownerName: 1 } // Projection
+//     ).sort({ firstName: 1 }); // Sort A → Z
+
+//     res.status(200).json({
+//       success: true,
+//       count: providers.length,
+//       data: providers,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching service provider names:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch service provider names",
+//     });
+//   }
+// };
+
 exports.getServiceProviderNames = async (req, res) => {
   try {
     const providers = await ServiceProvider.find(
-      { isDeleted: false }, // Only active/non-deleted
-      { firstName: 1, lastName: 1, ownerName: 1 } // Projection
-    ).sort({ firstName: 1 }); // Sort A → Z
+      { isDeleted: false },
+      {
+        firstName: 1,
+        lastName: 1,
+        ownerName: 1,
+
+        // New fields required for grid UI
+        "documents.profilePhoto": 1,
+        yearsOfExperience: 1,
+        rating: 1,
+        "currentAddress.city": 1,
+        approvalStatus: 1,
+      }
+    ).sort({ firstName: 1 });
 
     res.status(200).json({
       success: true,
@@ -3075,5 +3486,6 @@ exports.getServiceProviderNames = async (req, res) => {
     });
   }
 };
+
 
 module.exports = exports;
