@@ -493,41 +493,84 @@ exports.getProvidersByServiceId = async (req, res) => {
   }
 };
 
+// exports.toggleStatus = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userRole = req.user.role;
+//     if (!["superadmin", "subadmin"].includes(userRole)) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only admins can toggle status",
+//       });
+//     }
+
+//     const serviceProvider = await ServiceProvider.findById(id);
+//     if (!serviceProvider) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Service provider not found" });
+//     }
+
+//     serviceProvider.isActive = !serviceProvider.isActive;
+//     await serviceProvider.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: `Service Provider ${
+//         serviceProvider.isActive ? "activated" : "deactivated"
+//       } successfully`,
+//     });
+//   } catch (error) {
+//     console.error("Toggle service provider status error:", error);
+//     res
+//       .status(500)
+//       .json({
+//         success: false,
+//         message: "Error toggling service provider status",
+//         error: error.message,
+//       });
+//   }
+// };
+
+
+
+
 exports.toggleStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userRole = req.user.role;
-    if (!["superadmin", "subadmin"].includes(userRole)) {
-      return res.status(403).json({
-        success: false,
-        message: "Only admins can toggle status",
-      });
-    }
+try {
+const { id } = req.params;
+const userRole = req.user.role;
 
-    const serviceProvider = await ServiceProvider.findById(id);
-    if (!serviceProvider) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Service provider not found" });
-    }
+text
+if (!["superadmin", "subadmin"].includes(userRole)) {
+  return res.status(403).json({
+    success: false,
+    message: "Only admins can toggle status",
+  });
+}
 
-    serviceProvider.isActive = !serviceProvider.isActive;
-    await serviceProvider.save();
+const serviceProvider = await ServiceProvider.findById(id);
+if (!serviceProvider) {
+  return res
+    .status(404)
+    .json({ success: false, message: "Service provider not found" });
+}
 
-    res.status(200).json({
-      success: true,
-      message: `Service Provider ${
-        serviceProvider.isActive ? "activated" : "deactivated"
-      } successfully`,
-    });
-  } catch (error) {
-    console.error("Toggle service provider status error:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Error toggling service provider status",
-        error: error.message,
-      });
-  }
+serviceProvider.isActive = !serviceProvider.isActive;
+await serviceProvider.save();
+
+res.status(200).json({
+  success: true,
+  message: `Service Provider ${
+    serviceProvider.isActive ? "activated" : "deactivated"
+  } successfully`,
+  data: serviceProvider,
+});
+} catch (error) {
+console.error("Toggle service provider status error:", error);
+res.status(500).json({
+success: false,
+message: "Error toggling service provider status",
+error: error.message,
+});
+}
 };
