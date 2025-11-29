@@ -613,6 +613,8 @@ const protect = (...allowedRoles) => {
         return next(new AppError('Invalid or expired token', 401));
       }
 
+      console.log("decoded", decoded);
+      
       const userRole = decoded.role?.toLowerCase();
       if (!userRole || !decoded.id)
         return next(new AppError('Invalid token payload', 401));
