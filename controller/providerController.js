@@ -534,43 +534,59 @@ exports.getProvidersByServiceId = async (req, res) => {
 
 
 
-
 exports.toggleStatus = async (req, res) => {
-try {
-const { id } = req.params;
-const userRole = req.user.role;
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const userRole = req.user.role;
 
-text
-if (!["superadmin", "subadmin"].includes(userRole)) {
-  return res.status(403).json({
-    success: false,
-    message: "Only admins can toggle status",
-  });
-}
+    console.log('Toggle request:', { id, status, userRole }); // DEBUG
 
-const serviceProvider = await ServiceProvider.findById(id);
-if (!serviceProvider) {
-  return res
-    .status(404)
-    .json({ success: false, message: "Service provider not found" });
-}
+    if (!["superadmin", "subadmin"].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only admins can toggle status",
+      });
+    }
 
-serviceProvider.isActive = !serviceProvider.isActive;
-await serviceProvider.save();
+    const serviceProvider = await ServiceProvider.findById(id);
+    if (!serviceProvider) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Service provider not found" 
+      });
+    }
 
-res.status(200).json({
-  success: true,
-  message: `Service Provider ${
-    serviceProvider.isActive ? "activated" : "deactivated"
-  } successfully`,
-  data: serviceProvider,
-});
-} catch (error) {
-console.error("Toggle service provider status error:", error);
-res.status(500).json({
-success: false,
-message: "Error toggling service provider status",
-error: error.message,
-});
-}
+    console.log('Before toggle:', serviceProvider.isActive); // DEBUG
+
+    // Force specific status OR toggle
+    if (status === 'active') {
+      serviceProvider.isActive = true;
+    } else if (status === 'inactive') {
+      serviceProvider.isActive = false;
+    } else {
+      serviceProvider.isActive = !serviceProvider.isActive;
+    }
+
+    await serviceProvider.save({ validateBeforeSave: false });
+
+    console.log('After toggle:', serviceProvider.isActive); // DEBUG
+
+    res.status(200).json({
+      success: true,
+      message: `Service Provider ${serviceProvider.isActive ? "activated" : "deactivated"} successfully`,
+      data: {
+        id: serviceProvider._id,
+        isActive: serviceProvider.isActive,
+        name: serviceProvider.firstName || serviceProvider.ownerName
+      }
+    });
+  } catch (error) {
+    console.error("Toggle service provider status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error toggling service provider status",
+      error: error.message,
+    });
+  }
 };
