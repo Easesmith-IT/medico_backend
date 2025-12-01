@@ -35,30 +35,19 @@ const router = express.Router();
 const patientController = require('../controller/patientController');
 const { protect } = require('../middleware/auth');
 
-// ============================================
-// PUBLIC ROUTES - Signup with OTP
-// ============================================
 router.post('/signup', patientController.patientSignup);
 router.post('/verify-signup-otp', patientController.verifySignupOtp);
 router.post('/resend-signup-otp', patientController.resendSignupOtp);
 
-// ============================================
-// PUBLIC ROUTES - Login with OTP
-// ============================================
 router.post('/login', patientController.patientLogin);
 router.post('/verify-login-otp', patientController.verifyLoginOtp);
 router.post('/resend-login-otp', patientController.resendLoginOtp);
 
-// ============================================
-// PUBLIC ROUTES - Check Auth & Logout
-// ============================================
 router.post('/check-auth', patientController.checkAuthStatus);
 router.post('/logout', patientController.logout);
 router.post('/logout-all', patientController.patientLogoutAll);
 
-// ============================================
-// PROTECTED ROUTES - Profile Management
-// ============================================
+
 router.get('/profile', protect(), patientController.getMyProfile);
 router.patch(
   "/updateProfile/:id",
@@ -66,9 +55,6 @@ router.patch(
   patientController.updatePatient
 );
 
-// ============================================
-// PROTECTED ROUTES - Medical History
-// ============================================
 router.post('/medical-history', protect(), patientController.updateMedicalHistory);
 router.delete('/medical-history/:historyId', protect(), patientController.deleteMedicalHistory);
 
@@ -84,9 +70,7 @@ router.delete('/allergies', protect(), patientController.removeAllergy);
 router.post('/medications', protect(), patientController.addMedication);
 router.delete('/medications', protect(), patientController.removeMedication);
 
-// ============================================
-// PROTECTED ROUTES - Doctor Following
-// ============================================
+
 router.post('/follow/:doctorId', protect(), patientController.followDoctor);
 router.delete('/unfollow/:doctorId', protect(), patientController.unfollowDoctor);
 
