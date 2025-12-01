@@ -3521,6 +3521,31 @@ exports.toggleDoctorStatus = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.togglePatientStatus = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  const adminRole = req.user?.role;
+  if (
+    !adminRole ||
+    !["superAdmin", "subAdmin", "superadmin", "subadmin"].includes(adminRole)
+  ) {
+    return next(new AppError("Only admins can toggle patient status", 403));
+  }
+
+  const patient = await Patient.findById(id).select("-password -tokenVersion");
+  if (!patient) {
+    return next(new AppError("Patient not found", 404));
+  }
+
+  patient.isActive = !patient.isActive;
+  await patient.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    success: true,
+    message: `Patient ${patient.isActive ? "activated" : "deactivated"} successfully`,
+    data: patient,
+  });
+});
 
 
 
