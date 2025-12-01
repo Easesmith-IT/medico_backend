@@ -137,4 +137,11 @@ router.get(
   adminController.getDoctorsByCity
 );
 
+
+router.patch(
+  '/doctors/:id/toggle-status',
+  protect('superadmin', 'subadmin'),
+  adminController.toggleDoctorStatus
+);
+
 module.exports = router;

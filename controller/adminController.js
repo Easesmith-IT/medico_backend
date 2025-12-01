@@ -3488,4 +3488,40 @@ exports.getServiceProviderNames = async (req, res) => {
 };
 
 
+
+//toggle api for doctor
+
+exports.toggleDoctorStatus = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  const adminRole = req.user?.role;
+  if (
+    !adminRole ||
+    !["superAdmin", "subAdmin", "superadmin", "subadmin"].includes(adminRole)
+  ) {
+    return next(
+      new AppError("Only admins can toggle doctor status", 403)
+    );
+  }
+
+  const doctor = await Doctor.findById(id).select("-password -tokenVersion");
+  if (!doctor) {
+    return next(new AppError("Doctor not found", 404));
+  }
+
+  doctor.isActive = !doctor.isActive;
+  await doctor.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    success: true,
+    message: `Doctor ${
+      doctor.isActive ? "activated" : "deactivated"
+    } successfully`,
+    data: doctor,
+  });
+});
+
+
+
+
 module.exports = exports;
