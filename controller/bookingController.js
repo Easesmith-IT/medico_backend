@@ -5,6 +5,7 @@ const { autoFilterSlots } = require('../utils/timeFIlter');
 const { formatDuration } = require('../utils/timeFormat');
 const City = require('../models/availableCities');
 const mongoose = require("mongoose");
+const Patient = require('../models/patientModel');
 // exports.createBooking = async (req, res) => {
 //   try {
 //     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
