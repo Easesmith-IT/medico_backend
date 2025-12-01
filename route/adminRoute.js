@@ -144,4 +144,11 @@ router.patch(
   adminController.toggleDoctorStatus
 );
 
+
+router.patch(
+  '/patients/:id/toggle-status',
+  protect('superadmin', 'subadmin'),
+  adminController.togglePatientStatus
+);
+
 module.exports = router;
