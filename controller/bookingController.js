@@ -252,7 +252,7 @@ exports.createBooking = async (req, res) => {
 try {
 const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
 
-text
+
 const {
   serviceId,
   appointmentDate,  // 'YYYY-MM-DD'
