@@ -350,11 +350,7 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     }
   });
 });
-/**
- * ====================================================================
- * VERIFY SIGNUP OTP - ✅ FIXED VERSION
- * ====================================================================
- */
+
 exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   const { phone, otp, dateOfBirth, gender, address, bloodGroup, emergencyContact } = req.body;
 
