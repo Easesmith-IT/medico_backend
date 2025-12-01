@@ -44,6 +44,7 @@ const patientSchema = new mongoose.Schema({
   address: {
     street: String,
     city: String,
+      cityId: { type: mongoose.Schema.Types.ObjectId, ref: 'City' },
     state: String,
     country: String,
     pincode: String
