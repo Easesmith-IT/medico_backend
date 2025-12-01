@@ -2481,9 +2481,7 @@ exports.createBookingByAdmin = async (req, res) => {
       });
     }
 
-    // ----------------------------
-    // Validate Service
-    // ----------------------------
+    // 1) Validate service
     const service = await Service.findById(serviceId);
     if (!service || !service.isActive || service.isDeleted) {
       return res
@@ -2491,41 +2489,60 @@ exports.createBookingByAdmin = async (req, res) => {
         .json({ success: false, message: "Service not found or inactive" });
     }
 
-    // ----------------------------
-    // Validate Patient Exists
-    // ----------------------------
-    const patient = await Patient.findById(patientId);
-    console.log("patient", patient);
-
+    // 2) Load patient and ensure patient has a city
+    const patient = await Patient.findById(patientId).select("address.cityId");
     if (!patient) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Patient not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
     }
 
-    // ----------------------------
-    // Validate City (optional)
-    // ----------------------------
+    if (!patient.address || !patient.address.cityId) {
+      return res.status(400).json({
+        success: false,
+        message: "Patient city not set. Please update your address first.",
+      });
+    }
+
+    // 3) Determine booking city and enforce that patient belongs to it
     let bookingCity = null;
+
     if (cityId) {
+      // City explicitly sent in request
       bookingCity = await City.findById(cityId);
       if (!bookingCity) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid city selected" });
+        return res.status(400).json({
+          success: false,
+          message: "Invalid city selected",
+        });
+      }
+
+      // Patient must belong to this city
+      if (bookingCity._id.toString() !== patient.address.cityId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Booking not allowed: patient does not belong to the selected city",
+        });
+      }
+    } else {
+      // No cityId in body → default to patient city
+      bookingCity = await City.findById(patient.address.cityId);
+      if (!bookingCity) {
+        return res.status(400).json({
+          success: false,
+          message: "Patient city is invalid or not available",
+        });
       }
     }
 
-    // ----------------------------
-    // Prepare category & modes
-    // ----------------------------
+    // 4) Use category and modes from Service if not provided
     const bookingCategory = category || service.category || null;
     const bookingModes =
       Array.isArray(modes) && modes.length > 0 ? modes : service.modes || [];
 
-    // ----------------------------
-    // Check Slot Conflict
-    // ----------------------------
+    // 5) Check slot conflicts
     const dayStart = new Date(appointmentDate);
     dayStart.setHours(0, 0, 0, 0);
 
@@ -2552,9 +2569,7 @@ exports.createBookingByAdmin = async (req, res) => {
       });
     }
 
-    // ----------------------------
-    // Auto-calc Duration
-    // ----------------------------
+    // 6) Calculate duration
     let bookingDuration = duration;
     if (!bookingDuration) {
       const [sh, sm] = startTime.split(":").map(Number);
@@ -2566,18 +2581,14 @@ exports.createBookingByAdmin = async (req, res) => {
       }
     }
 
-    // ----------------------------
-    // Calculate Price Snapshot
-    // ----------------------------
+    // 7) Pricing snapshot
     const pricing = service.calculateTotalPrice(
       bookingDuration,
       false,
       shiftType || null
     );
 
-    // ----------------------------
-    // Create Booking
-    // ----------------------------
+    // 8) Create Booking
     const newBooking = new Booking({
       patientId,
       serviceId,
@@ -2600,7 +2611,7 @@ exports.createBookingByAdmin = async (req, res) => {
 
     await newBooking.save();
 
-    // Populate city for response
+    // 9) Populate city before response
     const populatedBooking = await newBooking.populate(
       "city",
       "name latitude longitude"
@@ -2635,6 +2646,7 @@ exports.updateBookingByAdmin = async (req, res) => {
     const { bookingId } = req.params;
 
     const {
+      patientId,
       appointmentDate,
       startTime,
       endTime,
@@ -2648,6 +2660,8 @@ exports.updateBookingByAdmin = async (req, res) => {
       shiftType,
       cityId,
     } = req.body;
+    console.log("req.body",req.body);
+    
 
     // ------------------------------------------------------------
     // Fetch booking
@@ -2669,17 +2683,51 @@ exports.updateBookingByAdmin = async (req, res) => {
         .json({ success: false, message: "Service missing for booking" });
     }
 
-    // ------------------------------------------------------------
-    // Update City if provided
-    // ------------------------------------------------------------
+    const patient = await Patient.findById(patientId).select("address.cityId");
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    if (!patient.address || !patient.address.cityId) {
+      return res.status(400).json({
+        success: false,
+        message: "Patient city not set. Please update your address first.",
+      });
+    }
+
+    // 3) Determine booking city and enforce that patient belongs to it
+    let bookingCity = null;
+
     if (cityId) {
-      const city = await City.findById(cityId);
-      if (!city) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid city" });
+      // City explicitly sent in request
+      bookingCity = await City.findById(cityId);
+      if (!bookingCity) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid city selected",
+        });
       }
-      booking.city = cityId;
+
+      // Patient must belong to this city
+      if (bookingCity._id.toString() !== patient.address.cityId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Booking not allowed: patient does not belong to the selected city",
+        });
+      }
+    } else {
+      // No cityId in body → default to patient city
+      bookingCity = await City.findById(patient.address.cityId);
+      if (!bookingCity) {
+        return res.status(400).json({
+          success: false,
+          message: "Patient city is invalid or not available",
+        });
+      }
     }
 
     // ------------------------------------------------------------
