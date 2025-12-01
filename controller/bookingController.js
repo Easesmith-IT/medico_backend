@@ -402,10 +402,7 @@ const populatedBooking = await newBooking.populate('city', 'name latitude longit
 res.status(201).json({
   success: true,
   message: 'Booking created successfully',
-  data: {
-    ...populatedBooking.toObject(),
-    formattedDuration: formatDuration(bookingDuration)
-  }
+  data: populatedBooking
 });
 } catch (error) {
 console.error('Error creating booking:', error);
