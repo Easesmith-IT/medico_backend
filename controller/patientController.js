@@ -187,8 +187,7 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     address,
     bloodGroup,
     emergencyContact,
-    availableCity, // the city patient can use for booking
-    otherCities = [] // array of other city ids patient belongs to
+    otherCities = [] // Array of other city ids patient belongs to
   } = req.body;
 
   console.log('\n');
@@ -199,21 +198,21 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     return next(new AppError('Please provide phone number', 400));
   }
 
-  // Validate phone format
   if (!otpUtils.validatePhoneNumber(phone)) {
     return next(new AppError('Phone number must be a valid 10-digit Indian number', 400));
   }
 
-  // Validate availableCity exists in City collection
-  if (!availableCity) {
-    return next(new AppError('Available city is required', 400));
-  }
-  const cityExists = await City.findById(availableCity);
-  if (!cityExists) {
-    return next(new AppError('Invalid available city ID', 400));
+  if (!address || !address.cityId) {
+    return next(new AppError('Address with cityId is required', 400));
   }
 
-  // Validate each of otherCities ids
+  // Validate address.cityId exists as City
+  const cityExists = await City.findById(address.cityId);
+  if (!cityExists) {
+    return next(new AppError('Invalid city ID in address', 400));
+  }
+
+  // Validate otherCities if provided
   for (const cityId of otherCities) {
     const exists = await City.findById(cityId);
     if (!exists) {
@@ -224,7 +223,6 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
   // Check if patient already exists with this phone
   const existingPatient = await Patient.findOne({ phone });
 
-  // CASE 1: PHONE EXISTS → LOGIN FLOW
   if (existingPatient) {
     console.log('✅ Phone found in database → LOGIN FLOW');
 
@@ -245,17 +243,14 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
       if (address) existingPatient.address = address;
       if (bloodGroup) existingPatient.bloodGroup = bloodGroup;
       if (emergencyContact) existingPatient.emergencyContact = emergencyContact;
-      if (availableCity) existingPatient.availableCity = availableCity;
       if (otherCities.length > 0) existingPatient.otherCities = otherCities;
 
       await existingPatient.save({ validateBeforeSave: false });
 
       const smsSent = await otpUtils.sendOtp(phone);
-
       if (!smsSent) {
         return next(new AppError('Failed to send OTP. Please try again.', 500));
       }
-
       const otpToken = generateOtpToken(phone, 'patient');
 
       console.log('='.repeat(60));
@@ -273,7 +268,7 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
       });
     }
 
-    // Patient verified → LOGIN
+    // Patient verified → send login OTP
     console.log('✅ Patient verified → SEND LOGIN OTP');
 
     if (!existingPatient.isActive) {
@@ -281,11 +276,9 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     }
 
     const smsSent = await otpUtils.sendOtp(phone);
-
     if (!smsSent) {
       return next(new AppError('Failed to send OTP. Please try again.', 500));
     }
-
     const otpToken = generateOtpToken(phone, 'patient');
 
     console.log('='.repeat(60));
@@ -303,14 +296,13 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     });
   }
 
-  // CASE 2: NEW SIGNUP
+  // CASE 2: New Signup
   console.log('🆕 Phone NOT found → NEW SIGNUP FLOW');
 
   if (!firstName || !email || !password) {
     return next(new AppError('Please provide firstName, email, and password', 400));
   }
 
-  // Check for duplicate email
   const existingEmail = await Patient.findOne({ email });
   if (existingEmail) {
     return next(new AppError('Patient with this email already exists', 400));
@@ -320,7 +312,6 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
   const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
   const smsSent = await otpUtils.sendOtp(phone);
-
   if (!smsSent) {
     return next(new AppError('Failed to send OTP. Please check your phone number and try again.', 500));
   }
@@ -332,7 +323,7 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     password,
     dateOfBirth: dateOfBirth || null,
     gender: gender || null,
-    address: address || null,
+    address, // address object includes a cityId field here
     bloodGroup: bloodGroup || null,
     emergencyContact: emergencyContact || { name: null, phone: null, relation: null },
     signupOtp: otp,
@@ -340,13 +331,12 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     isVerified: false,
     isActive: false,
     tokenVersion: 0,
-    availableCity,
     otherCities
   });
 
   const otpToken = generateOtpToken(phone, 'patient');
 
-  console.log('✅ New patient created - Awaiting OTP verification');
+  console.log('New patient created - Awaiting OTP verification');
   console.log('='.repeat(60));
   console.log('\n');
 
@@ -361,11 +351,8 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     }
   });
 });
-/**
- * ====================================================================
- * VERIFY SIGNUP OTP - ✅ FIXED VERSION
- * ====================================================================
- */
+
+
 exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   const { phone, otp, dateOfBirth, gender, address, bloodGroup, emergencyContact } = req.body;
 
