@@ -3598,7 +3598,6 @@ exports.togglePatientStatus = catchAsync(async (req, res, next) => {
   });
 });
 
-<<<<<<< HEAD
 //approved cancellation 
 exports.approveCancellation = async (req, res) => {
   try {
@@ -3660,6 +3659,4 @@ exports.approveCancellation = async (req, res) => {
 
 
 
-=======
->>>>>>> f02f24fea459ad7067db51d86f5dd9f103d2b968
 module.exports = exports;
