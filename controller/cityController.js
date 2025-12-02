@@ -221,6 +221,50 @@ const updateCity = async (req, res) => {
   }
 };
 
+
+// Toggle City Active Status
+const toggleCityStatus = async (req, res) => {
+  try {
+    const { cityId } = req.params;
+
+    if (!cityId) {
+      return res.status(400).json({
+        success: false,
+        message: "City ID is required",
+      });
+    }
+
+    const city = await City.findById(cityId);
+    if (!city) {
+      return res.status(404).json({
+        success: false,
+        message: "City not found",
+      });
+    }
+
+    // Toggle isActive (if does not exist, default to true)
+    city.isActive = city.isActive === undefined ? true : !city.isActive;
+
+    await city.save();
+
+    res.status(200).json({
+      success: true,
+      message: `City is now ${city.isActive ? "active" : "inactive"}`,
+      data: city,
+    });
+  } catch (error) {
+    console.error("Error in toggleCityStatus:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error toggling city status",
+      error: error.message,
+    });
+  }
+};
+
+
+
+
 module.exports = {
   addCity,
   getAllCities,

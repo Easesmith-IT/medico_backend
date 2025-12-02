@@ -26,5 +26,7 @@ router.put('/admin/cities/:cityId', verifyAccessToken, cityController.updateCity
 
 // Delete city (Admin only)
 router.delete('/admin/cities/:cityId', verifyAccessToken, cityController.deleteCity);
+// Example route to toggle city active status
+router.patch('/admin/cities/toggle/:cityId', verifyAccessToken, cityController.toggleCityStatus);
 
 module.exports = router;
