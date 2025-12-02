@@ -1,11 +1,11 @@
 // controllers/bookingController.js
-const Booking = require('../models/bookingModel');
-const Service = require('../models/serviceModel');
-const { autoFilterSlots } = require('../utils/timeFIlter');
-const { formatDuration } = require('../utils/timeFormat');
-const City = require('../models/availableCities');
+const Booking = require("../models/bookingModel");
+const Service = require("../models/serviceModel");
+const { autoFilterSlots } = require("../utils/timeFIlter");
+const { formatDuration } = require("../utils/timeFormat");
+const City = require("../models/availableCities");
 const mongoose = require("mongoose");
-const Patient = require('../models/patientModel');
+const Patient = require("../models/patientModel");
 // exports.createBooking = async (req, res) => {
 //   try {
 //     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
@@ -247,182 +247,194 @@ const Patient = require('../models/patientModel');
 //   }
 // };
 
-
-
 exports.createBooking = async (req, res) => {
-try {
-const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
+  try {
+    const patientId =
+      req.user && req.user.id ? req.user.id : req.body.patientId;
 
+    const {
+      serviceId,
+      appointmentDate, // 'YYYY-MM-DD'
+      startTime, // 'HH:mm'
+      endTime, // 'HH:mm'
+      duration, // optional minutes
+      shiftType, // optional string
+      servicePartnerId, // optional ObjectId
+      notes,
+      category, // optional string
+      modes, // optional array of strings
+      cityId, // optional booking city id from body
+    } = req.body;
 
-const {
-  serviceId,
-  appointmentDate,  // 'YYYY-MM-DD'
-  startTime,        // 'HH:mm'
-  endTime,          // 'HH:mm'
-  duration,         // optional minutes
-  shiftType,        // optional string
-  servicePartnerId, // optional ObjectId
-  notes,
-  category,         // optional string
-  modes,            // optional array of strings
-  cityId            // optional booking city id from body
-} = req.body;
+    if (
+      !patientId ||
+      !serviceId ||
+      !appointmentDate ||
+      !startTime ||
+      !endTime
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "patientId, serviceId, appointmentDate, startTime, and endTime are required",
+      });
+    }
 
-if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
-  return res.status(400).json({
-    success: false,
-    message: 'patientId, serviceId, appointmentDate, startTime, and endTime are required'
-  });
-}
+    // 1) Validate service
+    const service = await Service.findById(serviceId);
+    if (!service || !service.isActive || service.isDeleted) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Service not found or inactive" });
+    }
 
-// 1) Validate service
-const service = await Service.findById(serviceId);
-if (!service || !service.isActive || service.isDeleted) {
-  return res.status(404).json({ success: false, message: 'Service not found or inactive' });
-}
+    // 2) Load patient and ensure patient has a city
+    const patient = await Patient.findById(patientId).select("address.cityId");
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
 
-// 2) Load patient and ensure patient has a city
-const patient = await Patient.findById(patientId).select('address.cityId');
-if (!patient) {
-  return res.status(404).json({
-    success: false,
-    message: 'Patient not found'
-  });
-}
+    if (!patient.address || !patient.address.cityId) {
+      return res.status(400).json({
+        success: false,
+        message: "Patient city not set. Please update your address first.",
+      });
+    }
 
-if (!patient.address || !patient.address.cityId) {
-  return res.status(400).json({
-    success: false,
-    message: 'Patient city not set. Please update your address first.'
-  });
-}
+    // 3) Determine booking city and enforce that patient belongs to it
+    let bookingCity = null;
 
-// 3) Determine booking city and enforce that patient belongs to it
-let bookingCity = null;
+    if (cityId) {
+      // City explicitly sent in request
+      bookingCity = await City.findById(cityId);
+      if (!bookingCity) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid city selected",
+        });
+      }
 
-if (cityId) {
-  // City explicitly sent in request
-  bookingCity = await City.findById(cityId);
-  if (!bookingCity) {
-    return res.status(400).json({
+      // Patient must belong to this city
+      if (bookingCity._id.toString() !== patient.address.cityId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Booking not allowed: patient does not belong to the selected city",
+        });
+      }
+    } else {
+      // No cityId in body → default to patient city
+      bookingCity = await City.findById(patient.address.cityId);
+      if (!bookingCity) {
+        return res.status(400).json({
+          success: false,
+          message: "Patient city is invalid or not available",
+        });
+      }
+    }
+
+    // 4) Use category and modes from Service if not provided
+    const bookingCategory = category || service.category || null;
+    const bookingModes =
+      Array.isArray(modes) && modes.length > 0 ? modes : service.modes || [];
+
+    // 5) Check slot conflicts
+    const dayStart = new Date(appointmentDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(appointmentDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const conflictQuery = {
+      serviceId,
+      appointmentDate: { $gte: dayStart, $lte: dayEnd },
+      status: { $nin: ["Cancelled", "Rejected"] },
+      "slotTime.startTime": startTime,
+      "slotTime.endTime": endTime,
+    };
+    if (servicePartnerId) {
+      conflictQuery.servicePartnerId = servicePartnerId;
+    }
+
+    const existingBooking = await Booking.findOne(conflictQuery);
+    if (existingBooking) {
+      return res.status(409).json({
+        success: false,
+        message: "Slot already booked. Choose another slot.",
+      });
+    }
+
+    // 6) Calculate duration
+    let bookingDuration = duration;
+    if (!bookingDuration) {
+      const [sh, sm] = startTime.split(":").map(Number);
+      const [eh, em] = endTime.split(":").map(Number);
+      bookingDuration = eh * 60 + em - (sh * 60 + sm);
+      if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+    }
+
+    // 7) Pricing snapshot
+    const pricing = service.calculateTotalPrice(
+      bookingDuration,
+      false,
+      shiftType || null
+    );
+
+    // 8) Create booking
+    const newBooking = new Booking({
+      patientId,
+      serviceId,
+      category: bookingCategory,
+      modes: bookingModes,
+      servicePartnerId: servicePartnerId || null,
+      appointmentDate: new Date(appointmentDate),
+      slotTime: { startTime, endTime },
+      duration: bookingDuration,
+      shiftType: shiftType || null,
+      status: "Pending",
+      pricing,
+      notes: notes || "",
+      city: bookingCity._id, // always set to validated city
+      createdBy: {
+        userId: patientId,
+        userModel: "Patient",
+      },
+    });
+
+    await newBooking.save();
+
+    // 9) Populate city before response
+    const populatedBooking = await newBooking.populate(
+      "city",
+      "name latitude longitude"
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Booking created successfully",
+      data: populatedBooking,
+    });
+  } catch (error) {
+    console.error("Error creating booking:", error);
+    res.status(500).json({
       success: false,
-      message: 'Invalid city selected'
+      message: "Error creating booking",
+      error: error.message,
     });
   }
-
-  // Patient must belong to this city
-  if (bookingCity._id.toString() !== patient.address.cityId.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: 'Booking not allowed: patient does not belong to the selected city'
-    });
-  }
-} else {
-  // No cityId in body → default to patient city
-  bookingCity = await City.findById(patient.address.cityId);
-  if (!bookingCity) {
-    return res.status(400).json({
-      success: false,
-      message: 'Patient city is invalid or not available'
-    });
-  }
-}
-
-// 4) Use category and modes from Service if not provided
-const bookingCategory = category || service.category || null;
-const bookingModes =
-  Array.isArray(modes) && modes.length > 0 ? modes : service.modes || [];
-
-// 5) Check slot conflicts
-const dayStart = new Date(appointmentDate);
-dayStart.setHours(0, 0, 0, 0);
-const dayEnd = new Date(appointmentDate);
-dayEnd.setHours(23, 59, 59, 999);
-
-const conflictQuery = {
-  serviceId,
-  appointmentDate: { $gte: dayStart, $lte: dayEnd },
-  status: { $nin: ['Cancelled', 'Rejected'] },
-  'slotTime.startTime': startTime,
-  'slotTime.endTime': endTime
-};
-if (servicePartnerId) {
-  conflictQuery.servicePartnerId = servicePartnerId;
-}
-
-const existingBooking = await Booking.findOne(conflictQuery);
-if (existingBooking) {
-  return res.status(409).json({
-    success: false,
-    message: 'Slot already booked. Choose another slot.'
-  });
-}
-
-// 6) Calculate duration
-let bookingDuration = duration;
-if (!bookingDuration) {
-  const [sh, sm] = startTime.split(':').map(Number);
-  const [eh, em] = endTime.split(':').map(Number);
-  bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
-  if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
-}
-
-// 7) Pricing snapshot
-const pricing = service.calculateTotalPrice(
-  bookingDuration,
-  false,
-  shiftType || null
-);
-
-// 8) Create booking
-const newBooking = new Booking({
-  patientId,
-  serviceId,
-  category: bookingCategory,
-  modes: bookingModes,
-  servicePartnerId: servicePartnerId || null,
-  appointmentDate: new Date(appointmentDate),
-  slotTime: { startTime, endTime },
-  duration: bookingDuration,
-  shiftType: shiftType || null,
-  status: 'Pending',
-  pricing,
-  notes: notes || '',
-  city: bookingCity._id, // always set to validated city
-  createdBy: {
-    userId: patientId,
-    userModel: 'Patient'
-  }
-});
-
-await newBooking.save();
-
-// 9) Populate city before response
-const populatedBooking = await newBooking.populate('city', 'name latitude longitude');
-
-res.status(201).json({
-  success: true,
-  message: 'Booking created successfully',
-  data: populatedBooking
-});
-} catch (error) {
-console.error('Error creating booking:', error);
-res.status(500).json({
-success: false,
-message: 'Error creating booking',
-error: error.message
-});
-}
 };
 
 exports.getBookedServicesByPatientId = async (req, res) => {
   try {
-    const patientId = req.user && req.user.id ? req.user.id : req.params.patientId;
+    const patientId =
+      req.user && req.user.id ? req.user.id : req.params.patientId;
 
     if (!patientId) {
       return res.status(400).json({
         success: false,
-        message: 'Patient ID is required'
+        message: "Patient ID is required",
       });
     }
 
@@ -435,48 +447,48 @@ exports.getBookedServicesByPatientId = async (req, res) => {
     }
 
     // Date filters
-    if (dateFilterType === 'today') {
+    if (dateFilterType === "today") {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayEnd = new Date();
       todayEnd.setHours(23, 59, 59, 999);
       query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
-    } else if (dateFilterType === 'week') {
+    } else if (dateFilterType === "week") {
       const now = new Date();
-      const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+      const firstDayOfWeek = new Date(
+        now.setDate(now.getDate() - now.getDay())
+      );
       firstDayOfWeek.setHours(0, 0, 0, 0);
       const lastDayOfWeek = new Date(firstDayOfWeek);
       lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
       lastDayOfWeek.setHours(23, 59, 59, 999);
       query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
-    } else if (dateFilterType === 'custom' && startDate && endDate) {
-      query.appointmentDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    } else if (dateFilterType === "custom" && startDate && endDate) {
+      query.appointmentDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
     }
 
     const bookings = await Booking.find(query)
-      .populate('serviceId', 'name category modes')
-      .populate('servicePartnerId', 'name email phone')
+      .populate("serviceId", "name category modes")
+      .populate("servicePartnerId", "name email phone")
       .sort({ appointmentDate: 1 });
 
     res.status(200).json({
       success: true,
       count: bookings.length,
-      data: bookings
+      data: bookings,
     });
   } catch (error) {
-    console.error('Get booked services error:', error);
+    console.error("Get booked services error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching booked services',
-      error: error.message
+      message: "Error fetching booked services",
+      error: error.message,
     });
   }
 };
-
-
-
-
-
 
 exports.getServiceSummaryByServiceId = async (req, res) => {
   try {
@@ -484,7 +496,9 @@ exports.getServiceSummaryByServiceId = async (req, res) => {
     const { status } = req.query; // optional filter
 
     if (!serviceId) {
-      return res.status(400).json({ success: false, message: 'Service ID is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Service ID is required" });
     }
 
     const query = { serviceId };
@@ -493,25 +507,24 @@ exports.getServiceSummaryByServiceId = async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
-      .populate('patientId', 'name email phone')
-      .populate('servicePartnerId', 'name email phone')
+      .populate("patientId", "name email phone")
+      .populate("servicePartnerId", "name email phone")
       .sort({ appointmentDate: 1 });
 
     res.status(200).json({
       success: true,
       count: bookings.length,
-      data: bookings
+      data: bookings,
     });
   } catch (error) {
-    console.error('Get service summary error:', error);
+    console.error("Get service summary error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching service summary',
-      error: error.message
+      message: "Error fetching service summary",
+      error: error.message,
     });
   }
 };
-
 
 exports.rescheduleBooking = async (req, res) => {
   try {
@@ -522,25 +535,28 @@ exports.rescheduleBooking = async (req, res) => {
       endTime,
       duration,
       shiftType,
-      servicePartnerId
+      servicePartnerId,
     } = req.body;
 
     if (!bookingId || !appointmentDate || !startTime || !endTime) {
       return res.status(400).json({
         success: false,
-        message: 'Booking ID, appointmentDate, startTime, and endTime are required for rescheduling'
+        message:
+          "Booking ID, appointmentDate, startTime, and endTime are required for rescheduling",
       });
     }
 
-    const booking = await Booking.findById(bookingId).populate('serviceId');
+    const booking = await Booking.findById(bookingId).populate("serviceId");
     if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found" });
     }
 
-    if (['Cancelled', 'Rejected'].includes(booking.status)) {
+    if (["Cancelled", "Rejected"].includes(booking.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot reschedule cancelled or rejected bookings'
+        message: "Cannot reschedule cancelled or rejected bookings",
       });
     }
 
@@ -555,9 +571,9 @@ exports.rescheduleBooking = async (req, res) => {
       _id: { $ne: bookingId },
       serviceId: service._id,
       appointmentDate: { $gte: dayStart, $lte: dayEnd },
-      status: { $nin: ['Cancelled', 'Rejected'] },
-      'slotTime.startTime': startTime,
-      'slotTime.endTime': endTime
+      status: { $nin: ["Cancelled", "Rejected"] },
+      "slotTime.startTime": startTime,
+      "slotTime.endTime": endTime,
     };
 
     if (servicePartnerId) {
@@ -568,16 +584,16 @@ exports.rescheduleBooking = async (req, res) => {
     if (conflict) {
       return res.status(409).json({
         success: false,
-        message: 'The selected slot is already booked. Choose another slot.'
+        message: "The selected slot is already booked. Choose another slot.",
       });
     }
 
     // Calculate duration if not provided
     let bookingDuration = duration;
     if (!bookingDuration) {
-      const [sh, sm] = startTime.split(':').map(Number);
-      const [eh, em] = endTime.split(':').map(Number);
-      bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+      const [sh, sm] = startTime.split(":").map(Number);
+      const [eh, em] = endTime.split(":").map(Number);
+      bookingDuration = eh * 60 + em - (sh * 60 + sm);
       if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
     }
 
@@ -593,27 +609,28 @@ exports.rescheduleBooking = async (req, res) => {
     booking.slotTime = { startTime, endTime };
     booking.duration = bookingDuration;
     booking.shiftType = shiftType || booking.shiftType || null;
-    booking.servicePartnerId = servicePartnerId || booking.servicePartnerId || null;
+    booking.servicePartnerId =
+      servicePartnerId || booking.servicePartnerId || null;
     booking.pricing = pricing;
-    booking.status = 'Rescheduled';
+    booking.status = "Rescheduled";
 
     await booking.save();
 
     res.status(200).json({
       success: true,
-      message: 'Booking rescheduled successfully',
+      message: "Booking rescheduled successfully",
       data: {
         ...booking.toObject(),
         formattedDuration: formatDuration(bookingDuration),
-        serviceCategory: service.category
-      }
+        serviceCategory: service.category,
+      },
     });
   } catch (error) {
-    console.error('Reschedule booking error:', error);
+    console.error("Reschedule booking error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error rescheduling booking',
-      error: error.message
+      message: "Error rescheduling booking",
+      error: error.message,
     });
   }
 };
@@ -658,9 +675,11 @@ exports.cancelBooking = async (req, res) => {
     const { reason } = req.body; // Patient cancellation reason
     
     if (!bookingId) {
-      return res.status(400).json({ 
+      return res
+        .status(400)
+        .json({ 
         success: false, 
-        message: 'Booking ID is required' 
+        message: "Booking ID is required" 
       });
     }
 
@@ -755,7 +774,7 @@ exports.cancelBooking = async (req, res) => {
     }
     
   } catch (error) {
-    console.error('Cancel booking error:', error);
+    console.error("Cancel booking error:", error);
     res.status(500).json({
       success: false,
       message: 'Error processing cancellation request',
@@ -763,8 +782,6 @@ exports.cancelBooking = async (req, res) => {
     });
   }
 };
-
-
 
 exports.getAllBookings = async (req, res) => {
   try {
@@ -781,7 +798,7 @@ exports.getAllBookings = async (req, res) => {
       search,
       filterBy,
       page = 1,
-      limit = 10
+      limit = 10,
     } = req.query;
 
     const pageNum = parseInt(page, 10) || 1;
@@ -793,20 +810,21 @@ exports.getAllBookings = async (req, res) => {
     if (status) match.status = status;
     if (serviceId) match.serviceId = new mongoose.Types.ObjectId(serviceId);
     if (patientId) match.patientId = new mongoose.Types.ObjectId(patientId);
-    if (servicePartnerId) match.servicePartnerId = new mongoose.Types.ObjectId(servicePartnerId);
+    if (servicePartnerId)
+      match.servicePartnerId = new mongoose.Types.ObjectId(servicePartnerId);
     if (category) match.category = category;
     if (mode) match.modes = mode;
 
     const now = new Date();
-    if (filterBy === 'today') {
+    if (filterBy === "today") {
       match.appointmentDate = {
         $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-        $lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+        $lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
       };
-    } else if (filterBy === 'week') {
+    } else if (filterBy === "week") {
       match.appointmentDate = {
         $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6),
-        $lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+        $lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
       };
     } else if (startDate || endDate) {
       match.appointmentDate = {};
@@ -909,13 +927,11 @@ exports.getAllBookings = async (req, res) => {
       },
     ];
 
-
     if (city && mongoose.Types.ObjectId.isValid(city)) {
       aggregationPipeline.push({
         $match: { city: new mongoose.Types.ObjectId(city) },
       });
     }
-
 
     if (search) {
       aggregationPipeline.push({
@@ -924,9 +940,9 @@ exports.getAllBookings = async (req, res) => {
             { "patient.firstName": new RegExp(search, "i") },
             { "patient.phone": new RegExp(search, "i") },
             { "service.name": new RegExp(search, "i") },
-            { "servicePartner.name": new RegExp(search, "i") }
-          ]
-        }
+            { "servicePartner.name": new RegExp(search, "i") },
+          ],
+        },
       });
     }
 
@@ -935,8 +951,8 @@ exports.getAllBookings = async (req, res) => {
       {
         $facet: {
           paginatedResults: [{ $skip: skip }, { $limit: limitNum }],
-          totalCount: [{ $count: "count" }]
-        }
+          totalCount: [{ $count: "count" }],
+        },
       }
     );
 
@@ -955,42 +971,45 @@ exports.getAllBookings = async (req, res) => {
       data: bookings,
     });
   } catch (error) {
-    console.error('Error fetching bookings with filters:', error);
+    console.error("Error fetching bookings with filters:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching bookings',
-      error: error.message
+      message: "Error fetching bookings",
+      error: error.message,
     });
   }
 };
-
 
 exports.getByIdBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
     if (!bookingId) {
-      return res.status(400).json({ success: false, message: 'Booking ID is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Booking ID is required" });
     }
 
     const booking = await Booking.findById(bookingId)
-      .populate('patientId', 'firstName email phone')
-      .populate('serviceId', 'name category modes')
-      .populate('servicePartnerId', 'name email phone');
+      .populate("patientId", "firstName email phone")
+      .populate("serviceId", "name category modes")
+      .populate("servicePartnerId", "name email phone");
 
     if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found" });
     }
 
     res.status(200).json({
       success: true,
-      data: booking
+      data: booking,
     });
   } catch (error) {
-    console.error('Get booking by ID error:', error);
+    console.error("Get booking by ID error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching booking',
-      error: error.message
+      message: "Error fetching booking",
+      error: error.message,
     });
   }
 };
