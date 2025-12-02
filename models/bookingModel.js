@@ -102,6 +102,47 @@ city: {
         default: "Patient",
       },
     },
+
+
+
+    // Cancellation related fields
+  cancelledBy: {
+    type: String,
+    enum: ['patient', 'doctor', 'admin'],
+    default: null
+  },
+  
+  cancelledAt: {
+    type: Date,
+    default: null
+  },
+  
+  cancellationReason: {
+    type: String,
+    maxlength: 500,
+    default: null
+  },
+  
+  adminApprovalRequired: {
+    type: Boolean,
+    default: false
+  },
+  
+  requestedCancellationAt: {
+    type: Date,
+    default: null
+  },
+  
+  originalStatus: {
+    type: String,
+    default: null
+  },
+  
+  timeRemainingAtRequest: {
+    type: Number, // hours
+    default: null
+  },
+  
   },
   { timestamps: true }
 );

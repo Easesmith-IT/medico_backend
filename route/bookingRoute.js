@@ -42,6 +42,7 @@ router.get('/my-bookings', protect(['patient']), (req, res, next) => {
 // Reschedule booking (patient)
 router.put('/reschedule/:bookingId', protect(['patient']), bookingController.rescheduleBooking);
 
+//TODO rebooking folow up booking(dr bhulya phir se chahiye rebook follow up )
 
 
 router.get('/getAllBookings', bookingController.getAllBookings);
