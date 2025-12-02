@@ -36,7 +36,8 @@ const bookingSchema = new mongoose.Schema(
     // Optional: partner or provider assigned
     servicePartnerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Doctor", // Or appropriate model
+      // ref: "Doctor", // Or appropriate model
+      ref: "ServiceProvider", // Or appropriate model
       default: null,
     },
 
@@ -83,12 +84,12 @@ const bookingSchema = new mongoose.Schema(
       taxAmount: Number,
       totalAmount: Number,
     },
-// Add this inside bookingSchema definition, e.g., before createdBy
-city: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "City",
-  required: false,
-},
+    // Add this inside bookingSchema definition, e.g., before createdBy
+    city: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "City",
+      required: false,
+    },
 
     // Record who created the booking (Patient, Admin etc.)
     createdBy: {
