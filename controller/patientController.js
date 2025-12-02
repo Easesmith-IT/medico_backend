@@ -1159,12 +1159,9 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
 });
 
 
-/**
- * ====================================================================
- * MEDICAL HISTORY
- * ====================================================================
- */
-exports.updateMedicalHistory = catchAsync(async (req, res, next) => {
+//medical history 
+// Update Medical History (add medical issues)
+exports.updateMedicalHistory = catchAsync(async (req, res, next) => { //update 
   const { condition, diagnosedDate, notes } = req.body;
 
   if (!condition) {
@@ -1172,15 +1169,14 @@ exports.updateMedicalHistory = catchAsync(async (req, res, next) => {
   }
 
   const patient = await Patient.findById(req.user?.id);
-
   if (!patient) {
     return next(new AppError('Patient not found', 404));
   }
 
   patient.medicalHistory.push({
     condition,
-    diagnosedDate: diagnosedDate || new Date(),
-    notes
+    diagnosedDate: diagnosedDate ? new Date(diagnosedDate) : new Date(),
+    notes,
   });
 
   await patient.save();
@@ -1188,11 +1184,91 @@ exports.updateMedicalHistory = catchAsync(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: 'Medical history updated successfully',
-    data: {
-      medicalHistory: patient.medicalHistory
-    }
+    data: { medicalHistory: patient.medicalHistory },
   });
 });
+
+// Add Medication
+exports.addMedication = catchAsync(async (req, res, next) => { //add medications
+  const medication = req.body.medication;
+  if (!medication) {
+    return next(new AppError('Please provide medication details', 400));
+  }
+
+  const patient = await Patient.findById(req.user?.id);
+  if (!patient) {
+    return next(new AppError('Patient not found', 404));
+  }
+
+  if (patient.currentMedications.includes(medication)) {
+    return next(new AppError('Medication already exists', 400));
+  }
+
+  patient.currentMedications.push(medication);
+  await patient.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Medication added successfully',
+    data: { currentMedications: patient.currentMedications },
+  });
+});
+
+// Remove Medication
+exports.removeMedication = catchAsync(async (req, res, next) => { //remove 
+  const medication = req.body.medication;
+  if (!medication) {
+    return next(new AppError('Please provide medication to remove', 400));
+  }
+
+  const patient = await Patient.findById(req.user?.id);
+  if (!patient) {
+    return next(new AppError('Patient not found', 404));
+  }
+
+  patient.currentMedications = patient.currentMedications.filter(
+    (m) => m !== medication
+  );
+
+  await patient.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Medication removed successfully',
+    data: { currentMedications: patient.currentMedications },
+  });
+});
+
+
+// exports.updateMedicalHistory = catchAsync(async (req, res, next) => {
+//   const { condition, diagnosedDate, notes } = req.body;
+
+//   if (!condition) {
+//     return next(new AppError('Please provide condition details', 400));
+//   }
+
+//   const patient = await Patient.findById(req.user?.id);
+
+//   if (!patient) {
+//     return next(new AppError('Patient not found', 404));
+//   }
+
+//   patient.medicalHistory.push({
+//     condition,
+//     diagnosedDate: diagnosedDate || new Date(),
+//     notes
+//   });
+
+//   await patient.save();
+
+//   res.status(200).json({
+//     success: true,
+//     message: 'Medical history updated successfully',
+//     data: {
+//       medicalHistory: patient.medicalHistory
+//     }
+//   });
+// });
 
 exports.deleteMedicalHistory = catchAsync(async (req, res, next) => {
   const { historyId } = req.params;
