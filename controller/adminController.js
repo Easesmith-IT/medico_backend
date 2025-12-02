@@ -3547,6 +3547,65 @@ exports.togglePatientStatus = catchAsync(async (req, res, next) => {
   });
 });
 
+//approved cancellation 
+exports.approveCancellation = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { action, adminReason } = req.body; // 'approve' or 'reject'
+    
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+    
+    if (booking.status !== 'Cancellation Requested') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No pending cancellation request found' 
+      });
+    }
+    
+    if (action === 'approve') {
+      booking.status = 'Cancelled';
+      booking.adminApprovedCancellation = true;
+      booking.adminApprovedAt = new Date();
+      booking.adminReason = adminReason;
+    } else if (action === 'reject') {
+      // Restore original status
+      booking.status = booking.originalStatus || 'Confirmed';
+      booking.adminRejectedCancellation = true;
+      booking.adminRejectedAt = new Date();
+      booking.adminReason = adminReason;
+    } else {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Action must be "approve" or "reject"' 
+      });
+    }
+    
+    // Clear temporary fields
+    booking.requestedCancellationAt = null;
+    booking.originalStatus = null;
+    booking.timeRemainingAtRequest = null;
+    
+    await booking.save();
+    
+    res.status(200).json({
+      success: true,
+      message: `Cancellation ${action}d successfully`,
+      data: booking
+    });
+    
+  } catch (error) {
+    console.error('Admin approval error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error processing admin approval',
+      error: error.message
+    });
+  }
+};
+
 
 
 module.exports = exports;

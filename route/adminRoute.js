@@ -151,4 +151,13 @@ router.patch(
   adminController.togglePatientStatus
 );
 
+
+
+router.post(
+  "/admin/booking/approve-cancellation/:bookingId",
+  verifyAccessToken,
+  adminController.approveCancellation
+);
+
+
 module.exports = router;

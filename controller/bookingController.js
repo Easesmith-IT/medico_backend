@@ -619,35 +619,146 @@ exports.rescheduleBooking = async (req, res) => {
 };
 
 
+// exports.cancelBooking = async (req, res) => {
+//   try {
+//     const { bookingId } = req.params;
+//     if (!bookingId) {
+//       return res.status(400).json({ success: false, message: 'Booking ID is required' });
+//     }
+
+//     const booking = await Booking.findById(bookingId);
+//     if (!booking) {
+//       return res.status(404).json({ success: false, message: 'Booking not found' });
+//     }
+
+//     if (booking.status === 'Cancelled') {
+//       return res.status(400).json({ success: false, message: 'Booking already cancelled' });
+//     }
+
+//     booking.status = 'Cancelled';
+//     await booking.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Booking cancelled successfully',
+//       data: booking
+//     });
+//   } catch (error) {
+//     console.error('Cancel booking error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error cancelling booking',
+//       error: error.message
+//     });
+//   }
+// };
 exports.cancelBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
+    const { reason } = req.body; // Patient cancellation reason
+    
     if (!bookingId) {
-      return res.status(400).json({ success: false, message: 'Booking ID is required' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Booking ID is required' 
+      });
+    }
+
+    if (booking.status === 'Cancelled') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Booking already cancelled' 
+      });
     }
 
     const booking = await Booking.findById(bookingId);
     if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found' });
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Booking not found' 
+      });
     }
 
-    if (booking.status === 'Cancelled') {
-      return res.status(400).json({ success: false, message: 'Booking already cancelled' });
+    // Check if booking is in the past
+    const now = new Date();
+    if (booking.appointmentDate < now) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot cancel past appointments' 
+      });
     }
 
-    booking.status = 'Cancelled';
-    await booking.save();
+    // Calculate time difference in hours
+    const timeDiffMs = booking.appointmentDate - now;
+    const timeDiffHours = timeDiffMs / (1000 * 60 * 60);
+    
+    const originalStatus = booking.status;
+    let newStatus = 'Cancelled';
+    let adminApprovalRequired = false;
 
-    res.status(200).json({
-      success: true,
-      message: 'Booking cancelled successfully',
-      data: booking
-    });
+    if (timeDiffHours <= 12) {
+      // Direct cancellation within 12 hours
+      newStatus = 'Cancelled';
+      booking.status = newStatus;
+      booking.cancelledBy = 'patient';
+      booking.cancelledAt = now;
+      booking.cancellationReason = reason || 'No reason provided';
+      booking.adminApprovalRequired = false;
+      
+      await booking.save();
+      
+      // Optional: Send notification to doctor about cancellation
+      // await sendCancellationNotification(booking);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Booking cancelled successfully',
+        data: {
+          ...booking.toObject(),
+          cancellationType: 'direct',
+          timeRemaining: Math.round(timeDiffHours * 60) + ' minutes'
+        }
+      });
+      
+    } else {
+      // After 12 hours - requires admin approval
+      if (!reason || reason.trim().length < 10) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Cancellation reason is required (minimum 10 characters)' 
+        });
+      }
+
+      // Create pending cancellation request
+      booking.status = 'Cancellation Requested';
+      booking.cancelledBy = 'patient';
+      booking.requestedCancellationAt = now;
+      booking.cancellationReason = reason;
+      booking.originalStatus = originalStatus;
+      booking.adminApprovalRequired = true;
+      booking.timeRemainingAtRequest = timeDiffHours;
+      
+      await booking.save();
+      
+      // Optional: Send notification to admin for approval
+      // await notifyAdminForCancellation(booking);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Cancellation request submitted for admin approval',
+        data: {
+          ...booking.toObject(),
+          cancellationType: 'pending_approval',
+          timeRemaining: Math.round(timeDiffHours) + ' hours'
+        }
+      });
+    }
+    
   } catch (error) {
     console.error('Cancel booking error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error cancelling booking',
+      message: 'Error processing cancellation request',
       error: error.message
     });
   }
