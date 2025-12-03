@@ -188,3 +188,6 @@ patientSchema.index({ isVerified: 1, isActive: 1 });
 const Patient = mongoose.model('Patient', patientSchema);
 
 module.exports = Patient;
+
+
+

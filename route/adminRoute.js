@@ -158,6 +158,12 @@ router.post(
   verifyAccessToken,
   adminController.approveCancellation
 );
-
+router.post(
+  '/patient/:patientId/medications', 
+  protect('admin', 'superadmin', 'subadmin'),
+  adminController.adminAddMedication
+);
+// DELETE /api/v1/patients/admin/patient/:patientId/medications
+router.delete('/patient/:patientId/medications', protect('superadmin', 'subadmin', 'admin'),   adminController.adminRemoveMedication);
 
 module.exports = router;

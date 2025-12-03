@@ -3656,7 +3656,61 @@ exports.approveCancellation = async (req, res) => {
     });
   }
 };
+// POST /admin/patient/:patientId/medications
+exports.adminAddMedication = catchAsync(async (req, res, next) => {
+  const { medication } = req.body;
+  const { patientId } = req.params;
 
+  if (!medication) {
+    return next(new AppError('Please provide medication details', 400));
+  }
+
+  const patient = await Patient.findById(patientId);
+  if (!patient) {
+    return next(new AppError('Patient not found', 404));
+  }
+
+  if (patient.currentMedications.includes(medication)) {
+    return next(new AppError('Medication already exists', 400));
+  }
+
+  patient.currentMedications.push(medication);
+  await patient.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Medication added successfully by admin',
+    data: { currentMedications: patient.currentMedications },
+  });
+});
+
+exports.adminRemoveMedication = catchAsync(async (req, res, next) => {
+  const { medication } = req.body;
+  const { patientId } = req.params;
+
+  if (!medication) {
+    return next(new AppError('Please provide medication details to remove', 400));
+  }
+
+  const patient = await Patient.findById(patientId);
+  if (!patient) {
+    return next(new AppError('Patient not found', 404));
+  }
+
+  const initialLength = patient.currentMedications.length;
+  patient.currentMedications.pull(medication);  // Mongoose $pull operator [web:9][web:10]
+  await patient.save();
+
+  if (patient.currentMedications.length === initialLength) {
+    return next(new AppError('Medication not found in patient\'s list', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Medication removed successfully by admin',
+    data: { currentMedications: patient.currentMedications },
+  });
+});
 
 
 module.exports = exports;
