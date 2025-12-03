@@ -51,7 +51,7 @@ router.delete('/unfollow/:doctorId', protect(), patientController.unfollowDoctor
 
 //getByID
 router.get('/getById/:patientId',patientController.getPatientById);
-
+router.get('/myTreatmentHistory', protect(), patientController.getCompletePatientTreatmentHistory);
 
 module.exports = router;
 
