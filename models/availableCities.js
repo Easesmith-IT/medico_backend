@@ -17,6 +17,11 @@ const citySchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    // Active/Inactive
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );
