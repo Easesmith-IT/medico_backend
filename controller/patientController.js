@@ -8,6 +8,7 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const Patient = require('../models/patientModel');
 const Doctor = require('../models/doctorModel');
+const Booking = require('../models/bookingModel');
 const City = require('../models/availableCities');
 const {
   generateAccessToken,
@@ -1536,3 +1537,506 @@ exports.getAllPatients = catchAsync(async (req, res, next) => {
     data: patients
   });
 });
+
+
+
+
+// ULTIMATE: Get ALL patient treatment + booking history
+// exports.getCompletePatientTreatmentHistory = async (req, res) => {
+//   try {
+//     const patientId = req.user?.id || req.params.patientId || req.query.patientId;
+
+//     if (!patientId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Patient ID is required"
+//       });
+//     }
+
+//     const { page = 1, limit = 50, status, dateFilterType } = req.query;
+//     const pageNum = parseInt(page, 10) || 1;
+//     const limitNum = parseInt(limit, 10) || 50;
+//     const skip = (pageNum - 1) * limitNum;
+
+//     // 1. Get Patient Medical Data
+//     const patient = await Patient.findById(patientId)
+//       .select('firstName phone email medicalHistory medicationHistory treatmentProgress allergies bloodGroup currentMedications address')
+//       .populate('medicationHistory.doctorId', 'firstName specialization')
+//       .populate('treatmentProgress.doctorId', 'firstName specialization');
+
+//     if (!patient) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Patient not found"
+//       });
+//     }
+
+//     // 2. Build booking match query
+//     let bookingMatch = { patientId: new mongoose.Types.ObjectId(patientId) };
+//     if (status) bookingMatch.status = status;
+
+//     // Date filters
+//     const now = new Date();
+//     if (dateFilterType === "today") {
+//       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+//       const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+//       bookingMatch.appointmentDate = { $gte: todayStart, $lt: todayEnd };
+//     } else if (dateFilterType === "week") {
+//       const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+//       bookingMatch.appointmentDate = { $gte: weekStart };
+//     }
+
+//     // 3. COMPREHENSIVE Aggregation for ALL bookings + services + doctors
+//     const bookingPipeline = [
+//       { $match: bookingMatch },
+//       // Services
+//       {
+//         $lookup: {
+//           from: "services",
+//           localField: "serviceId",
+//           foreignField: "_id",
+//           as: "service",
+//           pipeline: [{ $project: { 
+//             name: 1, category: 1, nursingType: 1, 
+//             description: 1, basePrice: 1, modes: 1 
+//           }}]
+//         }
+//       },
+//       { $unwind: { path: "$service", preserveNullAndEmptyArrays: true } },
+      
+//       // Doctors/Service Partners
+//       {
+//         $lookup: {
+//           from: "doctors",
+//           localField: "servicePartnerId",
+//           foreignField: "_id",
+//           as: "doctor",
+//           pipeline: [{ $project: { 
+//             firstName: 1, phone: 1, specialization: 1, 
+//             yearsOfExperience: 1, cities: 1 
+//           }}]
+//         }
+//       },
+//       { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
+      
+//       // City
+//       {
+//         $lookup: {
+//           from: "availablecities",
+//           localField: "city",
+//           foreignField: "_id",
+//           as: "cityDetails",
+//           pipeline: [{ $project: { name: 1 } }]
+//         }
+//       },
+//       { $unwind: { path: "$cityDetails", preserveNullAndEmptyArrays: true } },
+
+//       // Project booking details
+//       {
+//         $project: {
+//           type: "booking",
+//           bookingId: "$_id",
+//           appointmentDate: 1,
+//           slotTime: { startTime: 1, endTime: 1 },
+//           duration: 1,
+//           serviceName: "$service.name",
+//           serviceCategory: "$service.category",
+//           serviceNursingType: "$service.nursingType",
+//           serviceModes: "$service.modes",
+//           doctorName: "$doctor.firstName",
+//           doctorSpecialization: "$doctor.specialization",
+//           doctorPhone: "$doctor.phone",
+//           cityName: "$cityDetails.name",
+//           status: 1,
+//           statusReason: { $ifNull: ["$statusReason", ""] },
+//           cancelledBy: 1,
+//           cancelledAt: 1,
+//           cancellationReason: 1,
+//           pricing: 1,
+//           notes: 1,
+//           createdAt: 1
+//         }
+//       }
+//     ];
+
+//     // 4. Get ALL bookings
+//     const bookingsResult = await Booking.aggregate([
+//       ...bookingPipeline,
+//       { $sort: { appointmentDate: -1, createdAt: -1 } },
+//       {
+//         $facet: {
+//           paginatedBookings: [{ $skip: skip }, { $limit: limitNum }],
+//           totalBookings: [{ $count: "count" }]
+//         }
+//       }
+//     ]);
+
+//     const allBookings = await Booking.aggregate([
+//       ...bookingPipeline,
+//       { $sort: { appointmentDate: -1, createdAt: -1 } }
+//     ]);
+
+//     // 5. Transform Medical History into timeline format
+//     const medicalTimeline = [];
+
+//     // Medical Conditions
+//     patient.medicalHistory?.forEach((condition, index) => {
+//       medicalTimeline.push({
+//         type: "medicalCondition",
+//         condition: condition.condition,
+//         diagnosedDate: condition.diagnosedDate,
+//         status: condition.status || "active",
+//         severity: condition.severity || "unknown",
+//         notes: condition.notes || "",
+//         addedAt: condition.addedAt || patient.createdAt,
+//         timelineIndex: index
+//       });
+//     });
+
+//     // Medications
+//     patient.medicationHistory?.forEach((med, index) => {
+//       medicalTimeline.push({
+//         type: "medication",
+//         medicationName: med.medicationName,
+//         dosage: med.dosage,
+//         frequency: med.frequency,
+//         startDate: med.startDate,
+//         endDate: med.endDate,
+//         status: med.status,
+//         purpose: med.purpose,
+//         prescribedBy: med.prescribedBy?.doctorName || "Unknown",
+//         timelineIndex: index
+//       });
+//     });
+
+//     // Treatment Progress
+//     patient.treatmentProgress?.forEach((progress, index) => {
+//       medicalTimeline.push({
+//         type: "treatmentProgress",
+//         visitDate: progress.visitDate,
+//         diagnosis: progress.diagnosis,
+//         recommendations: progress.recommendations,
+//         progressNotes: progress.progressNotes,
+//         vitals: progress.vitals,
+//         doctorName: progress.doctorId?.firstName || "Unknown",
+//         timelineIndex: index
+//       });
+//     });
+
+//     // 6. Combine ALL into unified timeline
+//     const unifiedTimeline = [
+//       ...allBookings,
+//       ...medicalTimeline
+//     ].sort((a, b) => {
+//       const dateA = new Date(a.appointmentDate || a.diagnosedDate || a.startDate || a.visitDate || a.addedAt || new Date(0));
+//       const dateB = new Date(b.appointmentDate || b.diagnosedDate || b.startDate || b.visitDate || b.addedAt || new Date(0));
+//       return dateB - dateA;
+//     });
+
+//     // 7. Summary statistics
+//     const stats = {
+//       totalBookings: allBookings.length,
+//       activeMedications: patient.medicationHistory?.filter(m => m.status === 'active').length || 0,
+//       ongoingConditions: patient.medicalHistory?.filter(c => ['active', 'chronic'].includes(c.status)).length || 0,
+//       totalTreatmentVisits: patient.treatmentProgress?.length || 0,
+//       allergies: patient.allergies || "None recorded",
+//       bloodGroup: patient.bloodGroup || "Not specified"
+//     };
+
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         patient: {
+//           name: patient.firstName,
+//           phone: patient.phone,
+//           email: patient.email,
+//           address: patient.address
+//         },
+//         timeline: unifiedTimeline.slice(0, 100), // Limit to recent 100 events
+//         paginatedBookings: bookingsResult[0]?.paginatedBookings || [],
+//         pagination: {
+//           currentPage: pageNum,
+//           totalBookings: bookingsResult[0]?.totalBookings[0]?.count || 0,
+//           totalPages: Math.ceil((bookingsResult[0]?.totalBookings[0]?.count || 0) / limitNum),
+//           pageSize: limitNum
+//         },
+//         summary: stats,
+//         medicalSnapshot: {
+//           activeMedications: patient.medicationHistory?.filter(m => m.status === 'active') || [],
+//           ongoingConditions: patient.medicalHistory?.filter(c => ['active', 'chronic'].includes(c.status)) || [],
+//           recentTreatments: patient.treatmentProgress?.slice(-5) || []
+//         }
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error("Complete patient history error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching complete patient history",
+//       error: error.message
+//     });
+//   }
+// };
+
+
+
+
+
+
+exports.getCompletePatientTreatmentHistory = async (req, res) => {
+  try {
+    let patientId = req.query.patientId || req.user?.id;
+
+    console.log("🔍 DEBUG - Raw patientId:", patientId, "user:", req.user?.id, "role:", req.user?.role);
+
+    if (!patientId) {
+      return res.status(400).json({
+        success: false,
+        message: "Patient ID is required"
+      });
+    }
+
+    if (typeof patientId === 'string') {
+      if (!mongoose.Types.ObjectId.isValid(patientId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Patient ID format"
+        });
+      }
+      patientId = new mongoose.Types.ObjectId(patientId);
+    }
+
+    // ✅ FIXED: Case-insensitive role matching
+    const userRole = (req.user?.role || 'public').toLowerCase();
+    const isPatientOwner = req.user?.id === patientId.toString();
+    const isAdmin = ['admin', 'superadmin', 'superAdmin', 'SuperAdmin'].includes(userRole);
+    const isDoctor = userRole === 'doctor';
+
+    console.log("🔍 DEBUG - Permissions:", { 
+      rawRole: req.user?.role,
+      normalizedRole: userRole,
+      isPatientOwner, 
+      isAdmin, 
+      isDoctor,
+      patientId: patientId.toString()
+    });
+
+    const patient = await Patient.findById(patientId)
+      .select('firstName phone email medicalHistory medicationHistory treatmentProgress allergies bloodGroup currentMedications address')
+      .populate([
+        { path: 'medicationHistory.prescribedBy.doctorId', select: 'firstName specialization profilePhoto' },
+        { path: 'treatmentProgress.doctorId', select: 'firstName specialization profilePhoto' }
+      ]);
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: `Patient not found with ID: ${patientId}`
+      });
+    }
+
+    // ✅ FIXED Authorization
+    if (!isPatientOwner && !isAdmin && !isDoctor) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. Role '${req.user?.role}' cannot view patient ${patientId}`
+      });
+    }
+
+    // ... rest of your existing code remains exactly the same ...
+    const { page = 1, limit = 50, status, dateFilterType } = req.query;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 50;
+    const skip = (pageNum - 1) * limitNum;
+
+    let bookingMatch = { patientId: patientId };
+    if (status) bookingMatch.status = status;
+
+    const now = new Date();
+    if (dateFilterType === "today") {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+      bookingMatch.appointmentDate = { $gte: todayStart, $lt: todayEnd };
+    } else if (dateFilterType === "week") {
+      const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      bookingMatch.appointmentDate = { $gte: weekStart };
+    }
+
+    const bookingPipeline = [
+      { $match: bookingMatch },
+      {
+        $lookup: {
+          from: "services",
+          localField: "serviceId",
+          foreignField: "_id",
+          as: "service",
+          pipeline: [{ $project: { 
+            name: 1, category: 1, nursingType: 1, 
+            description: 1, basePrice: 1, modes: 1 
+          }}]
+        }
+      },
+      { $unwind: { path: "$service", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "doctors",
+          localField: "servicePartnerId",
+          foreignField: "_id",
+          as: "doctor",
+          pipeline: [{ $project: { 
+            firstName: 1, phone: 1, specialization: 1, 
+            yearsOfExperience: 1, cities: 1 
+          }}]
+        }
+      },
+      { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "availablecities",
+          localField: "city",
+          foreignField: "_id",
+          as: "cityDetails",
+          pipeline: [{ $project: { name: 1 } }]
+        }
+      },
+      { $unwind: { path: "$cityDetails", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          type: "booking",
+          bookingId: "$_id",
+          appointmentDate: 1,
+          slotTime: { startTime: 1, endTime: 1 },
+          duration: 1,
+          serviceName: "$service.name",
+          serviceCategory: "$service.category",
+          serviceNursingType: "$service.nursingType",
+          serviceModes: "$service.modes",
+          doctorName: "$doctor.firstName",
+          doctorSpecialization: "$doctor.specialization",
+          doctorPhone: "$doctor.phone",
+          cityName: "$cityDetails.name",
+          status: 1,
+          statusReason: { $ifNull: ["$statusReason", ""] },
+          cancelledBy: 1,
+          cancelledAt: 1,
+          cancellationReason: 1,
+          pricing: 1,
+          notes: 1,
+          createdAt: 1
+        }
+      }
+    ];
+
+    const bookingsResult = await Booking.aggregate([
+      ...bookingPipeline,
+      { $sort: { appointmentDate: -1, createdAt: -1 } },
+      {
+        $facet: {
+          paginatedBookings: [{ $skip: skip }, { $limit: limitNum }],
+          totalBookings: [{ $count: "count" }]
+        }
+      }
+    ]);
+
+    const allBookings = await Booking.aggregate([
+      ...bookingPipeline,
+      { $sort: { appointmentDate: -1, createdAt: -1 } }
+    ]);
+
+    const medicalTimeline = [];
+    patient.medicalHistory?.forEach((condition, index) => {
+      medicalTimeline.push({
+        type: "medicalCondition",
+        condition: condition.condition,
+        diagnosedDate: condition.diagnosedDate,
+        status: condition.status || "active",
+        severity: condition.severity || "unknown",
+        notes: condition.notes || "",
+        addedAt: condition.addedAt || patient.createdAt,
+        timelineIndex: index
+      });
+    });
+
+    patient.medicationHistory?.forEach((med, index) => {
+      medicalTimeline.push({
+        type: "medication",
+        medicationName: med.medicationName,
+        dosage: med.dosage,
+        frequency: med.frequency,
+        startDate: med.startDate,
+        endDate: med.endDate,
+        status: med.status,
+        purpose: med.purpose,
+        prescribedBy: med.prescribedBy?.doctorId?.firstName || med.prescribedBy?.doctorName || "Unknown",
+        timelineIndex: index
+      });
+    });
+
+    patient.treatmentProgress?.forEach((progress, index) => {
+      medicalTimeline.push({
+        type: "treatmentProgress",
+        visitDate: progress.visitDate,
+        diagnosis: progress.diagnosis,
+        recommendations: progress.recommendations,
+        progressNotes: progress.progressNotes,
+        vitals: progress.vitals,
+        doctorName: progress.doctorId?.firstName || "Unknown",
+        timelineIndex: index
+      });
+    });
+
+    const unifiedTimeline = [
+      ...allBookings,
+      ...medicalTimeline
+    ].sort((a, b) => {
+      const dateA = new Date(a.appointmentDate || a.diagnosedDate || a.startDate || a.visitDate || a.addedAt || new Date(0));
+      const dateB = new Date(b.appointmentDate || b.diagnosedDate || b.startDate || b.visitDate || b.addedAt || new Date(0));
+      return dateB - dateA;
+    });
+
+    const stats = {
+      totalBookings: allBookings.length,
+      activeMedications: patient.medicationHistory?.filter(m => m.status === 'active').length || 0,
+      ongoingConditions: patient.medicalHistory?.filter(c => ['active', 'chronic'].includes(c.status)).length || 0,
+      totalTreatmentVisits: patient.treatmentProgress?.length || 0,
+      allergies: patient.allergies?.join(', ') || "None recorded",
+      bloodGroup: patient.bloodGroup || "Not specified"
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        patient: {
+          name: patient.firstName,
+          phone: patient.phone,
+          email: patient.email,
+          address: patient.address
+        },
+        timeline: unifiedTimeline.slice(0, 100),
+        paginatedBookings: bookingsResult[0]?.paginatedBookings || [],
+        pagination: {
+          currentPage: pageNum,
+          totalBookings: bookingsResult[0]?.totalBookings[0]?.count || 0,
+          totalPages: Math.ceil((bookingsResult[0]?.totalBookings[0]?.count || 0) / limitNum),
+          pageSize: limitNum
+        },
+        summary: stats,
+        medicalSnapshot: {
+          activeMedications: patient.medicationHistory?.filter(m => m.status === 'active') || [],
+          ongoingConditions: patient.medicalHistory?.filter(c => ['active', 'chronic'].includes(c.status)) || [],
+          recentTreatments: patient.treatmentProgress?.slice(-5) || []
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Complete patient history error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching complete patient history",
+      error: error.message
+    });
+  }
+};
+
