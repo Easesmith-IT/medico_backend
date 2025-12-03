@@ -3,7 +3,7 @@
 
 
 // controller/patientController.js
-
+const mongoose = require('mongoose');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const Patient = require('../models/patientModel');
@@ -1219,12 +1219,9 @@ exports.addMedication = catchAsync(async (req, res, next) => {
   console.log('REQ.BODY:', req.body);
   
   const medication = req.body.medication;
-  
-  // ✅ PRIORITY 1: Use patientId from body (admin use case)
-  // ✅ PRIORITY 2: Use req.user.id ONLY if user role is 'patient'
   let patientId = req.body.patientId;
   
-  // FIXED: Check req.user.role (normalized lowercase from protect middleware)
+  // Patient self-use: no patientId needed
   if (!patientId && req.user.role === 'patient') {
     patientId = req.user.id;
   }
@@ -1234,34 +1231,27 @@ exports.addMedication = catchAsync(async (req, res, next) => {
   }
 
   if (!patientId) {
-    return next(new AppError('Patient ID is required for admin users. Patients can omit this field.', 400));
+    return next(new AppError('Patient ID required for admin users', 400));
   }
 
-  console.log('Searching patient ID:', patientId);
-  const patient = await Patient.findById(patientId);
+  // 🔥 THE FIX: ObjectId conversion
+  const ObjectId = mongoose.Types.ObjectId;
+  const validPatientId = new ObjectId(patientId);
   
+  console.log('Finding patient:', validPatientId);
+  
+  const patient = await Patient.findById(validPatientId);
   if (!patient) {
-    console.log('❌ NO PATIENT FOUND for ID:', patientId);
     return next(new AppError('Patient not found', 404));
   }
 
-  // ✅ FIXED: Use req.user.role (normalized from middleware)
-  const userRole = req.user.role; // Already lowercase from protect()
+  // Admin or patient self
+  const userRole = req.user.role;
   const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(userRole);
-  const isPatientSelf = userRole === 'patient' && req.user.id === patientId.toString();
-
-  const isAuthorized = isPatientSelf || isAdmin;
-
-  console.log('Auth check:', { 
-    userRole,           // From protect() middleware - lowercase
-    patientRole: patient.role,  // From DB - might be 'Patient'
-    isAdmin, 
-    isPatientSelf, 
-    isAuthorized 
-  });
-
-  if (!isAuthorized) {
-    return next(new AppError(`Not authorized. User role: ${userRole}`, 403));
+  const isPatientSelf = userRole === 'patient' && req.user.id.toString() === patientId;
+  
+  if (!isPatientSelf && !isAdmin) {
+    return next(new AppError('Unauthorized', 403));
   }
 
   if (patient.currentMedications.includes(medication)) {
@@ -1271,16 +1261,14 @@ exports.addMedication = catchAsync(async (req, res, next) => {
   patient.currentMedications.push(medication);
   await patient.save();
 
-  console.log('✅ Medication added successfully');
-  
   res.status(200).json({
     success: true,
     message: 'Medication added successfully',
-    data: { 
+    data: {
       patientId: patient._id,
       patientName: patient.firstName,
-      currentMedications: patient.currentMedications 
-    },
+      currentMedications: patient.currentMedications
+    }
   });
 });
 
