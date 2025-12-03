@@ -38,7 +38,8 @@ router.delete('/allergies', protect(), patientController.removeAllergy);
 
 // PROTECTED ROUTES - Medications
 
-router.post('/medications', protect(), patientController.addMedication);
+// router.post('/medications', protect(), patientController.addMedication);
+router.post('/medications', protect('patient', 'superadmin', 'subadmin'), patientController.addMedication);
 router.delete('/medications', protect(), patientController.removeMedication);
 
 
