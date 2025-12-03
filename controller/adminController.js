@@ -3685,7 +3685,7 @@ exports.adminAddMedication = catchAsync(async (req, res, next) => {
 });
 
 exports.adminRemoveMedication = catchAsync(async (req, res, next) => {
-  const { medication } = req.body;
+  const { medication } = req.query;
   const { patientId } = req.params;
 
   if (!medication) {
