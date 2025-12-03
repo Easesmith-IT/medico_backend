@@ -1189,15 +1189,62 @@ exports.updateMedicalHistory = catchAsync(async (req, res, next) => { //update
 });
 
 // Add Medication
-exports.addMedication = catchAsync(async (req, res, next) => { //add medications
+// exports.addMedication = catchAsync(async (req, res, next) => { //add medications
+//   const medication = req.body.medication;
+//   if (!medication) {
+//     return next(new AppError('Please provide medication details', 400));
+//   }
+
+//   const patient = await Patient.findById(req.user?.id);
+//   if (!patient) {
+//     return next(new AppError('Patient not found', 404));
+//   }
+
+//   if (patient.currentMedications.includes(medication)) {
+//     return next(new AppError('Medication already exists', 400));
+//   }
+
+//   patient.currentMedications.push(medication);
+//   await patient.save();
+
+//   res.status(200).json({
+//     success: true,
+//     message: 'Medication added successfully',
+//     data: { currentMedications: patient.currentMedications },
+//   });
+// });
+
+exports.addMedication = catchAsync(async (req, res, next) => {
+  console.log('REQ.USER:', req.user); // DEBUG
+  console.log('REQ.BODY:', req.body);
+  
   const medication = req.body.medication;
+  const patientId = req.body.patientId || req.user.id; // ✅ Use req.user.id (not req.user?.id)
+
   if (!medication) {
     return next(new AppError('Please provide medication details', 400));
   }
 
-  const patient = await Patient.findById(req.user?.id);
+  if (!patientId) {
+    return next(new AppError('Patient ID is required', 400));
+  }
+
+  const patient = await Patient.findById(patientId);
   if (!patient) {
     return next(new AppError('Patient not found', 404));
+  }
+
+  //  FIXED: Check against decoded role OR database role
+  const decodedRole = req.user.role?.toLowerCase(); // From token (normalized in protect)
+  const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(decodedRole);
+  const isPatientSelf = req.user.id === patientId.toString();
+
+  const isAuthorized = isPatientSelf || isAdmin;
+
+  console.log('Auth check:', { decodedRole, isAdmin, isPatientSelf, isAuthorized });
+
+  if (!isAuthorized) {
+    return next(new AppError('Not authorized to modify this patient\'s medications', 403));
   }
 
   if (patient.currentMedications.includes(medication)) {
@@ -1210,9 +1257,14 @@ exports.addMedication = catchAsync(async (req, res, next) => { //add medications
   res.status(200).json({
     success: true,
     message: 'Medication added successfully',
-    data: { currentMedications: patient.currentMedications },
+    data: { 
+      patientId: patient._id,
+      currentMedications: patient.currentMedications 
+    },
   });
 });
+
+
 
 // Remove Medication
 exports.removeMedication = catchAsync(async (req, res, next) => { //remove 

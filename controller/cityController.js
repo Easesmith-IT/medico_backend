@@ -271,4 +271,5 @@ module.exports = {
   getCityById,
   deleteCity,
   updateCity,
+    toggleCityStatus,
 };
