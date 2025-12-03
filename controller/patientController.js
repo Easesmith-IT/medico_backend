@@ -1220,10 +1220,11 @@ exports.addMedication = catchAsync(async (req, res, next) => {
   
   const medication = req.body.medication;
   
-  // PRIORITY 1: Use patientId from body (admin use case)
-  //  PRIORITY 2: Use req.user.id ONLY if user is a patient
+  // ✅ PRIORITY 1: Use patientId from body (admin use case)
+  // ✅ PRIORITY 2: Use req.user.id ONLY if user role is 'patient'
   let patientId = req.body.patientId;
   
+  // FIXED: Check req.user.role (normalized lowercase from protect middleware)
   if (!patientId && req.user.role === 'patient') {
     patientId = req.user.id;
   }
@@ -1240,27 +1241,27 @@ exports.addMedication = catchAsync(async (req, res, next) => {
   const patient = await Patient.findById(patientId);
   
   if (!patient) {
-    console.log(' NO PATIENT FOUND for ID:', patientId);
+    console.log('❌ NO PATIENT FOUND for ID:', patientId);
     return next(new AppError('Patient not found', 404));
   }
 
-  //  Authorization: Patient self OR Admin/Superadmin/Subadmin
-  const userRole = req.user.role?.toLowerCase();
+  // ✅ FIXED: Use req.user.role (normalized from middleware)
+  const userRole = req.user.role; // Already lowercase from protect()
   const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(userRole);
-  const isPatientSelf = req.user.role === 'patient' && req.user.id === patientId.toString();
+  const isPatientSelf = userRole === 'patient' && req.user.id === patientId.toString();
 
   const isAuthorized = isPatientSelf || isAdmin;
 
   console.log('Auth check:', { 
-    userRole, 
-    patientRole: patient.role, 
+    userRole,           // From protect() middleware - lowercase
+    patientRole: patient.role,  // From DB - might be 'Patient'
     isAdmin, 
     isPatientSelf, 
     isAuthorized 
   });
 
   if (!isAuthorized) {
-    return next(new AppError('Not authorized to modify this patient\'s medications', 403));
+    return next(new AppError(`Not authorized. User role: ${userRole}`, 403));
   }
 
   if (patient.currentMedications.includes(medication)) {
@@ -1270,7 +1271,7 @@ exports.addMedication = catchAsync(async (req, res, next) => {
   patient.currentMedications.push(medication);
   await patient.save();
 
-  console.log(' Medication added successfully');
+  console.log('✅ Medication added successfully');
   
   res.status(200).json({
     success: true,
@@ -1282,6 +1283,7 @@ exports.addMedication = catchAsync(async (req, res, next) => {
     },
   });
 });
+
 
 
 
