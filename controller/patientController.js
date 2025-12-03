@@ -1214,63 +1214,10 @@ exports.updateMedicalHistory = catchAsync(async (req, res, next) => { //update
 //   });
 // });
 
-exports.addMedication = catchAsync(async (req, res, next) => {
-  console.log('REQ.USER:', req.user);
-  console.log('REQ.BODY:', req.body);
-  
-  const medication = req.body.medication;
-  let patientId = req.body.patientId;
-  
-  // Patient self-use: no patientId needed
-  if (!patientId && req.user.role === 'patient') {
-    patientId = req.user.id;
-  }
-  
-  if (!medication) {
-    return next(new AppError('Please provide medication details', 400));
-  }
 
-  if (!patientId) {
-    return next(new AppError('Patient ID required for admin users', 400));
-  }
 
-  // 🔥 THE FIX: ObjectId conversion
-  const ObjectId = mongoose.Types.ObjectId;
-  const validPatientId = new ObjectId(patientId);
-  
-  console.log('Finding patient:', validPatientId);
-  
-  const patient = await Patient.findById(validPatientId);
-  if (!patient) {
-    return next(new AppError('Patient not found', 404));
-  }
 
-  // Admin or patient self
-  const userRole = req.user.role;
-  const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(userRole);
-  const isPatientSelf = userRole === 'patient' && req.user.id.toString() === patientId;
-  
-  if (!isPatientSelf && !isAdmin) {
-    return next(new AppError('Unauthorized', 403));
-  }
 
-  if (patient.currentMedications.includes(medication)) {
-    return next(new AppError('Medication already exists', 400));
-  }
-
-  patient.currentMedications.push(medication);
-  await patient.save();
-
-  res.status(200).json({
-    success: true,
-    message: 'Medication added successfully',
-    data: {
-      patientId: patient._id,
-      patientName: patient.firstName,
-      currentMedications: patient.currentMedications
-    }
-  });
-});
 
 
 
