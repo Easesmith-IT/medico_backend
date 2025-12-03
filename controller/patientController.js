@@ -1215,33 +1215,49 @@ exports.updateMedicalHistory = catchAsync(async (req, res, next) => { //update
 // });
 
 exports.addMedication = catchAsync(async (req, res, next) => {
-  console.log('REQ.USER:', req.user); // DEBUG
+  console.log('REQ.USER:', req.user);
   console.log('REQ.BODY:', req.body);
   
   const medication = req.body.medication;
-  const patientId = req.body.patientId || req.user.id; // ✅ Use req.user.id (not req.user?.id)
-
+  
+  // PRIORITY 1: Use patientId from body (admin use case)
+  //  PRIORITY 2: Use req.user.id ONLY if user is a patient
+  let patientId = req.body.patientId;
+  
+  if (!patientId && req.user.role === 'patient') {
+    patientId = req.user.id;
+  }
+  
   if (!medication) {
     return next(new AppError('Please provide medication details', 400));
   }
 
   if (!patientId) {
-    return next(new AppError('Patient ID is required', 400));
+    return next(new AppError('Patient ID is required for admin users. Patients can omit this field.', 400));
   }
 
+  console.log('Searching patient ID:', patientId);
   const patient = await Patient.findById(patientId);
+  
   if (!patient) {
+    console.log(' NO PATIENT FOUND for ID:', patientId);
     return next(new AppError('Patient not found', 404));
   }
 
-  //  FIXED: Check against decoded role OR database role
-  const decodedRole = req.user.role?.toLowerCase(); // From token (normalized in protect)
-  const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(decodedRole);
-  const isPatientSelf = req.user.id === patientId.toString();
+  //  Authorization: Patient self OR Admin/Superadmin/Subadmin
+  const userRole = req.user.role?.toLowerCase();
+  const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(userRole);
+  const isPatientSelf = req.user.role === 'patient' && req.user.id === patientId.toString();
 
   const isAuthorized = isPatientSelf || isAdmin;
 
-  console.log('Auth check:', { decodedRole, isAdmin, isPatientSelf, isAuthorized });
+  console.log('Auth check:', { 
+    userRole, 
+    patientRole: patient.role, 
+    isAdmin, 
+    isPatientSelf, 
+    isAuthorized 
+  });
 
   if (!isAuthorized) {
     return next(new AppError('Not authorized to modify this patient\'s medications', 403));
@@ -1254,11 +1270,14 @@ exports.addMedication = catchAsync(async (req, res, next) => {
   patient.currentMedications.push(medication);
   await patient.save();
 
+  console.log(' Medication added successfully');
+  
   res.status(200).json({
     success: true,
     message: 'Medication added successfully',
     data: { 
       patientId: patient._id,
+      patientName: patient.firstName,
       currentMedications: patient.currentMedications 
     },
   });
