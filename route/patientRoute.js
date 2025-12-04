@@ -20,9 +20,14 @@ router.post('/logout-all', patientController.patientLogoutAll);
 
 
 router.get('/profile', protect(), patientController.getMyProfile);
+// router.patch(
+//   "/updateProfile/:id",
+//   protect("patient"),
+//   patientController.updatePatient
+// );
 router.patch(
   "/updateProfile/:id",
-  protect("patient"),
+  protect("patient", "admin", "superadmin", "superAdmin"),
   patientController.updatePatient
 );
 
