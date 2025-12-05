@@ -590,3 +590,122 @@ exports.toggleStatus = async (req, res) => {
     });
   }
 };
+
+
+//get all apointment 
+exports.getServiceProviderAppointments = async (req, res) => {
+  try {
+    const serviceProviderId = req.user.id;
+
+    // Verify service provider exists and is active
+    const serviceProvider = await ServiceProvider.findOne({
+      _id: serviceProviderId,
+      isActive: true
+    });
+    
+    if (!serviceProvider) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service provider not found or inactive'
+      });
+    }
+
+    // ✅ FIXED: Use array syntax for .select() - NOT multiline string
+    const appointments = await Booking.find({ 
+      servicePartnerId: serviceProviderId
+    })
+    .populate({
+      path: 'patientId',
+      select: 'firstName lastName phone email profilePhoto "address.city" "address.cityId"',
+      model: 'Patient'
+    })
+    .populate({
+      path: 'serviceId',
+      select: 'name category basePrice',
+      model: 'Service'
+    })
+    .populate({
+      path: 'city',
+      select: 'name',
+      model: 'City'
+    })
+    .select([
+      'appointmentDate',
+      'slotTime',
+      'duration',
+      'status',
+      'statusReason',
+      'notes',
+      'pricing',
+      'cancelledBy',
+      'cancelledAt',
+      'cancellationReason',
+      'patientId',
+      'serviceId',
+      'city',
+      'createdAt',
+      'updatedAt'
+    ])
+    .sort({ appointmentDate: -1, createdAt: -1 })
+    .lean();
+
+    res.status(200).json({
+      success: true,
+      count: appointments.length,
+      data: appointments
+    });
+
+  } catch (error) {
+    console.error('Error fetching service provider appointments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching appointments',
+      error: error.message
+    });
+  }
+};
+
+// GET single appointment
+exports.getSingleAppointment = async (req, res) => {
+  try {
+    const { id: appointmentId } = req.params;
+    const serviceProviderId = req.user.id;
+
+    const appointment = await Booking.findOne({ 
+      _id: appointmentId,
+      servicePartnerId: serviceProviderId 
+    })
+    .populate({
+      path: 'patientId',
+      select: 'firstName lastName phone email profilePhoto address bloodGroup allergies currentMedications emergencyContact',
+      model: 'Patient'
+    })
+    .populate({
+      path: 'serviceId',
+      select: 'name category basePrice equipmentCharges',
+      model: 'Service'
+    })
+    .populate('city', 'name')
+    .lean();
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found or not assigned to you'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: appointment
+    });
+
+  } catch (error) {
+    console.error('Error fetching single appointment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};

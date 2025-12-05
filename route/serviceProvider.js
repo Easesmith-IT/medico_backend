@@ -48,6 +48,22 @@ router.patch(
   serviceProviderController.toggleStatus
 );
 
+
+
+router.get(
+  "/service-provider/appointments", 
+  protect(),
+  serviceProviderController.getServiceProviderAppointments
+);
+
+router.get(
+  "/service-provider/appointments/:id", 
+  protect(),
+  serviceProviderController.getSingleAppointment
+);
+
+
+
 module.exports = router;
 
 // const express = require('express');
