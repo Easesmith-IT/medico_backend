@@ -484,6 +484,7 @@ const AppError = require('../utils/appError');
 const Patient = require('../models/patientModel');
 const Doctor = require('../models/doctorModel');
 const Admin = require('../models/adminModel');
+const ServiceProvider = require('../models/serviceProviderModel');
 /**
  * PROTECT MIDDLEWARE - Automatic token refresh on expiry
 //  * @param  {...string} allowedRoles - Optional roles for authorization
