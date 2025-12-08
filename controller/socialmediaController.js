@@ -58,7 +58,7 @@ exports.createPost = async (req, res, next) => {
 
     const postData = {
       doctor: req.user._id || req.user.id,
-      type, // ✅ always a valid enum
+      type, //  always a valid enum
       content: req.body.content || '',
       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
       hashtags: Array.isArray(req.body.hashtags)
@@ -101,7 +101,10 @@ exports.likePost = async (req, res, next) => {
     res.json({ likes: post.stats.likes });
   } catch (err) { next(err); }
 };
+
+
 // exports.toggleLikePost = async (req, res, next) => {
+
 //   try {
 //     const doctorId = req.user.id;
 //     const postId = req.params.id;
