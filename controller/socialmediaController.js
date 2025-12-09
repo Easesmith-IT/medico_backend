@@ -124,30 +124,57 @@ exports.deletePost = async (req, res, next) => {
 
 
 
+// exports.toggleLikePost = async (req, res, next) => {
+//   try {
+//     const post = await Post.findById(req.params.id); 
+//     if (!social) return res.status(404).json({ success: false, message: 'Post not found' });
+
+//     const userId = req.user._id.toString();
+//     const userRole = req.user.role;
+//     const existingLike = social.likes.find(like => 
+//       like.userId.toString() === userId && like.userRole === userRole
+//     );
+
+//     if (existingLike) {
+//       social.likes = social.likes.filter(like => 
+//         !(like.userId.toString() === userId && like.userRole === userRole)
+//       );
+//     } else {
+//       social.likes.push({ userId: req.user._id, userRole });
+//     }
+//     social.stats.likes = social.likes.length;
+//     await social.save();
+
+//     res.json({ success: true, likes: social.stats.likes, userHasLiked: !existingLike });
+//   } catch (err) { next(err); }
+// };
+
 exports.toggleLikePost = async (req, res, next) => {
   try {
-    const social = await Social.findById(req.params.id);
-    if (!social) return res.status(404).json({ success: false, message: 'Post not found' });
+    const post = await Post.findById(req.params.id);  //  Post, not Social
+    if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
 
     const userId = req.user._id.toString();
     const userRole = req.user.role;
-    const existingLike = social.likes.find(like => 
-      like.userId.toString() === userId && like.userRole === userRole
+    const existingLike = post.likes?.find(like => 
+      like.userId?.toString() === userId && like.userRole === userRole
     );
 
     if (existingLike) {
-      social.likes = social.likes.filter(like => 
-        !(like.userId.toString() === userId && like.userRole === userRole)
+      post.likes = post.likes.filter(like => 
+        !(like.userId?.toString() === userId && like.userRole === userRole)
       );
     } else {
-      social.likes.push({ userId: req.user._id, userRole });
+      post.likes = post.likes || [];  // Initialize if null
+      post.likes.push({ userId: req.user._id, userRole });
     }
-    social.stats.likes = social.likes.length;
-    await social.save();
+    post.stats.likes = post.likes.length;
+    await post.save();
 
-    res.json({ success: true, likes: social.stats.likes, userHasLiked: !existingLike });
+    res.json({ success: true, likes: post.stats.likes, userHasLiked: !existingLike });
   } catch (err) { next(err); }
 };
+
 
 // Toggle Follow (Doctor follows Doctor, Patient follows Doctor)
 exports.toggleFollowDoctor = async (req, res, next) => {
