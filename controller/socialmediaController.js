@@ -39,26 +39,22 @@ const Post = require('../models/socialPostModel');
 //   }
 // };
 
-
 exports.createPost = async (req, res, next) => {
   try {
     let type;
 
     if (req.file) {
-      // If there is a file, decide between GALLERY / REEL
       const isImage = req.file.mimetype.startsWith('image/');
       type = isImage ? 'GALLERY' : 'REEL';
     } else {
-      // No file: TEXT or ARTICLE; default to TEXT
       const requestedType = (req.body.type || 'TEXT').toUpperCase();
       type = ['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes(requestedType)
-        ? requestedType
-        : 'TEXT';
+        ? requestedType : 'TEXT';
     }
 
     const postData = {
-      doctor: req.user._id || req.user.id,
-      type, //  always a valid enum
+      doctor: req.user._id || req.user.id,  // ✅ Works for Doctor + Admin
+      type,
       content: req.body.content || '',
       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
       hashtags: Array.isArray(req.body.hashtags)
@@ -71,24 +67,131 @@ exports.createPost = async (req, res, next) => {
 
     const post = new Post(postData);
     await post.save();
-    await post.populate('mentions', 'name profilePhoto');
+    await post.populate('mentions', 'firstName lastName');
 
-    res.status(201).json({ success: true, data: post });
+    // ✅ Add creator details to response (immediate feedback)
+    const Doctor = require('../models/doctorModel');
+    const Admin = require('../models/adminModel');
+    
+    let creator;
+    const doctor = await Doctor.findById(post.doctor).select('firstName lastName location position profilePhoto');
+    
+    if (doctor) {
+      creator = {
+        _id: doctor._id,
+        name: `${doctor.firstName} ${doctor.lastName}`.trim(),
+        location: doctor.location,
+        position: doctor.position,
+        profilePhoto: doctor.profilePhoto,
+        role: 'doctor'
+      };
+    } else {
+      // Admin fallback
+      const admin = await Admin.findById(post.doctor).select('firstName');
+      creator = {
+        _id: post.doctor,
+        name: `${admin?.firstName || 'Admin'} Admin`,
+        location: null,
+        position: null,
+        profilePhoto: null,
+        role: 'admin'
+      };
+    }
+
+    res.status(201).json({ 
+      success: true, 
+      data: {
+        ...post.toObject(),
+        creator
+      }
+    });
   } catch (err) {
     next(err);
   }
 };
 
+// exports.createPost = async (req, res, next) => {
+//   try {
+//     let type;
 
+//     if (req.file) {
+//       // If there is a file, decide between GALLERY / REEL
+//       const isImage = req.file.mimetype.startsWith('image/');
+//       type = isImage ? 'GALLERY' : 'REEL';
+//     } else {
+//       // No file: TEXT or ARTICLE; default to TEXT
+//       const requestedType = (req.body.type || 'TEXT').toUpperCase();
+//       type = ['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes(requestedType)
+//         ? requestedType
+//         : 'TEXT';
+//     }
+
+//     const postData = {
+//       doctor: req.user._id || req.user.id,
+//       type, //  always a valid enum
+//       content: req.body.content || '',
+//       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
+//       hashtags: Array.isArray(req.body.hashtags)
+//         ? req.body.hashtags
+//         : (req.body.hashtags ? String(req.body.hashtags).split(',').map(h => h.trim()) : []),
+//       mentions: Array.isArray(req.body.mentions)
+//         ? req.body.mentions
+//         : (req.body.mentions ? String(req.body.mentions).split(',').map(m => m.trim()) : [])
+//     };
+
+//     const post = new Post(postData);
+//     await post.save();
+//     await post.populate('mentions', 'name profilePhoto');
+
+//     res.status(201).json({ success: true, data: post });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+
+// exports.getPosts = async (req, res, next) => {
+//   try {
+//     const posts = await Post.find()
+//       .populate('doctor', 'name profilePhoto')
+//       .populate('mentions', 'name')
+//       .sort({ createdAt: -1 })
+//       .limit(20);
+//     res.json(posts);
+//   } catch (err) { next(err); }
+// };
 exports.getPosts = async (req, res, next) => {
   try {
     const posts = await Post.find()
-      .populate('doctor', 'name profilePhoto')
-      .populate('mentions', 'name')
+      .populate({
+        path: 'doctor',
+        select: 'firstName lastName location position profilePhoto'  // ✅ Added location + position
+      })
+      .populate('mentions', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(20);
-    res.json(posts);
-  } catch (err) { next(err); }
+
+    // ✅ Transform for consistent creator format
+    const postsWithCreators = posts.map(post => {
+      const doctor = post.doctor;
+      
+      return {
+        ...post.toObject(),
+        creator: {
+          _id: doctor._id || post.doctor,
+          name: doctor ? `${doctor.firstName} ${doctor.lastName}`.trim() : 'Admin',
+          location: doctor?.location || null,
+          position: doctor?.position || null,
+          profilePhoto: doctor?.profilePhoto || null,
+          role: doctor ? 'doctor' : 'admin'
+        }
+      };
+    });
+
+    res.json(postsWithCreators);
+  } catch (err) { 
+    next(err); 
+  }
 };
 
 exports.likePost = async (req, res, next) => {
