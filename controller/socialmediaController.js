@@ -103,6 +103,131 @@ exports.likePost = async (req, res, next) => {
 };
 
 
+
+
+exports.deletePost = async (req, res, next) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+
+    const userId = req.user._id || req.user.id;
+    if (post.doctor.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this post' });
+    }
+
+    await Post.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Post deleted successfully' });
+  } catch (err) { 
+    next(err); 
+  }
+};
+
+
+
+exports.toggleLikePost = async (req, res, next) => {
+  try {
+    const social = await Social.findById(req.params.id);
+    if (!social) return res.status(404).json({ success: false, message: 'Post not found' });
+
+    const userId = req.user._id.toString();
+    const userRole = req.user.role;
+    const existingLike = social.likes.find(like => 
+      like.userId.toString() === userId && like.userRole === userRole
+    );
+
+    if (existingLike) {
+      social.likes = social.likes.filter(like => 
+        !(like.userId.toString() === userId && like.userRole === userRole)
+      );
+    } else {
+      social.likes.push({ userId: req.user._id, userRole });
+    }
+    social.stats.likes = social.likes.length;
+    await social.save();
+
+    res.json({ success: true, likes: social.stats.likes, userHasLiked: !existingLike });
+  } catch (err) { next(err); }
+};
+
+// Toggle Follow (Doctor follows Doctor, Patient follows Doctor)
+exports.toggleFollowDoctor = async (req, res, next) => {
+  try {
+    const { targetDoctorId } = req.body;
+    const followerId = req.user._id.toString();
+    const followerRole = req.user.role;
+    
+    // Find or create social doc for target doctor
+    let social = await Social.findOne({ doctor: targetDoctorId });
+    if (!social) {
+      social = new Social({ doctor: targetDoctorId });
+      await social.save();
+    }
+
+    const existingFollow = social.follows.find(follow => 
+      follow.followerId.toString() === followerId && 
+      follow.followerRole === followerRole
+    );
+
+    if (existingFollow) {
+      // Unfollow
+      social.follows = social.follows.filter(follow => 
+        !(follow.followerId.toString() === followerId && follow.followerRole === followerRole)
+      );
+    } else {
+      // Follow
+      social.follows.push({
+        followerId: req.user._id,
+        followerRole,
+        followingId: targetDoctorId
+      });
+    }
+    
+    social.stats.followers = social.follows.length;
+    await social.save();
+
+    res.json({ 
+      success: true, 
+      action: existingFollow ? 'unfollowed' : 'followed',
+      following: !existingFollow,
+      followers: social.stats.followers 
+    });
+  } catch (err) { next(err); }
+};
+
+// Add Comment
+exports.addComment = async (req, res, next) => {
+  try {
+    const { text } = req.body;
+    const social = await Social.findById(req.params.id);
+    
+    if (!social) return res.status(404).json({ success: false, message: 'Post not found' });
+    
+    social.comments.push({
+      userId: req.user._id,
+      userRole: req.user.role,
+      text: text.trim()
+    });
+    social.stats.comments = social.comments.length;
+    await social.save();
+
+    res.json({ success: true, totalComments: social.stats.comments });
+  } catch (err) { next(err); }
+};
+
+// Get Posts + Follows
+exports.getSocialFeed = async (req, res, next) => {
+  try {
+    const socials = await Social.find()
+      .populate('doctor', 'name profilePhoto')
+      .sort({ createdAt: -1 })
+      .limit(20);
+    res.json({ success: true, data: socials });
+  } catch (err) { next(err); }
+};
+
+
+
+
 // exports.toggleLikePost = async (req, res, next) => {
 
 //   try {
