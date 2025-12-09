@@ -36,7 +36,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 const storage = multer.diskStorage({
-  destination: "./images/", 
+  destination: "/tmp", 
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + crypto.randomBytes(4).toString("hex");
     cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
