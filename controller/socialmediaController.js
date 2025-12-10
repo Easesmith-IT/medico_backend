@@ -254,7 +254,7 @@ exports.getPosts = async (req, res, next) => {
         creator: {
           _id: doctor?._id || post.doctor,
           name,
-          location: city,           // e.g. "mumbai"
+          location: city,           // e.g. "kanpur"
           position,                 // e.g. "Cardiology"
           profilePhoto: doctor?.profilePhoto || null,
           role: doctor ? 'doctor' : 'admin'
