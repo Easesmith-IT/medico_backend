@@ -2467,17 +2467,11 @@ exports.createBookingByAdmin = async (req, res) => {
     // ----------------------------
     // Required fields
     // ----------------------------
-    if (
-      !patientId ||
-      !serviceId ||
-      !appointmentDate ||
-      !startTime ||
-      !endTime
-    ) {
+    if (!patientId || !serviceId || !appointmentDate || !startTime) {
       return res.status(400).json({
         success: false,
         message:
-          "patientId, serviceId, appointmentDate, startTime and endTime are required",
+          "patientId, serviceId, appointmentDate, startTime are required",
       });
     }
 
@@ -2660,8 +2654,7 @@ exports.updateBookingByAdmin = async (req, res) => {
       shiftType,
       cityId,
     } = req.body;
-    console.log("req.body",req.body);
-    
+    console.log("req.body", req.body);
 
     // ------------------------------------------------------------
     // Fetch booking
@@ -3462,9 +3455,24 @@ exports.getServiceNames = async (req, res) => {
 };
 
 exports.getPatientNames = async (req, res) => {
+  const { searchQuery } = req.query;
+  const filter = { isActive: true };
+
+  if (searchQuery) {
+    filter.$or = [
+      { firstName: { $regex: searchQuery, $options: "i" } },
+      { email: { $regex: searchQuery, $options: "i" } },
+      { phone: { $regex: searchQuery, $options: "i" } },
+    ];
+  }
+
+  if (Types.ObjectId.isValid(searchQuery)) {
+    filter.$or.push({ _id: searchQuery });
+  }
+  
   try {
     const patients = await Patient.find(
-      { isActive: true }, // Fetch only active patients (optional)
+      filter,
       { firstName: 1, lastName: 1 } // Projection: return only name + _id
     ).sort({ firstName: 1 }); // Alphabetical order
 
@@ -3505,26 +3513,38 @@ exports.getPatientNames = async (req, res) => {
 
 exports.getServiceProviderNames = async (req, res) => {
   try {
-    const providers = await ServiceProvider.find(
-      { isDeleted: false, approvalStatus: "Approved", isActive: true },
-      {
-        firstName: 1,
-        lastName: 1,
-        ownerName: 1,
+    const { serviceId } = req.query;
 
-        // New fields required for grid UI
-        "documents.profilePhoto": 1,
-        yearsOfExperience: 1,
-        rating: 1,
-        "currentAddress.street": 1,
-        "currentAddress.locality": 1,
-        "currentAddress.city": 1,
-        "currentAddress.state": 1,
-        "currentAddress.country": 1,
-        "currentAddress.pincode": 1,
-        approvalStatus: 1,
-      }
-    ).sort({ firstName: 1 });
+    const filter = {
+      isDeleted: false,
+      approvalStatus: "Approved",
+      isActive: true,
+    };
+
+    // Apply service filter only if provided
+    if (serviceId) {
+      filter["services.serviceId"] = serviceId;
+    }
+
+    const providers = await ServiceProvider.find(filter, {
+      firstName: 1,
+      lastName: 1,
+      ownerName: 1,
+
+      "documents.profilePhoto": 1,
+      yearsOfExperience: 1,
+      rating: 1,
+
+      "currentAddress.street": 1,
+      "currentAddress.locality": 1,
+      "currentAddress.city": 1,
+      "currentAddress.state": 1,
+      "currentAddress.country": 1,
+      "currentAddress.pincode": 1,
+
+      approvalStatus: 1,
+      services: 1, // optional: returns service list if needed
+    }).sort({ firstName: 1 });
 
     res.status(200).json({
       success: true,
@@ -3547,7 +3567,7 @@ exports.toggleDoctorStatus = catchAsync(async (req, res, next) => {
 
   const adminRole = req.user?.role;
   console.log("req.user", req.user);
-  
+
   if (
     !adminRole ||
     !["superAdmin", "subAdmin", "superadmin", "subadmin"].includes(adminRole)
@@ -3600,61 +3620,62 @@ exports.togglePatientStatus = catchAsync(async (req, res, next) => {
   });
 });
 
-//approved cancellation 
+//approved cancellation
 exports.approveCancellation = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const { action, adminReason } = req.body; // 'approve' or 'reject'
-    
+
     const booking = await Booking.findById(bookingId);
     if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found" });
     }
-    
-    if (booking.status !== 'Cancellation Requested') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No pending cancellation request found' 
+
+    if (booking.status !== "Cancellation Requested") {
+      return res.status(400).json({
+        success: false,
+        message: "No pending cancellation request found",
       });
     }
-    
-    if (action === 'approve') {
-      booking.status = 'Cancelled';
+
+    if (action === "approve") {
+      booking.status = "Cancelled";
       booking.adminApprovedCancellation = true;
       booking.adminApprovedAt = new Date();
       booking.adminReason = adminReason;
-    } else if (action === 'reject') {
+    } else if (action === "reject") {
       // Restore original status
-      booking.status = booking.originalStatus || 'Confirmed';
+      booking.status = booking.originalStatus || "Confirmed";
       booking.adminRejectedCancellation = true;
       booking.adminRejectedAt = new Date();
       booking.adminReason = adminReason;
     } else {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Action must be "approve" or "reject"' 
+      return res.status(400).json({
+        success: false,
+        message: 'Action must be "approve" or "reject"',
       });
     }
-    
+
     // Clear temporary fields
     booking.requestedCancellationAt = null;
     booking.originalStatus = null;
     booking.timeRemainingAtRequest = null;
-    
+
     await booking.save();
-    
+
     res.status(200).json({
       success: true,
       message: `Cancellation ${action}d successfully`,
-      data: booking
+      data: booking,
     });
-    
   } catch (error) {
-    console.error('Admin approval error:', error);
+    console.error("Admin approval error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error processing admin approval',
-      error: error.message
+      message: "Error processing admin approval",
+      error: error.message,
     });
   }
 };
@@ -3664,16 +3685,16 @@ exports.adminAddMedication = catchAsync(async (req, res, next) => {
   const { patientId } = req.params;
 
   if (!medication) {
-    return next(new AppError('Please provide medication details', 400));
+    return next(new AppError("Please provide medication details", 400));
   }
 
   const patient = await Patient.findById(patientId);
   if (!patient) {
-    return next(new AppError('Patient not found', 404));
+    return next(new AppError("Patient not found", 404));
   }
 
   if (patient.currentMedications.includes(medication)) {
-    return next(new AppError('Medication already exists', 400));
+    return next(new AppError("Medication already exists", 400));
   }
 
   patient.currentMedications.push(medication);
@@ -3681,7 +3702,7 @@ exports.adminAddMedication = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Medication added successfully by admin',
+    message: "Medication added successfully by admin",
     data: { currentMedications: patient.currentMedications },
   });
 });
@@ -3691,28 +3712,29 @@ exports.adminRemoveMedication = catchAsync(async (req, res, next) => {
   const { patientId } = req.params;
 
   if (!medication) {
-    return next(new AppError('Please provide medication details to remove', 400));
+    return next(
+      new AppError("Please provide medication details to remove", 400)
+    );
   }
 
   const patient = await Patient.findById(patientId);
   if (!patient) {
-    return next(new AppError('Patient not found', 404));
+    return next(new AppError("Patient not found", 404));
   }
 
   const initialLength = patient.currentMedications.length;
-  patient.currentMedications.pull(medication);  // Mongoose $pull operator [web:9][web:10]
+  patient.currentMedications.pull(medication); // Mongoose $pull operator [web:9][web:10]
   await patient.save();
 
   if (patient.currentMedications.length === initialLength) {
-    return next(new AppError('Medication not found in patient\'s list', 404));
+    return next(new AppError("Medication not found in patient's list", 404));
   }
 
   res.status(200).json({
     success: true,
-    message: 'Medication removed successfully by admin',
+    message: "Medication removed successfully by admin",
     data: { currentMedications: patient.currentMedications },
   });
 });
-
 
 module.exports = exports;
