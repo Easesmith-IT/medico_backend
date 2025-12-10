@@ -172,36 +172,34 @@ exports.getPosts = async (req, res, next) => {
     const posts = await Post.find()
       .populate({
         path: 'doctor',
-        select: 'firstName lastName address designation specialization profilePhoto clinics'  // ✅ address.city + designation
+        select: 'firstName lastName address specialization profilePhoto clinics'  // ✅ specialization = category
       })
       .populate('mentions', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(20);
 
-    // ✅ FIXED: Extract city from address + position from designation/clinics
+    // ✅ FIXED: City from address + Position = specialization (category)
     const postsWithCreators = posts.map(post => {
       const doctor = post.doctor;
       
-      // ✅ Get city from address.city OR clinics[0].address.city
+      // ✅ City: address.city OR clinics[0].address.city
       const city = doctor?.address?.city || 
                    doctor?.clinics?.[0]?.address?.city || 
                    'Not specified';
       
-      // ✅ Get position from designation OR specialization
-      const position = doctor?.designation || 
-                       doctor?.specialization || 
-                       'Doctor';
+      // ✅ Position = specialization (your category field)
+      const position = doctor?.specialization || 'Doctor';
       
-      // ✅ Fix name: firstName + lastName (no undefined)
+      // ✅ Fixed name (no undefined)
       const name = doctor ? `${doctor.firstName}${doctor.lastName ? ' ' + doctor.lastName : ''}`.trim() : 'Admin';
 
       return {
         ...post.toObject(),
         creator: {
           _id: doctor?._id || post.doctor,
-          name,                          // ✅ "Ravi Prakash" (no undefined)
-          location: city,                // ✅ "Mumbai" from address.city
-          position,                      // ✅ "Cardiologist" from designation
+          name,                           // "Ravi Prakash"
+          location: city,                 // "mumbai" 
+          position,                       // "Cardiology" ✅ CATEGORY
           profilePhoto: doctor?.profilePhoto || null,
           role: doctor ? 'doctor' : 'admin'
         }
