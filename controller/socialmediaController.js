@@ -172,34 +172,45 @@ exports.getPosts = async (req, res, next) => {
     const posts = await Post.find()
       .populate({
         path: 'doctor',
-        select: 'firstName lastName address specialization profilePhoto clinics'  // ✅ specialization = category
+        select: 'firstName lastName "address.city" specialization profilePhoto clinics'  // ✅ Explicit address.city
       })
       .populate('mentions', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(20);
 
-    // ✅ FIXED: City from address + Position = specialization (category)
+    // ✅ FIXED: Direct address.city access
     const postsWithCreators = posts.map(post => {
       const doctor = post.doctor;
       
-      // ✅ City: address.city OR clinics[0].address.city
-      const city = doctor?.address?.city || 
-                   doctor?.clinics?.[0]?.address?.city || 
-                   'Not specified';
+      // ✅ PRIORITY 1: doctor.address.city (direct access)
+      let city = doctor?.address?.city;
       
-      // ✅ Position = specialization (your category field)
+      // ✅ PRIORITY 2: If nested object, get city
+      if (doctor?.address && typeof doctor.address === 'object' && !city) {
+        city = doctor.address.city;
+      }
+      
+      // ✅ PRIORITY 3: clinics fallback
+      if (!city) {
+        city = doctor?.clinics?.[0]?.address?.city;
+      }
+      
+      // ✅ FINAL fallback
+      city = city || 'Not specified';
+
+      // ✅ Position = specialization (category)
       const position = doctor?.specialization || 'Doctor';
       
-      // ✅ Fixed name (no undefined)
+      // ✅ Fixed name
       const name = doctor ? `${doctor.firstName}${doctor.lastName ? ' ' + doctor.lastName : ''}`.trim() : 'Admin';
 
       return {
         ...post.toObject(),
         creator: {
           _id: doctor?._id || post.doctor,
-          name,                           // "Ravi Prakash"
-          location: city,                 // "mumbai" 
-          position,                       // "Cardiology" ✅ CATEGORY
+          name,
+          location: city,                 // ✅ "mumbai" guaranteed
+          position,                       // "Cardiology"
           profilePhoto: doctor?.profilePhoto || null,
           role: doctor ? 'doctor' : 'admin'
         }
