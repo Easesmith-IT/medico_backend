@@ -410,49 +410,114 @@ exports.toggleLikePost = async (req, res, next) => {
 
 
 // Toggle Follow (Doctor follows Doctor, Patient follows Doctor)
+// exports.toggleFollowDoctor = async (req, res, next) => {
+//   try {
+//     const { targetDoctorId } = req.body;
+//     const followerId = req.user._id.toString();
+//     const followerRole = req.user.role;
+    
+//     // Find or create social doc for target doctor
+//     let social = await Social.findOne({ doctor: targetDoctorId });
+//     if (!social) {
+//       social = new Social({ doctor: targetDoctorId });
+//       await social.save();
+//     }
+
+//     const existingFollow = social.follows.find(follow => 
+//       follow.followerId.toString() === followerId && 
+//       follow.followerRole === followerRole
+//     );
+
+//     if (existingFollow) {
+//       // Unfollow
+//       social.follows = social.follows.filter(follow => 
+//         !(follow.followerId.toString() === followerId && follow.followerRole === followerRole)
+//       );
+//     } else {
+//       // Follow
+//       social.follows.push({
+//         followerId: req.user._id,
+//         followerRole,
+//         followingId: targetDoctorId
+//       });
+//     }
+    
+//     social.stats.followers = social.follows.length;
+//     await social.save();
+
+//     res.json({ 
+//       success: true, 
+//       action: existingFollow ? 'unfollowed' : 'followed',
+//       following: !existingFollow,
+//       followers: social.stats.followers 
+//     });
+//   } catch (err) { next(err); }
+// };
 exports.toggleFollowDoctor = async (req, res, next) => {
   try {
+    // req.user comes from protect: { id, role, ... }
+    const userId = req.user?.id || req.user?._id;
+    const userRole = req.user?.role;
+
+    if (!userId || !userRole) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
     const { targetDoctorId } = req.body;
-    const followerId = req.user._id.toString();
-    const followerRole = req.user.role;
-    
-    // Find or create social doc for target doctor
-    let social = await Social.findOne({ doctor: targetDoctorId });
+    const followerId = userId.toString();
+    const followerRole = userRole;
+
+    // Use Post as the social stats model
+    let social = await Post.findOne({ doctor: targetDoctorId });
     if (!social) {
-      social = new Social({ doctor: targetDoctorId });
+      social = new Post({
+        doctor: targetDoctorId,
+        follows: [],
+        stats: { followers: 0 },
+      });
       await social.save();
     }
 
-    const existingFollow = social.follows.find(follow => 
-      follow.followerId.toString() === followerId && 
-      follow.followerRole === followerRole
+    const existingFollow = social.follows.find(
+      (follow) =>
+        follow?.followerId &&
+        follow.followerId.toString() === followerId &&
+        follow.followerRole === followerRole
     );
 
     if (existingFollow) {
       // Unfollow
-      social.follows = social.follows.filter(follow => 
-        !(follow.followerId.toString() === followerId && follow.followerRole === followerRole)
+      social.follows = social.follows.filter(
+        (follow) =>
+          !(
+            follow?.followerId &&
+            follow.followerId.toString() === followerId &&
+            follow.followerRole === followerRole
+          )
       );
     } else {
       // Follow
       social.follows.push({
-        followerId: req.user._id,
+        followerId: userId,          // string or ObjectId
         followerRole,
-        followingId: targetDoctorId
+        followingId: targetDoctorId,
       });
     }
-    
+
     social.stats.followers = social.follows.length;
     await social.save();
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       action: existingFollow ? 'unfollowed' : 'followed',
       following: !existingFollow,
-      followers: social.stats.followers 
+      followers: social.stats.followers,
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
+
 
 // Add Comment
 exports.addComment = async (req, res, next) => {
