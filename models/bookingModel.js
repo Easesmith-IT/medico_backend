@@ -50,7 +50,7 @@ const bookingSchema = new mongoose.Schema(
     // Patient chosen slot time
     slotTime: {
       startTime: { type: String, required: true }, // e.g. '10:00'
-      endTime: { type: String, required: true }, // e.g. '10:30'
+      endTime: { type: String, required: false }, // e.g. '10:30'
     },
 
     // Duration in minutes

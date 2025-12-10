@@ -2,7 +2,7 @@
 
 const router = require('express').Router();
 const cityController = require('../controller/cityController');
-const { verifyAccessToken } = require('../middleware/auth');
+const {  protect } = require('../middleware/auth');
 
 // ============================================
 // PUBLIC ROUTES (No Authentication)
@@ -19,14 +19,26 @@ router.get('/cities/:cityId', cityController.getCityById);
 // ============================================
 
 // Add new city (Admin only)
-router.post('/admin/cities', verifyAccessToken, cityController.addCity);
+router.post('/admin/cities', protect("superadmin", "subadmin"), cityController.addCity);
 
 // Update city (Admin only)
-router.put('/admin/cities/:cityId', verifyAccessToken, cityController.updateCity);
+router.put(
+  "/admin/cities/:cityId",
+  protect("superadmin", "subadmin"),
+  cityController.updateCity
+);
 
 // Delete city (Admin only)
-router.delete('/admin/cities/:cityId', verifyAccessToken, cityController.deleteCity);
+router.delete(
+  "/admin/cities/:cityId",
+  protect("superadmin", "subadmin"),
+  cityController.deleteCity
+);
 // Example route to toggle city active status
-router.patch('/admin/cities/toggle/:cityId', verifyAccessToken, cityController.toggleCityStatus);
+router.patch(
+  "/admin/cities/toggle/:cityId",
+  protect("superadmin", "subadmin"),
+  cityController.toggleCityStatus
+);
 
 module.exports = router;
