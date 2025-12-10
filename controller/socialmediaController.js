@@ -110,6 +110,8 @@ exports.createPost = async (req, res, next) => {
   }
 };
 
+
+
 // exports.createPost = async (req, res, next) => {
 //   try {
 //     let type;
@@ -150,6 +152,10 @@ exports.createPost = async (req, res, next) => {
 // };
 
 
+
+
+
+
 // exports.getPosts = async (req, res, next) => {
 //   try {
 //     const posts = await Post.find()
@@ -160,28 +166,96 @@ exports.createPost = async (req, res, next) => {
 //     res.json(posts);
 //   } catch (err) { next(err); }
 // };
+//best one
+// exports.getPosts = async (req, res, next) => {
+//   try {
+//     const posts = await Post.find()
+//       .populate({
+//         path: 'doctor',
+//         select: 'firstName lastName "address.city" specialization profilePhoto clinics'  // ✅ Explicit address.city
+//       })
+//       .populate('mentions', 'firstName lastName')
+//       .sort({ createdAt: -1 })
+//       .limit(20);
+
+//     // ✅ FIXED: Direct address.city access
+//     const postsWithCreators = posts.map(post => {
+//       const doctor = post.doctor;
+      
+//       // ✅ PRIORITY 1: doctor.address.city (direct access)
+//       let city = doctor?.address?.city;
+      
+//       // ✅ PRIORITY 2: If nested object, get city
+//       if (doctor?.address && typeof doctor.address === 'object' && !city) {
+//         city = doctor.address.city;
+//       }
+      
+//       // ✅ PRIORITY 3: clinics fallback
+//       if (!city) {
+//         city = doctor?.clinics?.[0]?.address?.city;
+//       }
+      
+//       // ✅ FINAL fallback
+//       city = city || 'Not specified';
+
+//       // ✅ Position = specialization (category)
+//       const position = doctor?.specialization || 'Doctor';
+      
+//       // ✅ Fixed name
+//       const name = doctor ? `${doctor.firstName}${doctor.lastName ? ' ' + doctor.lastName : ''}`.trim() : 'Admin';
+
+//       return {
+//         ...post.toObject(),
+//         creator: {
+//           _id: doctor?._id || post.doctor,
+//           name,
+//           location: city,                 // ✅ "mumbai" guaranteed
+//           position,                       // "Cardiology"
+//           profilePhoto: doctor?.profilePhoto || null,
+//           role: doctor ? 'doctor' : 'admin'
+//         }
+//       };
+//     });
+
+//     res.json(postsWithCreators);
+//   } catch (err) { 
+//     next(err); 
+//   }
+// };
 exports.getPosts = async (req, res, next) => {
   try {
     const posts = await Post.find()
       .populate({
         path: 'doctor',
-        select: 'firstName lastName location position profilePhoto'  // ✅ Added location + position
+        // address is a subdocument, no need for quotes on address.city here
+        select: 'firstName lastName address specialization profilePhoto'
       })
       .populate('mentions', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(20);
 
-    // ✅ Transform for consistent creator format
     const postsWithCreators = posts.map(post => {
       const doctor = post.doctor;
-      
+
+      // city from nested address.city
+      const city =
+        doctor?.address?.city ||
+        'Not specified';
+
+      const position =
+        doctor?.specialization || 'Doctor';
+
+      const name = doctor
+        ? `${doctor.firstName}${doctor.lastName ? ' ' + doctor.lastName : ''}`.trim()
+        : 'Admin';
+
       return {
         ...post.toObject(),
         creator: {
-          _id: doctor._id || post.doctor,
-          name: doctor ? `${doctor.firstName} ${doctor.lastName}`.trim() : 'Admin',
-          location: doctor?.location || null,
-          position: doctor?.position || null,
+          _id: doctor?._id || post.doctor,
+          name,
+          location: city,           // e.g. "mumbai"
+          position,                 // e.g. "Cardiology"
           profilePhoto: doctor?.profilePhoto || null,
           role: doctor ? 'doctor' : 'admin'
         }
@@ -189,10 +263,45 @@ exports.getPosts = async (req, res, next) => {
     });
 
     res.json(postsWithCreators);
-  } catch (err) { 
-    next(err); 
+  } catch (err) {
+    next(err);
   }
 };
+
+
+// exports.getPosts = async (req, res, next) => {
+//   try {
+//     const posts = await Post.find()
+//       .populate({
+//         path: 'doctor',
+//         select: 'firstName lastName location position profilePhoto'  // ✅ Added location + position
+//       })
+//       .populate('mentions', 'firstName lastName')
+//       .sort({ createdAt: -1 })
+//       .limit(20);
+
+//     // ✅ Transform for consistent creator format
+//     const postsWithCreators = posts.map(post => {
+//       const doctor = post.doctor;
+      
+//       return {
+//         ...post.toObject(),
+//         creator: {
+//           _id: doctor._id || post.doctor,
+//           name: doctor ? `${doctor.firstName} ${doctor.lastName}`.trim() : 'Admin',
+//           location: doctor?.location || null,
+//           position: doctor?.position || null,
+//           profilePhoto: doctor?.profilePhoto || null,
+//           role: doctor ? 'doctor' : 'admin'
+//         }
+//       };
+//     });
+
+//     res.json(postsWithCreators);
+//   } catch (err) { 
+//     next(err); 
+//   }
+// };
 
 exports.likePost = async (req, res, next) => {
   try {
