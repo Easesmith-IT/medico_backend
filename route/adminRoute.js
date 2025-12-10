@@ -3,14 +3,14 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controller/adminController");
-const { verifyAccessToken, protect } = require("../middleware/auth");
+const { protect } = require("../middleware/auth");
 
 router.post("/signup", adminController.adminSignup);
 router.post("/login", adminController.adminLogin);
 router.post("/verify-signup-otp", adminController.verifySignupOtp);
 // router.post('/resend-login-otp', adminController.resendLoginOtp);
 router.post("/check-auth", adminController.checkAuthStatus);
-// router.post('/logout', verifyAccessToken, adminController.logout);
+// router.post('/logout', protect("superadmin", "subadmin"), adminController.logout);
 router.post("/logout", adminController.logout);
 router.post("/logout-all-devices", adminController.logoutAllDevices);
 
@@ -24,55 +24,83 @@ router.get("/services/names", adminController.getServiceNames);
 router.get("/patients/names", adminController.getPatientNames);
 router.get("/service-providers/names", adminController.getServiceProviderNames);
 
-router.get("/me", verifyAccessToken, adminController.getMyProfile);
-router.put("/updateProfile", verifyAccessToken, adminController.updateProfile);
+router.get(
+  "/me",
+  protect("superadmin", "subadmin"),
+  adminController.getMyProfile
+);
+router.put(
+  "/updateProfile",
+  protect("superadmin", "subadmin"),
+  adminController.updateProfile
+);
 
-router.post("/doctors/create", verifyAccessToken, adminController.createDoctor);
-router.get("/doctors", verifyAccessToken, adminController.getAllDoctors);
-router.get("/doctors/:id", verifyAccessToken, adminController.getDoctorById);
+router.post(
+  "/doctors/create",
+  protect("superadmin", "subadmin"),
+  adminController.createDoctor
+);
+router.get("/doctors", protect("superadmin","subadmin","admin"), adminController.getAllDoctors);
+router.get(
+  "/doctors/:id",
+  protect("superadmin", "subadmin"),
+  adminController.getDoctorById
+);
 router.put(
   "/doctors/:id/approve",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.approveDoctor
 );
 router.put(
   "/doctors/:id/reject",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.rejectDoctor
 );
-router.delete("/doctors/:id", verifyAccessToken, adminController.deleteDoctor);
+router.delete(
+  "/doctors/:id",
+  protect("superadmin", "subadmin"),
+  adminController.deleteDoctor
+);
 
 router.post(
   "/patients/create",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.createPatient
 );
 router.get(
   "/patients/export",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.exportPatients
 );
-router.get("/patients", verifyAccessToken, adminController.getAllPatients);
-router.get("/patients/:id", verifyAccessToken, adminController.getPatientById);
+router.get(
+  "/patients",
+  protect("superadmin", "subadmin"),
+  adminController.getAllPatients
+);
+router.get(
+  "/patients/:id",
+  protect("superadmin", "subadmin"),
+  adminController.getPatientById
+);
 router.put(
   "/patients/:id/block",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.blockPatient
 );
 router.delete(
   "/patients/:id",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.deletePatient
 );
 
 router.get(
   "/reports/dashboard",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.getDashboardStats
 );
 router.get(
   "/reports/doctors",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.getDoctorStats
 );
 
@@ -83,7 +111,7 @@ router.patch(
 
 router.get(
   "/bookings/export",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.exportAppointments
 );
 
@@ -105,35 +133,35 @@ router.patch(
 // Add doctor to cities
 router.post(
   "/admin/doctor/add-cities",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.addDoctorToCities
 );
 
 // Remove doctor from cities
 router.post(
   "/admin/doctor/remove-cities",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.removeDoctorFromCities
 );
 
 // Replace all cities for a doctor
 router.put(
   "/admin/doctor/update-cities",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.updateDoctorCities
 );
 
 // Get specific doctor's cities
 router.get(
   "/admin/doctor/:doctorId/cities",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.getDoctorCities
 );
 
 // Get all doctors in a specific city
 router.get(
   "/admin/city/:cityId/doctors",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.getDoctorsByCity
 );
 
@@ -155,7 +183,7 @@ router.patch(
 
 router.post(
   "/admin/booking/approve-cancellation/:bookingId",
-  verifyAccessToken,
+  protect("superadmin", "subadmin"),
   adminController.approveCancellation
 );
 router.post(
