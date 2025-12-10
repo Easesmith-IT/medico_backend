@@ -166,51 +166,107 @@ exports.createPost = async (req, res, next) => {
 //     res.json(posts);
 //   } catch (err) { next(err); }
 // };
+//best one
+// exports.getPosts = async (req, res, next) => {
+//   try {
+//     const posts = await Post.find()
+//       .populate({
+//         path: 'doctor',
+//         select: 'firstName lastName "address.city" specialization profilePhoto clinics'  // ✅ Explicit address.city
+//       })
+//       .populate('mentions', 'firstName lastName')
+//       .sort({ createdAt: -1 })
+//       .limit(20);
 
+//     // ✅ FIXED: Direct address.city access
+//     const postsWithCreators = posts.map(post => {
+//       const doctor = post.doctor;
+      
+//       // ✅ PRIORITY 1: doctor.address.city (direct access)
+//       let city = doctor?.address?.city;
+      
+//       // ✅ PRIORITY 2: If nested object, get city
+//       if (doctor?.address && typeof doctor.address === 'object' && !city) {
+//         city = doctor.address.city;
+//       }
+      
+//       // ✅ PRIORITY 3: clinics fallback
+//       if (!city) {
+//         city = doctor?.clinics?.[0]?.address?.city;
+//       }
+      
+//       // ✅ FINAL fallback
+//       city = city || 'Not specified';
+
+//       // ✅ Position = specialization (category)
+//       const position = doctor?.specialization || 'Doctor';
+      
+//       // ✅ Fixed name
+//       const name = doctor ? `${doctor.firstName}${doctor.lastName ? ' ' + doctor.lastName : ''}`.trim() : 'Admin';
+
+//       return {
+//         ...post.toObject(),
+//         creator: {
+//           _id: doctor?._id || post.doctor,
+//           name,
+//           location: city,                 // ✅ "mumbai" guaranteed
+//           position,                       // "Cardiology"
+//           profilePhoto: doctor?.profilePhoto || null,
+//           role: doctor ? 'doctor' : 'admin'
+//         }
+//       };
+//     });
+
+//     res.json(postsWithCreators);
+//   } catch (err) { 
+//     next(err); 
+//   }
+// };
 exports.getPosts = async (req, res, next) => {
   try {
     const posts = await Post.find()
       .populate({
         path: 'doctor',
-        select: 'firstName lastName "address.city" specialization profilePhoto clinics'  // ✅ Explicit address.city
+        select: 'firstName lastName address specialization profilePhoto clinics cities', 
+        populate: {
+          path: 'cities',                       
+          select: 'name'                        
+        }
       })
       .populate('mentions', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(20);
 
-    // ✅ FIXED: Direct address.city access
     const postsWithCreators = posts.map(post => {
       const doctor = post.doctor;
-      
-      // ✅ PRIORITY 1: doctor.address.city (direct access)
-      let city = doctor?.address?.city;
-      
-      // ✅ PRIORITY 2: If nested object, get city
-      if (doctor?.address && typeof doctor.address === 'object' && !city) {
-        city = doctor.address.city;
+
+      let city = doctor?.cities?.[0]?.name;
+
+
+      if (!city) {
+        city = doctor?.address?.city;
       }
-      
-      // ✅ PRIORITY 3: clinics fallback
+
+
       if (!city) {
         city = doctor?.clinics?.[0]?.address?.city;
       }
-      
-      // ✅ FINAL fallback
+
+  
       city = city || 'Not specified';
 
-      // ✅ Position = specialization (category)
       const position = doctor?.specialization || 'Doctor';
-      
-      // ✅ Fixed name
-      const name = doctor ? `${doctor.firstName}${doctor.lastName ? ' ' + doctor.lastName : ''}`.trim() : 'Admin';
+      const name = doctor
+        ? `${doctor.firstName}${doctor.lastName ? ' ' + doctor.lastName : ''}`.trim()
+        : 'Admin';
 
       return {
         ...post.toObject(),
         creator: {
           _id: doctor?._id || post.doctor,
           name,
-          location: city,                 // ✅ "mumbai" guaranteed
-          position,                       // "Cardiology"
+          location: city,                 
+          position,
           profilePhoto: doctor?.profilePhoto || null,
           role: doctor ? 'doctor' : 'admin'
         }
@@ -218,8 +274,8 @@ exports.getPosts = async (req, res, next) => {
     });
 
     res.json(postsWithCreators);
-  } catch (err) { 
-    next(err); 
+  } catch (err) {
+    next(err);
   }
 };
 
