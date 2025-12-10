@@ -3546,6 +3546,8 @@ exports.toggleDoctorStatus = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
   const adminRole = req.user?.role;
+  console.log("req.user", req.user);
+  
   if (
     !adminRole ||
     !["superAdmin", "subAdmin", "superadmin", "subadmin"].includes(adminRole)
