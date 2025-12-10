@@ -30,5 +30,5 @@ router.post('/likePost/:id/toggle', protect(['doctor', 'patient']),  postCtrl.to
 router.post('/commentPost/:id', protect(['doctor', 'patient']),  postCtrl.addComment);
 router.post('/followDoctor', protect(['doctor', 'patient']),  postCtrl.toggleFollowDoctor); // Follow doctor
 router.get('/feed',  postCtrl.getSocialFeed);
-
+router.get('/getPostById/:id', postCtrl.getPostById);
 module.exports = router;
