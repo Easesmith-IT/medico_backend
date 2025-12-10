@@ -227,11 +227,8 @@ exports.getPosts = async (req, res, next) => {
     const posts = await Post.find()
       .populate({
         path: 'doctor',
-        select: 'firstName lastName address specialization profilePhoto clinics cities', 
-        populate: {
-          path: 'cities',                       
-          select: 'name'                        
-        }
+        // address is a subdocument, no need for quotes on address.city here
+        select: 'firstName lastName address specialization profilePhoto'
       })
       .populate('mentions', 'firstName lastName')
       .sort({ createdAt: -1 })
@@ -240,22 +237,14 @@ exports.getPosts = async (req, res, next) => {
     const postsWithCreators = posts.map(post => {
       const doctor = post.doctor;
 
-      let city = doctor?.cities?.[0]?.name;
+      // city from nested address.city
+      const city =
+        doctor?.address?.city ||
+        'Not specified';
 
+      const position =
+        doctor?.specialization || 'Doctor';
 
-      if (!city) {
-        city = doctor?.address?.city;
-      }
-
-
-      if (!city) {
-        city = doctor?.clinics?.[0]?.address?.city;
-      }
-
-  
-      city = city || 'Not specified';
-
-      const position = doctor?.specialization || 'Doctor';
       const name = doctor
         ? `${doctor.firstName}${doctor.lastName ? ' ' + doctor.lastName : ''}`.trim()
         : 'Admin';
@@ -265,8 +254,8 @@ exports.getPosts = async (req, res, next) => {
         creator: {
           _id: doctor?._id || post.doctor,
           name,
-          location: city,                 
-          position,
+          location: city,           // e.g. "mumbai"
+          position,                 // e.g. "Cardiology"
           profilePhoto: doctor?.profilePhoto || null,
           role: doctor ? 'doctor' : 'admin'
         }
@@ -278,6 +267,7 @@ exports.getPosts = async (req, res, next) => {
     next(err);
   }
 };
+
 
 // exports.getPosts = async (req, res, next) => {
 //   try {
