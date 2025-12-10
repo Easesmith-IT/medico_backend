@@ -110,6 +110,8 @@ exports.createPost = async (req, res, next) => {
   }
 };
 
+
+
 // exports.createPost = async (req, res, next) => {
 //   try {
 //     let type;
@@ -150,6 +152,10 @@ exports.createPost = async (req, res, next) => {
 // };
 
 
+
+
+
+
 // exports.getPosts = async (req, res, next) => {
 //   try {
 //     const posts = await Post.find()
@@ -160,28 +166,42 @@ exports.createPost = async (req, res, next) => {
 //     res.json(posts);
 //   } catch (err) { next(err); }
 // };
+
 exports.getPosts = async (req, res, next) => {
   try {
     const posts = await Post.find()
       .populate({
         path: 'doctor',
-        select: 'firstName lastName location position profilePhoto'  // ✅ Added location + position
+        select: 'firstName lastName address designation specialization profilePhoto clinics'  // ✅ address.city + designation
       })
       .populate('mentions', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(20);
 
-    // ✅ Transform for consistent creator format
+    // ✅ FIXED: Extract city from address + position from designation/clinics
     const postsWithCreators = posts.map(post => {
       const doctor = post.doctor;
       
+      // ✅ Get city from address.city OR clinics[0].address.city
+      const city = doctor?.address?.city || 
+                   doctor?.clinics?.[0]?.address?.city || 
+                   'Not specified';
+      
+      // ✅ Get position from designation OR specialization
+      const position = doctor?.designation || 
+                       doctor?.specialization || 
+                       'Doctor';
+      
+      // ✅ Fix name: firstName + lastName (no undefined)
+      const name = doctor ? `${doctor.firstName}${doctor.lastName ? ' ' + doctor.lastName : ''}`.trim() : 'Admin';
+
       return {
         ...post.toObject(),
         creator: {
-          _id: doctor._id || post.doctor,
-          name: doctor ? `${doctor.firstName} ${doctor.lastName}`.trim() : 'Admin',
-          location: doctor?.location || null,
-          position: doctor?.position || null,
+          _id: doctor?._id || post.doctor,
+          name,                          // ✅ "Ravi Prakash" (no undefined)
+          location: city,                // ✅ "Mumbai" from address.city
+          position,                      // ✅ "Cardiologist" from designation
           profilePhoto: doctor?.profilePhoto || null,
           role: doctor ? 'doctor' : 'admin'
         }
@@ -193,6 +213,40 @@ exports.getPosts = async (req, res, next) => {
     next(err); 
   }
 };
+
+// exports.getPosts = async (req, res, next) => {
+//   try {
+//     const posts = await Post.find()
+//       .populate({
+//         path: 'doctor',
+//         select: 'firstName lastName location position profilePhoto'  // ✅ Added location + position
+//       })
+//       .populate('mentions', 'firstName lastName')
+//       .sort({ createdAt: -1 })
+//       .limit(20);
+
+//     // ✅ Transform for consistent creator format
+//     const postsWithCreators = posts.map(post => {
+//       const doctor = post.doctor;
+      
+//       return {
+//         ...post.toObject(),
+//         creator: {
+//           _id: doctor._id || post.doctor,
+//           name: doctor ? `${doctor.firstName} ${doctor.lastName}`.trim() : 'Admin',
+//           location: doctor?.location || null,
+//           position: doctor?.position || null,
+//           profilePhoto: doctor?.profilePhoto || null,
+//           role: doctor ? 'doctor' : 'admin'
+//         }
+//       };
+//     });
+
+//     res.json(postsWithCreators);
+//   } catch (err) { 
+//     next(err); 
+//   }
+// };
 
 exports.likePost = async (req, res, next) => {
   try {
