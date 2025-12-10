@@ -72,7 +72,8 @@ const socialPostSchema = new mongoose.Schema({
     followerId: { type: mongoose.Schema.Types.ObjectId, required: true },
     followerRole: { 
       type: String, 
-      enum: ['doctor', 'patient'],  //  Matches req.user.role
+    //   enum: ['doctor', 'patient'],  //  Matches req.user.role
+     enum: ['doctor', 'patient', 'admin', 'superadmin', 'subadmin'],
       required: true 
     },
     followingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
