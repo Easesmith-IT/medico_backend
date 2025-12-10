@@ -1224,6 +1224,7 @@ const PDFDocument = require("pdfkit");
 const Service = require("../models/serviceModel");
 const ServiceProvider = require("../models/serviceProviderModel");
 const { formatDuration } = require("../utils/timeFormat");
+const mongoose = require("mongoose");
 
 // ============================================
 // ADMIN SIGNUP - STEP 1: Create Account
@@ -2441,20 +2442,439 @@ exports.exportAppointments = catchAsync(async (req, res, next) => {
   });
 });
 
+// exports.createBookingByAdmin = async (req, res) => {
+//   try {
+//     const adminId = req.user?.id; // Admin logged in
+
+//     if (!adminId) {
+//       return res.status(403).json({ success: false, message: "Unauthorized" });
+//     }
+
+//     const {
+//       patientId,
+//       serviceId,
+//       appointmentDate, // 'YYYY-MM-DD'
+//       startTime, // 'HH:mm'
+//       endTime, // 'HH:mm'
+//       duration,
+//       shiftType,
+//       servicePartnerId,
+//       notes,
+//       category,
+//       modes,
+//       cityId,
+//     } = req.body;
+
+//     // ----------------------------
+//     // Required fields
+//     // ----------------------------
+//     if (!patientId || !serviceId || !appointmentDate || !startTime) {
+//       return res.status(400).json({
+//         success: false,
+//         message:
+//           "patientId, serviceId, appointmentDate, startTime are required",
+//       });
+//     }
+
+//     // 1) Validate service
+//     const service = await Service.findById(serviceId);
+//     if (!service || !service.isActive || service.isDeleted) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Service not found or inactive" });
+//     }
+
+//     // 2) Load patient and ensure patient has a city
+//     const patient = await Patient.findById(patientId).select("address.cityId");
+//     if (!patient) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Patient not found",
+//       });
+//     }
+
+//     if (!patient.address || !patient.address.cityId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Patient city not set. Please update your address first.",
+//       });
+//     }
+
+//     // 3) Determine booking city and enforce that patient belongs to it
+//     let bookingCity = null;
+
+//     if (cityId) {
+//       // City explicitly sent in request
+//       bookingCity = await City.findById(cityId);
+//       if (!bookingCity) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Invalid city selected",
+//         });
+//       }
+
+//       // Patient must belong to this city
+//       if (bookingCity._id.toString() !== patient.address.cityId.toString()) {
+//         return res.status(403).json({
+//           success: false,
+//           message:
+//             "Booking not allowed: patient does not belong to the selected city",
+//         });
+//       }
+//     } else {
+//       // No cityId in body → default to patient city
+//       bookingCity = await City.findById(patient.address.cityId);
+//       if (!bookingCity) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Patient city is invalid or not available",
+//         });
+//       }
+//     }
+
+//     // 4) Use category and modes from Service if not provided
+//     const bookingCategory = category || service.category || null;
+//     const bookingModes =
+//       Array.isArray(modes) && modes.length > 0 ? modes : service.modes || [];
+
+//     // 5) Check slot conflicts
+//     const dayStart = new Date(appointmentDate);
+//     dayStart.setHours(0, 0, 0, 0);
+
+//     const dayEnd = new Date(appointmentDate);
+//     dayEnd.setHours(23, 59, 59, 999);
+
+//     const conflictQuery = {
+//       serviceId,
+//       appointmentDate: { $gte: dayStart, $lte: dayEnd },
+//       status: { $nin: ["Cancelled", "Rejected"] },
+//       "slotTime.startTime": startTime,
+//       "slotTime.endTime": endTime,
+//     };
+
+//     if (servicePartnerId) {
+//       conflictQuery.servicePartnerId = servicePartnerId;
+//     }
+
+//     const existingBooking = await Booking.findOne(conflictQuery);
+//     if (existingBooking) {
+//       return res.status(409).json({
+//         success: false,
+//         message: "Slot already booked. Choose another slot.",
+//       });
+//     }
+
+//     // 6) Calculate duration
+//     let bookingDuration = duration;
+//     if (!bookingDuration) {
+//       const [sh, sm] = startTime.split(":").map(Number);
+//       const [eh, em] = endTime.split(":").map(Number);
+//       bookingDuration = eh * 60 + em - (sh * 60 + sm);
+
+//       if (bookingDuration <= 0) {
+//         bookingDuration = service.defaultDuration || 30;
+//       }
+//     }
+
+//     // 7) Pricing snapshot
+//     const pricing = service.calculateTotalPrice(
+//       bookingDuration,
+//       false,
+//       shiftType || null
+//     );
+
+//     // 8) Create Booking
+//     const newBooking = new Booking({
+//       patientId,
+//       serviceId,
+//       category: bookingCategory,
+//       modes: bookingModes,
+//       servicePartnerId: servicePartnerId || null,
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime: { startTime, endTime },
+//       duration: bookingDuration,
+//       shiftType: shiftType || null,
+//       status: "Approved", // Admin-created bookings are usually auto-approved
+//       pricing,
+//       notes: notes || "",
+//       city: bookingCity ? bookingCity._id : undefined,
+//       createdBy: {
+//         userId: adminId,
+//         userModel: "Admin",
+//       },
+//     });
+
+//     await newBooking.save();
+
+//     // 9) Populate city before response
+//     const populatedBooking = await newBooking.populate(
+//       "city",
+//       "name latitude longitude"
+//     );
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Booking created successfully by admin",
+//       data: {
+//         ...populatedBooking.toObject(),
+//         formattedDuration: formatDuration(bookingDuration),
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Admin Booking Error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error creating booking by admin",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// exports.updateBookingByAdmin = async (req, res) => {
+//   try {
+//     const adminId = req.user?.id;
+
+//     if (!adminId) {
+//       return res.status(403).json({ success: false, message: "Unauthorized" });
+//     }
+
+//     const { bookingId } = req.params;
+
+//     const {
+//       patientId,
+//       appointmentDate,
+//       startTime,
+//       endTime,
+//       duration,
+//       servicePartnerId,
+//       status,
+//       statusReason,
+//       notes,
+//       category,
+//       modes,
+//       shiftType,
+//       cityId,
+//     } = req.body;
+//     console.log("req.body", req.body);
+
+//     // ------------------------------------------------------------
+//     // Fetch booking
+//     // ------------------------------------------------------------
+//     const booking = await Booking.findById(bookingId);
+//     if (!booking) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Booking not found" });
+//     }
+
+//     // ------------------------------------------------------------
+//     // Patient/service cannot be changed by admin
+//     // ------------------------------------------------------------
+//     const service = await Service.findById(booking.serviceId);
+//     if (!service) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Service missing for booking" });
+//     }
+
+//     const patient = await Patient.findById(patientId).select("address.cityId");
+//     if (!patient) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Patient not found",
+//       });
+//     }
+
+//     if (!patient.address || !patient.address.cityId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Patient city not set. Please update your address first.",
+//       });
+//     }
+
+//     // 3) Determine booking city and enforce that patient belongs to it
+//     let bookingCity = null;
+
+//     if (cityId) {
+//       // City explicitly sent in request
+//       bookingCity = await City.findById(cityId);
+//       if (!bookingCity) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Invalid city selected",
+//         });
+//       }
+
+//       // Patient must belong to this city
+//       if (bookingCity._id.toString() !== patient.address.cityId.toString()) {
+//         return res.status(403).json({
+//           success: false,
+//           message:
+//             "Booking not allowed: patient does not belong to the selected city",
+//         });
+//       }
+//     } else {
+//       // No cityId in body → default to patient city
+//       bookingCity = await City.findById(patient.address.cityId);
+//       if (!bookingCity) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Patient city is invalid or not available",
+//         });
+//       }
+//     }
+
+//     // ------------------------------------------------------------
+//     // Update category/modes
+//     // ------------------------------------------------------------
+//     if (category) booking.category = category;
+//     if (Array.isArray(modes)) booking.modes = modes;
+
+//     // ------------------------------------------------------------
+//     // Update notes
+//     // ------------------------------------------------------------
+//     if (notes !== undefined) booking.notes = notes;
+
+//     // ------------------------------------------------------------
+//     // Update status
+//     // ------------------------------------------------------------
+//     if (status) {
+//       booking.status = status;
+//       if (statusReason) booking.statusReason = statusReason;
+//     }
+
+//     // ------------------------------------------------------------
+//     // Update partner assignment
+//     // ------------------------------------------------------------
+//     if (servicePartnerId !== undefined) {
+//       booking.servicePartnerId = servicePartnerId || null;
+//     }
+
+//     // ------------------------------------------------------------
+//     // Update time + conflict check
+//     // ------------------------------------------------------------
+//     if (appointmentDate || startTime || endTime) {
+//       const newDate = appointmentDate
+//         ? new Date(appointmentDate)
+//         : booking.appointmentDate;
+
+//       const newStart = startTime || booking.slotTime.startTime;
+//       const newEnd = endTime || booking.slotTime.endTime;
+
+//       // Check conflict
+//       const dayStart = new Date(newDate);
+//       dayStart.setHours(0, 0, 0, 0);
+
+//       const dayEnd = new Date(newDate);
+//       dayEnd.setHours(23, 59, 59, 999);
+
+//       const conflictQuery = {
+//         _id: { $ne: bookingId }, // exclude current booking
+//         serviceId: booking.serviceId,
+//         appointmentDate: { $gte: dayStart, $lte: dayEnd },
+//         status: { $nin: ["Cancelled", "Rejected"] },
+//         "slotTime.startTime": newStart,
+//         "slotTime.endTime": newEnd,
+//       };
+
+//       if (servicePartnerId) {
+//         conflictQuery.servicePartnerId = servicePartnerId;
+//       }
+
+//       console.log("conflictQuery", conflictQuery);
+
+//       const conflict = await Booking.findOne(conflictQuery);
+//       if (conflict) {
+//         return res.status(409).json({
+//           success: false,
+//           message: "Updated slot conflicts with another booking",
+//         });
+//       }
+
+//       // Apply updated values
+//       booking.appointmentDate = newDate;
+//       booking.slotTime.startTime = newStart;
+//       booking.slotTime.endTime = newEnd;
+//     }
+
+//     // ------------------------------------------------------------
+//     // Update duration (auto or manual)
+//     // ------------------------------------------------------------
+//     let finalDuration = duration;
+
+//     const st = booking.slotTime.startTime;
+//     const et = booking.slotTime.endTime;
+
+//     if (!finalDuration) {
+//       const [sh, sm] = st.split(":").map(Number);
+//       const [eh, em] = et.split(":").map(Number);
+
+//       finalDuration = eh * 60 + em - (sh * 60 + sm);
+//       if (finalDuration <= 0) {
+//         finalDuration = service.defaultDuration || 30;
+//       }
+//     }
+
+//     booking.duration = finalDuration;
+
+//     // ------------------------------------------------------------
+//     // Recalculate pricing snapshot
+//     // ------------------------------------------------------------
+//     booking.pricing = service.calculateTotalPrice(
+//       finalDuration,
+//       false,
+//       shiftType || booking.shiftType
+//     );
+
+//     if (shiftType) booking.shiftType = shiftType;
+
+//     // ------------------------------------------------------------
+//     // Save with updatedBy info
+//     // ------------------------------------------------------------
+//     // booking.createdBy = {
+//     //   userId: adminId,
+//     //   userModel: "Admin",
+//     // };
+
+//     await booking.save();
+
+//     // Populate city for response
+//     const populated = await booking.populate("city", "name latitude longitude");
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Booking updated successfully",
+//       data: {
+//         ...populated.toObject(),
+//         formattedDuration: formatDuration(finalDuration),
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Admin Update Booking Error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error updating booking",
+//       error: error.message,
+//     });
+//   }
+// };
+
 exports.createBookingByAdmin = async (req, res) => {
   try {
-    const adminId = req.user?.id; // Admin logged in
-
+    const adminId = req.user?.id;
     if (!adminId) {
-      return res.status(403).json({ success: false, message: "Unauthorized" });
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized",
+      });
     }
 
     const {
       patientId,
       serviceId,
-      appointmentDate, // 'YYYY-MM-DD'
-      startTime, // 'HH:mm'
-      endTime, // 'HH:mm'
+      appointmentDate,
+      startTime,
+      endTime,
       duration,
       shiftType,
       servicePartnerId,
@@ -2464,26 +2884,31 @@ exports.createBookingByAdmin = async (req, res) => {
       cityId,
     } = req.body;
 
-    // ----------------------------
+    // ------------------------------------------------------------
     // Required fields
-    // ----------------------------
+    // ------------------------------------------------------------
     if (!patientId || !serviceId || !appointmentDate || !startTime) {
       return res.status(400).json({
         success: false,
         message:
-          "patientId, serviceId, appointmentDate, startTime are required",
+          "patientId, serviceId, appointmentDate and startTime are required",
       });
     }
 
-    // 1) Validate service
+    // ------------------------------------------------------------
+    // Validate service
+    // ------------------------------------------------------------
     const service = await Service.findById(serviceId);
     if (!service || !service.isActive || service.isDeleted) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Service not found or inactive" });
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or inactive",
+      });
     }
 
-    // 2) Load patient and ensure patient has a city
+    // ------------------------------------------------------------
+    // Validate patient and patient city
+    // ------------------------------------------------------------
     const patient = await Patient.findById(patientId).select("address.cityId");
     if (!patient) {
       return res.status(404).json({
@@ -2492,63 +2917,100 @@ exports.createBookingByAdmin = async (req, res) => {
       });
     }
 
-    if (!patient.address || !patient.address.cityId) {
+    if (!patient.address?.cityId) {
       return res.status(400).json({
         success: false,
-        message: "Patient city not set. Please update your address first.",
+        message: "Patient city not set. Please update patient address first.",
       });
     }
 
-    // 3) Determine booking city and enforce that patient belongs to it
-    let bookingCity = null;
+    // ------------------------------------------------------------
+    // Determine booking city
+    // ------------------------------------------------------------
+    let bookingCityId = patient.address.cityId;
 
     if (cityId) {
-      // City explicitly sent in request
-      bookingCity = await City.findById(cityId);
-      if (!bookingCity) {
+      const cityDoc = await City.findById(cityId);
+      if (!cityDoc) {
         return res.status(400).json({
           success: false,
           message: "Invalid city selected",
         });
       }
 
-      // Patient must belong to this city
-      if (bookingCity._id.toString() !== patient.address.cityId.toString()) {
+      if (cityDoc._id.toString() !== patient.address.cityId.toString()) {
         return res.status(403).json({
           success: false,
           message:
-            "Booking not allowed: patient does not belong to the selected city",
+            "Booking not allowed. Patient does not belong to the selected city.",
         });
       }
-    } else {
-      // No cityId in body → default to patient city
-      bookingCity = await City.findById(patient.address.cityId);
-      if (!bookingCity) {
-        return res.status(400).json({
-          success: false,
-          message: "Patient city is invalid or not available",
-        });
-      }
+
+      bookingCityId = cityDoc._id;
     }
 
-    // 4) Use category and modes from Service if not provided
+    // ------------------------------------------------------------
+    // Booking category & modes
+    // ------------------------------------------------------------
     const bookingCategory = category || service.category || null;
     const bookingModes =
       Array.isArray(modes) && modes.length > 0 ? modes : service.modes || [];
 
-    // 5) Check slot conflicts
+    // ------------------------------------------------------------
+    // Prepare date range for conflict checks
+    // ------------------------------------------------------------
     const dayStart = new Date(appointmentDate);
     dayStart.setHours(0, 0, 0, 0);
 
     const dayEnd = new Date(appointmentDate);
     dayEnd.setHours(23, 59, 59, 999);
 
+    // ------------------------------------------------------------
+    // Compute endTime if missing
+    // ------------------------------------------------------------
+    let computedEndTime = endTime;
+    let computedDuration = duration;
+
+    if (!computedEndTime) {
+      let dur = computedDuration || service.defaultDuration || 30;
+
+      const [sh, sm] = startTime.split(":").map(Number);
+      const totalStartMinutes = sh * 60 + sm;
+      const totalEndMinutes = totalStartMinutes + dur;
+
+      const eh = Math.floor(totalEndMinutes / 60);
+      const em = totalEndMinutes % 60;
+
+      computedEndTime = `${eh.toString().padStart(2, "0")}:${em
+        .toString()
+        .padStart(2, "0")}`;
+    }
+
+    // ------------------------------------------------------------
+    // Duration calculation if missing
+    // ------------------------------------------------------------
+    if (!computedDuration) {
+      const [sh, sm] = startTime.split(":").map(Number);
+      const [eh, em] = computedEndTime.split(":").map(Number);
+
+      const startMinutes = sh * 60 + sm;
+      const endMinutes = eh * 60 + em;
+
+      computedDuration = endMinutes - startMinutes;
+      if (computedDuration <= 0) {
+        computedDuration = service.defaultDuration || 30;
+      }
+    }
+
+    // ------------------------------------------------------------
+    // Check slot conflict
+    // ------------------------------------------------------------
     const conflictQuery = {
       serviceId,
       appointmentDate: { $gte: dayStart, $lte: dayEnd },
       status: { $nin: ["Cancelled", "Rejected"] },
       "slotTime.startTime": startTime,
-      "slotTime.endTime": endTime,
+      "slotTime.endTime": computedEndTime,
     };
 
     if (servicePartnerId) {
@@ -2559,30 +3021,22 @@ exports.createBookingByAdmin = async (req, res) => {
     if (existingBooking) {
       return res.status(409).json({
         success: false,
-        message: "Slot already booked. Choose another slot.",
+        message: "This slot is already booked. Choose another slot.",
       });
     }
 
-    // 6) Calculate duration
-    let bookingDuration = duration;
-    if (!bookingDuration) {
-      const [sh, sm] = startTime.split(":").map(Number);
-      const [eh, em] = endTime.split(":").map(Number);
-      bookingDuration = eh * 60 + em - (sh * 60 + sm);
-
-      if (bookingDuration <= 0) {
-        bookingDuration = service.defaultDuration || 30;
-      }
-    }
-
-    // 7) Pricing snapshot
+    // ------------------------------------------------------------
+    // Pricing snapshot
+    // ------------------------------------------------------------
     const pricing = service.calculateTotalPrice(
-      bookingDuration,
+      computedDuration,
       false,
       shiftType || null
     );
 
-    // 8) Create Booking
+    // ------------------------------------------------------------
+    // Create booking
+    // ------------------------------------------------------------
     const newBooking = new Booking({
       patientId,
       serviceId,
@@ -2590,13 +3044,16 @@ exports.createBookingByAdmin = async (req, res) => {
       modes: bookingModes,
       servicePartnerId: servicePartnerId || null,
       appointmentDate: new Date(appointmentDate),
-      slotTime: { startTime, endTime },
-      duration: bookingDuration,
+      slotTime: {
+        startTime,
+        endTime: computedEndTime,
+      },
+      duration: computedDuration,
       shiftType: shiftType || null,
-      status: "Approved", // Admin-created bookings are usually auto-approved
+      status: "Approved",
       pricing,
       notes: notes || "",
-      city: bookingCity ? bookingCity._id : undefined,
+      city: bookingCityId,
       createdBy: {
         userId: adminId,
         userModel: "Admin",
@@ -2605,23 +3062,22 @@ exports.createBookingByAdmin = async (req, res) => {
 
     await newBooking.save();
 
-    // 9) Populate city before response
-    const populatedBooking = await newBooking.populate(
+    const populated = await newBooking.populate(
       "city",
       "name latitude longitude"
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: "Booking created successfully by admin",
+      message: "Booking created successfully",
       data: {
-        ...populatedBooking.toObject(),
-        formattedDuration: formatDuration(bookingDuration),
+        ...populated.toObject(),
+        formattedDuration: formatDuration(computedDuration),
       },
     });
   } catch (error) {
     console.error("Admin Booking Error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Error creating booking by admin",
       error: error.message,
@@ -2632,7 +3088,6 @@ exports.createBookingByAdmin = async (req, res) => {
 exports.updateBookingByAdmin = async (req, res) => {
   try {
     const adminId = req.user?.id;
-
     if (!adminId) {
       return res.status(403).json({ success: false, message: "Unauthorized" });
     }
@@ -2654,11 +3109,8 @@ exports.updateBookingByAdmin = async (req, res) => {
       shiftType,
       cityId,
     } = req.body;
-    console.log("req.body", req.body);
 
-    // ------------------------------------------------------------
     // Fetch booking
-    // ------------------------------------------------------------
     const booking = await Booking.findById(bookingId);
     if (!booking) {
       return res
@@ -2666,46 +3118,42 @@ exports.updateBookingByAdmin = async (req, res) => {
         .json({ success: false, message: "Booking not found" });
     }
 
-    // ------------------------------------------------------------
-    // Patient/service cannot be changed by admin
-    // ------------------------------------------------------------
+    // Ensure service exists (service cannot be changed)
     const service = await Service.findById(booking.serviceId);
     if (!service) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Service missing for booking" });
-    }
-
-    const patient = await Patient.findById(patientId).select("address.cityId");
-    if (!patient) {
       return res.status(404).json({
         success: false,
-        message: "Patient not found",
+        message: "Service missing for booking",
       });
     }
 
-    if (!patient.address || !patient.address.cityId) {
+    // Determine which patient to validate: provided patientId or existing booking.patientId
+    const effectivePatientId = patientId || booking.patientId;
+    const patient = await Patient.findById(effectivePatientId).select(
+      "address.cityId"
+    );
+    if (!patient) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Patient not found" });
+    }
+    if (!patient.address?.cityId) {
       return res.status(400).json({
         success: false,
-        message: "Patient city not set. Please update your address first.",
+        message: "Patient city not set. Please update patient address first.",
       });
     }
 
-    // 3) Determine booking city and enforce that patient belongs to it
-    let bookingCity = null;
-
+    // Determine booking city and ensure patient belongs to it
+    let bookingCityDoc = null;
     if (cityId) {
-      // City explicitly sent in request
-      bookingCity = await City.findById(cityId);
-      if (!bookingCity) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid city selected",
-        });
+      bookingCityDoc = await City.findById(cityId);
+      if (!bookingCityDoc) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid city selected" });
       }
-
-      // Patient must belong to this city
-      if (bookingCity._id.toString() !== patient.address.cityId.toString()) {
+      if (bookingCityDoc._id.toString() !== patient.address.cityId.toString()) {
         return res.status(403).json({
           success: false,
           message:
@@ -2713,9 +3161,8 @@ exports.updateBookingByAdmin = async (req, res) => {
         });
       }
     } else {
-      // No cityId in body → default to patient city
-      bookingCity = await City.findById(patient.address.cityId);
-      if (!bookingCity) {
+      bookingCityDoc = await City.findById(patient.address.cityId);
+      if (!bookingCityDoc) {
         return res.status(400).json({
           success: false,
           message: "Patient city is invalid or not available",
@@ -2723,124 +3170,122 @@ exports.updateBookingByAdmin = async (req, res) => {
       }
     }
 
-    // ------------------------------------------------------------
-    // Update category/modes
-    // ------------------------------------------------------------
+    // Update category/modes if provided
     if (category) booking.category = category;
     if (Array.isArray(modes)) booking.modes = modes;
 
-    // ------------------------------------------------------------
-    // Update notes
-    // ------------------------------------------------------------
+    // Update notes (allow empty string)
     if (notes !== undefined) booking.notes = notes;
 
-    // ------------------------------------------------------------
-    // Update status
-    // ------------------------------------------------------------
+    // Update status & reason
     if (status) {
       booking.status = status;
       if (statusReason) booking.statusReason = statusReason;
     }
 
-    // ------------------------------------------------------------
-    // Update partner assignment
-    // ------------------------------------------------------------
+    // Update partner assignment (allow null to unassign)
     if (servicePartnerId !== undefined) {
       booking.servicePartnerId = servicePartnerId || null;
     }
 
-    // ------------------------------------------------------------
-    // Update time + conflict check
-    // ------------------------------------------------------------
-    if (appointmentDate || startTime || endTime) {
-      const newDate = appointmentDate
-        ? new Date(appointmentDate)
-        : booking.appointmentDate;
+    // Time & conflict handling:
+    // We'll compute the effective appointmentDate, start and end times:
+    const effectiveDate = appointmentDate
+      ? new Date(appointmentDate)
+      : booking.appointmentDate;
+    const effectiveStart = startTime || booking.slotTime?.startTime;
+    let effectiveEnd = endTime || booking.slotTime?.endTime;
+    let providedDuration = duration; // possibly undefined
 
-      const newStart = startTime || booking.slotTime.startTime;
-      const newEnd = endTime || booking.slotTime.endTime;
-
-      // Check conflict
-      const dayStart = new Date(newDate);
-      dayStart.setHours(0, 0, 0, 0);
-
-      const dayEnd = new Date(newDate);
-      dayEnd.setHours(23, 59, 59, 999);
-
-      const conflictQuery = {
-        _id: { $ne: bookingId }, // exclude current booking
-        serviceId: booking.serviceId,
-        appointmentDate: { $gte: dayStart, $lte: dayEnd },
-        status: { $nin: ["Cancelled", "Rejected"] },
-        "slotTime.startTime": newStart,
-        "slotTime.endTime": newEnd,
-      };
-
-      if (servicePartnerId) {
-        conflictQuery.servicePartnerId = servicePartnerId;
-      }
-
-      console.log("conflictQuery", conflictQuery);
-
-      const conflict = await Booking.findOne(conflictQuery);
-      if (conflict) {
-        return res.status(409).json({
-          success: false,
-          message: "Updated slot conflicts with another booking",
-        });
-      }
-
-      // Apply updated values
-      booking.appointmentDate = newDate;
-      booking.slotTime.startTime = newStart;
-      booking.slotTime.endTime = newEnd;
+    // If start is missing at this point, error - startTime is required for times update
+    if (!effectiveStart) {
+      return res.status(400).json({
+        success: false,
+        message: "startTime is required to update slot/time information",
+      });
     }
 
-    // ------------------------------------------------------------
-    // Update duration (auto or manual)
-    // ------------------------------------------------------------
-    let finalDuration = duration;
+    // Compute end time if missing using duration or service.defaultDuration
+    if (!effectiveEnd) {
+      const dur = providedDuration || service.defaultDuration || 30;
+      const [sh, sm] = effectiveStart.split(":").map(Number);
+      const totalStartMins = sh * 60 + sm;
+      const totalEndMins = totalStartMins + dur;
+      const eh = Math.floor(totalEndMins / 60);
+      const em = totalEndMins % 60;
+      effectiveEnd = `${eh.toString().padStart(2, "0")}:${em
+        .toString()
+        .padStart(2, "0")}`;
+    }
 
-    const st = booking.slotTime.startTime;
-    const et = booking.slotTime.endTime;
-
+    // Recompute duration if not provided
+    let finalDuration = providedDuration;
     if (!finalDuration) {
-      const [sh, sm] = st.split(":").map(Number);
-      const [eh, em] = et.split(":").map(Number);
-
+      const [sh, sm] = effectiveStart.split(":").map(Number);
+      const [eh, em] = effectiveEnd.split(":").map(Number);
       finalDuration = eh * 60 + em - (sh * 60 + sm);
       if (finalDuration <= 0) {
         finalDuration = service.defaultDuration || 30;
       }
     }
 
-    booking.duration = finalDuration;
+    // Conflict check only if any of date/start/end/partner changed (or always check to be safe)
+    const dayStart = new Date(effectiveDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(effectiveDate);
+    dayEnd.setHours(23, 59, 59, 999);
 
-    // ------------------------------------------------------------
-    // Recalculate pricing snapshot
-    // ------------------------------------------------------------
+    const conflictQuery = {
+      _id: { $ne: bookingId }, // exclude current booking
+      serviceId: booking.serviceId,
+      appointmentDate: { $gte: dayStart, $lte: dayEnd },
+      status: { $nin: ["Cancelled", "Rejected"] },
+      "slotTime.startTime": effectiveStart,
+      "slotTime.endTime": effectiveEnd,
+    };
+
+    // if a new partner was provided (or existing booking has one), conflict should check against the partner we will assign
+    if (servicePartnerId !== undefined) {
+      conflictQuery.servicePartnerId = servicePartnerId || null;
+    } else if (booking.servicePartnerId) {
+      conflictQuery.servicePartnerId = booking.servicePartnerId;
+    }
+
+    const conflict = await Booking.findOne(conflictQuery);
+    if (conflict) {
+      return res.status(409).json({
+        success: false,
+        message: "Updated slot conflicts with another booking",
+      });
+    }
+
+    // Apply time updates
+    booking.appointmentDate = effectiveDate;
+    booking.slotTime = {
+      startTime: effectiveStart,
+      endTime: effectiveEnd,
+    };
+
+    // Apply duration & pricing & shiftType
+    booking.duration = finalDuration;
     booking.pricing = service.calculateTotalPrice(
       finalDuration,
       false,
       shiftType || booking.shiftType
     );
-
     if (shiftType) booking.shiftType = shiftType;
 
-    // ------------------------------------------------------------
-    // Save with updatedBy info
-    // ------------------------------------------------------------
-    booking.createdBy = {
-      userId: adminId,
-      userModel: "Admin",
-    };
+    // Update city to bookingCityDoc
+    booking.city = bookingCityDoc._id;
 
+
+    // Save
     await booking.save();
 
     // Populate city for response
     const populated = await booking.populate("city", "name latitude longitude");
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Booking updated successfully",
       data: {
@@ -2850,13 +3295,14 @@ exports.updateBookingByAdmin = async (req, res) => {
     });
   } catch (error) {
     console.error("Admin Update Booking Error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Error updating booking",
       error: error.message,
     });
   }
 };
+
 
 exports.getAllPatients = catchAsync(async (req, res, next) => {
   const {
@@ -3035,7 +3481,6 @@ exports.addDoctorToCities = catchAsync(async (req, res, next) => {
   }
 
   // Validate MongoDB ObjectId format
-  const mongoose = require("mongoose");
   if (!mongoose.Types.ObjectId.isValid(doctorId)) {
     return next(new AppError("Invalid doctor ID format", 400));
   }
@@ -3466,10 +3911,10 @@ exports.getPatientNames = async (req, res) => {
     ];
   }
 
-  if (Types.ObjectId.isValid(searchQuery)) {
+  if (mongoose.Types.ObjectId.isValid(searchQuery)) {
     filter.$or.push({ _id: searchQuery });
   }
-  
+
   try {
     const patients = await Patient.find(
       filter,
@@ -3513,7 +3958,7 @@ exports.getPatientNames = async (req, res) => {
 
 exports.getServiceProviderNames = async (req, res) => {
   try {
-    const { serviceId } = req.query;
+    const { serviceId, cityId } = req.query;
 
     const filter = {
       isDeleted: false,
@@ -3524,6 +3969,10 @@ exports.getServiceProviderNames = async (req, res) => {
     // Apply service filter only if provided
     if (serviceId) {
       filter["services.serviceId"] = serviceId;
+    }
+
+    if (cityId) {
+      filter.serviceCities = cityId;
     }
 
     const providers = await ServiceProvider.find(filter, {
