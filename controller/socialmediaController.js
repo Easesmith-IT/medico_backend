@@ -520,25 +520,62 @@ exports.toggleFollowDoctor = async (req, res, next) => {
 
 
 // Add Comment
+// exports.addComment = async (req, res, next) => {
+//   try {
+//     const { text } = req.body;
+//     const social = await Social.findById(req.params.id);
+    
+//     if (!social) return res.status(404).json({ success: false, message: 'Post not found' });
+    
+//     social.comments.push({
+//       userId: req.user._id,
+//       userRole: req.user.role,
+//       text: text.trim()
+//     });
+//     social.stats.comments = social.comments.length;
+//     await social.save();
+
+//     res.json({ success: true, totalComments: social.stats.comments });
+//   } catch (err) { next(err); }
+// };
 exports.addComment = async (req, res, next) => {
   try {
     const { text } = req.body;
-    const social = await Social.findById(req.params.id);
-    
-    if (!social) return res.status(404).json({ success: false, message: 'Post not found' });
-    
-    social.comments.push({
-      userId: req.user._id,
+    const { id } = req.params;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, message: 'Comment text required' });
+    }
+
+    const post = await Post.findById(id);
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+
+    // Add comment
+    post.comments.push({
+      userId: req.user._id || req.user.id,
       userRole: req.user.role,
       text: text.trim()
     });
-    social.stats.comments = social.comments.length;
-    await social.save();
+    
+    post.stats.comments = post.comments.length;
+    await post.save();
 
-    res.json({ success: true, totalComments: social.stats.comments });
-  } catch (err) { next(err); }
+    // Populate just the new comment for response
+    const newComment = post.comments[post.comments.length - 1];
+    await post.populate('comments.userId', 'firstName lastName profilePhoto role');
+    const populatedNewComment = post.comments[post.comments.length - 1];
+
+    res.json({ 
+      success: true, 
+      totalComments: post.stats.comments,
+      newComment: populatedNewComment 
+    });
+  } catch (err) {
+    next(err);
+  }
 };
-
 // Get Posts + Follows
 exports.getSocialFeed = async (req, res, next) => {
   try {
