@@ -373,40 +373,266 @@ exports.getPostById = async (req, res, next) => {
 };
 
 
+// exports.toggleLikePost = async (req, res, next) => {
+//   try {
+//     const post = await Post.findById(req.params.id);
+//     if (!post) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Post not found" });
+//     }
+
+//     // Support both full docs and decoded token payloads
+//     const user = req.user || {};
+//     const userId = (user._id || user.id || user.userId || "").toString();
+//     const userRole = (user.role || user.userRole || "").toLowerCase();
+
+//     if (!userId || !userRole) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Unauthorized: user not found on request",
+//       });
+//     }
+
+//     // Normalize likes array
+//     post.likes = Array.isArray(post.likes) ? post.likes : [];
+
+//     const existingLike = post.likes.find((like) => {
+//       if (!like || !like.userId) return false;
+
+//       const likeUserId = like.userId.toString();
+//       const likeUserRole = (like.userRole || "").toLowerCase();
+
+//       return likeUserId === userId && likeUserRole === userRole;
+//     });
+
+//     if (existingLike) {
+//       // Unlike
+//       post.likes = post.likes.filter((like) => {
+//         if (!like || !like.userId) return true;
+//         const likeUserId = like.userId.toString();
+//         const likeUserRole = (like.userRole || "").toLowerCase();
+//         return !(likeUserId === userId && likeUserRole === userRole);
+//       });
+//     } else {
+//       // Like
+//       post.likes.push({
+//         userId, // store as string; Mongoose will cast if schema is ObjectId
+//         userRole,
+//         createdAt: new Date(),
+//       });
+//     }
+
+//     // Ensure stats object
+//     if (!post.stats || typeof post.stats !== "object") {
+//       post.stats = {};
+//     }
+//     post.stats.likes = post.likes.length;
+
+//     await post.save();
+
+//     return res.json({
+//       success: true,
+//       likes: post.stats.likes,
+//       userHasLiked: !existingLike,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 
+
+// exports.toggleLikePost = async (req, res, next) => {
+//   try {
+//     const post = await Post.findById(req.params.id);
+//     if (!post) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Post not found" });
+//     }
+
+//     const user = req.user || {};
+//     const rawRole = user.role || user.userRole || "";
+//     const userRole = rawRole.toLowerCase();
+//     const userId = (user._id || user.id || user.userId || "").toString();
+
+//     const isAdminRole =
+//       userRole === "admin" ||
+//       userRole === "superadmin" ||
+//       userRole === "subadmin";
+
+//     // If request is coming from an admin-type user, do NOT throw "user not found" error
+//     // Option A: completely disallow like/unlike for admin-side calls
+//     if (isAdminRole) {
+//       return res.status(200).json({
+//         success: true,
+//         message: "Admins do not toggle likes on posts",
+//       });
+//     }
+
+//     // For patient/doctor/etc – strict check
+//     if (!userId || !userRole) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Unauthorized: user not found on request",
+//       });
+//     }
+
+//     // ---- like/unlike logic stays the same ----
+//     post.likes = Array.isArray(post.likes) ? post.likes : [];
+
+//     const existingLike = post.likes.find((like) => {
+//       if (!like || !like.userId) return false;
+//       const likeUserId = like.userId.toString();
+//       const likeUserRole = (like.userRole || "").toLowerCase();
+//       return likeUserId === userId && likeUserRole === userRole;
+//     });
+
+//     if (existingLike) {
+//       post.likes = post.likes.filter((like) => {
+//         if (!like || !like.userId) return true;
+//         const likeUserId = like.userId.toString();
+//         const likeUserRole = (like.userRole || "").toLowerCase();
+//         return !(likeUserId === userId && likeUserRole === userRole);
+//       });
+//     } else {
+//       post.likes.push({
+//         userId,
+//         userRole,
+//         createdAt: new Date(),
+//       });
+//     }
+
+//     post.stats = post.stats || {};
+//     post.stats.likes = post.likes.length;
+
+//     await post.save();
+
+//     return res.json({
+//       success: true,
+//       likes: post.stats.likes,
+//       userHasLiked: !existingLike,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 exports.toggleLikePost = async (req, res, next) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+    if (!post) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Post not found" });
+    }
 
-    const userId = req.user._id.toString();
-    const userRole = req.user.role;  // ✅ 'doctor' or 'patient'
+    console.log('toggleLikePost req.user =', req.user); // debug
 
-    const existingLike = post.likes?.find(like => 
-      like.userId.toString() === userId && like.userRole === userRole
-    );
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || "";
+    const userRole = rawRole.toLowerCase();
+    const userIdRaw = user._id || user.id || user.userId || "";
+    const userId = userIdRaw ? userIdRaw.toString() : "";
+
+    const isAdminRole =
+      userRole === "admin" ||
+      userRole === "superadmin" ||
+      userRole === "subadmin";
+
+    // Admins: no like/unlike, but no 401 either
+    if (isAdminRole) {
+      return res.status(200).json({
+        success: true,
+        message: "Admins do not toggle likes on posts",
+        likes: post.stats?.likes || post.likes?.length || 0,
+        userHasLiked: false,
+      });
+    }
+
+    // Only fail if protect really did not attach any user
+    if (!userId || !userRole) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: user not found on request",
+      });
+    }
+
+    // ---- like/unlike logic stays the same ----
+    post.likes = Array.isArray(post.likes) ? post.likes : [];
+
+    const existingLike = post.likes.find((like) => {
+      if (!like || !like.userId) return false;
+      const likeUserId = like.userId.toString();
+      const likeUserRole = (like.userRole || "").toLowerCase();
+      return likeUserId === userId && likeUserRole === userRole;
+    });
 
     if (existingLike) {
-      post.likes = post.likes.filter(like => 
-        !(like.userId.toString() === userId && like.userRole === userRole)
-      );
+      post.likes = post.likes.filter((like) => {
+        if (!like || !like.userId) return true;
+        const likeUserId = like.userId.toString();
+        const likeUserRole = (like.userRole || "").toLowerCase();
+        return !(likeUserId === userId && likeUserRole === userRole);
+      });
     } else {
-      post.likes = post.likes || [];
-      post.likes.push({ userId: req.user._id, userRole });
+      post.likes.push({
+        userId,
+        userRole,
+        createdAt: new Date(),
+      });
     }
-    
+
+    post.stats = post.stats || {};
     post.stats.likes = post.likes.length;
+
     await post.save();
 
-    res.json({ 
-      success: true, 
-      likes: post.stats.likes, 
-      userHasLiked: !existingLike 
+    return res.json({
+      success: true,
+      likes: post.stats.likes,
+      userHasLiked: !existingLike,
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
+
+
+
+
+// exports.toggleLikePost = async (req, res, next) => {
+//   try {
+//     const post = await Post.findById(req.params.id);
+//     if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+
+//     const userId = req.user._id.toString();
+//     const userRole = req.user.role;  // ✅ 'doctor' or 'patient'
+
+//     const existingLike = post.likes?.find(like => 
+//       like.userId.toString() === userId && like.userRole === userRole
+//     );
+
+//     if (existingLike) {
+//       post.likes = post.likes.filter(like => 
+//         !(like.userId.toString() === userId && like.userRole === userRole)
+//       );
+//     } else {
+//       post.likes = post.likes || [];
+//       post.likes.push({ userId: req.user._id, userRole });
+//     }
+    
+//     post.stats.likes = post.likes.length;
+//     await post.save();
+
+//     res.json({ 
+//       success: true, 
+//       likes: post.stats.likes, 
+//       userHasLiked: !existingLike 
+//     });
+//   } catch (err) { next(err); }
+// };
 
 
 // Toggle Follow (Doctor follows Doctor, Patient follows Doctor)
