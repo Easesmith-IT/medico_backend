@@ -31,4 +31,5 @@ router.post('/commentPost/:id', protect(['doctor', 'patient']),  postCtrl.addCom
 router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']),  postCtrl.toggleFollowDoctor); // Follow doctor
 router.get('/feed',  postCtrl.getSocialFeed);
 router.get('/getPostById/:id', postCtrl.getPostById);
+router.post('/addComment/:id', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']), postCtrl.addComment);
 module.exports = router;

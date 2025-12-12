@@ -59,7 +59,7 @@ const socialPostSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, required: true },
     userRole: { 
       type: String, 
-      enum: ['doctor', 'patient'],  // Matches req.user.role
+    enum: ['doctor', 'patient', 'admin', 'superadmin', 'subadmin'] ,
       required: true 
     },
     text: { type: String, required: true, trim: true },
