@@ -835,6 +835,26 @@ const protect = (...allowedRoles) => {
   };
 };
 
+// async function loadUserByRole(role, id, includeTokenVersion = false) {
+//   if (!role) return null;
+
+//   const selectFields = includeTokenVersion
+//     ? "+tokenVersion isActive email"
+//     : "";
+
+//   switch (role.toLowerCase()) {
+//     case "doctor":
+//       return await Doctor.findById(id).select(selectFields);
+
+//     case "admin":
+//     case "superadmin":
+//     case "subadmin":
+//       return await Admin.findById(id).select(selectFields);
+
+//     default:
+//       return null;
+//   }
+// }
 async function loadUserByRole(role, id, includeTokenVersion = false) {
   if (!role) return null;
 
@@ -845,6 +865,9 @@ async function loadUserByRole(role, id, includeTokenVersion = false) {
   switch (role.toLowerCase()) {
     case "doctor":
       return await Doctor.findById(id).select(selectFields);
+
+    case "patient":                           // ✅ ADD THIS LINE
+      return await Patient.findById(id).select(selectFields);
 
     case "admin":
     case "superadmin":
@@ -870,8 +893,8 @@ function clearAuthCookies(res) {
 }
 
 function authorizeAndContinue(req, role, allowedRoles, next) {
-  const userRole = role;
-
+  // const userRole = role;
+  const userRole = role?.toLowerCase(); 
   if (!userRole) {
     return next(new AppError("Invalid token payload", 401));
   }

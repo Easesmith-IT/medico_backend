@@ -28,7 +28,8 @@ router.post('/likePost/:id/like', postCtrl.likePost);
 
 // router.post('/likePost/:id/toggle', protect(['doctor', 'patient']),  postCtrl.toggleLikePost);
 router.post('/commentPost/:id', protect(['doctor', 'patient']),  postCtrl.addComment);
-router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']),  postCtrl.toggleFollowDoctor); // Follow doctor
+// router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']),  postCtrl.toggleFollowDoctor); // Follow doctor
+router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']), postCtrl.toggleFollowDoctor);
 
 // AFTER
 router.post(
