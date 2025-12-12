@@ -679,21 +679,15 @@ exports.toggleLikePost = async (req, res, next) => {
 //     });
 //   } catch (err) { next(err); }
 // };
+
 exports.toggleFollowDoctor = async (req, res, next) => {
   try {
-    // req.user comes from protect: { id, role, ... }
-    const userId = req.user?.id || req.user?._id;
-    const userRole = req.user?.role;
-
-    if (!userId || !userRole) {
-      return res.status(401).json({ message: 'Unauthorized' });
+    // 1. Find/create doc FIRST (like post = await Post.findById())
+    const { targetDoctorId } = req.body;
+    if (!targetDoctorId) {
+      return res.status(400).json({ success: false, message: "targetDoctorId required" });
     }
 
-    const { targetDoctorId } = req.body;
-    const followerId = userId.toString();
-    const followerRole = userRole;
-
-    // Use Post as the social stats model
     let social = await Post.findOne({ doctor: targetDoctorId });
     if (!social) {
       social = new Post({
@@ -701,41 +695,76 @@ exports.toggleFollowDoctor = async (req, res, next) => {
         follows: [],
         stats: { followers: 0 },
       });
-      await social.save();
     }
 
-    const existingFollow = social.follows.find(
-      (follow) =>
-        follow?.followerId &&
-        follow.followerId.toString() === followerId &&
-        follow.followerRole === followerRole
-    );
+    // 2. EXACT user normalization (line-by-line copy)
+    console.log('toggleFollowDoctor req.user =', req.user); // debug
 
-    if (existingFollow) {
-      // Unfollow
-      social.follows = social.follows.filter(
-        (follow) =>
-          !(
-            follow?.followerId &&
-            follow.followerId.toString() === followerId &&
-            follow.followerRole === followerRole
-          )
-      );
-    } else {
-      // Follow
-      social.follows.push({
-        followerId: userId,          // string or ObjectId
-        followerRole,
-        followingId: targetDoctorId,
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || "";
+    const userRole = rawRole.toLowerCase();
+    const userIdRaw = user._id || user.id || user.userId || "";
+    const userId = userIdRaw ? userIdRaw.toString() : "";
+
+    // 3. EXACT admin check
+    const isAdminRole =
+      userRole === "admin" ||
+      userRole === "superadmin" ||
+      userRole === "subadmin";
+
+    if (isAdminRole) {
+      return res.status(200).json({
+        success: true,
+        message: "Admins do not follow doctors",
+        following: false,
+        followers: social.stats?.followers || social.follows?.length || 0,
       });
     }
 
+    // 4. EXACT auth check
+    if (!userId || !userRole) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: user not found on request",
+      });
+    }
+
+    // 5. EXACT toggle logic pattern
+    social.follows = Array.isArray(social.follows) ? social.follows : [];
+
+    const existingFollow = social.follows.find((follow) => {
+      if (!follow || !follow.followerId) return false;
+      const followUserId = follow.followerId.toString();
+      const followUserRole = (follow.followerRole || "").toLowerCase();
+      return followUserId === userId && followUserRole === userRole;
+    });
+
+    if (existingFollow) {
+      social.follows = social.follows.filter((follow) => {
+        if (!follow || !follow.followerId) return true;
+        const followUserId = follow.followerId.toString();
+        const followUserRole = (follow.followerRole || "").toLowerCase();
+        return !(followUserId === userId && followUserRole === userRole);
+      });
+    } else {
+      social.follows.push({
+        followerId: userId,
+        followerRole: userRole,
+        followingId: targetDoctorId,
+        createdAt: new Date(),
+      });
+    }
+
+    // 6. EXACT stats update
+    social.stats = social.stats || {};
     social.stats.followers = social.follows.length;
+
     await social.save();
 
-    res.json({
+    // 7. EXACT response shape
+    return res.json({
       success: true,
-      action: existingFollow ? 'unfollowed' : 'followed',
+      action: existingFollow ? "unfollowed" : "followed",
       following: !existingFollow,
       followers: social.stats.followers,
     });
@@ -743,6 +772,73 @@ exports.toggleFollowDoctor = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
+// exports.toggleFollowDoctor = async (req, res, next) => {
+//   try {
+//     // req.user comes from protect: { id, role, ... }
+//     const userId = req.user?.id || req.user?._id;
+//     const userRole = req.user?.role;
+
+//     if (!userId || !userRole) {
+//       return res.status(401).json({ message: 'Unauthorized' });
+//     }
+
+//     const { targetDoctorId } = req.body;
+//     const followerId = userId.toString();
+//     const followerRole = userRole;
+
+//     // Use Post as the social stats model
+//     let social = await Post.findOne({ doctor: targetDoctorId });
+//     if (!social) {
+//       social = new Post({
+//         doctor: targetDoctorId,
+//         follows: [],
+//         stats: { followers: 0 },
+//       });
+//       await social.save();
+//     }
+
+//     const existingFollow = social.follows.find(
+//       (follow) =>
+//         follow?.followerId &&
+//         follow.followerId.toString() === followerId &&
+//         follow.followerRole === followerRole
+//     );
+
+//     if (existingFollow) {
+//       // Unfollow
+//       social.follows = social.follows.filter(
+//         (follow) =>
+//           !(
+//             follow?.followerId &&
+//             follow.followerId.toString() === followerId &&
+//             follow.followerRole === followerRole
+//           )
+//       );
+//     } else {
+//       // Follow
+//       social.follows.push({
+//         followerId: userId,          // string or ObjectId
+//         followerRole,
+//         followingId: targetDoctorId,
+//       });
+//     }
+
+//     social.stats.followers = social.follows.length;
+//     await social.save();
+
+//     res.json({
+//       success: true,
+//       action: existingFollow ? 'unfollowed' : 'followed',
+//       following: !existingFollow,
+//       followers: social.stats.followers,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 
 // Add Comment
