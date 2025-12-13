@@ -163,9 +163,68 @@ exports.createPost = async (req, res, next) => {
 
 
 // GET POSTS (Feed)
-// GET POSTS
+// GET POSTS main one
+// exports.getPosts = async (req, res, next) => {
+//   try {
+//     const posts = await Post.find()
+//       .populate({
+//         path: 'doctor',
+//         select: 'firstName lastName address cities specialization profilePhoto clinics',
+//         populate: { path: 'cities', select: 'name' }
+//       })
+//       .populate('mentions', 'firstName lastName')
+//       .sort({ createdAt: -1 })
+//       .limit(20);
+
+//     const postsWithCreators = posts.map(post => {
+//       const doctor = post.doctor;
+
+//       const name = doctor
+//         ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+//         : 'Admin';
+
+//       let city = 'Not specified';
+
+//       if (doctor) {
+//         if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+//           city = doctor.cities[0].name;
+//         } else if (doctor.address?.city) {
+//           city = doctor.address.city;
+//         } else if (
+//           doctor.clinics &&
+//           doctor.clinics.length &&
+//           doctor.clinics[0]?.address?.city
+//         ) {
+//           city = doctor.clinics[0].address.city;
+//         }
+//       }
+
+//       const position = doctor?.specialization || 'Doctor';
+
+//       return {
+//         ...post.toObject(),
+//         creator: {
+//           _id: doctor?._id || post.doctor,
+//           name,
+//           location: city,
+//           position,
+//           profilePhoto: doctor?.profilePhoto || null,
+//           role: doctor ? 'doctor' : 'admin'
+//         }
+//       };
+//     });
+
+//     res.json(postsWithCreators);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
 exports.getPosts = async (req, res, next) => {
   try {
+    const userId = req.user?._id;
+    const userRole = req.user?.role; // 'doctor' | 'patient' | 'admin' | ...
+
     const posts = await Post.find()
       .populate({
         path: 'doctor',
@@ -201,6 +260,19 @@ exports.getPosts = async (req, res, next) => {
 
       const position = doctor?.specialization || 'Doctor';
 
+      const isLiked = !!post.likes?.some(
+        l =>
+          l.userId.toString() === userId?.toString() &&
+          l.userRole === userRole
+      );
+
+      const isFollowed = !!post.follows?.some(
+        f =>
+          f.followerId.toString() === userId?.toString() &&
+          f.followerRole === userRole &&
+          f.followingId.toString() === doctor?._id?.toString()
+      );
+
       return {
         ...post.toObject(),
         creator: {
@@ -210,7 +282,9 @@ exports.getPosts = async (req, res, next) => {
           position,
           profilePhoto: doctor?.profilePhoto || null,
           role: doctor ? 'doctor' : 'admin'
-        }
+        },
+        isLiked,
+        isFollowed
       };
     });
 
@@ -220,39 +294,6 @@ exports.getPosts = async (req, res, next) => {
   }
 };
 
-// exports.getPosts = async (req, res, next) => {
-//   try {
-//     const posts = await Post.find()
-//       .populate({
-//         path: 'doctor',
-//         select: 'firstName lastName location position profilePhoto'  // ✅ Added location + position
-//       })
-//       .populate('mentions', 'firstName lastName')
-//       .sort({ createdAt: -1 })
-//       .limit(20);
-
-//     // ✅ Transform for consistent creator format
-//     const postsWithCreators = posts.map(post => {
-//       const doctor = post.doctor;
-      
-//       return {
-//         ...post.toObject(),
-//         creator: {
-//           _id: doctor._id || post.doctor,
-//           name: doctor ? `${doctor.firstName} ${doctor.lastName}`.trim() : 'Admin',
-//           location: doctor?.location || null,
-//           position: doctor?.position || null,
-//           profilePhoto: doctor?.profilePhoto || null,
-//           role: doctor ? 'doctor' : 'admin'
-//         }
-//       };
-//     });
-
-//     res.json(postsWithCreators);
-//   } catch (err) { 
-//     next(err); 
-//   }
-// };
 
 exports.likePost = async (req, res, next) => {
   try {
@@ -313,10 +354,72 @@ exports.deletePost = async (req, res, next) => {
 // };
 
 
+//main one 
+// exports.getPostById = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+
+//     const post = await Post.findById(id)
+//       .populate({
+//         path: 'doctor',
+//         select: 'firstName lastName address cities specialization profilePhoto clinics',
+//         populate: { path: 'cities', select: 'name' }
+//       })
+//       .populate('mentions', 'firstName lastName');
+
+//     if (!post) {
+//       return res.status(404).json({ message: 'Post not found' });
+//     }
+
+//     const doctor = post.doctor;
+
+//     const name = doctor
+//       ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+//       : 'Admin';
+
+//     let city = 'Not specified';
+
+//     if (doctor) {
+//       if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+//         city = doctor.cities[0].name;
+//       } else if (doctor.address?.city) {
+//         city = doctor.address.city;
+//       } else if (
+//         doctor.clinics &&
+//         doctor.clinics.length &&
+//         doctor.clinics[0]?.address?.city
+//       ) {
+//         city = doctor.clinics[0].address.city;
+//       }
+//     }
+
+//     const position = doctor?.specialization || 'Doctor';
+
+//     const postWithCreator = {
+//       ...post.toObject(),
+//       creator: {
+//         _id: doctor?._id || post.doctor,
+//         name,
+//         location: city,
+//         position,
+//         profilePhoto: doctor?.profilePhoto || null,
+//         role: doctor ? 'doctor' : 'admin'
+//       }
+//     };
+
+//     res.json(postWithCreator);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+
 
 exports.getPostById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const userId = req.user?._id;
+    const userRole = req.user?.role;
 
     const post = await Post.findById(id)
       .populate({
@@ -354,6 +457,19 @@ exports.getPostById = async (req, res, next) => {
 
     const position = doctor?.specialization || 'Doctor';
 
+    const isLiked = !!post.likes?.some(
+      l =>
+        l.userId.toString() === userId?.toString() &&
+        l.userRole === userRole
+    );
+
+    const isFollowed = !!post.follows?.some(
+      f =>
+        f.followerId.toString() === userId?.toString() &&
+        f.followerRole === userRole &&
+        f.followingId.toString() === doctor?._id?.toString()
+    );
+
     const postWithCreator = {
       ...post.toObject(),
       creator: {
@@ -363,7 +479,9 @@ exports.getPostById = async (req, res, next) => {
         position,
         profilePhoto: doctor?.profilePhoto || null,
         role: doctor ? 'doctor' : 'admin'
-      }
+      },
+      isLiked,
+      isFollowed
     };
 
     res.json(postWithCreator);
@@ -371,76 +489,6 @@ exports.getPostById = async (req, res, next) => {
     next(err);
   }
 };
-
-
-// exports.toggleLikePost = async (req, res, next) => {
-//   try {
-//     const post = await Post.findById(req.params.id);
-//     if (!post) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Post not found" });
-//     }
-
-//     // Support both full docs and decoded token payloads
-//     const user = req.user || {};
-//     const userId = (user._id || user.id || user.userId || "").toString();
-//     const userRole = (user.role || user.userRole || "").toLowerCase();
-
-//     if (!userId || !userRole) {
-//       return res.status(401).json({
-//         success: false,
-//         message: "Unauthorized: user not found on request",
-//       });
-//     }
-
-//     // Normalize likes array
-//     post.likes = Array.isArray(post.likes) ? post.likes : [];
-
-//     const existingLike = post.likes.find((like) => {
-//       if (!like || !like.userId) return false;
-
-//       const likeUserId = like.userId.toString();
-//       const likeUserRole = (like.userRole || "").toLowerCase();
-
-//       return likeUserId === userId && likeUserRole === userRole;
-//     });
-
-//     if (existingLike) {
-//       // Unlike
-//       post.likes = post.likes.filter((like) => {
-//         if (!like || !like.userId) return true;
-//         const likeUserId = like.userId.toString();
-//         const likeUserRole = (like.userRole || "").toLowerCase();
-//         return !(likeUserId === userId && likeUserRole === userRole);
-//       });
-//     } else {
-//       // Like
-//       post.likes.push({
-//         userId, // store as string; Mongoose will cast if schema is ObjectId
-//         userRole,
-//         createdAt: new Date(),
-//       });
-//     }
-
-//     // Ensure stats object
-//     if (!post.stats || typeof post.stats !== "object") {
-//       post.stats = {};
-//     }
-//     post.stats.likes = post.likes.length;
-
-//     await post.save();
-
-//     return res.json({
-//       success: true,
-//       likes: post.stats.likes,
-//       userHasLiked: !existingLike,
-//     });
-//   } catch (err) {
-//     next(err);
-//   }
-// };
-
 
 
 // exports.toggleLikePost = async (req, res, next) => {
