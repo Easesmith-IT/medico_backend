@@ -326,6 +326,51 @@ exports.deletePost = async (req, res, next) => {
   }
 };
 
+exports.toggleHidePost = async (req, res, next) => {
+  try {
+    const postId = req.params.id;
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || '';
+    const userRole = rawRole.toLowerCase();
+    const adminIdRaw = user._id || user.id || user.userId || '';
+    const adminId = adminIdRaw ? adminIdRaw.toString() : '';
+
+    const isAdminRole =
+      userRole === 'admin' ||
+      userRole === 'superadmin' ||
+      userRole === 'subadmin';
+
+    if (!isAdminRole || !adminId) {
+      return res
+        .status(403)
+        .json({ success: false, message: 'Only admins can hide posts' });
+    }
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Post not found' });
+    }
+
+    // Toggle hide
+    const willHide = !post.isHidden;
+
+    post.isHidden = willHide;
+    post.hiddenAt = willHide ? new Date() : null;
+    post.hiddenBy = willHide ? adminId : null;
+
+    await post.save();
+
+    return res.json({
+      success: true,
+      action: willHide ? 'hidden' : 'unhidden',
+      isHidden: post.isHidden
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 
 // exports.toggleLikePost = async (req, res, next) => {
