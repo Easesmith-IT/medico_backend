@@ -55,5 +55,10 @@ router.delete(
   protect(['doctor', 'admin', 'superadmin', 'subadmin']),
   postCtrl.deletePost
 );
+router.get(
+  '/follow-stats/me',
+  protect(['doctor']),
+  postCtrl.getMyFollowStats
+);
 
 module.exports = router;

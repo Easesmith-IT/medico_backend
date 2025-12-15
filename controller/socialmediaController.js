@@ -1048,6 +1048,86 @@ exports.getSocialFeed = async (req, res, next) => {
 };
 
 
+// GET /social/follow-stats/me
+// GET /social/follow-stats/me
+exports.getMyFollowStats = async (req, res, next) => {
+  try {
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || '';
+    const userRole = rawRole.toLowerCase();
+    const userIdRaw = user._id || user.id || user.userId || '';
+    const userId = userIdRaw ? userIdRaw.toString() : '';
+
+    if (!userId || userRole !== 'doctor') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only doctors can view follow stats for themselves'
+      });
+    }
+
+    // 1) Followers: any Post doc where doctor = me and follows.followingId = me
+    const followerPosts = await Post.find({
+      doctor: userId,
+      'follows.followingId': userId
+    }).select('follows');
+
+    const followerIdsSet = new Set();
+
+    followerPosts.forEach(p => {
+      (p.follows || []).forEach(f => {
+        if (
+          f.followingId?.toString() === userId &&
+          f.followerId
+        ) {
+          followerIdsSet.add(f.followerId.toString());
+        }
+      });
+    });
+
+    const followerIds = Array.from(followerIdsSet);
+
+    const followers = await Doctor.find({ _id: { $in: followerIds } })
+      .select('firstName lastName profilePhoto specialization');
+
+    // 2) Following: any Post doc where some follows.followerId = me
+    const followingPosts = await Post.find({
+      'follows.followerId': userId,
+      'follows.followerRole': 'doctor'
+    }).select('doctor follows');
+
+    const followingIdsSet = new Set();
+
+    followingPosts.forEach(p => {
+      (p.follows || []).forEach(f => {
+        if (
+          f.followerId?.toString() === userId &&
+          f.followerRole === 'doctor' &&
+          f.followingId
+        ) {
+          followingIdsSet.add(f.followingId.toString());
+        }
+      });
+    });
+
+    const followingIds = Array.from(followingIdsSet);
+
+    const following = await Doctor.find({ _id: { $in: followingIds } })
+      .select('firstName lastName profilePhoto specialization');
+
+    return res.json({
+      success: true,
+      data: {
+        followersCount: followerIds.length,
+        followingCount: followingIds.length,
+        followers,
+        following
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 
 
 // exports.toggleLikePost = async (req, res, next) => {
