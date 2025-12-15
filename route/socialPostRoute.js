@@ -48,4 +48,12 @@ router.patch(
   protect(['admin', 'superadmin', 'subadmin']),
   postCtrl.toggleHidePost
 );
+
+
+router.delete(
+  '/posts/:id',
+  protect(['doctor', 'admin', 'superadmin', 'subadmin']),
+  postCtrl.deletePost
+);
+
 module.exports = router;
