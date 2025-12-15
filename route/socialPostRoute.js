@@ -42,4 +42,10 @@ router.post(
 router.get('/feed',  postCtrl.getSocialFeed);
 router.get('/getPostById/:id', postCtrl.getPostById);
 router.post('/addComment/:id', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']), postCtrl.addComment);
+
+router.patch(
+  '/posts/:id/hide',
+  protect(['admin', 'superadmin', 'subadmin']),
+  postCtrl.toggleHidePost
+);
 module.exports = router;
