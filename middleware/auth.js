@@ -710,6 +710,7 @@ const protect = (...allowedRoles) => {
         (!accessToken || accessToken === "undefined") &&
         (!refreshToken || refreshToken === "undefined")
       ) {
+        clearAuthCookies(res);
         return next(new AppError("Not authorized to access this route", 401));
       }
 
@@ -879,17 +880,29 @@ async function loadUserByRole(role, id, includeTokenVersion = false) {
   }
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
 function clearAuthCookies(res) {
-  res.clearCookie("accessToken", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-  });
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-  });
+ const cookieOptions = {
+   httpOnly: true,
+   secure: isProduction,
+   sameSite: isProduction ? "none" : "lax",
+   ...(isProduction && { domain: ".rehabmedico.in" }),
+ };
+
+ // Clear accessToken
+ res.clearCookie("accessToken", cookieOptions);
+
+ // Clear refreshToken
+ res.clearCookie("refreshToken", cookieOptions);
+
+ // Clear isAuthenticated (this one is not httpOnly)
+ res.clearCookie("isAuthenticated", {
+   httpOnly: false,
+   secure: isProduction,
+   sameSite: isProduction ? "none" : "lax",
+   ...(isProduction && { domain: ".rehabmedico.in" }),
+ });
 }
 
 function authorizeAndContinue(req, role, allowedRoles, next) {
