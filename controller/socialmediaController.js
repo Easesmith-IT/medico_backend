@@ -309,20 +309,65 @@ exports.likePost = async (req, res, next) => {
 
 
 
+// exports.deletePost = async (req, res, next) => {
+//   try {
+//     const post = await Post.findById(req.params.id);
+//     if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+
+//     const userId = req.user._id || req.user.id;
+//     if (post.doctor.toString() !== userId.toString()) {
+//       return res.status(403).json({ success: false, message: 'Not authorized to delete this post' });
+//     }
+
+//     await Post.findByIdAndDelete(req.params.id);
+//     res.json({ success: true, message: 'Post deleted successfully' });
+//   } catch (err) { 
+//     next(err); 
+//   }
+// };
 exports.deletePost = async (req, res, next) => {
   try {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+    const postId = req.params.id;
 
-    const userId = req.user._id || req.user.id;
-    if (post.doctor.toString() !== userId.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized to delete this post' });
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || '';
+    const userRole = rawRole.toLowerCase();
+    const userIdRaw = user._id || user.id || user.userId || '';
+    const userId = userIdRaw ? userIdRaw.toString() : '';
+
+    // 1) Find post
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Post not found' });
     }
 
-    await Post.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Post deleted successfully' });
-  } catch (err) { 
-    next(err); 
+    // 2) Check role
+    const isAdminRole =
+      userRole === 'admin' ||
+      userRole === 'superadmin' ||
+      userRole === 'subadmin';
+
+    const isOwner =
+      post.doctor && post.doctor.toString() === userId.toString();
+
+    // Only doctor who created it OR an admin-type role can delete
+    if (!isOwner && !isAdminRole) {
+      return res
+        .status(403)
+        .json({ success: false, message: 'Not authorized to delete this post' });
+    }
+
+    // 3) Delete post (hard delete)
+    await Post.findByIdAndDelete(postId);
+
+    return res.json({
+      success: true,
+      message: 'Post deleted successfully'
+    });
+  } catch (err) {
+    next(err);
   }
 };
 
