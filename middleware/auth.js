@@ -866,7 +866,7 @@ async function loadUserByRole(role, id, includeTokenVersion = false) {
     case "doctor":
       return await Doctor.findById(id).select(selectFields);
 
-    case "patient":                           // ✅ ADD THIS LINE
+    case "patient":                           //  ADD THIS LINE
       return await Patient.findById(id).select(selectFields);
 
     case "admin":
