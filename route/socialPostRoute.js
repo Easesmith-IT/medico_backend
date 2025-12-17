@@ -43,13 +43,16 @@ router.get('/feed',  postCtrl.getSocialFeed);
 router.get('/getPostById/:id', postCtrl.getPostById);
 router.post('/addComment/:id', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']), postCtrl.addComment);
 
-router.patch(
-  '/posts/:id/hide',
+// router.patch(
+//   '/posts/:id/hide',
+//   protect(['admin', 'superadmin', 'subadmin']),
+//   postCtrl.toggleHidePost
+// );
+router.post(
+  '/hidePost/:id/toggle',
   protect(['admin', 'superadmin', 'subadmin']),
   postCtrl.toggleHidePost
 );
-
-
 router.delete(
   '/posts/:id',
   protect(['doctor', 'admin', 'superadmin', 'subadmin']),
