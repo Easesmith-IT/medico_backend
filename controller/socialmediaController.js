@@ -371,6 +371,52 @@ exports.deletePost = async (req, res, next) => {
   }
 };
 
+// exports.toggleHidePost = async (req, res, next) => {
+//   try {
+//     const postId = req.params.id;
+//     const user = req.user || {};
+//     const rawRole = user.role || user.userRole || '';
+//     const userRole = rawRole.toLowerCase();
+//     const adminIdRaw = user._id || user.id || user.userId || '';
+//     const adminId = adminIdRaw ? adminIdRaw.toString() : '';
+
+//     const isAdminRole =
+//       userRole === 'admin' ||
+//       userRole === 'superadmin' ||
+//       userRole === 'subadmin';
+
+//     if (!isAdminRole || !adminId) {
+//       return res
+//         .status(403)
+//         .json({ success: false, message: 'Only admins can hide posts' });
+//     }
+
+//     const post = await Post.findById(postId);
+//     if (!post) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Post not found' });
+//     }
+
+//     // Toggle hide
+//     const willHide = !post.isHidden;
+
+//     post.isHidden = willHide;
+//     post.hiddenAt = willHide ? new Date() : null;
+//     post.hiddenBy = willHide ? adminId : null;
+
+//     await post.save();
+
+//     return res.json({
+//       success: true,
+//       action: willHide ? 'hidden' : 'unhidden',
+//       isHidden: post.isHidden
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
 exports.toggleHidePost = async (req, res, next) => {
   try {
     const postId = req.params.id;
@@ -417,91 +463,6 @@ exports.toggleHidePost = async (req, res, next) => {
   }
 };
 
-
-// exports.toggleLikePost = async (req, res, next) => {
-//   try {
-//     const post = await Post.findById(req.params.id); 
-//     if (!social) return res.status(404).json({ success: false, message: 'Post not found' });
-
-//     const userId = req.user._id.toString();
-//     const userRole = req.user.role;
-//     const existingLike = social.likes.find(like => 
-//       like.userId.toString() === userId && like.userRole === userRole
-//     );
-
-//     if (existingLike) {
-//       social.likes = social.likes.filter(like => 
-//         !(like.userId.toString() === userId && like.userRole === userRole)
-//       );
-//     } else {
-//       social.likes.push({ userId: req.user._id, userRole });
-//     }
-//     social.stats.likes = social.likes.length;
-//     await social.save();
-
-//     res.json({ success: true, likes: social.stats.likes, userHasLiked: !existingLike });
-//   } catch (err) { next(err); }
-// };
-
-
-//main one 
-// exports.getPostById = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
-
-//     const post = await Post.findById(id)
-//       .populate({
-//         path: 'doctor',
-//         select: 'firstName lastName address cities specialization profilePhoto clinics',
-//         populate: { path: 'cities', select: 'name' }
-//       })
-//       .populate('mentions', 'firstName lastName');
-
-//     if (!post) {
-//       return res.status(404).json({ message: 'Post not found' });
-//     }
-
-//     const doctor = post.doctor;
-
-//     const name = doctor
-//       ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
-//       : 'Admin';
-
-//     let city = 'Not specified';
-
-//     if (doctor) {
-//       if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
-//         city = doctor.cities[0].name;
-//       } else if (doctor.address?.city) {
-//         city = doctor.address.city;
-//       } else if (
-//         doctor.clinics &&
-//         doctor.clinics.length &&
-//         doctor.clinics[0]?.address?.city
-//       ) {
-//         city = doctor.clinics[0].address.city;
-//       }
-//     }
-
-//     const position = doctor?.specialization || 'Doctor';
-
-//     const postWithCreator = {
-//       ...post.toObject(),
-//       creator: {
-//         _id: doctor?._id || post.doctor,
-//         name,
-//         location: city,
-//         position,
-//         profilePhoto: doctor?.profilePhoto || null,
-//         role: doctor ? 'doctor' : 'admin'
-//       }
-//     };
-
-//     res.json(postWithCreator);
-//   } catch (err) {
-//     next(err);
-//   }
-// };
 
 
 
@@ -1127,6 +1088,134 @@ exports.getMyFollowStats = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
+exports.toggleHidePost = async (req, res, next) => {
+  try {
+    const postId = req.params.id;
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || '';
+    const userRole = rawRole.toLowerCase();
+    const adminIdRaw = user._id || user.id || user.userId || '';
+    const adminId = adminIdRaw ? adminIdRaw.toString() : '';
+
+    const isAdminRole =
+      userRole === 'admin' ||
+      userRole === 'superadmin' ||
+      userRole === 'subadmin';
+
+    if (!isAdminRole || !adminId) {
+      return res
+        .status(403)
+        .json({ success: false, message: 'Only admins can toggle posts' });
+    }
+
+    // Handle toggle hide/unhide OR get posts
+    if (req.query.action === 'get') {
+      // Admin-only posts retrieval (includes hidden posts)
+      const posts = await Post.find()
+        .populate({
+          path: 'doctor',
+          select: 'firstName lastName address cities specialization profilePhoto clinics',
+          populate: { path: 'cities', select: 'name' }
+        })
+        .populate('mentions', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .limit(20);
+
+      const postsWithCreators = posts.map(post => {
+        const doctor = post.doctor;
+        const name = doctor
+          ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+          : 'Admin';
+
+        let city = 'Not specified';
+        if (doctor) {
+          if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+            city = doctor.cities[0].name;
+          } else if (doctor.address?.city) {
+            city = doctor.address.city;
+          } else if (
+            doctor.clinics &&
+            doctor.clinics.length &&
+            doctor.clinics[0]?.address?.city
+          ) {
+            city = doctor.clinics[0].address.city;
+          }
+        }
+
+        const position = doctor?.specialization || 'Doctor';
+
+        return {
+          ...post.toObject(),
+          creator: {
+            _id: doctor?._id || post.doctor,
+            name,
+            location: city,
+            position,
+            profilePhoto: doctor?.profilePhoto || null,
+            role: doctor ? 'doctor' : 'admin'
+          },
+          isHidden: post.isHidden || false,
+          hiddenAt: post.hiddenAt || null,
+          hiddenBy: post.hiddenBy || null
+        };
+      });
+
+      return res.json({
+        success: true,
+        posts: postsWithCreators,
+        total: posts.length
+      });
+    }
+
+    // Toggle hide/unhide functionality
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Post not found' });
+    }
+
+    const willHide = !post.isHidden;
+    post.isHidden = willHide;
+    post.hiddenAt = willHide ? new Date() : null;
+    post.hiddenBy = willHide ? adminId : null;
+
+    await post.save();
+
+    return res.json({
+      success: true,
+      action: willHide ? 'hidden' : 'unhidden',
+      isHidden: post.isHidden,
+      postId: post._id
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

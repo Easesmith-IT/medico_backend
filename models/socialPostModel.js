@@ -43,6 +43,23 @@ const socialPostSchema = new mongoose.Schema({
   hashtags: [{ type: String }],
   mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' }],
   
+
+
+
+
+   isHidden: {
+    type: Boolean,
+    default: false
+  },
+  hiddenAt: {
+    type: Date,
+    default: null
+  },
+  hiddenBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',   // or 'Admin' / 'Doctor' depending on your auth model
+    default: null
+  },
   // ✅ FIXED: Embedded likes (Doctor + Patient) - lowercase enum
   likes: [{
     userId: { type: mongoose.Schema.Types.ObjectId, required: true },
