@@ -466,80 +466,80 @@ exports.toggleHidePost = async (req, res, next) => {
 
 
 
-exports.getPostById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?._id;
-    const userRole = req.user?.role;
+// exports.getPostById = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+//     const userId = req.user?._id;
+//     const userRole = req.user?.role;
 
-    const post = await Post.findById(id)
-      .populate({
-        path: 'doctor',
-        select: 'firstName lastName address cities specialization profilePhoto clinics',
-        populate: { path: 'cities', select: 'name' }
-      })
-      .populate('mentions', 'firstName lastName');
+//     const post = await Post.findById(id)
+//       .populate({
+//         path: 'doctor',
+//         select: 'firstName lastName address cities specialization profilePhoto clinics',
+//         populate: { path: 'cities', select: 'name' }
+//       })
+//       .populate('mentions', 'firstName lastName');
 
-    if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
-    }
+//     if (!post) {
+//       return res.status(404).json({ message: 'Post not found' });
+//     }
 
-    const doctor = post.doctor;
+//     const doctor = post.doctor;
 
-    const name = doctor
-      ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
-      : 'Admin';
+//     const name = doctor
+//       ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+//       : 'Admin';
 
-    let city = 'Not specified';
+//     let city = 'Not specified';
 
-    if (doctor) {
-      if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
-        city = doctor.cities[0].name;
-      } else if (doctor.address?.city) {
-        city = doctor.address.city;
-      } else if (
-        doctor.clinics &&
-        doctor.clinics.length &&
-        doctor.clinics[0]?.address?.city
-      ) {
-        city = doctor.clinics[0].address.city;
-      }
-    }
+//     if (doctor) {
+//       if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+//         city = doctor.cities[0].name;
+//       } else if (doctor.address?.city) {
+//         city = doctor.address.city;
+//       } else if (
+//         doctor.clinics &&
+//         doctor.clinics.length &&
+//         doctor.clinics[0]?.address?.city
+//       ) {
+//         city = doctor.clinics[0].address.city;
+//       }
+//     }
 
-    const position = doctor?.specialization || 'Doctor';
+//     const position = doctor?.specialization || 'Doctor';
 
-    const isLiked = !!post.likes?.some(
-      l =>
-        l.userId.toString() === userId?.toString() &&
-        l.userRole === userRole
-    );
+//     const isLiked = !!post.likes?.some(
+//       l =>
+//         l.userId.toString() === userId?.toString() &&
+//         l.userRole === userRole
+//     );
 
-    const isFollowed = !!post.follows?.some(
-      f =>
-        f.followerId.toString() === userId?.toString() &&
-        f.followerRole === userRole &&
-        f.followingId.toString() === doctor?._id?.toString()
-    );
+//     const isFollowed = !!post.follows?.some(
+//       f =>
+//         f.followerId.toString() === userId?.toString() &&
+//         f.followerRole === userRole &&
+//         f.followingId.toString() === doctor?._id?.toString()
+//     );
 
-    const postWithCreator = {
-      ...post.toObject(),
-      creator: {
-        _id: doctor?._id || post.doctor,
-        name,
-        location: city,
-        position,
-        profilePhoto: doctor?.profilePhoto || null,
-        role: doctor ? 'doctor' : 'admin'
-      },
-      isLiked,
-      isFollowed
-    };
+//     const postWithCreator = {
+//       ...post.toObject(),
+//       creator: {
+//         _id: doctor?._id || post.doctor,
+//         name,
+//         location: city,
+//         position,
+//         profilePhoto: doctor?.profilePhoto || null,
+//         role: doctor ? 'doctor' : 'admin'
+//       },
+//       isLiked,
+//       isFollowed
+//     };
 
-    res.json(postWithCreator);
-  } catch (err) {
-    next(err);
-  }
-};
+//     res.json(postWithCreator);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 
 // exports.toggleLikePost = async (req, res, next) => {
@@ -617,6 +617,325 @@ exports.getPostById = async (req, res, next) => {
 //     next(err);
 //   }
 // };
+
+
+
+//without sync
+// exports.getPostById = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+
+//     // normalize user exactly like toggleFollowDoctor
+//     const user = req.user || {};
+//     const rawRole = user.role || user.userRole || "";
+//     const userRole = rawRole.toLowerCase();
+//     const userIdRaw = user._id || user.id || user.userId || "";
+//     const userId = userIdRaw ? userIdRaw.toString() : "";
+
+//     const post = await Post.findById(id)
+//       .populate({
+//         path: 'doctor',
+//         select: 'firstName lastName address cities specialization profilePhoto clinics',
+//         populate: { path: 'cities', select: 'name' }
+//       })
+//       .populate('mentions', 'firstName lastName');
+
+//     if (!post) {
+//       return res.status(404).json({ message: 'Post not found' });
+//     }
+
+//     const doctor = post.doctor;
+
+//     const name = doctor
+//       ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+//       : 'Admin';
+
+//     let city = 'Not specified';
+
+//     if (doctor) {
+//       if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+//         city = doctor.cities[0].name;
+//       } else if (doctor.address?.city) {
+//         city = doctor.address.city;
+//       } else if (
+//         doctor.clinics &&
+//         doctor.clinics.length &&
+//         doctor.clinics[0]?.address?.city
+//       ) {
+//         city = doctor.clinics[0].address.city;
+//       }
+//     }
+
+//     const position = doctor?.specialization || 'Doctor';
+
+//     // isLiked from this post.likes
+//     const isLiked = !!post.likes?.some(l =>
+//       l.userId.toString() === userId &&
+//       (l.userRole || '').toLowerCase() === userRole
+//     );
+
+//     // read follow status from the doctor’s social doc,
+//     // same place toggleFollowDoctor writes to
+//     let isFollowed = false;
+//     if (doctor && userId && userRole) {
+//       const social = await Post.findOne({ doctor: doctor._id });
+
+//       if (social && Array.isArray(social.follows)) {
+//         isFollowed = !!social.follows.find(f => {
+//           if (!f || !f.followerId) return false;
+//           const followUserId = f.followerId.toString();
+//           const followUserRole = (f.followerRole || '').toLowerCase();
+//           const followingId = f.followingId?.toString();
+//           return (
+//             followUserId === userId &&
+//             followUserRole === userRole &&
+//             followingId === doctor._id.toString()
+//           );
+//         });
+//       }
+//     }
+
+//     const postWithCreator = {
+//       ...post.toObject(),
+//       creator: {
+//         _id: doctor?._id || post.doctor,
+//         name,
+//         location: city,
+//         position,
+//         profilePhoto: doctor?.profilePhoto || null,
+//         role: doctor ? 'doctor' : 'admin'
+//       },
+//       isLiked,
+//       isFollowed
+//     };
+
+//     return res.json(postWithCreator);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+//best one
+// exports.getPostById = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+
+//     // 1) Normalize user EXACTLY like toggleFollowDoctor
+//     const user = req.user || {};
+//     const rawRole = user.role || user.userRole || "";
+//     const userRole = rawRole.toLowerCase();
+//     const userIdRaw = user._id || user.id || user.userId || "";
+//     const userId = userIdRaw ? userIdRaw.toString() : "";
+
+//     const post = await Post.findById(id)
+//       .populate({
+//         path: "doctor",
+//         select:
+//           "firstName lastName address cities specialization profilePhoto clinics",
+//         populate: { path: "cities", select: "name" },
+//       })
+//       .populate("mentions", "firstName lastName");
+
+//     if (!post) {
+//       return res.status(404).json({ message: "Post not found" });
+//     }
+
+//     const doctor = post.doctor;
+
+//     const name = doctor
+//       ? [doctor.firstName, doctor.lastName].filter(Boolean).join(" ")
+//       : "Admin";
+
+//     let city = "Not specified";
+
+//     if (doctor) {
+//       if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+//         city = doctor.cities[0].name;
+//       } else if (doctor.address?.city) {
+//         city = doctor.address.city;
+//       } else if (
+//         doctor.clinics &&
+//         doctor.clinics.length &&
+//         doctor.clinics[0]?.address?.city
+//       ) {
+//         city = doctor.clinics[0].address.city;
+//       }
+//     }
+
+//     const position = doctor?.specialization || "Doctor";
+
+//     // 2) isLiked from THIS post.likes array
+//     const isLiked = !!post.likes?.some((l) => {
+//       const likeUserId = l.userId?.toString();
+//       const likeUserRole = (l.userRole || "").toLowerCase();
+//       return likeUserId === userId && likeUserRole === userRole;
+//     });
+
+//     // 3) isFollowed from the doctor’s SOCIAL doc (where toggleFollowDoctor writes)
+//     let isFollowed = false;
+
+//     console.log("GET POST userId:", userId, "userRole:", userRole);
+//     console.log("GET POST doctorId:", doctor?._id?.toString());
+
+//     if (doctor && userId && userRole) {
+//       const social = await Post.findOne({ doctor: doctor._id });
+
+//       console.log("SOCIAL DOC ID:", social?._id?.toString());
+//       console.log("SOCIAL FOLLOWS:", social?.follows);
+
+//       if (social && Array.isArray(social.follows)) {
+//         isFollowed = !!social.follows.find((f) => {
+//           if (!f || !f.followerId) return false;
+
+//           const followUserId = f.followerId.toString();
+//           const followUserRole = (f.followerRole || "").toLowerCase();
+//           const followingId = f.followingId?.toString();
+
+//           console.log("COMPARE FOLLOW:", {
+//             followUserId,
+//             followUserRole,
+//             followingId,
+//           });
+
+//           return (
+//             followUserId === userId &&
+//             followUserRole === userRole &&
+//             followingId === doctor._id.toString()
+//           );
+//         });
+//       }
+//     }
+
+//     const postWithCreator = {
+//       ...post.toObject(),
+//       creator: {
+//         _id: doctor?._id || post.doctor,
+//         name,
+//         location: city,
+//         position,
+//         profilePhoto: doctor?.profilePhoto || null,
+//         role: doctor ? "doctor" : "admin",
+//       },
+//       isLiked,
+//       isFollowed,
+//     };
+
+//     return res.json(postWithCreator);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+exports.getPostById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // 1) Normalize user EXACTLY like toggleFollowDoctor
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || "";
+    const userRole = rawRole.toLowerCase();
+    const userIdRaw = user._id || user.id || user.userId || "";
+    const userId = userIdRaw ? userIdRaw.toString() : "";
+
+    const post = await Post.findById(id)
+      .populate({
+        path: "doctor",
+        select:
+          "firstName lastName address cities specialization profilePhoto clinics",
+        populate: { path: "cities", select: "name" },
+      })
+      .populate("mentions", "firstName lastName");
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const doctor = post.doctor;
+
+    const name = doctor
+      ? [doctor.firstName, doctor.lastName].filter(Boolean).join(" ")
+      : "Admin";
+
+    let city = "Not specified";
+
+    if (doctor) {
+      if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+        city = doctor.cities[0].name;
+      } else if (doctor.address?.city) {
+        city = doctor.address.city;
+      } else if (
+        doctor.clinics &&
+        doctor.clinics.length &&
+        doctor.clinics[0]?.address?.city
+      ) {
+        city = doctor.clinics[0].address.city;
+      }
+    }
+
+    const position = doctor?.specialization || "Doctor";
+
+    // 2) isLiked from THIS post.likes array
+    const isLiked = !!post.likes?.some((l) => {
+      const likeUserId = l.userId?.toString();
+      const likeUserRole = (l.userRole || "").toLowerCase();
+      return likeUserId === userId && likeUserRole === userRole;
+    });
+
+    // 3) isFollowed from the doctor’s SOCIAL doc (where toggleFollowDoctor writes)
+    let isFollowed = false;
+
+    console.log("GET POST userId:", userId, "userRole:", userRole);
+    console.log("GET POST doctorId:", doctor?._id?.toString());
+
+    if (doctor && userId && userRole) {
+      const social = await Post.findOne({ doctor: doctor._id });
+
+      console.log("SOCIAL DOC ID:", social?._id?.toString());
+      console.log("SOCIAL FOLLOWS:", social?.follows);
+
+      if (social && Array.isArray(social.follows)) {
+        isFollowed = !!social.follows.find((f) => {
+          if (!f || !f.followerId) return false;
+
+          const followUserId = f.followerId.toString();
+          const followUserRole = (f.followerRole || "").toLowerCase();
+          const followingId = f.followingId?.toString();
+
+          console.log("COMPARE FOLLOW:", {
+            followUserId,
+            followUserRole,
+            followingId,
+          });
+
+          return (
+            followUserId === userId &&
+            followUserRole === userRole &&
+            followingId === doctor._id.toString()
+          );
+        });
+      }
+    }
+
+    const postWithCreator = {
+      ...post.toObject(),
+      creator: {
+        _id: doctor?._id || post.doctor,
+        name,
+        location: city,
+        position,
+        profilePhoto: doctor?.profilePhoto || null,
+        role: doctor ? "doctor" : "admin",
+      },
+      doctorId: doctor?._id || post.doctor, // <- explicit doctor id
+      isLiked,
+      isFollowed,
+    };
+
+    return res.json(postWithCreator);
+  } catch (err) {
+    next(err);
+  }
+};
+
 
 exports.toggleLikePost = async (req, res, next) => {
   try {
@@ -778,13 +1097,106 @@ exports.toggleLikePost = async (req, res, next) => {
 //     });
 //   } catch (err) { next(err); }
 // };
+//main without sync
+// exports.toggleFollowDoctor = async (req, res, next) => {
+//   try {
+//     // 1. Find/create doc FIRST (like post = await Post.findById())
+//     const { targetDoctorId } = req.body;
+//     if (!targetDoctorId) {
+//       return res.status(400).json({ success: false, message: "targetDoctorId required" });
+//     }
 
+//     let social = await Post.findOne({ doctor: targetDoctorId });
+//     if (!social) {
+//       social = new Post({
+//         doctor: targetDoctorId,
+//         follows: [],
+//         stats: { followers: 0 },
+//       });
+//     }
+
+//     // 2. EXACT user normalization (line-by-line copy)
+//     console.log('toggleFollowDoctor req.user =', req.user); // debug
+
+//     const user = req.user || {};
+//     const rawRole = user.role || user.userRole || "";
+//     const userRole = rawRole.toLowerCase();
+//     const userIdRaw = user._id || user.id || user.userId || "";
+//     const userId = userIdRaw ? userIdRaw.toString() : "";
+
+//     // 3. EXACT admin check
+//     const isAdminRole =
+//       userRole === "admin" ||
+//       userRole === "superadmin" ||
+//       userRole === "subadmin";
+
+//     if (isAdminRole) {
+//       return res.status(200).json({
+//         success: true,
+//         message: "Admins do not follow doctors",
+//         following: false,
+//         followers: social.stats?.followers || social.follows?.length || 0,
+//       });
+//     }
+
+//     // 4. EXACT auth check
+//     if (!userId || !userRole) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Unauthorized: user not found on request",
+//       });
+//     }
+
+//     // 5. EXACT toggle logic pattern
+//     social.follows = Array.isArray(social.follows) ? social.follows : [];
+
+//     const existingFollow = social.follows.find((follow) => {
+//       if (!follow || !follow.followerId) return false;
+//       const followUserId = follow.followerId.toString();
+//       const followUserRole = (follow.followerRole || "").toLowerCase();
+//       return followUserId === userId && followUserRole === userRole;
+//     });
+
+//     if (existingFollow) {
+//       social.follows = social.follows.filter((follow) => {
+//         if (!follow || !follow.followerId) return true;
+//         const followUserId = follow.followerId.toString();
+//         const followUserRole = (follow.followerRole || "").toLowerCase();
+//         return !(followUserId === userId && followUserRole === userRole);
+//       });
+//     } else {
+//       social.follows.push({
+//         followerId: userId,
+//         followerRole: userRole,
+//         followingId: targetDoctorId,
+//         createdAt: new Date(),
+//       });
+//     }
+
+//     // 6. EXACT stats update
+//     social.stats = social.stats || {};
+//     social.stats.followers = social.follows.length;
+
+//     await social.save();
+
+//     // 7. EXACT response shape
+//     return res.json({
+//       success: true,
+//       action: existingFollow ? "unfollowed" : "followed",
+//       following: !existingFollow,
+//       followers: social.stats.followers,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 exports.toggleFollowDoctor = async (req, res, next) => {
   try {
-    // 1. Find/create doc FIRST (like post = await Post.findById())
     const { targetDoctorId } = req.body;
     if (!targetDoctorId) {
-      return res.status(400).json({ success: false, message: "targetDoctorId required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "targetDoctorId required" });
     }
 
     let social = await Post.findOne({ doctor: targetDoctorId });
@@ -796,8 +1208,7 @@ exports.toggleFollowDoctor = async (req, res, next) => {
       });
     }
 
-    // 2. EXACT user normalization (line-by-line copy)
-    console.log('toggleFollowDoctor req.user =', req.user); // debug
+    console.log("toggleFollowDoctor req.user =", req.user);
 
     const user = req.user || {};
     const rawRole = user.role || user.userRole || "";
@@ -805,7 +1216,6 @@ exports.toggleFollowDoctor = async (req, res, next) => {
     const userIdRaw = user._id || user.id || user.userId || "";
     const userId = userIdRaw ? userIdRaw.toString() : "";
 
-    // 3. EXACT admin check
     const isAdminRole =
       userRole === "admin" ||
       userRole === "superadmin" ||
@@ -820,7 +1230,6 @@ exports.toggleFollowDoctor = async (req, res, next) => {
       });
     }
 
-    // 4. EXACT auth check
     if (!userId || !userRole) {
       return res.status(401).json({
         success: false,
@@ -828,7 +1237,6 @@ exports.toggleFollowDoctor = async (req, res, next) => {
       });
     }
 
-    // 5. EXACT toggle logic pattern
     social.follows = Array.isArray(social.follows) ? social.follows : [];
 
     const existingFollow = social.follows.find((follow) => {
@@ -854,13 +1262,11 @@ exports.toggleFollowDoctor = async (req, res, next) => {
       });
     }
 
-    // 6. EXACT stats update
     social.stats = social.stats || {};
     social.stats.followers = social.follows.length;
 
     await social.save();
 
-    // 7. EXACT response shape
     return res.json({
       success: true,
       action: existingFollow ? "unfollowed" : "followed",
