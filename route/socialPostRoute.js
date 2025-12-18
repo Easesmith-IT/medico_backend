@@ -48,16 +48,16 @@ router.get(
 );
 router.post('/addComment/:id', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']), postCtrl.addComment);
 
-// router.patch(
-//   '/posts/:id/hide',
-//   protect(['admin', 'superadmin', 'subadmin']),
-//   postCtrl.toggleHidePost
-// );
-router.post(
-  '/hidePost/:id/toggle',
+router.patch(
+  '/posts/:id/hide',
   protect(['admin', 'superadmin', 'subadmin']),
   postCtrl.toggleHidePost
 );
+// router.post(
+//   '/hidePost/:id/toggle',
+//   protect(['admin', 'superadmin', 'subadmin']),
+//   postCtrl.toggleHidePost
+// );
 router.delete(
   '/posts/:id',
   protect(['doctor', 'admin', 'superadmin', 'subadmin']),
@@ -68,5 +68,9 @@ router.get(
   protect(['doctor']),
   postCtrl.getMyFollowStats
 );
-
+router.get(
+  '/getPostByAdmin/:id',
+  protect(['admin', 'superadmin', 'subadmin']),
+  postCtrl.getPostByIdByAdmin
+);
 module.exports = router;

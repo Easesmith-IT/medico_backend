@@ -1021,6 +1021,7 @@ exports.toggleLikePost = async (req, res, next) => {
 
 
 // exports.toggleLikePost = async (req, res, next) => {
+
 //   try {
 //     const post = await Post.findById(req.params.id);
 //     if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
@@ -1190,6 +1191,95 @@ exports.toggleLikePost = async (req, res, next) => {
 //     next(err);
 //   }
 // };
+
+//before admin
+// exports.toggleFollowDoctor = async (req, res, next) => {
+//   try {
+//     const { targetDoctorId } = req.body;
+//     if (!targetDoctorId) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "targetDoctorId required" });
+//     }
+
+//     let social = await Post.findOne({ doctor: targetDoctorId });
+//     if (!social) {
+//       social = new Post({
+//         doctor: targetDoctorId,
+//         follows: [],
+//         stats: { followers: 0 },
+//       });
+//     }
+
+//     console.log("toggleFollowDoctor req.user =", req.user);
+
+//     const user = req.user || {};
+//     const rawRole = user.role || user.userRole || "";
+//     const userRole = rawRole.toLowerCase();
+//     const userIdRaw = user._id || user.id || user.userId || "";
+//     const userId = userIdRaw ? userIdRaw.toString() : "";
+
+//     const isAdminRole =
+//       userRole === "admin" ||
+//       userRole === "superadmin" ||
+//       userRole === "subadmin";
+
+//     if (isAdminRole) {
+//       return res.status(200).json({
+//         success: true,
+//         message: "Admins do not follow doctors",
+//         following: false,
+//         followers: social.stats?.followers || social.follows?.length || 0,
+//       });
+//     }
+
+//     if (!userId || !userRole) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Unauthorized: user not found on request",
+//       });
+//     }
+
+//     social.follows = Array.isArray(social.follows) ? social.follows : [];
+
+//     const existingFollow = social.follows.find((follow) => {
+//       if (!follow || !follow.followerId) return false;
+//       const followUserId = follow.followerId.toString();
+//       const followUserRole = (follow.followerRole || "").toLowerCase();
+//       return followUserId === userId && followUserRole === userRole;
+//     });
+
+//     if (existingFollow) {
+//       social.follows = social.follows.filter((follow) => {
+//         if (!follow || !follow.followerId) return true;
+//         const followUserId = follow.followerId.toString();
+//         const followUserRole = (follow.followerRole || "").toLowerCase();
+//         return !(followUserId === userId && followUserRole === userRole);
+//       });
+//     } else {
+//       social.follows.push({
+//         followerId: userId,
+//         followerRole: userRole,
+//         followingId: targetDoctorId,
+//         createdAt: new Date(),
+//       });
+//     }
+
+//     social.stats = social.stats || {};
+//     social.stats.followers = social.follows.length;
+
+//     await social.save();
+
+//     return res.json({
+//       success: true,
+//       action: existingFollow ? "unfollowed" : "followed",
+//       following: !existingFollow,
+//       followers: social.stats.followers,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 exports.toggleFollowDoctor = async (req, res, next) => {
   try {
     const { targetDoctorId } = req.body;
@@ -1199,6 +1289,7 @@ exports.toggleFollowDoctor = async (req, res, next) => {
         .json({ success: false, message: "targetDoctorId required" });
     }
 
+    // Find or create social document for the doctor
     let social = await Post.findOne({ doctor: targetDoctorId });
     if (!social) {
       social = new Post({
@@ -1208,27 +1299,12 @@ exports.toggleFollowDoctor = async (req, res, next) => {
       });
     }
 
-    console.log("toggleFollowDoctor req.user =", req.user);
-
+    // Normalize user
     const user = req.user || {};
     const rawRole = user.role || user.userRole || "";
     const userRole = rawRole.toLowerCase();
     const userIdRaw = user._id || user.id || user.userId || "";
     const userId = userIdRaw ? userIdRaw.toString() : "";
-
-    const isAdminRole =
-      userRole === "admin" ||
-      userRole === "superadmin" ||
-      userRole === "subadmin";
-
-    if (isAdminRole) {
-      return res.status(200).json({
-        success: true,
-        message: "Admins do not follow doctors",
-        following: false,
-        followers: social.stats?.followers || social.follows?.length || 0,
-      });
-    }
 
     if (!userId || !userRole) {
       return res.status(401).json({
@@ -1239,29 +1315,35 @@ exports.toggleFollowDoctor = async (req, res, next) => {
 
     social.follows = Array.isArray(social.follows) ? social.follows : [];
 
-    const existingFollow = social.follows.find((follow) => {
+    // Check if user/admin already follows
+    const existingFollowIndex = social.follows.findIndex((follow) => {
       if (!follow || !follow.followerId) return false;
       const followUserId = follow.followerId.toString();
       const followUserRole = (follow.followerRole || "").toLowerCase();
       return followUserId === userId && followUserRole === userRole;
     });
 
-    if (existingFollow) {
-      social.follows = social.follows.filter((follow) => {
-        if (!follow || !follow.followerId) return true;
-        const followUserId = follow.followerId.toString();
-        const followUserRole = (follow.followerRole || "").toLowerCase();
-        return !(followUserId === userId && followUserRole === userRole);
-      });
+    let action = "";
+    let following = false;
+
+    if (existingFollowIndex !== -1) {
+      // Unfollow
+      social.follows.splice(existingFollowIndex, 1);
+      action = "unfollowed";
+      following = false;
     } else {
+      // Follow
       social.follows.push({
         followerId: userId,
         followerRole: userRole,
         followingId: targetDoctorId,
         createdAt: new Date(),
       });
+      action = "followed";
+      following = true;
     }
 
+    // Update followers count
     social.stats = social.stats || {};
     social.stats.followers = social.follows.length;
 
@@ -1269,8 +1351,8 @@ exports.toggleFollowDoctor = async (req, res, next) => {
 
     return res.json({
       success: true,
-      action: existingFollow ? "unfollowed" : "followed",
-      following: !existingFollow,
+      action,
+      following,
       followers: social.stats.followers,
     });
   } catch (err) {
@@ -1278,6 +1360,102 @@ exports.toggleFollowDoctor = async (req, res, next) => {
   }
 };
 
+exports.getPostByIdByAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Normalize user
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || "";
+    const userRole = rawRole.toLowerCase();
+    const userIdRaw = user._id || user.id || user.userId || "";
+    const userId = userIdRaw ? userIdRaw.toString() : "";
+
+    const isAdminRole = ['admin', 'superadmin', 'subadmin'].includes(userRole);
+
+    // Fetch post
+    const post = await Post.findById(id)
+      .populate({
+        path: "doctor",
+        select:
+          "firstName lastName address cities specialization profilePhoto clinics",
+        populate: { path: "cities", select: "name" },
+      })
+      .populate("mentions", "firstName lastName");
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    // If post is hidden and user is not admin, block access
+    if (post.isHidden && !isAdminRole) {
+      return res.status(403).json({ message: "Post is hidden" });
+    }
+
+    const doctor = post.doctor;
+
+    const name = doctor
+      ? [doctor.firstName, doctor.lastName].filter(Boolean).join(" ")
+      : "Admin";
+
+    let city = "Not specified";
+    if (doctor) {
+      if (doctor.cities?.length && doctor.cities[0]?.name) {
+        city = doctor.cities[0].name;
+      } else if (doctor.address?.city) {
+        city = doctor.address.city;
+      } else if (doctor.clinics?.length && doctor.clinics[0]?.address?.city) {
+        city = doctor.clinics[0].address.city;
+      }
+    }
+
+    const position = doctor?.specialization || "Doctor";
+
+    // Check if user liked the post
+    const isLiked = !!post.likes?.some((l) => {
+      const likeUserId = l.userId?.toString();
+      const likeUserRole = (l.userRole || "").toLowerCase();
+      return likeUserId === userId && likeUserRole === userRole;
+    });
+
+    // Check if user follows doctor
+    let isFollowed = false;
+    if (doctor && userId && userRole) {
+      const social = await Post.findOne({ doctor: doctor._id });
+      if (social?.follows?.length) {
+        isFollowed = social.follows.some((f) => {
+          if (!f?.followerId) return false;
+          const followUserId = f.followerId.toString();
+          const followUserRole = (f.followerRole || "").toLowerCase();
+          const followingId = f.followingId?.toString();
+          return followUserId === userId &&
+            followUserRole === userRole &&
+            followingId === doctor._id.toString();
+        });
+      }
+    }
+
+    const postWithCreator = {
+      ...post.toObject(),
+      creator: {
+        _id: doctor?._id || post.doctor,
+        name,
+        location: city,
+        position,
+        profilePhoto: doctor?.profilePhoto || null,
+        role: doctor ? "doctor" : "admin",
+      },
+      doctorId: doctor?._id || post.doctor,
+      isLiked,
+      isFollowed,
+      isHidden: post.isHidden || false, // <-- sync with toggleHidePost
+    };
+
+    return res.json(postWithCreator);
+  } catch (err) {
+    next(err);
+  }
+};
 
 
 // exports.toggleFollowDoctor = async (req, res, next) => {
@@ -1497,111 +1675,111 @@ exports.getMyFollowStats = async (req, res, next) => {
 
 
 
-exports.toggleHidePost = async (req, res, next) => {
-  try {
-    const postId = req.params.id;
-    const user = req.user || {};
-    const rawRole = user.role || user.userRole || '';
-    const userRole = rawRole.toLowerCase();
-    const adminIdRaw = user._id || user.id || user.userId || '';
-    const adminId = adminIdRaw ? adminIdRaw.toString() : '';
+// exports.toggleHidePost = async (req, res, next) => {
+//   try {
+//     const postId = req.params.id;
+//     const user = req.user || {};
+//     const rawRole = user.role || user.userRole || '';
+//     const userRole = rawRole.toLowerCase();
+//     const adminIdRaw = user._id || user.id || user.userId || '';
+//     const adminId = adminIdRaw ? adminIdRaw.toString() : '';
 
-    const isAdminRole =
-      userRole === 'admin' ||
-      userRole === 'superadmin' ||
-      userRole === 'subadmin';
+//     const isAdminRole =
+//       userRole === 'admin' ||
+//       userRole === 'superadmin' ||
+//       userRole === 'subadmin';
 
-    if (!isAdminRole || !adminId) {
-      return res
-        .status(403)
-        .json({ success: false, message: 'Only admins can toggle posts' });
-    }
+//     if (!isAdminRole || !adminId) {
+//       return res
+//         .status(403)
+//         .json({ success: false, message: 'Only admins can toggle posts' });
+//     }
 
-    // Handle toggle hide/unhide OR get posts
-    if (req.query.action === 'get') {
-      // Admin-only posts retrieval (includes hidden posts)
-      const posts = await Post.find()
-        .populate({
-          path: 'doctor',
-          select: 'firstName lastName address cities specialization profilePhoto clinics',
-          populate: { path: 'cities', select: 'name' }
-        })
-        .populate('mentions', 'firstName lastName')
-        .sort({ createdAt: -1 })
-        .limit(20);
+//     // Handle toggle hide/unhide OR get posts
+//     if (req.query.action === 'get') {
+//       // Admin-only posts retrieval (includes hidden posts)
+//       const posts = await Post.find()
+//         .populate({
+//           path: 'doctor',
+//           select: 'firstName lastName address cities specialization profilePhoto clinics',
+//           populate: { path: 'cities', select: 'name' }
+//         })
+//         .populate('mentions', 'firstName lastName')
+//         .sort({ createdAt: -1 })
+//         .limit(20);
 
-      const postsWithCreators = posts.map(post => {
-        const doctor = post.doctor;
-        const name = doctor
-          ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
-          : 'Admin';
+//       const postsWithCreators = posts.map(post => {
+//         const doctor = post.doctor;
+//         const name = doctor
+//           ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+//           : 'Admin';
 
-        let city = 'Not specified';
-        if (doctor) {
-          if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
-            city = doctor.cities[0].name;
-          } else if (doctor.address?.city) {
-            city = doctor.address.city;
-          } else if (
-            doctor.clinics &&
-            doctor.clinics.length &&
-            doctor.clinics[0]?.address?.city
-          ) {
-            city = doctor.clinics[0].address.city;
-          }
-        }
+//         let city = 'Not specified';
+//         if (doctor) {
+//           if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+//             city = doctor.cities[0].name;
+//           } else if (doctor.address?.city) {
+//             city = doctor.address.city;
+//           } else if (
+//             doctor.clinics &&
+//             doctor.clinics.length &&
+//             doctor.clinics[0]?.address?.city
+//           ) {
+//             city = doctor.clinics[0].address.city;
+//           }
+//         }
 
-        const position = doctor?.specialization || 'Doctor';
+//         const position = doctor?.specialization || 'Doctor';
 
-        return {
-          ...post.toObject(),
-          creator: {
-            _id: doctor?._id || post.doctor,
-            name,
-            location: city,
-            position,
-            profilePhoto: doctor?.profilePhoto || null,
-            role: doctor ? 'doctor' : 'admin'
-          },
-          isHidden: post.isHidden || false,
-          hiddenAt: post.hiddenAt || null,
-          hiddenBy: post.hiddenBy || null
-        };
-      });
+//         return {
+//           ...post.toObject(),
+//           creator: {
+//             _id: doctor?._id || post.doctor,
+//             name,
+//             location: city,
+//             position,
+//             profilePhoto: doctor?.profilePhoto || null,
+//             role: doctor ? 'doctor' : 'admin'
+//           },
+//           isHidden: post.isHidden || false,
+//           hiddenAt: post.hiddenAt || null,
+//           hiddenBy: post.hiddenBy || null
+//         };
+//       });
 
-      return res.json({
-        success: true,
-        posts: postsWithCreators,
-        total: posts.length
-      });
-    }
+//       return res.json({
+//         success: true,
+//         posts: postsWithCreators,
+//         total: posts.length
+//       });
+//     }
 
-    // Toggle hide/unhide functionality
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: 'Post not found' });
-    }
+//     // Toggle hide/unhide functionality
+//     const post = await Post.findById(postId);
+//     if (!post) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Post not found' });
+//     }
 
-    const willHide = !post.isHidden;
-    post.isHidden = willHide;
-    post.hiddenAt = willHide ? new Date() : null;
-    post.hiddenBy = willHide ? adminId : null;
+//     const willHide = !post.isHidden;
+//     post.isHidden = willHide;
+//     post.hiddenAt = willHide ? new Date() : null;
+//     post.hiddenBy = willHide ? adminId : null;
 
-    await post.save();
+//     await post.save();
 
-    return res.json({
-      success: true,
-      action: willHide ? 'hidden' : 'unhidden',
-      isHidden: post.isHidden,
-      postId: post._id
-    });
+//     return res.json({
+//       success: true,
+//       action: willHide ? 'hidden' : 'unhidden',
+//       isHidden: post.isHidden,
+//       postId: post._id
+//     });
 
-  } catch (err) {
-    next(err);
-  }
-};
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 
 
