@@ -1808,6 +1808,208 @@ exports.getMyFollowStats = async (req, res, next) => {
 
 
 
+// exports.searchSocialPosts = async (req, res) => {
+//   try {
+//     const {
+//       q = '',
+//       type = 'all',
+//       specialization,
+//       city,
+//       serviceId,
+//       doctor,
+//       page = 1,
+//       limit = 10
+//     } = req.query;
+
+//     const pageNum = parseInt(page);
+//     const limitNum = parseInt(limit);
+//     const skip = (pageNum - 1) * limitNum;
+
+//     const results = {};
+
+//     // ✅ 1. DOCTORS SEARCH
+//     if (type === 'all' || type === 'doctors') {
+//       const doctorQuery = { 
+//         isActive: true,
+//         verificationStatus: 'approved' 
+//       };
+
+//       if (q) {
+//         doctorQuery.$or = [
+//           { firstName: { $regex: q, $options: 'i' } },
+//           { lastName: { $regex: q, $options: 'i' } },
+//           { specialization: { $regex: q, $options: 'i' } },
+//           { professionalBio: { $regex: q, $options: 'i' } },
+//           { currentWorkplace: { $regex: q, $options: 'i' } },
+//           { address: { $regex: q, $options: 'i' } }
+//         ];
+//       }
+
+//       if (specialization) {
+//         doctorQuery.specialization = { $regex: specialization, $options: 'i' };
+//       }
+
+//       if (city) {
+//         doctorQuery.$or = [
+//           { 'address.city': { $regex: city, $options: 'i' } },  // ✅ Fixed: address.city (nested)
+//           { 'cities.name': { $regex: city, $options: 'i' } }
+//         ];
+//       }
+
+//       const [doctors, doctorTotal] = await Promise.all([
+//         Doctor.find(doctorQuery)
+//           .select('_id firstName lastName email phone profilePhoto specialization currentWorkplace designation professionalBio consultationFees averageRating cities')
+//           .populate('cities', 'name')
+//           .limit(limitNum)
+//           .skip(skip)
+//           .lean(),
+//         Doctor.countDocuments(doctorQuery)
+//       ]);
+
+//       results.doctors = {
+//         data: doctors,
+//         total: doctorTotal
+//       };
+//     }
+
+//     // ✅ 2. SERVICE PROVIDERS
+//     if (type === 'all' || type === 'serviceProviders') {
+//       const spQuery = { 
+//         isActive: true,
+//         approvalStatus: 'Approved',
+//         isDeleted: false
+//       };
+
+//       if (q) {
+//         spQuery.$or = [
+//           { firstName: { $regex: q, $options: 'i' } },
+//           { lastName: { $regex: q, $options: 'i' } },
+//           { ownerName: { $regex: q, $options: 'i' } },
+//           { mobile: q },
+//           { email: { $regex: q, $options: 'i' } },
+//           { 'currentAddress.city': { $regex: q, $options: 'i' } },
+//           { qualification: { $regex: q, $options: 'i' } }
+//         ];
+//       }
+
+//       if (specialization) {
+//         spQuery['services.specialization'] = { $regex: specialization, $options: 'i' };
+//       }
+
+//       if (city) {
+//         spQuery.$or = [
+//           { 'currentAddress.city': { $regex: city, $options: 'i' } },
+//           { 'serviceCities.name': { $regex: city, $options: 'i' } }
+//         ];
+//       }
+
+//       if (serviceId && mongoose.Types.ObjectId.isValid(serviceId)) {
+//         spQuery['services.serviceId'] = mongoose.Types.ObjectId(serviceId);
+//       }
+
+//       const [serviceProviders, spTotal] = await Promise.all([
+//         ServiceProvider.find(spQuery)
+//           .select('_id firstName lastName ownerName mobile email currentAddress qualification approvalStatus serviceCities rating')
+//           .populate('services.serviceId', 'name')
+//           .populate('serviceCities', 'name')
+//           .limit(limitNum)
+//           .skip(skip)
+//           .lean(),
+//         ServiceProvider.countDocuments(spQuery)
+//       ]);
+
+//       results.serviceProviders = {
+//         data: serviceProviders,
+//         total: spTotal
+//       };
+//     }
+
+//     // ✅ 3. SERVICES
+//     if (type === 'all' || type === 'services') {
+//       const serviceQuery = { isActive: true };
+
+//       if (q) {
+//         serviceQuery.$or = [
+//           { name: { $regex: q, $options: 'i' } },
+//           { description: { $regex: q, $options: 'i' } }
+//         ];
+//       }
+
+//       const [services, serviceTotal] = await Promise.all([
+//         Service.find(serviceQuery)
+//           .select('_id name description basePrice icon image')
+//           .populate('cities', 'name')
+//           .limit(limitNum)
+//           .skip(skip)
+//           .lean(),
+//         Service.countDocuments(serviceQuery)
+//       ]);
+
+//       results.services = {
+//         data: services,
+//         total: serviceTotal
+//       };
+//     }
+
+//     // ✅ 4. POSTS
+//     if (type === 'all' || type === 'posts') {
+//       const postQuery = { 
+//         isHidden: false,
+//         hiddenAt: { $exists: false }
+//       };
+
+//       if (q) postQuery.$text = { $search: q };
+//       if (doctor && mongoose.Types.ObjectId.isValid(doctor)) {
+//         postQuery.doctor = mongoose.Types.ObjectId(doctor);
+//       }
+
+//       const [posts, postTotal] = await Promise.all([
+//         Post.find(postQuery)
+//           .select('_id doctor city type content hashtags mentions isHidden createdAt')
+//           .populate('doctor', 'firstName lastName socialHandle')
+//           .populate('city', 'name')
+//           .limit(limitNum)
+//           .skip(skip)
+//           .lean(),
+//         Post.countDocuments(postQuery)
+//       ]);
+
+//       results.posts = {
+//         data: posts,
+//         total: postTotal
+//       };
+//     }
+
+//     res.json({
+//       success: true,
+//       data: results,
+//       pagination: {
+//         page: pageNum,
+//         limit: limitNum,
+//         totalResults: Object.values(results).reduce((sum, r) => sum + (r?.total || 0), 0)
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('❌ SearchSocialPosts ERROR:', {
+//       message: error.message,
+//       name: error.name,
+//       models: {
+//         Doctor: typeof Doctor,
+//         ServiceProvider: typeof ServiceProvider,
+//         Service: typeof Service,
+//         Post: typeof Post
+//       }
+//     });
+//     res.status(500).json({
+//       success: false,
+//       message: 'Search failed',
+//       debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+//     });
+//   }
+// };
+
+
 exports.searchSocialPosts = async (req, res) => {
   try {
     const {
@@ -1841,7 +2043,8 @@ exports.searchSocialPosts = async (req, res) => {
           { specialization: { $regex: q, $options: 'i' } },
           { professionalBio: { $regex: q, $options: 'i' } },
           { currentWorkplace: { $regex: q, $options: 'i' } },
-          { address: { $regex: q, $options: 'i' } }
+          { address: { $regex: q, $options: 'i' } },
+          { socialHandle: { $regex: q, $options: 'i' } } // ✅ Added social handle search
         ];
       }
 
@@ -1858,7 +2061,7 @@ exports.searchSocialPosts = async (req, res) => {
 
       const [doctors, doctorTotal] = await Promise.all([
         Doctor.find(doctorQuery)
-          .select('_id firstName lastName email phone profilePhoto specialization currentWorkplace designation professionalBio consultationFees averageRating cities')
+          .select('_id firstName lastName email phone profilePhoto specialization currentWorkplace designation professionalBio consultationFees averageRating cities socialHandle') // ✅ Added socialHandle to select
           .populate('cities', 'name')
           .limit(limitNum)
           .skip(skip)
@@ -1888,7 +2091,8 @@ exports.searchSocialPosts = async (req, res) => {
           { mobile: q },
           { email: { $regex: q, $options: 'i' } },
           { 'currentAddress.city': { $regex: q, $options: 'i' } },
-          { qualification: { $regex: q, $options: 'i' } }
+          { qualification: { $regex: q, $options: 'i' } },
+          { socialHandle: { $regex: q, $options: 'i' } } //  Added social handle search
         ];
       }
 
@@ -1909,7 +2113,7 @@ exports.searchSocialPosts = async (req, res) => {
 
       const [serviceProviders, spTotal] = await Promise.all([
         ServiceProvider.find(spQuery)
-          .select('_id firstName lastName ownerName mobile email currentAddress qualification approvalStatus serviceCities rating')
+          .select('_id firstName lastName ownerName mobile email currentAddress qualification approvalStatus serviceCities rating socialHandle') // ✅ Added socialHandle to select
           .populate('services.serviceId', 'name')
           .populate('serviceCities', 'name')
           .limit(limitNum)
@@ -1924,7 +2128,7 @@ exports.searchSocialPosts = async (req, res) => {
       };
     }
 
-    // ✅ 3. SERVICES
+    //  3. SERVICES
     if (type === 'all' || type === 'services') {
       const serviceQuery = { isActive: true };
 
@@ -1951,7 +2155,7 @@ exports.searchSocialPosts = async (req, res) => {
       };
     }
 
-    // ✅ 4. POSTS
+    //  4. POSTS
     if (type === 'all' || type === 'posts') {
       const postQuery = { 
         isHidden: false,
@@ -1991,7 +2195,7 @@ exports.searchSocialPosts = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ SearchSocialPosts ERROR:', {
+    console.error(' SearchSocialPosts ERROR:', {
       message: error.message,
       name: error.name,
       models: {
@@ -2008,8 +2212,6 @@ exports.searchSocialPosts = async (req, res) => {
     });
   }
 };
-
-
 
 
 
