@@ -2,6 +2,7 @@
 const Post = require('../models/socialPostModel');
 const mongoose = require('mongoose');
 const { verifyToken } = require("../utils/tokenUtils");
+const jwt = require('jsonwebtoken');
 // exports.createPost = async (req, res, next) => {
 //   try {
 //     const post = new Post({
