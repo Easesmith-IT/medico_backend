@@ -1805,11 +1805,11 @@ exports.getMyFollowStats = async (req, res, next) => {
 exports.searchSocialPosts = async (req, res, next) => {
   try {
     const {
-      q,                  // generic search: content/hashtags/doctor name
-      doctor,             // specific doctor ID
-      city,               // city ID or name
-      type,               // post type filter
-      hashtag,            // specific hashtag
+      q,
+      doctor,
+      city,
+      type,
+      hashtag,
       page = 1,
       limit = 20
     } = req.query;
@@ -1818,14 +1818,16 @@ exports.searchSocialPosts = async (req, res, next) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
+    console.log('=== SEARCH DEBUG ===');
+    console.log('Query params:', req.query);
+    console.log('Your post city:', '690c3adf6ac52e0495f62859');
+
     // Build post filter
     const postFilter = { isHidden: { $ne: true } };
 
-    // 1. Generic search (content + hashtags + doctor name)
+    // 1. Generic search
     if (q && q.trim()) {
       const regex = new RegExp(q.trim(), 'i');
-      
-      // Find doctors matching search first
       const matchingDoctors = await Doctor.find({
         $or: [
           { firstName: regex },
@@ -1835,7 +1837,6 @@ exports.searchSocialPosts = async (req, res, next) => {
       }).select('_id').lean();
 
       const doctorIds = matchingDoctors.map(d => d._id);
-
       postFilter.$or = [
         { content: regex },
         { hashtags: regex },
@@ -1843,18 +1844,21 @@ exports.searchSocialPosts = async (req, res, next) => {
       ];
     }
 
-    // 2. Specific doctor filter
+    // 2. Specific doctor
     if (doctor && doctor.length === 24) {
       postFilter.doctor = doctor;
     }
 
-    // 3. City filter (ID or name)
+    // 3. ✅ FIXED City filter - TEST YOUR EXACT CITY ID
     if (city) {
+      console.log('City param received:', city);
+      
       if (city.length === 24) {
-        // City ID
+        // City ID - EXACT MATCH
         postFilter.city = city;
+        console.log('Using exact city ID filter:', city);
       } else {
-        // City name - find posts from doctors in that city
+        // City name
         const cityDoctors = await Doctor.find({
           $or: [
             { 'cities.name': new RegExp(city.trim(), 'i') },
@@ -1868,19 +1872,27 @@ exports.searchSocialPosts = async (req, res, next) => {
       }
     }
 
-    // 4. Post type filter
+    // 4. Post type
     if (type && ['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes(type.toUpperCase())) {
       postFilter.type = type.toUpperCase();
     }
 
-    // 5. Hashtag filter
+    // 5. Hashtag
     if (hashtag && hashtag.trim()) {
       postFilter.hashtags = new RegExp(hashtag.trim(), 'i');
     }
 
-    console.log('Search filter:', JSON.stringify(postFilter, null, 2));
+    console.log('Final filter:', JSON.stringify(postFilter, null, 2));
 
-    // 6. Get posts + total count
+    // ✅ DEBUG: Test if post exists
+    const testPost = await Post.findOne({ 
+      _id: '694e255f542edbdb624febc1',
+      city: '690c3adf6ac52e0495f62859',
+      isHidden: { $ne: true }
+    }).lean();
+    console.log('Direct post lookup:', testPost ? 'FOUND' : 'NOT FOUND');
+
+    // 6. Get posts + count
     const [posts, total] = await Promise.all([
       Post.find(postFilter)
         .populate('doctor', 'firstName lastName specialization profilePhoto cities')
@@ -1890,11 +1902,12 @@ exports.searchSocialPosts = async (req, res, next) => {
         .skip(skip)
         .limit(limitNum)
         .lean(),
-      
       Post.countDocuments(postFilter)
     ]);
 
-    // 7. Format response with creator
+    console.log('Posts found:', posts.length, 'Total:', total);
+
+    // 7. Format response
     const data = posts.map(post => {
       const doctor = post.doctor;
       let primaryCity = 'Not specified';
@@ -1928,10 +1941,11 @@ exports.searchSocialPosts = async (req, res, next) => {
     });
 
   } catch (err) {
-    console.error('Search posts error:', err);
+    console.error('Search error:', err);
     next(err);
   }
 };
+
 
 
 
