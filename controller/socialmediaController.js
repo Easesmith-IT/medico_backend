@@ -1149,123 +1149,82 @@ exports.getPostById = async (req, res, next) => {
 // };
 exports.toggleLikePost = async (req, res, next) => {
   try {
-    // 🔍 COMPREHENSIVE DEBUG LOGGING
-    console.log('🔍 toggleLikePost DEBUG:', {
-      postId: req.params.id,
-      idLength: req.params.id?.length,
-      isValidObjectId: mongoose.Types.ObjectId.isValid(req.params.id),
-      user: req.user ? {
-        _id: req.user._id || req.user.id,
-        role: req.user.role || req.user.userRole
-      } : null
-    });
+    // 🔍 DEBUG: Log FULL req.user object
+    console.log('🔍 req.user FULL DEBUG:', JSON.stringify(req.user, null, 2));
+    console.log('🔍 protect middleware attached user?', !!req.user);
 
-    // 1. Find post with full debug
-    let post = await Post.findById(req.params.id);
-    
+    // 1. Find post (keeping debug)
+    const post = await Post.findById(req.params.id);
     if (!post) {
-      // Debug: Check if post exists by doctor (your test case)
-      const doctorPosts = await Post.find({ 
-        doctor: '69083c7093634916321ed31d' 
-      }).sort({ createdAt: -1 }).limit(5).select('_id content isHidden createdAt');
-      
-      console.log('🐛 Doctor recent posts:', doctorPosts.map(p => ({
-        _id: p._id.toString(),
-        content: p.content,
-        isHidden: p.isHidden
-      })));
-
-      // Raw MongoDB check
-      const rawPost = await mongoose.connection.db.collection('posts').findOne({
-        _id: new mongoose.Types.ObjectId(req.params.id)
-      });
-      console.log('🐛 Raw MongoDB post exists:', !!rawPost);
-
-      return res.status(404).json({
-        success: false,
+      return res.status(404).json({ 
+        success: false, 
         message: "Post not found",
-        debug: {
-          requestedId: req.params.id,
-          isValidObjectId: mongoose.Types.ObjectId.isValid(req.params.id),
-          collection: Post.collection.name,
-          doctorRecentPosts: doctorPosts.map(p => p._id.toString()),
-          rawMongoResult: !!rawPost
-        }
+        debug: { id: req.params.id }
       });
     }
 
-    console.log('✅ Post found:', {
-      _id: post._id.toString(),
-      doctor: post.doctor.toString(),
-      content: post.content,
-      isHidden: post.isHidden
-    });
+    // 2. FIXED: Robust user extraction (handles id/_id mismatch)
+    let user = req.user || {};
+    console.log('🔍 Raw user keys:', Object.keys(user));
 
-    // 2. User validation
-    const user = req.user || {};
-    const rawRole = user.role || user.userRole || "";
-    const userRole = rawRole.toLowerCase();
+    // Handle both JWT formats: {id, role} OR {_id, role}
     const userIdRaw = user._id || user.id || user.userId || "";
+    const rawRole = user.role || user.userRole || "";
+    
     const userId = userIdRaw ? userIdRaw.toString() : "";
+    const userRole = rawRole.toLowerCase();
 
-    const isAdminRole = userRole === "admin" || userRole === "superadmin" || userRole === "subadmin";
+    console.log('🔍 Extracted:', { userId, userRole });
 
-    // Admins: no like/unlike, but no 401
+    // Admin check
+    const isAdminRole = userRole === "admin" || 
+                       userRole === "superadmin" || 
+                       userRole === "subadmin";
+
     if (isAdminRole) {
       return res.status(200).json({
         success: true,
-        message: "Admins do not toggle likes on posts",
+        message: "Admins do not toggle likes",
         likes: post.stats?.likes || post.likes?.length || 0,
         userHasLiked: false,
       });
     }
 
-    if (!userId || !userRole) {
+    // FIXED: Clearer unauthorized message
+    if (!userId || !userRole || userRole !== 'doctor' && userRole !== 'patient') {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized: user not found on request",
+        message: `Unauthorized: invalid user data. ID: "${userId}", Role: "${userRole}"`,
+        debug: { userKeys: Object.keys(user), userId, userRole }
       });
     }
 
-    // 3. Toggle like logic
+    // 3. Toggle logic (unchanged)
     post.likes = Array.isArray(post.likes) ? post.likes : [];
-
+    
     const existingLike = post.likes.find((like) => {
-      if (!like || !like.userId) return false;
-      const likeUserId = like.userId.toString();
-      const likeUserRole = (like.userRole || "").toLowerCase();
-      return likeUserId === userId && likeUserRole === userRole;
+      if (!like?.userId) return false;
+      return like.userId.toString() === userId && 
+             (like.userRole || '').toLowerCase() === userRole;
     });
 
     if (existingLike) {
-      // Unlike
-      post.likes = post.likes.filter((like) => {
-        if (!like || !like.userId) return true;
-        const likeUserId = like.userId.toString();
-        const likeUserRole = (like.userRole || "").toLowerCase();
-        return !(likeUserId === userId && likeUserRole === userRole);
-      });
+      post.likes = post.likes.filter((like) => 
+        !(like.userId.toString() === userId && 
+          (like.userRole || '').toLowerCase() === userRole)
+      );
     } else {
-      // Like
       post.likes.push({
-        userId,
+        userId: new mongoose.Types.ObjectId(userId),
         userRole,
         createdAt: new Date(),
       });
     }
 
-    // 4. Update stats
     post.stats = post.stats || {};
     post.stats.likes = post.likes.length;
-
     await post.save();
 
-    console.log('💾 Post saved:', {
-      likesCount: post.stats.likes,
-      userHasLiked: !existingLike
-    });
-
-    // 5. Success response
     return res.json({
       success: true,
       likes: post.stats.likes,
