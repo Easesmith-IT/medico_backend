@@ -1802,152 +1802,217 @@ exports.getMyFollowStats = async (req, res, next) => {
 
 
 
-exports.searchSocialPosts = async (req, res, next) => {
+
+
+
+exports.searchSocialPosts = async (req, res) => {
   try {
     const {
-      q,
-      doctor,
+      query = '',
+      specialization,
       city,
-      type,
+      serviceId,
+      type = 'doctor',
+      doctorId,
       hashtag,
       page = 1,
-      limit = 20
+      limit = 10,
+      sortBy = 'relevance'
     } = req.query;
 
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    console.log('=== SEARCH DEBUG ===');
-    console.log('Query params:', req.query);
-    console.log('Your post city:', '690c3adf6ac52e0495f62859');
+    const Post = mongoose.model('Post');
+    const postQuery = { 
+      isHidden: false,
+      hiddenAt: null 
+    };
 
-    // Build post filter
-    const postFilter = { isHidden: { $ne: true } };
-
-    // 1. Generic search
-    if (q && q.trim()) {
-      const regex = new RegExp(q.trim(), 'i');
-      const matchingDoctors = await Doctor.find({
-        $or: [
-          { firstName: regex },
-          { lastName: regex },
-          { specialization: regex }
-        ]
-      }).select('_id').lean();
-
-      const doctorIds = matchingDoctors.map(d => d._id);
-      postFilter.$or = [
-        { content: regex },
-        { hashtags: regex },
-        { doctor: { $in: doctorIds } }
-      ];
+    // Text search
+    if (query) {
+      postQuery.$text = { $search: query };
     }
 
-    // 2. Specific doctor
-    if (doctor && doctor.length === 24) {
-      postFilter.doctor = doctor;
+    // Doctor ID filter (handles both 'doctor' and 'doctorId')
+    const doctorParam = doctorId || req.query.doctor;
+    if (doctorParam) {
+      postQuery.doctor = mongoose.Types.ObjectId(doctorParam);
     }
 
-    // 3. ✅ FIXED City filter - TEST YOUR EXACT CITY ID
-    if (city) {
-      console.log('City param received:', city);
+    // Hashtag search
+    if (hashtag) {
+      postQuery.hashtags = { $regex: hashtag, $options: 'i' };
+    }
+
+    // Provider filtering (simplified)
+    if (type === 'doctor' || type === 'serviceProvider') {
+      const providerModel = type === 'doctor' ? Doctor : ServiceProvider;
+      const providerFilters = { isActive: true, isDeleted: { $ne: true } };
       
-      if (city.length === 24) {
-        // City ID - EXACT MATCH
-        postFilter.city = city;
-        console.log('Using exact city ID filter:', city);
-      } else {
-        // City name
-        const cityDoctors = await Doctor.find({
-          $or: [
-            { 'cities.name': new RegExp(city.trim(), 'i') },
-            { 'address.city': new RegExp(city.trim(), 'i') },
-            { 'clinics.address.city': new RegExp(city.trim(), 'i') }
-          ]
-        }).select('_id').lean();
+      if (type === 'serviceProvider') {
+        providerFilters.approvalStatus = 'Approved';
+      }
+      
+      if (specialization) {
+        providerFilters.$or = type === 'doctor' 
+          ? [{ 'specializations.name': { $regex: specialization, $options: 'i' } }]
+          : [{ 'services.specialization': { $regex: specialization, $options: 'i' } }];
+      }
 
-        const cityDoctorIds = cityDoctors.map(d => d._id);
-        postFilter.doctor = { $in: cityDoctorIds };
+      if (city) {
+        providerFilters.$or = [
+          { 'currentAddress.city': { $regex: city, $options: 'i' } },
+          { serviceCities: mongoose.Types.ObjectId(city) }
+        ];
+      }
+
+      const matchingProviders = await providerModel.distinct('_id', providerFilters);
+      if (matchingProviders.length > 0) {
+        postQuery.doctor = { $in: matchingProviders };
       }
     }
 
-    // 4. Post type
-    if (type && ['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes(type.toUpperCase())) {
-      postFilter.type = type.toUpperCase();
-    }
-
-    // 5. Hashtag
-    if (hashtag && hashtag.trim()) {
-      postFilter.hashtags = new RegExp(hashtag.trim(), 'i');
-    }
-
-    console.log('Final filter:', JSON.stringify(postFilter, null, 2));
-
-    // ✅ DEBUG: Test if post exists
-    const testPost = await Post.findOne({ 
-      _id: '694e255f542edbdb624febc1',
-      city: '690c3adf6ac52e0495f62859',
-      isHidden: { $ne: true }
-    }).lean();
-    console.log('Direct post lookup:', testPost ? 'FOUND' : 'NOT FOUND');
-
-    // 6. Get posts + count
-    const [posts, total] = await Promise.all([
-      Post.find(postFilter)
-        .populate('doctor', 'firstName lastName specialization profilePhoto cities')
-        .populate('city', 'name')
-        .populate('mentions', 'firstName lastName')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum)
-        .lean(),
-      Post.countDocuments(postFilter)
-    ]);
-
-    console.log('Posts found:', posts.length, 'Total:', total);
-
-    // 7. Format response
-    const data = posts.map(post => {
-      const doctor = post.doctor;
-      let primaryCity = 'Not specified';
+    // ✅ FIXED AGGREGATION - SIMPLIFIED & ERROR-FREE
+    const aggregationPipeline = [
+      // 1. Match posts first
+      { $match: postQuery },
       
-      if (post.city?.name) {
-        primaryCity = post.city.name;
-      } else if (doctor?.cities?.[0]?.name) {
-        primaryCity = doctor.cities[0].name;
-      }
-
-      return {
-        ...post,
-        creator: {
-          _id: doctor?._id || post.doctor,
-          name: [doctor?.firstName, doctor?.lastName].filter(Boolean).join(' ') || 'Doctor',
-          specialization: doctor?.specialization,
-          city: primaryCity,
-          profilePhoto: doctor?.profilePhoto,
-          role: 'doctor'
+      // 2. Add text score for sorting
+      ...(query ? [{ $addFields: { score: { $meta: 'textScore' } } }] : []),
+      
+      // 3. Doctor lookup
+      {
+        $lookup: {
+          from: 'doctors',  // ✅ Verify this matches your Doctor collection name
+          localField: 'doctor',
+          foreignField: '_id',
+          as: 'doctorData'
         }
-      };
-    });
+      },
+      
+      // 4. Unwind doctor (preserve nulls)
+      {
+        $unwind: {
+          path: '$doctorData',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      
+      // 5. City lookup
+      {
+        $lookup: {
+          from: 'cities',
+          localField: 'city',
+          foreignField: '_id',
+          as: 'cityData'
+        }
+      },
+      
+      // 6. Unwind city (preserve nulls)
+      {
+        $unwind: {
+          path: '$cityData',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      
+      // 7. Add computed fields
+      {
+        $addFields: {
+          fullName: {
+            $cond: {
+              if: { $ne: [{ $type: '$doctorData.firstName' }, 'missing'] },
+              then: {
+                $concat: [
+                  { $ifNull: ['$doctorData.firstName', ''] },
+                  ' ',
+                  { $ifNull: ['$doctorData.lastName', ''] }
+                ]
+              },
+              else: 'Unknown Doctor'
+            }
+          },
+          doctorHandle: { $ifNull: ['$doctorData.handle', null] },
+          cityName: { $ifNull: ['$cityData.name', 'Not specified'] },
+          profilePhoto: { $ifNull: ['$doctorData.profilePhoto', null] }
+        }
+      },
+      
+      // 8. ✅ FIXED SORTING - Works with/without text score
+      {
+        $sort: sortBy === 'relevance' && query 
+          ? { score: { $meta: 'textScore' }, createdAt: -1 }
+          : sortBy === 'popular'
+          ? { 'stats.views': -1, 'stats.likes': -1, createdAt: -1 }
+          : { createdAt: -1 }
+      },
+      
+      // 9. Pagination
+      { $skip: skip },
+      { $limit: limitNum },
+      
+      // 10. Final projection
+      {
+        $project: {
+          _id: 1,
+          doctor: { $ifNull: ['$doctorData._id', null] },
+          type: 1,
+          content: 1,
+          mediaUrls: 1,
+          hashtags: 1,
+          mentions: 1,
+          stats: 1,
+          likes: { $slice: ['$likes', 3] },
+          comments: { $slice: ['$comments', 2] },
+          follows: { $slice: ['$follows', 3] },
+          createdAt: 1,
+          updatedAt: 1,
+          fullName: 1,
+          doctorHandle: 1,
+          cityName: 1,
+          profilePhoto: 1,
+          creator: {
+            _id: { $ifNull: ['$doctorData._id', null] },
+            name: '$fullName',
+            city: '$cityName',
+            handle: '$doctorHandle',
+            role: 'doctor'
+          }
+        }
+      }
+    ];
+
+    const [posts, total] = await Promise.all([
+      Post.aggregate(aggregationPipeline),
+      Post.countDocuments(postQuery)
+    ]);
 
     res.json({
       success: true,
-      total,
-      page: pageNum,
-      limit: limitNum,
-      pages: Math.ceil(total / limitNum),
-      data
+      data: posts,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum || 1),
+        hasNext: pageNum * limitNum < total
+      },
+      filtersApplied: {
+        query, type, doctorId, hashtag, specialization, city
+      }
     });
 
-  } catch (err) {
-    console.error('Search error:', err);
-    next(err);
+  } catch (error) {
+    console.error('Social posts search error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Search failed',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
-
-
-
 
 
 
