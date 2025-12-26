@@ -233,7 +233,7 @@ exports.createPost = async (req, res, next) => {
     // 3) Build post data
     const postData = {
       doctor: doctorId,
-      city: req.body.cityId,  // ✅ Always set
+      city: req.body.cityId,  //  Always set
       type,
       content: req.body.content || '',
       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
@@ -267,9 +267,10 @@ exports.createPost = async (req, res, next) => {
       // Location priority: Post.city -> Doctor.cities -> address.city -> clinic.address.city
       let city = 'Not specified';
       
-      // ✅ Priority 1: Use post.city
-      if (post.city) {
-        city = (await City.findById(post.city).select('name').lean()).name || city;
+      // FIXED: Safe city population with null check
+      if (post.city && mongoose.Types.ObjectId.isValid(post.city)) {
+        const cityDoc = await City.findById(post.city).select('name').lean();
+        city = cityDoc?.name || city;
       } 
       // Priority 2: Doctor's cities
       else if (doctor.cities?.length && doctor.cities[0]?.name) {
@@ -332,6 +333,7 @@ exports.createPost = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 // GET POSTS (Feed)
