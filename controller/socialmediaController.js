@@ -176,124 +176,101 @@ exports.createPost = async (req, res, next) => {
 
     // 2) Validate & resolve doctorId + cityId
     let doctorId = req.user._id || req.user.id;
-    
     const isAdminRole = ['admin', 'superadmin', 'subadmin'].includes(req.user.role);
     
+    let cityId;
     if (isAdminRole) {
       if (!req.body.doctorId || !mongoose.Types.ObjectId.isValid(req.body.doctorId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Valid doctorId required for admin users'
-        });
+        return res.status(400).json({ success: false, message: 'Valid doctorId required' });
       }
       if (!req.body.cityId || !mongoose.Types.ObjectId.isValid(req.body.cityId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Valid cityId required for admin users'
-        });
+        return res.status(400).json({ success: false, message: 'Valid cityId required' });
       }
       doctorId = req.body.doctorId;
+      cityId = req.body.cityId;
     } else {
-      // ✅ FIXED: Doctor validation - get raw ObjectId directly
-      const doctor = await Doctor.findById(doctorId).select('cities');
+      // ✅ Doctor: Get RAW cities array (ObjectIds only)
+      const doctor = await Doctor.findById(doctorId).select('cities').lean();
       if (!doctor) {
-        return res.status(404).json({
-          success: false,
-          message: 'Doctor not found'
-        });
+        return res.status(404).json({ success: false, message: 'Doctor not found' });
       }
       
       if (!doctor.cities?.length) {
-        return res.status(400).json({
-          success: false,
-          message: 'Doctor must have at least one city assigned'
-        });
+        return res.status(400).json({ success: false, message: 'Doctor needs cities assigned' });
       }
       
-      // ✅ FIXED: Extract raw ObjectId (not ._id of populated doc)
-      const primaryCityId = doctor.cities[0]; // Already ObjectId string/ref
-      req.body.cityId = primaryCityId;
+      // ✅ RAW ObjectId (cities[0] is already ObjectId string)
+      cityId = doctor.cities[0];
     }
 
-    // 3) Build post data
+    // 3) Build post data (SAFEST possible)
     const postData = {
       doctor: doctorId,
-      city: req.body.cityId,
+      city: cityId,
       type,
       content: req.body.content || '',
       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
       hashtags: Array.isArray(req.body.hashtags)
-        ? req.body.hashtags
-        : (req.body.hashtags
-          ? String(req.body.hashtags).split(',').map(h => h.trim()).filter(Boolean)
-          : []),
-      mentions: Array.isArray(req.body.mentions)
-        ? req.body.mentions.filter(id => mongoose.Types.ObjectId.isValid(id)).map(id => mongoose.Types.ObjectId(id))
-        : (req.body.mentions
-          ? String(req.body.mentions).split(',').map(m => m.trim()).filter(m => mongoose.Types.ObjectId.isValid(m)).map(id => mongoose.Types.ObjectId(id))
-          : [])
+        ? req.body.hashtags.filter(Boolean)
+        : (req.body.hashtags || '').split(',').map(h => h.trim()).filter(Boolean),
+      mentions: []
     };
+
+    // ✅ SAFE mentions parsing
+    if (req.body.mentions) {
+      const mentionIds = Array.isArray(req.body.mentions) 
+        ? req.body.mentions 
+        : String(req.body.mentions).split(',');
+      
+      postData.mentions = mentionIds
+        .map(id => id.trim())
+        .filter(id => mongoose.Types.ObjectId.isValid(id))
+        .map(id => mongoose.Types.ObjectId(id));
+    }
 
     // 4) Save post
     const post = new Post(postData);
     await post.save();
-    await post.populate('mentions', 'firstName lastName');
 
-    // 5) Build creator object
+    // 5) Get doctor WITH populated cities (separate query)
     const doctor = await Doctor.findById(post.doctor)
       .select('firstName lastName address cities clinics specialization subSpecialties designation profilePhoto')
-      .populate('cities', 'name');
+      .populate('cities', 'name')
+      .lean();
 
-    let creator;
+    // 6) Build SAFE creator
+    const creator = {
+      _id: post.doctor,
+      name: doctor?.firstName ? [doctor.firstName, doctor?.lastName || ''].filter(Boolean).join(' ') : 'Doctor',
+      location: 'Not specified',
+      position: '',
+      profilePhoto: doctor?.profilePhoto || null,
+      role: 'doctor',
+      cities: [] // ✅ SAFE default
+    };
+
     if (doctor) {
-      const name = [doctor.firstName, doctor.lastName].filter(Boolean).join(' ');
-
-      // ✅ FIXED: Safe city resolution
-      let city = 'Not specified';
-      if (post.city && mongoose.Types.ObjectId.isValid(post.city)) {
-        try {
-          const cityDoc = await City.findById(post.city).select('name').lean();
-          if (cityDoc) city = cityDoc.name;
-        } catch (cityErr) {
-          console.log('City not found:', post.city);
-        }
-      } else if (doctor.cities?.[0]?.name) {
-        city = doctor.cities[0].name;
+      // ✅ SAFE city priority (NO post.city lookup - too risky)
+      if (doctor.cities?.[0]?.name) {
+        creator.location = doctor.cities[0].name;
       } else if (doctor.address?.city) {
-        city = doctor.address.city;
+        creator.location = doctor.address.city;
       } else if (doctor.clinics?.[0]?.address?.city) {
-        city = doctor.clinics[0].address.city;
+        creator.location = doctor.clinics[0].address.city;
       }
 
-      const subSpecialties = Array.isArray(doctor.subSpecialties)
-        ? doctor.subSpecialties.join(', ')
-        : doctor.subSpecialties;
+      // 
+      const parts = [doctor.specialization, doctor.subSpecialties, doctor.designation].filter(Boolean);
+      creator.position = parts.join(', ');
 
-      const position = [
-        doctor.specialization,
-        subSpecialties,
-        doctor.designation
-      ].filter(Boolean).join(', ');
-
-      creator = {
-        _id: doctor._id,
-        name,
-        location: city,
-        position,
-        profilePhoto: doctor.profilePhoto || null,
-        role: 'doctor',
-        cities: (doctor.cities || []).map(c => c._id)
-      };
-    } else {
-      creator = {
-        _id: post.doctor,
-        name: 'System Admin',
-        location: null,
-        position: null,
-        profilePhoto: null,
-        role: 'admin'
-      };
+      // 
+      creator.cities = (doctor.cities || [])
+        .filter(city => city && city._id) // Only valid cities
+        .map(city => city._id.toString()); // Stringify ObjectId
     }
+
+    // 7) Populate mentions AFTER creator
+    await post.populate('mentions', 'firstName lastName');
 
     res.status(201).json({
       success: true,
@@ -304,8 +281,11 @@ exports.createPost = async (req, res, next) => {
     });
 
   } catch (err) {
-    console.error('Create post error:', err); // ✅ Add logging
-    next(err);
+    console.error('🚨 CREATE POST ERROR:', err.message, err.stack);
+    res.status(500).json({
+      status: 'error',
+      message: err.message || 'Internal server error'
+    });
   }
 };
 
