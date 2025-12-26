@@ -1154,16 +1154,32 @@ exports.toggleLikePost = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Post not found" });
     }
 
-    console.log('toggleLikePost req.user =', req.user);
+    // ✅ SELF-CONTAINED USER LOOKUP - No req.user dependency
+    let decoded;
+    let token = req.cookies?.accessToken || 
+                (req.headers.authorization?.startsWith('Bearer') 
+                  ? req.headers.authorization.split(' ')[1] 
+                  : null);
 
-    const user = req.user || {};
-    const rawRole = user.role || user.userRole || "";
-    const userRole = rawRole.toLowerCase();
-    const userIdRaw = user._id || user.id || user.userId || "";
-    const userId = userIdRaw ? userIdRaw.toString() : "";
+    if (!token) {
+      return res.status(401).json({ success: false, message: "No token provided" });
+    }
 
-    const isAdminRole = userRole === "admin" || userRole === "superadmin" || userRole === "subadmin";
+    try {
+      decoded = verifyToken(token, 'access');
+    } catch {
+      return res.status(401).json({ success: false, message: "Invalid/expired token" });
+    }
 
+    if (!decoded?.id || !decoded?.role) {
+      return res.status(401).json({ success: false, message: "Invalid token payload" });
+    }
+
+    const userRole = decoded.role.toLowerCase();
+    const userId = decoded.id.toString();
+
+    // ✅ ADMIN HANDLING (same as before)
+    const isAdminRole = ['admin', 'superadmin', 'subadmin'].includes(userRole);
     if (isAdminRole) {
       return res.status(200).json({
         success: true,
@@ -1173,14 +1189,7 @@ exports.toggleLikePost = async (req, res, next) => {
       });
     }
 
-    if (!userId || !userRole) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized: user not found on request",
-      });
-    }
-
-    // ✅ ATOMIC UPDATE - NO CITY VALIDATION!
+    // ✅ ATOMIC UPDATE (fixes city validation)
     const existingLike = post.likes?.find(like => 
       like.userId?.toString() === userId && 
       (like.userRole || '').toLowerCase() === userRole
@@ -1200,7 +1209,7 @@ exports.toggleLikePost = async (req, res, next) => {
             : (post.stats?.likes || 0) + 1 
         }
       },
-      { new: true, runValidators: false }  
+      { new: true, runValidators: false }
     ).select('stats.likes');
 
     return res.json({
@@ -1212,6 +1221,7 @@ exports.toggleLikePost = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 
