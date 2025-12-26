@@ -1149,38 +1149,32 @@ exports.getPostById = async (req, res, next) => {
 // };
 exports.toggleLikePost = async (req, res, next) => {
   try {
-    // 🔍 DEBUG: Log FULL req.user object
-    console.log('🔍 req.user FULL DEBUG:', JSON.stringify(req.user, null, 2));
-    console.log('🔍 protect middleware attached user?', !!req.user);
-
-    // 1. Find post (keeping debug)
+    // 🔍 DEBUG: Your protect sets req.user = decoded JWT
+    console.log('🔍 req.user from protect:', req.user);
+    
     const post = await Post.findById(req.params.id);
     if (!post) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Post not found",
-        debug: { id: req.params.id }
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+
+    // ✅ FIXED: Handle protect's req.user = decoded format
+    const user = req.user || {};
+    const userId = (user._id || user.id || '').toString();
+    const userRole = (user.role || '').toLowerCase();
+
+    console.log('🔍 Extracted user:', { userId, userRole });
+
+    // Validate user data
+    if (!userId || !userRole || (userRole !== 'doctor' && userRole !== 'patient')) {
+      return res.status(401).json({
+        success: false,
+        message: `Invalid user data. ID: "${userId}", Role: "${userRole}"`,
+        debug: req.user
       });
     }
 
-    // 2. FIXED: Robust user extraction (handles id/_id mismatch)
-    let user = req.user || {};
-    console.log('🔍 Raw user keys:', Object.keys(user));
-
-    // Handle both JWT formats: {id, role} OR {_id, role}
-    const userIdRaw = user._id || user.id || user.userId || "";
-    const rawRole = user.role || user.userRole || "";
-    
-    const userId = userIdRaw ? userIdRaw.toString() : "";
-    const userRole = rawRole.toLowerCase();
-
-    console.log('🔍 Extracted:', { userId, userRole });
-
-    // Admin check
-    const isAdminRole = userRole === "admin" || 
-                       userRole === "superadmin" || 
-                       userRole === "subadmin";
-
+    // Admin check (your original logic)
+    const isAdminRole = userRole === "admin" || userRole === "superadmin" || userRole === "subadmin";
     if (isAdminRole) {
       return res.status(200).json({
         success: true,
@@ -1190,34 +1184,26 @@ exports.toggleLikePost = async (req, res, next) => {
       });
     }
 
-    // FIXED: Clearer unauthorized message
-    if (!userId || !userRole || userRole !== 'doctor' && userRole !== 'patient') {
-      return res.status(401).json({
-        success: false,
-        message: `Unauthorized: invalid user data. ID: "${userId}", Role: "${userRole}"`,
-        debug: { userKeys: Object.keys(user), userId, userRole }
-      });
-    }
-
-    // 3. Toggle logic (unchanged)
+    // Toggle like logic
     post.likes = Array.isArray(post.likes) ? post.likes : [];
     
-    const existingLike = post.likes.find((like) => {
-      if (!like?.userId) return false;
-      return like.userId.toString() === userId && 
-             (like.userRole || '').toLowerCase() === userRole;
-    });
+    const existingLike = post.likes.find(like => 
+      like.userId.toString() === userId && 
+      (like.userRole || '').toLowerCase() === userRole
+    );
 
     if (existingLike) {
-      post.likes = post.likes.filter((like) => 
+      // Unlike
+      post.likes = post.likes.filter(like => 
         !(like.userId.toString() === userId && 
           (like.userRole || '').toLowerCase() === userRole)
       );
     } else {
+      // Like
       post.likes.push({
         userId: new mongoose.Types.ObjectId(userId),
         userRole,
-        createdAt: new Date(),
+        createdAt: new Date()
       });
     }
 
