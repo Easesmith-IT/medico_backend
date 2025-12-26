@@ -284,13 +284,13 @@ exports.createServiceProvider = async (req, res) => {
       data: newProvider,
     });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: "Duplicate field value",
-        details: error.keyValue,
-      });
-    }
+    // if (error.code === 11000) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Duplicate field value",
+    //     details: error.keyValue,
+    //   });
+    // }
     res.status(500).json({ success: false, message: error.message });
   }
 };
