@@ -8,6 +8,7 @@ dotenv.config();
 
 const routes = require("./route");
 const AppError = require("./utils/appError");
+const errorMiddleware = require("./middleware/errorMiddleware");
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use((req, res, next) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
+  console.log("errorMiddleware func called");
   err.statusCode = err.statusCode || 500;
   err.status = err.status || "error";
 
@@ -82,6 +84,8 @@ app.use((err, req, res, next) => {
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
+
+// app.use(errorMiddleware);
 
 // ============================================
 // DATABASE CONNECTION
