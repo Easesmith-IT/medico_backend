@@ -1808,13 +1808,11 @@ exports.getMyFollowStats = async (req, res, next) => {
 exports.searchSocialPosts = async (req, res) => {
   try {
     const {
-      query = '',
+      q = '',
+      type = 'all',
       specialization,
       city,
       serviceId,
-      type = 'doctor',
-      doctorId,
-      hashtag,
       page = 1,
       limit = 10,
       sortBy = 'relevance'
@@ -1824,195 +1822,183 @@ exports.searchSocialPosts = async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    const Post = mongoose.model('Post');
-    const postQuery = { 
-      isHidden: false,
-      hiddenAt: null 
-    };
+    console.log('🌍 Global search:', { q, type, page, limit });
 
-    // Text search
-    if (query) {
-      postQuery.$text = { $search: query };
+    const results = {};
+
+    // 1. SOCIAL POSTS (Public - only non-hidden)
+    if (type === 'all' || type === 'posts') {
+      const postQuery = { 
+        isHidden: false,
+        hiddenAt: { $exists: false }
+      };
+
+      if (q) postQuery.$text = { $search: q };
+      if (req.query.doctor) postQuery.doctor = mongoose.Types.ObjectId(req.query.doctor);
+
+      const [posts, postTotal] = await Promise.all([
+        Post.find(postQuery)
+          .select('type content hashtags stats createdAt')
+          .populate('doctor', 'firstName lastName handle profilePhoto')
+          .sort(sortBy === 'relevance' ? { score: { $meta: 'textScore' } } : { createdAt: -1 })
+          .limit(limitNum)
+          .skip(skip),
+        Post.countDocuments(postQuery)
+      ]);
+
+      results.posts = {
+        data: posts.map(post => ({
+          _id: post._id,
+          type: post.type,
+          content: post.content,
+          preview: post.content?.substring(0, 100) + '...',
+          doctor: post.doctor ? {
+            name: `${post.doctor.firstName} ${post.doctor.lastName}`.trim(),
+            handle: post.doctor.handle,
+            profilePhoto: post.doctor.profilePhoto
+          } : null,
+          stats: post.stats,
+          createdAt: post.createdAt
+        })),
+        total: postTotal
+      };
     }
 
-    // Doctor ID filter (handles both 'doctor' and 'doctorId')
-    const doctorParam = doctorId || req.query.doctor;
-    if (doctorParam) {
-      postQuery.doctor = mongoose.Types.ObjectId(doctorParam);
+    // 2. DOCTORS (Public - only active)
+    if (type === 'all' || type === 'doctors') {
+      const doctorQuery = { isActive: true, isDeleted: { $ne: true } };
+      
+      if (q) doctorQuery.$text = { $search: q };
+      if (specialization) doctorQuery.specializations = { $elemMatch: { name: { $regex: specialization, $options: 'i' } } };
+      if (city) doctorQuery.$or = [{ 'currentAddress.city': { $regex: city, $options: 'i' } }, { cities: mongoose.Types.ObjectId(city) }];
+
+      const [doctors, doctorTotal] = await Promise.all([
+        Doctor.find(doctorQuery)
+          .select('firstName lastName handle specializations cities profilePhoto rating')
+          .populate('cities', 'name')
+          .populate('specializations', 'name')
+          .limit(limitNum)
+          .skip(skip),
+        Doctor.countDocuments(doctorQuery)
+      ]);
+
+      results.doctors = {
+        data: doctors.map(doctor => ({
+          _id: doctor._id,
+          name: `${doctor.firstName} ${doctor.lastName}`.trim(),
+          handle: doctor.handle,
+          specializations: doctor.specializations?.map(s => s.name) || [],
+          cities: doctor.cities?.map(c => c.name) || [],
+          profilePhoto: doctor.profilePhoto,
+          rating: doctor.rating
+        })),
+        total: doctorTotal
+      };
     }
 
-    // Hashtag search
-    if (hashtag) {
-      postQuery.hashtags = { $regex: hashtag, $options: 'i' };
+    // 3. SERVICE PROVIDERS (Public - only approved/active)
+    if (type === 'all' || type === 'serviceProviders') {
+      const spQuery = { 
+        isActive: true, 
+        isDeleted: { $ne: true },
+        approvalStatus: 'Approved'
+      };
+
+      if (q) spQuery.$text = { $search: q };
+      if (specialization) spQuery['services.specialization'] = { $regex: specialization, $options: 'i' };
+      if (city) spQuery.$or = [{ 'currentAddress.city': { $regex: city, $options: 'i' } }, { serviceCities: mongoose.Types.ObjectId(city) }];
+      if (serviceId) spQuery['services.serviceId'] = mongoose.Types.ObjectId(serviceId);
+
+      const [serviceProviders, spTotal] = await Promise.all([
+        ServiceProvider.find(spQuery)
+          .select('firstName lastName services rating currentAddress serviceCities profilePhoto')
+          .populate('services.serviceId', 'name')
+          .populate('serviceCities', 'name')
+          .limit(limitNum)
+          .skip(skip),
+        ServiceProvider.countDocuments(spQuery)
+      ]);
+
+      results.serviceProviders = {
+        data: serviceProviders.map(sp => ({
+          _id: sp._id,
+          name: `${sp.firstName} ${sp.lastName}`.trim(),
+          services: sp.services?.map(s => s.serviceId?.name || s.serviceName) || [],
+          cities: sp.serviceCities?.map(c => c.name) || [sp.currentAddress.city],
+          rating: sp.rating,
+          profilePhoto: sp.profilePhoto
+        })),
+        total: spTotal
+      };
     }
 
-    // Provider filtering (simplified)
-    if (type === 'doctor' || type === 'serviceProvider') {
-      const providerModel = type === 'doctor' ? Doctor : ServiceProvider;
-      const providerFilters = { isActive: true, isDeleted: { $ne: true } };
+    // 4. SERVICES (Public - only active)
+    if (type === 'all' || type === 'services') {
+      const serviceQuery = { isActive: true, isDeleted: { $ne: true } };
       
-      if (type === 'serviceProvider') {
-        providerFilters.approvalStatus = 'Approved';
-      }
-      
-      if (specialization) {
-        providerFilters.$or = type === 'doctor' 
-          ? [{ 'specializations.name': { $regex: specialization, $options: 'i' } }]
-          : [{ 'services.specialization': { $regex: specialization, $options: 'i' } }];
-      }
+      if (q) serviceQuery.$text = { $search: q };
 
-      if (city) {
-        providerFilters.$or = [
-          { 'currentAddress.city': { $regex: city, $options: 'i' } },
-          { serviceCities: mongoose.Types.ObjectId(city) }
-        ];
-      }
+      const [services, serviceTotal] = await Promise.all([
+        Service.find(serviceQuery)
+          .select('name category description basePrice cities')
+          .populate('cities', 'name')
+          .limit(limitNum)
+          .skip(skip),
+        Service.countDocuments(serviceQuery)
+      ]);
 
-      const matchingProviders = await providerModel.distinct('_id', providerFilters);
-      if (matchingProviders.length > 0) {
-        postQuery.doctor = { $in: matchingProviders };
-      }
+      results.services = {
+        data: services.map(service => ({
+          _id: service._id,
+          name: service.name,
+          category: service.category,
+          description: service.description?.substring(0, 100) + '...',
+          basePrice: service.basePrice,
+          cities: service.cities?.map(c => c.name) || []
+        })),
+        total: serviceTotal
+      };
     }
 
-    // ✅ FIXED AGGREGATION - SIMPLIFIED & ERROR-FREE
-    const aggregationPipeline = [
-      // 1. Match posts first
-      { $match: postQuery },
-      
-      // 2. Add text score for sorting
-      ...(query ? [{ $addFields: { score: { $meta: 'textScore' } } }] : []),
-      
-      // 3. Doctor lookup
-      {
-        $lookup: {
-          from: 'doctors',  // ✅ Verify this matches your Doctor collection name
-          localField: 'doctor',
-          foreignField: '_id',
-          as: 'doctorData'
-        }
-      },
-      
-      // 4. Unwind doctor (preserve nulls)
-      {
-        $unwind: {
-          path: '$doctorData',
-          preserveNullAndEmptyArrays: true
-        }
-      },
-      
-      // 5. City lookup
-      {
-        $lookup: {
-          from: 'cities',
-          localField: 'city',
-          foreignField: '_id',
-          as: 'cityData'
-        }
-      },
-      
-      // 6. Unwind city (preserve nulls)
-      {
-        $unwind: {
-          path: '$cityData',
-          preserveNullAndEmptyArrays: true
-        }
-      },
-      
-      // 7. Add computed fields
-      {
-        $addFields: {
-          fullName: {
-            $cond: {
-              if: { $ne: [{ $type: '$doctorData.firstName' }, 'missing'] },
-              then: {
-                $concat: [
-                  { $ifNull: ['$doctorData.firstName', ''] },
-                  ' ',
-                  { $ifNull: ['$doctorData.lastName', ''] }
-                ]
-              },
-              else: 'Unknown Doctor'
-            }
-          },
-          doctorHandle: { $ifNull: ['$doctorData.handle', null] },
-          cityName: { $ifNull: ['$cityData.name', 'Not specified'] },
-          profilePhoto: { $ifNull: ['$doctorData.profilePhoto', null] }
-        }
-      },
-      
-      // 8. ✅ FIXED SORTING - Works with/without text score
-      {
-        $sort: sortBy === 'relevance' && query 
-          ? { score: { $meta: 'textScore' }, createdAt: -1 }
-          : sortBy === 'popular'
-          ? { 'stats.views': -1, 'stats.likes': -1, createdAt: -1 }
-          : { createdAt: -1 }
-      },
-      
-      // 9. Pagination
-      { $skip: skip },
-      { $limit: limitNum },
-      
-      // 10. Final projection
-      {
-        $project: {
-          _id: 1,
-          doctor: { $ifNull: ['$doctorData._id', null] },
-          type: 1,
-          content: 1,
-          mediaUrls: 1,
-          hashtags: 1,
-          mentions: 1,
-          stats: 1,
-          likes: { $slice: ['$likes', 3] },
-          comments: { $slice: ['$comments', 2] },
-          follows: { $slice: ['$follows', 3] },
-          createdAt: 1,
-          updatedAt: 1,
-          fullName: 1,
-          doctorHandle: 1,
-          cityName: 1,
-          profilePhoto: 1,
-          creator: {
-            _id: { $ifNull: ['$doctorData._id', null] },
-            name: '$fullName',
-            city: '$cityName',
-            handle: '$doctorHandle',
-            role: 'doctor'
-          }
-        }
-      }
-    ];
+    // 5. CITIES (Public)
+    if (type === 'all' || type === 'cities') {
+      const cityQuery = {};
+      if (q) cityQuery.name = { $regex: q, $options: 'i' };
 
-    const [posts, total] = await Promise.all([
-      Post.aggregate(aggregationPipeline),
-      Post.countDocuments(postQuery)
-    ]);
+      const [cities, cityTotal] = await Promise.all([
+        City.find(cityQuery).select('name').limit(limitNum).skip(skip),
+        City.countDocuments(cityQuery)
+      ]);
 
-    res.json({
+      results.cities = {
+        data: cities.map(city => ({
+          _id: city._id,
+          name: city.name
+        })),
+        total: cityTotal
+      };
+    }
+
+    res.status(200).json({
       success: true,
-      data: posts,
+      data: results,
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total,
-        pages: Math.ceil(total / limitNum || 1),
-        hasNext: pageNum * limitNum < total
+        results: Object.values(results).reduce((sum, r) => sum + (r?.total || 0), 0)
       },
-      filtersApplied: {
-        query, type, doctorId, hashtag, specialization, city
-      }
+      filtersApplied: { q, type, specialization, city }
     });
 
   } catch (error) {
-    console.error('Social posts search error:', error);
+    console.error('❌ Global search ERROR:', error);
     res.status(500).json({
       success: false,
-      message: 'Search failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Global search failed'
     });
   }
 };
+
 
 
 
