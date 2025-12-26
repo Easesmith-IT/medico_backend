@@ -719,27 +719,49 @@ const protect = (...allowedRoles) => {
       // ---------------------------------------------------------
       // 1) TRY ACCESS TOKEN
       // ---------------------------------------------------------
-      if (accessToken && accessToken !== "undefined") {
-        try {
-          decoded = verifyToken(accessToken, "access");
-          console.log("Access token decoded:", decoded);
+      // if (accessToken && accessToken !== "undefined") {
+      //   try {
+      //     decoded = verifyToken(accessToken, "access");
+      //     console.log("Access token decoded:", decoded);
 
-          const user = await loadUserByRole(decoded.role, decoded.id, true);
-          console.log("user", user);
+      //     const user = await loadUserByRole(decoded.role, decoded.id, true);
+      //     console.log("user", user);
 
-          if (user) {
-            req.user = decoded;
-            return authorizeAndContinue(
-              req,
-              decoded?.role,
-              normalizedAllowedRoles,
-              next
-            );
-          }
-        } catch (err) {
-          console.log("Access token expired, attempting refresh:", err.message);
-        }
-      }
+      //     if (user) {
+      //       req.user = decoded;
+      //       return authorizeAndContinue(
+      //         req,
+      //         decoded?.role,
+      //         normalizedAllowedRoles,
+      //         next
+      //       );
+      //     }
+      //   } catch (err) {
+      //     console.log("Access token expired, attempting refresh:", err.message);
+      //   }
+      // }
+if (accessToken && accessToken !== "undefined" && accessToken !== "null") {
+  try {
+    decoded = verifyToken(accessToken, "access");
+    console.log("✅ Access token VALID:", { id: decoded.id, role: decoded.role });
+
+    const user = await loadUserByRole(decoded.role, decoded.id, true);
+    
+    if (user && user.isActive !== false) {
+      req.user = {
+        _id: user._id,
+        id: user._id.toString(),
+        role: decoded.role.toLowerCase(),
+        ...user
+      };
+      req.userModel = getUserModel(decoded.role);
+      console.log("✅ req.user SET:", { id: req.user.id, role: req.user.role });
+      return authorizeAndContinue(req, decoded.role.toLowerCase(), normalizedAllowedRoles, next);
+    }
+  } catch (err) {
+    console.log("🔄 Access token expired, trying refresh:", err.message);
+  }
+}
 
       // ---------------------------------------------------------
       // 2) TRY REFRESH TOKEN
