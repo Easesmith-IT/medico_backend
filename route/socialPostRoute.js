@@ -32,13 +32,17 @@ router.post('/commentPost/:id', protect(['doctor', 'patient']),  postCtrl.addCom
 router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']), postCtrl.toggleFollowDoctor);
 
 // AFTER
+// router.post(
+// '/likePost/:id/toggle',
+//   protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
+//   postCtrl.toggleLikePost
+// );
+
 router.post(
-'/likePost/:id/toggle',
+  '/likePost/:id/toggle',
   protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
   postCtrl.toggleLikePost
 );
-
-
 router.get('/feed',  postCtrl.getSocialFeed);
 // router.get('/getPostById/:id', postCtrl.getPostById);
 router.get(
