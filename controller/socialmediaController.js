@@ -1150,37 +1150,24 @@ exports.getPostById = async (req, res, next) => {
 
 exports.toggleLikePost = async (req, res, next) => {
   try {
+    console.log('🔍 req.user:', JSON.stringify(req.user?.id, req.user?.role, null, 2));
+    
     const post = await Post.findById(req.params.id);
     if (!post) {
       return res.status(404).json({ success: false, message: "Post not found" });
     }
 
-    // ✅ SELF-CONTAINED USER LOOKUP - No req.user dependency
-    let decoded;
-    let token = req.cookies?.accessToken || 
-                (req.headers.authorization?.startsWith('Bearer') 
-                  ? req.headers.authorization.split(' ')[1] 
-                  : null);
+    // ✅ 100% TRUST protect() middleware - NO token verification here
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || "";
+    const userRole = rawRole.toLowerCase();
+    const userIdRaw = user._id || user.id || user.userId || "";
+    const userId = userIdRaw ? userIdRaw.toString() : "";
 
-    if (!token) {
-      return res.status(401).json({ success: false, message: "No token provided" });
-    }
+    console.log('🔍 Parsed:', { userRole, userId });
 
-    try {
-      decoded = verifyToken(token, 'access');
-    } catch {
-      return res.status(401).json({ success: false, message: "Invalid/expired token" });
-    }
-
-    if (!decoded?.id || !decoded?.role) {
-      return res.status(401).json({ success: false, message: "Invalid token payload" });
-    }
-
-    const userRole = decoded.role.toLowerCase();
-    const userId = decoded.id.toString();
-
-    // ✅ ADMIN HANDLING (same as before)
-    const isAdminRole = ['admin', 'superadmin', 'subadmin'].includes(userRole);
+    // ✅ Admin handling (exact same as your file)
+    const isAdminRole = userRole === "admin" || userRole === "superadmin" || userRole === "subadmin";
     if (isAdminRole) {
       return res.status(200).json({
         success: true,
@@ -1190,9 +1177,18 @@ exports.toggleLikePost = async (req, res, next) => {
       });
     }
 
-    // ✅ ATOMIC UPDATE (fixes city validation)
+    // ✅ Only fail if protect didn't attach user
+    if (!userId || !userRole) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: user not found on request",
+        debug: { hasUser: !!req.user, userRole, userId }
+      });
+    }
+
+    // ✅ ATOMIC UPDATE - FIXES city validation error
     const existingLike = post.likes?.find(like => 
-      like.userId?.toString() === userId && 
+      like?.userId?.toString() === userId && 
       (like.userRole || '').toLowerCase() === userRole
     );
 
@@ -1206,22 +1202,24 @@ exports.toggleLikePost = async (req, res, next) => {
         ...operation,
         $set: { 
           'stats.likes': existingLike 
-            ? Math.max(0, (post.stats?.likes || 0) - 1)
-            : (post.stats?.likes || 0) + 1 
+            ? Math.max(0, (post.stats?.likes || post.likes?.length || 0) - 1)
+            : (post.stats?.likes || post.likes?.length || 0) + 1 
         }
       },
       { new: true, runValidators: false }
     ).select('stats.likes');
 
-    return res.json({
+    res.json({
       success: true,
       likes: updatedPost.stats.likes,
       userHasLiked: !existingLike,
     });
   } catch (err) {
+    console.error('toggleLikePost ERROR:', err);
     next(err);
   }
 };
+
 
 
 
