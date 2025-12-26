@@ -76,5 +76,5 @@ router.get(
 
 
 
-router.get('/search', postCtrl.searchSocialDoctors); 
+router.get('/search', postCtrl.searchSocialPosts); 
 module.exports = router;
