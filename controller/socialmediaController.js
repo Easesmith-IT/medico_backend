@@ -43,7 +43,7 @@ const mongoose = require('mongoose');
 
 const Doctor = require('../models/doctorModel');
 const Admin = require('../models/adminModel');
-
+const Patient = require('../models/patientModel');
 // CREATE POST
 // exports.createPost = async (req, res, next) => {
 //   try {
@@ -160,135 +160,145 @@ const Admin = require('../models/adminModel');
 //     next(err);
 //   }
 // };
+
 exports.createPost = async (req, res, next) => {
   try {
-    // 1) Doctor & City validation
-    let doctorId = req.user._id || req.user.id;
-    const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(req.user.role);
-    
-    let cityId;
-    if (isAdmin) {
-      if (!req.body.doctorId || !mongoose.Types.ObjectId.isValid(req.body.doctorId)) {
-        return res.status(400).json({ success: false, message: 'Valid doctorId required' });
-      }
-      if (!req.body.cityId || !mongoose.Types.ObjectId.isValid(req.body.cityId)) {
-        return res.status(400).json({ success: false, message: 'Valid cityId required' });
-      }
-      doctorId = req.body.doctorId;
-      cityId = req.body.cityId;
+    // 1) Resolve post type (UNCHANGED - PERFECT)
+    let type;
+    if (req.file) {
+      const isImage = req.file.mimetype.startsWith('image/');
+      type = isImage ? 'GALLERY' : 'REEL';
     } else {
-      const doctor = await Doctor.findById(doctorId).select('cities').lean();
-      if (!doctor?.cities?.[0]) {
-        return res.status(400).json({ success: false, message: 'Doctor needs city assigned' });
-      }
-      cityId = doctor.cities[0];
+      const requestedType = (req.body.type || 'TEXT').toUpperCase();
+      type = ['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes(requestedType)
+        ? requestedType
+        : 'TEXT';
     }
 
-    // 2) Post type detection
-    const type = req.file 
-      ? (req.file.mimetype.startsWith('image/') ? 'GALLERY' : 'REEL')
-      : (['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes((req.body.type || 'TEXT').toUpperCase()) 
-         ? (req.body.type || 'TEXT').toUpperCase() 
-         : 'TEXT');
-
-    // 3) ✅ SAFE MENTIONS VALIDATION (Any User/Doctor in DB)
-    const mentions = [];
-    if (req.body.mentions) {
-      const mentionIds = Array.isArray(req.body.mentions) 
-        ? req.body.mentions 
-        : String(req.body.mentions).split(',');
-
-      // Validate each mention exists (Doctor OR User)
-      for (const mentionId of mentionIds.map(id => id.trim()).filter(Boolean)) {
-        if (mongoose.Types.ObjectId.isValid(mentionId)) {
-          // Check Doctor first, then User
-          const doctorExists = await Doctor.findById(mentionId).lean();
-          const userExists = doctorExists ? null : await User.findById(mentionId).lean();
-          
-          if (doctorExists || userExists) {
-            mentions.push(mongoose.Types.ObjectId(mentionId));
-          }
-        }
-      }
+    // 2) ✅ SAFE User ID (handles _id OR id from JWT)
+    let doctorId = req.user?._id || req.user?.id;
+    
+    if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid user ID: ${doctorId}`
+      });
     }
 
-    // 4) Create post with validated mentions
+    // 3) ✅ SAFE Hashtags/Mentions (ObjectId validation)
+    const hashtags = Array.isArray(req.body.hashtags)
+      ? req.body.hashtags
+      : (req.body.hashtags
+        ? String(req.body.hashtags).split(',').map(h => h.trim()).filter(Boolean)
+        : []);
+
+    const mentions = Array.isArray(req.body.mentions)
+      ? req.body.mentions.filter(id => mongoose.Types.ObjectId.isValid(id))
+      : (req.body.mentions
+        ? String(req.body.mentions).split(',').map(m => m.trim()).filter(id => mongoose.Types.ObjectId.isValid(id))
+        : []);
+
+    // 4) Save post FIRST (NO populate crash)
     const postData = {
-      doctor: mongoose.Types.ObjectId(doctorId),
-      city: mongoose.Types.ObjectId(cityId),
+      doctor: doctorId,
       type,
       content: req.body.content || '',
       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
-      hashtags: (req.body.hashtags || '').split(',').map(h => h.trim()).filter(Boolean),
-      mentions, // ✅ VALIDATED ONLY
-      isHidden: false
+      hashtags,
+      mentions
     };
 
     const post = new Post(postData);
     await post.save();
 
-    // 5) SAFE Creator (no populate risk)
-    const doctor = await Doctor.findById(post.doctor, {
-      firstName: 1, lastName: 1, specialization: 1,
-      address: 1, profilePhoto: 1
-    }).lean();
+    // 5) ✅ FULL CREATOR LOGIC (Doctor → Admin → Fallback)
+    let creator;
 
-    const creator = {
-      _id: post.doctor.toString(),
-      name: doctor ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ') : 'Doctor',
-      location: doctor?.address?.city || 'Not specified',
-      position: doctor?.specialization || '',
-      profilePhoto: doctor?.profilePhoto || null,
-      role: 'doctor',
-      cities: []
-    };
+    // Check Doctor first
+    const doctor = await Doctor.findById(post.doctor)
+      .select('firstName lastName address cities clinics specialization subSpecialties designation profilePhoto')
+      .populate('cities', 'name')
+      .lean();
 
-    // 6) SAFE Mentions with names (separate lookup)
-    const mentionDetails = [];
-    for (const mentionId of post.mentions) {
-      const doctor = await Doctor.findById(mentionId).select('firstName lastName profilePhoto').lean();
-      const user = doctor ? null : await User.findById(mentionId).select('firstName lastName profilePhoto').lean();
-      
-      if (doctor) {
-        mentionDetails.push({
-          _id: doctor._id,
-          name: [doctor.firstName, doctor.lastName].filter(Boolean).join(' '),
-          profilePhoto: doctor.profilePhoto
-        });
-      } else if (user) {
-        mentionDetails.push({
-          _id: user._id,
-          name: [user.firstName, user.lastName].filter(Boolean).join(' '),
-          profilePhoto: user.profilePhoto
-        });
+    if (doctor) {
+      // ✅ YOUR PERFECT LOCATION LOGIC
+      const name = [doctor.firstName, doctor.lastName].filter(Boolean).join(' ');
+      let city = 'Not specified';
+
+      if (doctor.cities?.[0]?.name) {
+        city = doctor.cities[0].name;
+      } else if (doctor.address?.city) {
+        city = doctor.address.city;
+      } else if (doctor.clinics?.[0]?.address?.city) {
+        city = doctor.clinics[0].address.city;
+      }
+
+      const subSpecialties = Array.isArray(doctor.subSpecialties)
+        ? doctor.subSpecialties.join(', ')
+        : doctor.subSpecialties;
+
+      const positionParts = [
+        doctor.specialization,
+        subSpecialties,
+        doctor.designation
+      ].filter(Boolean);
+
+      const position = positionParts.join(', ');
+
+      // ✅ SAFE cities mapping
+      const cities = (doctor.cities || [])
+        .filter(c => c && c._id)
+        .map(c => c._id);
+
+      creator = {
+        _id: doctor._id,
+        name,
+        location: city,
+        position,
+        profilePhoto: doctor.profilePhoto || null,
+        role: 'doctor',
+        cities
+      };
+    } 
+    // ✅ YOUR AdminModel lookup
+    else {
+      const admin = await Admin.findById(post.doctor).select('firstName').lean();
+      if (admin) {
+        creator = {
+          _id: post.doctor,
+          name: `${admin.firstName || 'Admin'} Admin`,
+          location: null,
+          position: null,
+          profilePhoto: null,
+          role: 'admin'
+        };
+      } else {
+        // Final fallback
+        creator = {
+          _id: post.doctor,
+          name: 'System User',
+          location: null,
+          position: null,
+          profilePhoto: null,
+          role: 'user'
+        };
       }
     }
 
-    // 7) Response
+    // 6) Response
     res.status(201).json({
       success: true,
       data: {
-        _id: post._id,
-        doctor: post.doctor,
-        city: post.city,
-        type: post.type,
-        content: post.content,
-        mediaUrls: post.mediaUrls,
-        hashtags: post.hashtags,
-        mentions: mentionDetails, //  POPULATED NAMES
-        isHidden: post.isHidden,
-        createdAt: post.createdAt,
+        ...post.toObject(),
         creator
       }
     });
 
   } catch (err) {
-    console.error(' CREATE POST:', err.message, err.stack);
-    res.status(500).json({ status: 'error', message: err.message });
+    console.error(' CREATE POST ERROR:', err.message);
+    next(err);
   }
 };
-
-
 
 
 
