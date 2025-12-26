@@ -163,7 +163,11 @@ const Patient = require('../models/patientModel');
 
 exports.createPost = async (req, res, next) => {
   try {
-    // 1) Post type (PERFECT)
+    console.log('Request body:', req.body);
+    console.log('File:', req.file);
+    console.log('User:', req.user);
+
+    // 1) Post type
     let type;
     if (req.file) {
       const isImage = req.file.mimetype.startsWith('image/');
@@ -175,110 +179,110 @@ exports.createPost = async (req, res, next) => {
         : 'TEXT';
     }
 
-    // 2) SAFE User ID (NO ObjectId)
-    const doctorId = req.user?._id || req.user?.id;
+    // 2) Get USER ID from JWT
+    const userId = req.user?._id || req.user?.id;
     
-    if (!doctorId || doctorId.length !== 24) {
+    if (!userId || userId.length !== 24) {
       return res.status(400).json({
         success: false,
-        message: `Invalid user ID: ${doctorId}`
+        message: `Invalid user ID: ${userId}`
       });
     }
 
-    // 3) SAFE Hashtags (NO ObjectId)
+    console.log('User ID from JWT:', userId);
+
+    // 3) Find Doctor record + CITY
+    const doctor = await Doctor.findById(userId).select('cities firstName lastName').lean();
+    
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: `Doctor not found for user: ${userId}`
+      });
+    }
+
+    console.log('Doctor found:', doctor._id, 'Cities:', doctor.cities);
+
+    // 4) CITY VALIDATION (SCHEMA REQUIRES IT)
+    if (!doctor.cities || !doctor.cities.length || !doctor.cities[0]) {
+      return res.status(400).json({
+        success: false,
+        message: 'Doctor must have at least one city assigned in cities array'
+      });
+    }
+
+    const cityId = doctor.cities[0];
+    console.log('Using city ID:', cityId);
+
+    // 5) Safe hashtags/mentions
     const hashtags = Array.isArray(req.body.hashtags)
       ? req.body.hashtags
       : (req.body.hashtags
         ? String(req.body.hashtags).split(',').map(h => h.trim()).filter(Boolean)
         : []);
 
-    // 4) SAFE Mentions (NO ObjectId - just 24-char strings)
     const mentions = Array.isArray(req.body.mentions)
       ? req.body.mentions.filter(id => id && id.length === 24)
       : (req.body.mentions
         ? String(req.body.mentions).split(',').map(m => m.trim()).filter(id => id && id.length === 24)
         : []);
 
-    // 5) Create post (PLAIN STRINGS)
+    // 6) COMPLETE Post Data (ALL REQUIRED FIELDS)
     const postData = {
-      doctor: doctorId,
+      doctor: userId,
+      city: cityId,
       type,
       content: req.body.content || '',
       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
       hashtags,
-      mentions  // Plain strings - Mongoose converts automatically
+      mentions,
+      isHidden: false
     };
 
+    console.log('Saving post data:', postData);
+
+    // 7) Save post
     const post = new Post(postData);
     await post.save();
 
-    // 6) Creator (YOUR PERFECT LOGIC)
-    let creator;
-    const doctor = await Doctor.findById(post.doctor)
-      .select('firstName lastName address cities clinics specialization subSpecialties designation profilePhoto')
-      .populate('cities', 'name')
-      .lean();
+    console.log('Post saved:', post._id);
 
-    if (doctor) {
-      const name = [doctor.firstName, doctor.lastName].filter(Boolean).join(' ');
-      let city = 'Not specified';
+    // 8) Creator info
+    const creator = {
+      _id: doctor._id,
+      name: [doctor.firstName, doctor.lastName].filter(Boolean).join(' ') || 'Doctor',
+      location: 'City',
+      position: 'Specialist',
+      profilePhoto: null,
+      role: 'doctor',
+      cities: [cityId]
+    };
 
-      if (doctor.cities?.[0]?.name) {
-        city = doctor.cities[0].name;
-      } else if (doctor.address?.city) {
-        city = doctor.address.city;
-      } else if (doctor.clinics?.[0]?.address?.city) {
-        city = doctor.clinics[0].address.city;
-      }
-
-      const subSpecialties = Array.isArray(doctor.subSpecialties)
-        ? doctor.subSpecialties.join(', ')
-        : doctor.subSpecialties;
-
-      const position = [
-        doctor.specialization,
-        subSpecialties,
-        doctor.designation
-      ].filter(Boolean).join(', ');
-
-      const cities = (doctor.cities || [])
-        .filter(c => c && c._id)
-        .map(c => c._id);
-
-      creator = {
-        _id: doctor._id,
-        name,
-        location: city,
-        position,
-        profilePhoto: doctor.profilePhoto || null,
-        role: 'doctor',
-        cities
-      };
-    } else {
-      // Admin fallback
-      const admin = await Admin.findById(post.doctor).select('firstName').lean();
-      creator = {
-        _id: post.doctor,
-        name: admin?.firstName ? `${admin.firstName} Admin` : 'Admin User',
-        location: null,
-        position: null,
-        profilePhoto: null,
-        role: 'admin'
-      };
-    }
-
-    // 7) Response
+    // 9) Success response
     res.status(201).json({
       success: true,
       data: {
-        ...post.toObject(),
+        _id: post._id.toString(),
+        doctor: post.doctor.toString(),
+        city: post.city.toString(),
+        type: post.type,
+        content: post.content,
+        mediaUrls: post.mediaUrls,
+        hashtags: post.hashtags,
+        mentions: post.mentions,
+        isHidden: post.isHidden,
+        createdAt: post.createdAt,
         creator
       }
     });
 
   } catch (err) {
-    console.error('🚨 CREATE POST ERROR:', err.message);
-    next(err);
+    console.error('FULL ERROR:', err.message);
+    console.error('ERROR STACK:', err.stack);
+    res.status(500).json({ 
+      status: 'error', 
+      message: err.message 
+    });
   }
 };
 
