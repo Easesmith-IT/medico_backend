@@ -44,6 +44,10 @@ const mongoose = require('mongoose');
 const Doctor = require('../models/doctorModel');
 const Admin = require('../models/adminModel');
 const Patient = require('../models/patientModel');
+
+const ServiceProvider = require('../models/serviceProviderModel');
+const Service = require('../models/serviceModel');
+
 // CREATE POST
 // exports.createPost = async (req, res, next) => {
 //   try {
@@ -1808,7 +1812,7 @@ exports.searchSocialPosts = async (req, res) => {
   try {
     const {
       q = '',
-      type = 'all', // 'all' | 'doctors' | 'serviceProviders' | 'services' | 'posts'
+      type = 'all',
       specialization,
       city,
       serviceId,
@@ -1823,7 +1827,7 @@ exports.searchSocialPosts = async (req, res) => {
 
     const results = {};
 
-    // ✅ 1. DOCTORS SEARCH (matches your Doctor schema)
+    // ✅ 1. DOCTORS SEARCH
     if (type === 'all' || type === 'doctors') {
       const doctorQuery = { 
         isActive: true,
@@ -1847,16 +1851,15 @@ exports.searchSocialPosts = async (req, res) => {
 
       if (city) {
         doctorQuery.$or = [
-          { address: { $regex: city, $options: 'i' } },
-          { 'cities.name': city }
+          { 'address.city': { $regex: city, $options: 'i' } },  // ✅ Fixed: address.city (nested)
+          { 'cities.name': { $regex: city, $options: 'i' } }
         ];
       }
 
       const [doctors, doctorTotal] = await Promise.all([
         Doctor.find(doctorQuery)
-          .select('_id firstName lastName email phone profilePhoto dateOfBirth gender medicalRegistrationNumber issuingMedicalCouncil yearsOfExperience specialization subSpecialties currentWorkplace designation professionalBio consultationFees averageRating totalReviews followersCount isActive cities services')
+          .select('_id firstName lastName email phone profilePhoto specialization currentWorkplace designation professionalBio consultationFees averageRating cities')
           .populate('cities', 'name')
-          .populate('services', 'name')
           .limit(limitNum)
           .skip(skip)
           .lean(),
@@ -1869,7 +1872,7 @@ exports.searchSocialPosts = async (req, res) => {
       };
     }
 
-    // ✅ 2. SERVICE PROVIDERS SEARCH (matches your ServiceProvider schema)
+    // ✅ 2. SERVICE PROVIDERS
     if (type === 'all' || type === 'serviceProviders') {
       const spQuery = { 
         isActive: true,
@@ -1896,17 +1899,17 @@ exports.searchSocialPosts = async (req, res) => {
       if (city) {
         spQuery.$or = [
           { 'currentAddress.city': { $regex: city, $options: 'i' } },
-          { 'serviceCities.name': city }
+          { 'serviceCities.name': { $regex: city, $options: 'i' } }
         ];
       }
 
-      if (serviceId) {
+      if (serviceId && mongoose.Types.ObjectId.isValid(serviceId)) {
         spQuery['services.serviceId'] = mongoose.Types.ObjectId(serviceId);
       }
 
       const [serviceProviders, spTotal] = await Promise.all([
         ServiceProvider.find(spQuery)
-          .select('_id firstName lastName ownerName age dateOfBirth gender mobile email currentAddress services qualification registrationNumber registrationCouncil yearsOfExperience rating approvalStatus serviceCities')
+          .select('_id firstName lastName ownerName mobile email currentAddress qualification approvalStatus serviceCities rating')
           .populate('services.serviceId', 'name')
           .populate('serviceCities', 'name')
           .limit(limitNum)
@@ -1921,7 +1924,7 @@ exports.searchSocialPosts = async (req, res) => {
       };
     }
 
-    // ✅ 3. SERVICES SEARCH (matches your Service schema)
+    // ✅ 3. SERVICES
     if (type === 'all' || type === 'services') {
       const serviceQuery = { isActive: true };
 
@@ -1934,7 +1937,7 @@ exports.searchSocialPosts = async (req, res) => {
 
       const [services, serviceTotal] = await Promise.all([
         Service.find(serviceQuery)
-          .select('_id name description basePrice equipmentCharges taxPercentage modes supportsDuration defaultDuration durationOptions paymentMode isActive icon image')
+          .select('_id name description basePrice icon image')
           .populate('cities', 'name')
           .limit(limitNum)
           .skip(skip)
@@ -1948,7 +1951,7 @@ exports.searchSocialPosts = async (req, res) => {
       };
     }
 
-    // ✅ 4. POSTS SEARCH
+    // ✅ 4. POSTS
     if (type === 'all' || type === 'posts') {
       const postQuery = { 
         isHidden: false,
@@ -1956,12 +1959,14 @@ exports.searchSocialPosts = async (req, res) => {
       };
 
       if (q) postQuery.$text = { $search: q };
-      if (doctor) postQuery.doctor = mongoose.Types.ObjectId(doctor);
+      if (doctor && mongoose.Types.ObjectId.isValid(doctor)) {
+        postQuery.doctor = mongoose.Types.ObjectId(doctor);
+      }
 
       const [posts, postTotal] = await Promise.all([
         Post.find(postQuery)
-          .select('_id doctor city type content mediaUrls hashtags mentions isHidden createdAt')
-          .populate('doctor', 'firstName lastName')
+          .select('_id doctor city type content hashtags mentions isHidden createdAt')
+          .populate('doctor', 'firstName lastName socialHandle')
           .populate('city', 'name')
           .limit(limitNum)
           .skip(skip)
@@ -1981,20 +1986,28 @@ exports.searchSocialPosts = async (req, res) => {
       pagination: {
         page: pageNum,
         limit: limitNum,
-        totalResults: Object.values(results).reduce((sum, r) => sum + r.total, 0)
+        totalResults: Object.values(results).reduce((sum, r) => sum + (r?.total || 0), 0)
       }
     });
 
   } catch (error) {
-    console.error('❌ Global search ERROR:', error);
+    console.error('❌ SearchSocialPosts ERROR:', {
+      message: error.message,
+      name: error.name,
+      models: {
+        Doctor: typeof Doctor,
+        ServiceProvider: typeof ServiceProvider,
+        Service: typeof Service,
+        Post: typeof Post
+      }
+    });
     res.status(500).json({
       success: false,
       message: 'Search failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
-
 
 
 
