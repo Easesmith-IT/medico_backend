@@ -1807,102 +1807,186 @@ exports.getMyFollowStats = async (req, res, next) => {
 exports.searchSocialPosts = async (req, res) => {
   try {
     const {
-      query = '',
-      doctor: doctorParam,
+      q = '',
+      type = 'all', // 'all' | 'doctors' | 'serviceProviders' | 'services' | 'posts'
+      specialization,
       city,
-      hashtag,
+      serviceId,
+      doctor,
       page = 1,
-      limit = 10,
-      sortBy = 'relevance'
+      limit = 10
     } = req.query;
 
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    // ✅ EXACT base query matching your schema
-    const postQuery = { 
-      isHidden: false,
-      hiddenAt: { $exists: false }
-    };
+    const results = {};
 
-    // ✅ Doctor filter (your param is 'doctor')
-    if (doctorParam && mongoose.Types.ObjectId.isValid(doctorParam)) {
-      postQuery.doctor = mongoose.Types.ObjectId(doctorParam);
-    }
-
-    // ✅ Text search
-    if (query) {
-      postQuery.$text = { $search: query };
-    }
-
-    // ✅ Hashtag search
-    if (hashtag) {
-      postQuery.hashtags = { $regex: hashtag, $options: 'i' };
-    }
-
-    // ✅ EXACT same query as your working example
-    console.log('🔍 Post query:', postQuery);
-
-    // ✅ Simple find + populate (matches your existing pattern)
-    const [posts, total] = await Promise.all([
-      Post.find(postQuery)
-        .select('_id doctor city type content mediaUrls hashtags mentions isHidden createdAt')
-        .populate({
-          path: 'doctor',
-          select: 'firstName lastName cities specialization profilePhoto'
-        })
-        .populate('city', 'name')
-        .sort(sortBy === 'relevance' ? { score: { $meta: 'textScore' } } : { createdAt: -1 })
-        .limit(limitNum)
-        .skip(skip),
-      Post.countDocuments(postQuery)
-    ]);
-
-    // ✅ Transform EXACTLY like your example
-    const transformedPosts = posts.map(post => {
-      const doctor = post.doctor;
-      
-      // ✅ EXACT creator object matching your format
-      const creator = {
-        _id: doctor?._id || post.doctor,
-        name: doctor ? `${doctor.firstName || ''} ${doctor.lastName || ''}`.trim() || 'Doctor' : 'Doctor',
-        location: post.city?.name || 'City',
-        position: doctor?.specialization || 'Specialist',
-        profilePhoto: doctor?.profilePhoto || null,
-        role: 'doctor',
-        cities: doctor?.cities || [post.city]
+    // ✅ 1. DOCTORS SEARCH (matches your Doctor schema)
+    if (type === 'all' || type === 'doctors') {
+      const doctorQuery = { 
+        isActive: true,
+        verificationStatus: 'approved' 
       };
 
-      return {
-        _id: post._id,
-        doctor: post.doctor?._id || post.doctor,
-        city: post.city?._id || post.city,
-        type: post.type,
-        content: post.content,
-        mediaUrls: post.mediaUrls || [],
-        hashtags: post.hashtags || [],
-        mentions: post.mentions || [],
-        isHidden: post.isHidden || false,
-        createdAt: post.createdAt,
-        creator
+      if (q) {
+        doctorQuery.$or = [
+          { firstName: { $regex: q, $options: 'i' } },
+          { lastName: { $regex: q, $options: 'i' } },
+          { specialization: { $regex: q, $options: 'i' } },
+          { professionalBio: { $regex: q, $options: 'i' } },
+          { currentWorkplace: { $regex: q, $options: 'i' } },
+          { address: { $regex: q, $options: 'i' } }
+        ];
+      }
+
+      if (specialization) {
+        doctorQuery.specialization = { $regex: specialization, $options: 'i' };
+      }
+
+      if (city) {
+        doctorQuery.$or = [
+          { address: { $regex: city, $options: 'i' } },
+          { 'cities.name': city }
+        ];
+      }
+
+      const [doctors, doctorTotal] = await Promise.all([
+        Doctor.find(doctorQuery)
+          .select('_id firstName lastName email phone profilePhoto dateOfBirth gender medicalRegistrationNumber issuingMedicalCouncil yearsOfExperience specialization subSpecialties currentWorkplace designation professionalBio consultationFees averageRating totalReviews followersCount isActive cities services')
+          .populate('cities', 'name')
+          .populate('services', 'name')
+          .limit(limitNum)
+          .skip(skip)
+          .lean(),
+        Doctor.countDocuments(doctorQuery)
+      ]);
+
+      results.doctors = {
+        data: doctors,
+        total: doctorTotal
       };
-    });
+    }
+
+    // ✅ 2. SERVICE PROVIDERS SEARCH (matches your ServiceProvider schema)
+    if (type === 'all' || type === 'serviceProviders') {
+      const spQuery = { 
+        isActive: true,
+        approvalStatus: 'Approved',
+        isDeleted: false
+      };
+
+      if (q) {
+        spQuery.$or = [
+          { firstName: { $regex: q, $options: 'i' } },
+          { lastName: { $regex: q, $options: 'i' } },
+          { ownerName: { $regex: q, $options: 'i' } },
+          { mobile: q },
+          { email: { $regex: q, $options: 'i' } },
+          { 'currentAddress.city': { $regex: q, $options: 'i' } },
+          { qualification: { $regex: q, $options: 'i' } }
+        ];
+      }
+
+      if (specialization) {
+        spQuery['services.specialization'] = { $regex: specialization, $options: 'i' };
+      }
+
+      if (city) {
+        spQuery.$or = [
+          { 'currentAddress.city': { $regex: city, $options: 'i' } },
+          { 'serviceCities.name': city }
+        ];
+      }
+
+      if (serviceId) {
+        spQuery['services.serviceId'] = mongoose.Types.ObjectId(serviceId);
+      }
+
+      const [serviceProviders, spTotal] = await Promise.all([
+        ServiceProvider.find(spQuery)
+          .select('_id firstName lastName ownerName age dateOfBirth gender mobile email currentAddress services qualification registrationNumber registrationCouncil yearsOfExperience rating approvalStatus serviceCities')
+          .populate('services.serviceId', 'name')
+          .populate('serviceCities', 'name')
+          .limit(limitNum)
+          .skip(skip)
+          .lean(),
+        ServiceProvider.countDocuments(spQuery)
+      ]);
+
+      results.serviceProviders = {
+        data: serviceProviders,
+        total: spTotal
+      };
+    }
+
+    // ✅ 3. SERVICES SEARCH (matches your Service schema)
+    if (type === 'all' || type === 'services') {
+      const serviceQuery = { isActive: true };
+
+      if (q) {
+        serviceQuery.$or = [
+          { name: { $regex: q, $options: 'i' } },
+          { description: { $regex: q, $options: 'i' } }
+        ];
+      }
+
+      const [services, serviceTotal] = await Promise.all([
+        Service.find(serviceQuery)
+          .select('_id name description basePrice equipmentCharges taxPercentage modes supportsDuration defaultDuration durationOptions paymentMode isActive icon image')
+          .populate('cities', 'name')
+          .limit(limitNum)
+          .skip(skip)
+          .lean(),
+        Service.countDocuments(serviceQuery)
+      ]);
+
+      results.services = {
+        data: services,
+        total: serviceTotal
+      };
+    }
+
+    // ✅ 4. POSTS SEARCH
+    if (type === 'all' || type === 'posts') {
+      const postQuery = { 
+        isHidden: false,
+        hiddenAt: { $exists: false }
+      };
+
+      if (q) postQuery.$text = { $search: q };
+      if (doctor) postQuery.doctor = mongoose.Types.ObjectId(doctor);
+
+      const [posts, postTotal] = await Promise.all([
+        Post.find(postQuery)
+          .select('_id doctor city type content mediaUrls hashtags mentions isHidden createdAt')
+          .populate('doctor', 'firstName lastName')
+          .populate('city', 'name')
+          .limit(limitNum)
+          .skip(skip)
+          .lean(),
+        Post.countDocuments(postQuery)
+      ]);
+
+      results.posts = {
+        data: posts,
+        total: postTotal
+      };
+    }
 
     res.json({
       success: true,
-      data: transformedPosts,  // ✅ Array of posts (your example shows single, but handles multiple)
+      data: results,
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total,
-        pages: Math.ceil(total / limitNum),
-        hasNext: pageNum * limitNum < total
+        totalResults: Object.values(results).reduce((sum, r) => sum + r.total, 0)
       }
     });
 
   } catch (error) {
-    console.error('❌ Search error:', error.message);
+    console.error('❌ Global search ERROR:', error);
     res.status(500).json({
       success: false,
       message: 'Search failed',
