@@ -1,6 +1,7 @@
 // controllers/post.controller.js
 const Post = require('../models/socialPostModel');
 const mongoose = require('mongoose');
+const { verifyToken } = require("../utils/tokenUtils");
 // exports.createPost = async (req, res, next) => {
 //   try {
 //     const post = new Post({
