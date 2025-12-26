@@ -1802,15 +1802,14 @@ exports.getMyFollowStats = async (req, res, next) => {
 
 
 
-exports.searchSocialDoctors = async (req, res, next) => {
+exports.searchSocialPosts = async (req, res, next) => {
   try {
     const {
-      q,                  // generic search: name/specialization/city
-      name,               // doctor name
-      specialization,     // specialization or subSpecialty
-      category,           // clinic city OR service name
-      city,               // clinic city specifically OR cityId
+      q,                  // generic search: content/hashtags/doctor name
+      doctor,             // specific doctor ID
+      city,               // city ID or name
       type,               // post type filter
+      hashtag,            // specific hashtag
       page = 1,
       limit = 20
     } = req.query;
@@ -1819,114 +1818,73 @@ exports.searchSocialDoctors = async (req, res, next) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    // --- Build Doctor Filter ---
-    const doctorFilter = {};
+    // Build post filter
+    const postFilter = { isHidden: { $ne: true } };
 
-    // 1. Generic search (name + specialization + city)
+    // 1. Generic search (content + hashtags + doctor name)
     if (q && q.trim()) {
       const regex = new RegExp(q.trim(), 'i');
-      doctorFilter.$or = [
-        { firstName: regex },
-        { lastName: regex },
-        { specialization: regex },
-        { subSpecialties: regex },
-        { 'address.city': regex },
-        { 'clinics.address.city': regex },
-        // ✅ NEW: Search by city name (populated)
-        { 'cities.name': regex }
+      
+      // Find doctors matching search first
+      const matchingDoctors = await Doctor.find({
+        $or: [
+          { firstName: regex },
+          { lastName: regex },
+          { specialization: regex }
+        ]
+      }).select('_id').lean();
+
+      const doctorIds = matchingDoctors.map(d => d._id);
+
+      postFilter.$or = [
+        { content: regex },
+        { hashtags: regex },
+        { doctor: { $in: doctorIds } }
       ];
     }
 
-    // 2. Name search
-    if (name && name.trim()) {
-      const regex = new RegExp(name.trim(), 'i');
-      doctorFilter.$or = doctorFilter.$or || [];
-      doctorFilter.$or.push(
-        { firstName: regex },
-        { lastName: regex }
-      );
+    // 2. Specific doctor filter
+    if (doctor && doctor.length === 24) {
+      postFilter.doctor = doctor;
     }
 
-    // 3. Specialization search
-    if (specialization && specialization.trim()) {
-      const regex = new RegExp(specialization.trim(), 'i');
-      doctorFilter.$or = doctorFilter.$or || [];
-      doctorFilter.$or.push(
-        { specialization: regex },
-        { subSpecialties: regex }
-      );
-    }
-
-    // 4. Category/City search
-    if (category && category.trim()) {
-      const regex = new RegExp(category.trim(), 'i');
-      doctorFilter.$or = doctorFilter.$or || [];
-      doctorFilter.$or.push(
-        { 'address.city': regex },
-        { 'clinics.address.city': regex },
-        { 'cities.name': regex }  // ✅ NEW: Category can be city name
-      );
-    }
-
-    // 5. City-specific search (✅ UPDATED - supports city name OR cityId)
-    if (city && city.trim()) {
-      const cityRegex = new RegExp(city.trim(), 'i');
-      
-      // Handle both city name and city ID
-      if (city.length === 24 && /^[0-9a-fA-F]{24}$/.test(city)) {
-        // ✅ City ID search (ObjectId)
-        doctorFilter['cities'] = city;
+    // 3. City filter (ID or name)
+    if (city) {
+      if (city.length === 24) {
+        // City ID
+        postFilter.city = city;
       } else {
-        // ✅ City name search
-        doctorFilter.$or = doctorFilter.$or || [];
-        doctorFilter.$or.push(
-          { 'address.city': cityRegex },
-          { 'clinics.address.city': cityRegex },
-          { 'cities.name': cityRegex }  // ✅ NEW: Primary city search
-        );
+        // City name - find posts from doctors in that city
+        const cityDoctors = await Doctor.find({
+          $or: [
+            { 'cities.name': new RegExp(city.trim(), 'i') },
+            { 'address.city': new RegExp(city.trim(), 'i') },
+            { 'clinics.address.city': new RegExp(city.trim(), 'i') }
+          ]
+        }).select('_id').lean();
+
+        const cityDoctorIds = cityDoctors.map(d => d._id);
+        postFilter.doctor = { $in: cityDoctorIds };
       }
     }
 
-    // Require at least one filter
-    if (Object.keys(doctorFilter).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Provide search params: q, name, specialization, category, or city'
-      });
-    }
-
-    // --- Find matching doctors ---
-    const doctors = await Doctor.find(doctorFilter)
-      .select('firstName lastName specialization subSpecialties profilePhoto address cities clinics services')
-      .populate('cities', 'name')  // ✅ Populates city names
-      .populate('services', 'name')
-      .lean();
-
-    if (!doctors.length) {
-      return res.json({ 
-        success: true, 
-        data: [], 
-        total: 0, 
-        page: pageNum, 
-        limit: limitNum 
-      });
-    }
-
-    const doctorIds = doctors.map(d => d._id);
-
-    // --- Get their posts ---
-    const postFilter = {
-      doctor: { $in: doctorIds },
-      isHidden: { $ne: true }
-    };
-
-    if (type) {
+    // 4. Post type filter
+    if (type && ['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes(type.toUpperCase())) {
       postFilter.type = type.toUpperCase();
     }
 
+    // 5. Hashtag filter
+    if (hashtag && hashtag.trim()) {
+      postFilter.hashtags = new RegExp(hashtag.trim(), 'i');
+    }
+
+    console.log('Search filter:', JSON.stringify(postFilter, null, 2));
+
+    // 6. Get posts + total count
     const [posts, total] = await Promise.all([
       Post.find(postFilter)
-        .populate('doctor', 'firstName lastName specialization subSpecialties profilePhoto address cities clinics')
+        .populate('doctor', 'firstName lastName specialization profilePhoto cities')
+        .populate('city', 'name')
         .populate('mentions', 'firstName lastName')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -1936,27 +1894,25 @@ exports.searchSocialDoctors = async (req, res, next) => {
       Post.countDocuments(postFilter)
     ]);
 
-    // --- Format response (✅ UPDATED city logic) ---
+    // 7. Format response with creator
     const data = posts.map(post => {
       const doctor = post.doctor;
+      let primaryCity = 'Not specified';
       
-      // ✅ IMPROVED: Get primary city from cities array first
-      let primaryCity = doctor?.cities?.[0]?.name || 
-                       doctor?.address?.city || 
-                       doctor?.clinics?.[0]?.address?.city ||
-                       'Not specified';
+      if (post.city?.name) {
+        primaryCity = post.city.name;
+      } else if (doctor?.cities?.[0]?.name) {
+        primaryCity = doctor.cities[0].name;
+      }
 
       return {
         ...post,
         creator: {
-          id: doctor?._id || post.doctor,
-          name: [doctor?.firstName, doctor?.lastName].filter(Boolean).join(' '),
+          _id: doctor?._id || post.doctor,
+          name: [doctor?.firstName, doctor?.lastName].filter(Boolean).join(' ') || 'Doctor',
           specialization: doctor?.specialization,
-          subSpecialties: doctor?.subSpecialties,
-          city: primaryCity,  // ✅ Now prioritizes cities array
+          city: primaryCity,
           profilePhoto: doctor?.profilePhoto,
-          clinicsCount: doctor?.clinics?.length || 0,
-          servicesCount: doctor?.services?.length || 0,
           role: 'doctor'
         }
       };
@@ -1972,6 +1928,7 @@ exports.searchSocialDoctors = async (req, res, next) => {
     });
 
   } catch (err) {
+    console.error('Search posts error:', err);
     next(err);
   }
 };
