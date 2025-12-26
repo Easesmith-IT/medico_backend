@@ -1,6 +1,6 @@
 // controllers/post.controller.js
 const Post = require('../models/socialPostModel');
-
+const mongoose = require('mongoose');
 // exports.createPost = async (req, res, next) => {
 //   try {
 //     const post = new Post({
