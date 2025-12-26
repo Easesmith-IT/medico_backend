@@ -823,6 +823,8 @@ const validateCities = async (cityIds) => {
 exports.createService = async (req, res) => {
   try {
     const userRole = req.user.role.toLowerCase();
+    console.log("req.user", req.user);
+    
 
     if (!['admin', 'superadmin'].includes(userRole)) {
       return res.status(403).json({
@@ -831,10 +833,14 @@ exports.createService = async (req, res) => {
       });
     }
 
-    if (!req.user.email) {
+    const admin = await Admin.findById(req.user.id)
+    console.log("admin-log", admin);
+    
+
+    if (!admin.email) {
       return res.status(400).json({
         success: false,
-        message: 'Authenticated user email is required to create service.'
+        message: "Authenticated user email is required to create service.",
       });
     }
 
@@ -914,10 +920,10 @@ exports.createService = async (req, res) => {
       cities: validatedCities.map(c => c._id),
       slotConfig,
       createdBy: {
-        userId: req.user.id,
+        userId: admin?._id,
         userModel: userRole === 'superadmin' ? 'SuperAdmin' : 'Admin',
-        name: req.user.name || 'Admin User',
-        email: req.user.email
+        name: admin.firstName || 'Admin User',
+        email: admin.email
       },
       isActive: true,
       isDeleted: false
