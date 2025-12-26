@@ -177,40 +177,24 @@ exports.createPost = async (req, res, next) => {
     // 2) Validate & resolve doctorId + cityId
     let doctorId = req.user._id || req.user.id;
     
-    // Admin roles can override with specific doctor + city
     const isAdminRole = ['admin', 'superadmin', 'subadmin'].includes(req.user.role);
     
     if (isAdminRole) {
-      if (req.body.doctorId) {
-        if (!mongoose.Types.ObjectId.isValid(req.body.doctorId)) {
-          return res.status(400).json({
-            success: false,
-            message: 'Invalid doctorId format'
-          });
-        }
-        doctorId = req.body.doctorId;
-      } else {
+      if (!req.body.doctorId || !mongoose.Types.ObjectId.isValid(req.body.doctorId)) {
         return res.status(400).json({
           success: false,
-          message: 'doctorId required for admin users'
+          message: 'Valid doctorId required for admin users'
         });
       }
-      
-      if (!req.body.cityId) {
+      if (!req.body.cityId || !mongoose.Types.ObjectId.isValid(req.body.cityId)) {
         return res.status(400).json({
           success: false,
-          message: 'cityId required for admin users'
+          message: 'Valid cityId required for admin users'
         });
       }
-      
-      if (!mongoose.Types.ObjectId.isValid(req.body.cityId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid cityId format'
-        });
-      }
+      doctorId = req.body.doctorId;
     } else {
-      // Doctor users: validate they exist and get their primary city
+      // ✅ FIXED: Doctor validation - get raw ObjectId directly
       const doctor = await Doctor.findById(doctorId).select('cities');
       if (!doctor) {
         return res.status(404).json({
@@ -219,21 +203,22 @@ exports.createPost = async (req, res, next) => {
         });
       }
       
-      if (!doctor.cities || !doctor.cities.length) {
+      if (!doctor.cities?.length) {
         return res.status(400).json({
           success: false,
           message: 'Doctor must have at least one city assigned'
         });
       }
       
-      // Use doctor's primary city (first one)
-      req.body.cityId = doctor.cities[0]._id || doctor.cities[0];
+      // ✅ FIXED: Extract raw ObjectId (not ._id of populated doc)
+      const primaryCityId = doctor.cities[0]; // Already ObjectId string/ref
+      req.body.cityId = primaryCityId;
     }
 
     // 3) Build post data
     const postData = {
       doctor: doctorId,
-      city: req.body.cityId,  //  Always set
+      city: req.body.cityId,
       type,
       content: req.body.content || '',
       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
@@ -243,9 +228,9 @@ exports.createPost = async (req, res, next) => {
           ? String(req.body.hashtags).split(',').map(h => h.trim()).filter(Boolean)
           : []),
       mentions: Array.isArray(req.body.mentions)
-        ? req.body.mentions.map(id => mongoose.Types.ObjectId(id))
+        ? req.body.mentions.filter(id => mongoose.Types.ObjectId.isValid(id)).map(id => mongoose.Types.ObjectId(id))
         : (req.body.mentions
-          ? String(req.body.mentions).split(',').map(m => m.trim()).filter(Boolean).map(id => mongoose.Types.ObjectId(id))
+          ? String(req.body.mentions).split(',').map(m => m.trim()).filter(m => mongoose.Types.ObjectId.isValid(m)).map(id => mongoose.Types.ObjectId(id))
           : [])
     };
 
@@ -254,50 +239,41 @@ exports.createPost = async (req, res, next) => {
     await post.save();
     await post.populate('mentions', 'firstName lastName');
 
-    // 5) Build creator object (always from post.doctor)
+    // 5) Build creator object
     const doctor = await Doctor.findById(post.doctor)
       .select('firstName lastName address cities clinics specialization subSpecialties designation profilePhoto')
       .populate('cities', 'name');
 
     let creator;
     if (doctor) {
-      // Name
       const name = [doctor.firstName, doctor.lastName].filter(Boolean).join(' ');
 
-      // Location priority: Post.city -> Doctor.cities -> address.city -> clinic.address.city
+      // ✅ FIXED: Safe city resolution
       let city = 'Not specified';
-      
-      // FIXED: Safe city population with null check
       if (post.city && mongoose.Types.ObjectId.isValid(post.city)) {
-        const cityDoc = await City.findById(post.city).select('name').lean();
-        city = cityDoc?.name || city;
-      } 
-      // Priority 2: Doctor's cities
-      else if (doctor.cities?.length && doctor.cities[0]?.name) {
+        try {
+          const cityDoc = await City.findById(post.city).select('name').lean();
+          if (cityDoc) city = cityDoc.name;
+        } catch (cityErr) {
+          console.log('City not found:', post.city);
+        }
+      } else if (doctor.cities?.[0]?.name) {
         city = doctor.cities[0].name;
-      } 
-      // Priority 3: address.city
-      else if (doctor.address?.city) {
+      } else if (doctor.address?.city) {
         city = doctor.address.city;
-      } 
-      // Priority 4: clinic.address.city
-      else if (doctor.clinics?.length && doctor.clinics[0]?.address?.city) {
+      } else if (doctor.clinics?.[0]?.address?.city) {
         city = doctor.clinics[0].address.city;
       }
 
-      // Normalize subSpecialties
       const subSpecialties = Array.isArray(doctor.subSpecialties)
         ? doctor.subSpecialties.join(', ')
         : doctor.subSpecialties;
 
-      // Position
-      const positionParts = [
+      const position = [
         doctor.specialization,
         subSpecialties,
         doctor.designation
-      ].filter(Boolean);
-      
-      const position = positionParts.join(', ');
+      ].filter(Boolean).join(', ');
 
       creator = {
         _id: doctor._id,
@@ -306,10 +282,9 @@ exports.createPost = async (req, res, next) => {
         position,
         profilePhoto: doctor.profilePhoto || null,
         role: 'doctor',
-        cities: (doctor.cities || []).map(c => c._id || c)
+        cities: (doctor.cities || []).map(c => c._id)
       };
     } else {
-      // Admin fallback (shouldn't happen with validation)
       creator = {
         _id: post.doctor,
         name: 'System Admin',
@@ -320,7 +295,6 @@ exports.createPost = async (req, res, next) => {
       };
     }
 
-    // 6) Response
     res.status(201).json({
       success: true,
       data: {
@@ -330,9 +304,11 @@ exports.createPost = async (req, res, next) => {
     });
 
   } catch (err) {
+    console.error('Create post error:', err); // ✅ Add logging
     next(err);
   }
 };
+
 
 
 
