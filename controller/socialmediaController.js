@@ -45,11 +45,125 @@ const Doctor = require('../models/doctorModel');
 const Admin = require('../models/adminModel');
 
 // CREATE POST
+// exports.createPost = async (req, res, next) => {
+//   try {
+//     // 1) Resolve post type
+//     let type;
+
+//     if (req.file) {
+//       const isImage = req.file.mimetype.startsWith('image/');
+//       type = isImage ? 'GALLERY' : 'REEL';
+//     } else {
+//       const requestedType = (req.body.type || 'TEXT').toUpperCase();
+//       type = ['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes(requestedType)
+//         ? requestedType
+//         : 'TEXT';
+//     }
+
+//     // 2) Build post data
+//     const postData = {
+//       doctor: req.user._id || req.user.id, // doctor or admin id
+//       type,
+//       content: req.body.content || '',
+//       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
+//       hashtags: Array.isArray(req.body.hashtags)
+//         ? req.body.hashtags
+//         : (req.body.hashtags
+//           ? String(req.body.hashtags).split(',').map(h => h.trim())
+//           : []),
+//       mentions: Array.isArray(req.body.mentions)
+//         ? req.body.mentions
+//         : (req.body.mentions
+//           ? String(req.body.mentions).split(',').map(m => m.trim())
+//           : [])
+//     };
+
+//     // 3) Save post
+//     const post = new Post(postData);
+//     await post.save();
+//     await post.populate('mentions', 'firstName lastName');
+
+//     // 4) Build creator object
+//     let creator;
+
+//     const doctor = await Doctor.findById(post.doctor)
+//       .select(
+//         'firstName lastName address cities clinics specialization subSpecialties designation profilePhoto'
+//       )
+//       .populate('cities', 'name');
+
+//     if (doctor) {
+//       // Name
+//       const name = [doctor.firstName, doctor.lastName].filter(Boolean).join(' ');
+
+//       // Location priority: City model -> address.city -> clinic.address.city
+//       let city = 'Not specified';
+
+//       if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+//         city = doctor.cities[0].name;
+//       } else if (doctor.address?.city) {
+//         // only if address is an object with city
+//         city = doctor.address.city;
+//       } else if (
+//         doctor.clinics &&
+//         doctor.clinics.length &&
+//         doctor.clinics[0]?.address?.city
+//       ) {
+//         city = doctor.clinics[0].address.city;
+//       }
+
+//       // Normalize subSpecialties (array/string)
+//       const subSpecialties = Array.isArray(doctor.subSpecialties)
+//         ? doctor.subSpecialties.join(', ')
+//         : doctor.subSpecialties;
+
+//       // Position: specialization + subSpecialties + designation
+//       const positionParts = [
+//         doctor.specialization,
+//         subSpecialties,
+//         doctor.designation
+//       ].filter(Boolean);
+
+//       const position = positionParts.join(', ');
+
+//       creator = {
+//         _id: doctor._id,
+//         name,
+//         location: city,
+//         position,
+//         profilePhoto: doctor.profilePhoto || null,
+//         role: 'doctor',
+//         cities: (doctor.cities || []).map(c => c._id || c)
+//       };
+//     } else {
+//       // Admin fallback
+//       const admin = await Admin.findById(post.doctor).select('firstName');
+//       creator = {
+//         _id: post.doctor,
+//         name: `${admin?.firstName || 'Admin'} Admin`,
+//         location: null,
+//         position: null,
+//         profilePhoto: null,
+//         role: 'admin'
+//       };
+//     }
+
+//     // 5) Response
+//     res.status(201).json({
+//       success: true,
+//       data: {
+//         ...post.toObject(),
+//         creator
+//       }
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 exports.createPost = async (req, res, next) => {
   try {
     // 1) Resolve post type
     let type;
-
     if (req.file) {
       const isImage = req.file.mimetype.startsWith('image/');
       type = isImage ? 'GALLERY' : 'REEL';
@@ -60,70 +174,128 @@ exports.createPost = async (req, res, next) => {
         : 'TEXT';
     }
 
-    // 2) Build post data
+    // 2) Validate & resolve doctorId + cityId
+    let doctorId = req.user._id || req.user.id;
+    
+    // Admin roles can override with specific doctor + city
+    const isAdminRole = ['admin', 'superadmin', 'subadmin'].includes(req.user.role);
+    
+    if (isAdminRole) {
+      if (req.body.doctorId) {
+        if (!mongoose.Types.ObjectId.isValid(req.body.doctorId)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid doctorId format'
+          });
+        }
+        doctorId = req.body.doctorId;
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'doctorId required for admin users'
+        });
+      }
+      
+      if (!req.body.cityId) {
+        return res.status(400).json({
+          success: false,
+          message: 'cityId required for admin users'
+        });
+      }
+      
+      if (!mongoose.Types.ObjectId.isValid(req.body.cityId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid cityId format'
+        });
+      }
+    } else {
+      // Doctor users: validate they exist and get their primary city
+      const doctor = await Doctor.findById(doctorId).select('cities');
+      if (!doctor) {
+        return res.status(404).json({
+          success: false,
+          message: 'Doctor not found'
+        });
+      }
+      
+      if (!doctor.cities || !doctor.cities.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'Doctor must have at least one city assigned'
+        });
+      }
+      
+      // Use doctor's primary city (first one)
+      req.body.cityId = doctor.cities[0]._id || doctor.cities[0];
+    }
+
+    // 3) Build post data
     const postData = {
-      doctor: req.user._id || req.user.id, // doctor or admin id
+      doctor: doctorId,
+      city: req.body.cityId,  // ✅ Always set
       type,
       content: req.body.content || '',
       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
       hashtags: Array.isArray(req.body.hashtags)
         ? req.body.hashtags
         : (req.body.hashtags
-          ? String(req.body.hashtags).split(',').map(h => h.trim())
+          ? String(req.body.hashtags).split(',').map(h => h.trim()).filter(Boolean)
           : []),
       mentions: Array.isArray(req.body.mentions)
-        ? req.body.mentions
+        ? req.body.mentions.map(id => mongoose.Types.ObjectId(id))
         : (req.body.mentions
-          ? String(req.body.mentions).split(',').map(m => m.trim())
+          ? String(req.body.mentions).split(',').map(m => m.trim()).filter(Boolean).map(id => mongoose.Types.ObjectId(id))
           : [])
     };
 
-    // 3) Save post
+    // 4) Save post
     const post = new Post(postData);
     await post.save();
     await post.populate('mentions', 'firstName lastName');
 
-    // 4) Build creator object
-    let creator;
-
+    // 5) Build creator object (always from post.doctor)
     const doctor = await Doctor.findById(post.doctor)
-      .select(
-        'firstName lastName address cities clinics specialization subSpecialties designation profilePhoto'
-      )
+      .select('firstName lastName address cities clinics specialization subSpecialties designation profilePhoto')
       .populate('cities', 'name');
 
+    let creator;
     if (doctor) {
       // Name
       const name = [doctor.firstName, doctor.lastName].filter(Boolean).join(' ');
 
-      // Location priority: City model -> address.city -> clinic.address.city
+      // Location priority: Post.city -> Doctor.cities -> address.city -> clinic.address.city
       let city = 'Not specified';
-
-      if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+      
+      // ✅ Priority 1: Use post.city
+      if (post.city) {
+        city = (await City.findById(post.city).select('name').lean()).name || city;
+      } 
+      // Priority 2: Doctor's cities
+      else if (doctor.cities?.length && doctor.cities[0]?.name) {
         city = doctor.cities[0].name;
-      } else if (doctor.address?.city) {
-        // only if address is an object with city
+      } 
+      // Priority 3: address.city
+      else if (doctor.address?.city) {
         city = doctor.address.city;
-      } else if (
-        doctor.clinics &&
-        doctor.clinics.length &&
-        doctor.clinics[0]?.address?.city
-      ) {
+      } 
+      // Priority 4: clinic.address.city
+      else if (doctor.clinics?.length && doctor.clinics[0]?.address?.city) {
         city = doctor.clinics[0].address.city;
       }
 
-      // Normalize subSpecialties (array/string)
+      // Normalize subSpecialties
       const subSpecialties = Array.isArray(doctor.subSpecialties)
         ? doctor.subSpecialties.join(', ')
         : doctor.subSpecialties;
 
-      // Position: specialization + subSpecialties + designation
+      // Position
       const positionParts = [
         doctor.specialization,
         subSpecialties,
         doctor.designation
       ].filter(Boolean);
-
+      
       const position = positionParts.join(', ');
 
       creator = {
@@ -136,11 +308,10 @@ exports.createPost = async (req, res, next) => {
         cities: (doctor.cities || []).map(c => c._id || c)
       };
     } else {
-      // Admin fallback
-      const admin = await Admin.findById(post.doctor).select('firstName');
+      // Admin fallback (shouldn't happen with validation)
       creator = {
         _id: post.doctor,
-        name: `${admin?.firstName || 'Admin'} Admin`,
+        name: 'System Admin',
         location: null,
         position: null,
         profilePhoto: null,
@@ -148,7 +319,7 @@ exports.createPost = async (req, res, next) => {
       };
     }
 
-    // 5) Response
+    // 6) Response
     res.status(201).json({
       success: true,
       data: {
@@ -156,6 +327,7 @@ exports.createPost = async (req, res, next) => {
         creator
       }
     });
+
   } catch (err) {
     next(err);
   }
@@ -1672,6 +1844,186 @@ exports.getMyFollowStats = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
+
+exports.searchSocialDoctors = async (req, res, next) => {
+  try {
+    const {
+      q,                  // generic search: name/specialization/city
+      name,               // doctor name
+      specialization,     // specialization or subSpecialty
+      category,           // clinic city OR service name
+      city,               // clinic city specifically OR cityId
+      type,               // post type filter
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // --- Build Doctor Filter ---
+    const doctorFilter = {};
+
+    // 1. Generic search (name + specialization + city)
+    if (q && q.trim()) {
+      const regex = new RegExp(q.trim(), 'i');
+      doctorFilter.$or = [
+        { firstName: regex },
+        { lastName: regex },
+        { specialization: regex },
+        { subSpecialties: regex },
+        { 'address.city': regex },
+        { 'clinics.address.city': regex },
+        // ✅ NEW: Search by city name (populated)
+        { 'cities.name': regex }
+      ];
+    }
+
+    // 2. Name search
+    if (name && name.trim()) {
+      const regex = new RegExp(name.trim(), 'i');
+      doctorFilter.$or = doctorFilter.$or || [];
+      doctorFilter.$or.push(
+        { firstName: regex },
+        { lastName: regex }
+      );
+    }
+
+    // 3. Specialization search
+    if (specialization && specialization.trim()) {
+      const regex = new RegExp(specialization.trim(), 'i');
+      doctorFilter.$or = doctorFilter.$or || [];
+      doctorFilter.$or.push(
+        { specialization: regex },
+        { subSpecialties: regex }
+      );
+    }
+
+    // 4. Category/City search
+    if (category && category.trim()) {
+      const regex = new RegExp(category.trim(), 'i');
+      doctorFilter.$or = doctorFilter.$or || [];
+      doctorFilter.$or.push(
+        { 'address.city': regex },
+        { 'clinics.address.city': regex },
+        { 'cities.name': regex }  // ✅ NEW: Category can be city name
+      );
+    }
+
+    // 5. City-specific search (✅ UPDATED - supports city name OR cityId)
+    if (city && city.trim()) {
+      const cityRegex = new RegExp(city.trim(), 'i');
+      
+      // Handle both city name and city ID
+      if (city.length === 24 && /^[0-9a-fA-F]{24}$/.test(city)) {
+        // ✅ City ID search (ObjectId)
+        doctorFilter['cities'] = city;
+      } else {
+        // ✅ City name search
+        doctorFilter.$or = doctorFilter.$or || [];
+        doctorFilter.$or.push(
+          { 'address.city': cityRegex },
+          { 'clinics.address.city': cityRegex },
+          { 'cities.name': cityRegex }  // ✅ NEW: Primary city search
+        );
+      }
+    }
+
+    // Require at least one filter
+    if (Object.keys(doctorFilter).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Provide search params: q, name, specialization, category, or city'
+      });
+    }
+
+    // --- Find matching doctors ---
+    const doctors = await Doctor.find(doctorFilter)
+      .select('firstName lastName specialization subSpecialties profilePhoto address cities clinics services')
+      .populate('cities', 'name')  // ✅ Populates city names
+      .populate('services', 'name')
+      .lean();
+
+    if (!doctors.length) {
+      return res.json({ 
+        success: true, 
+        data: [], 
+        total: 0, 
+        page: pageNum, 
+        limit: limitNum 
+      });
+    }
+
+    const doctorIds = doctors.map(d => d._id);
+
+    // --- Get their posts ---
+    const postFilter = {
+      doctor: { $in: doctorIds },
+      isHidden: { $ne: true }
+    };
+
+    if (type) {
+      postFilter.type = type.toUpperCase();
+    }
+
+    const [posts, total] = await Promise.all([
+      Post.find(postFilter)
+        .populate('doctor', 'firstName lastName specialization subSpecialties profilePhoto address cities clinics')
+        .populate('mentions', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      
+      Post.countDocuments(postFilter)
+    ]);
+
+    // --- Format response (✅ UPDATED city logic) ---
+    const data = posts.map(post => {
+      const doctor = post.doctor;
+      
+      // ✅ IMPROVED: Get primary city from cities array first
+      let primaryCity = doctor?.cities?.[0]?.name || 
+                       doctor?.address?.city || 
+                       doctor?.clinics?.[0]?.address?.city ||
+                       'Not specified';
+
+      return {
+        ...post,
+        creator: {
+          id: doctor?._id || post.doctor,
+          name: [doctor?.firstName, doctor?.lastName].filter(Boolean).join(' '),
+          specialization: doctor?.specialization,
+          subSpecialties: doctor?.subSpecialties,
+          city: primaryCity,  // ✅ Now prioritizes cities array
+          profilePhoto: doctor?.profilePhoto,
+          clinicsCount: doctor?.clinics?.length || 0,
+          servicesCount: doctor?.services?.length || 0,
+          role: 'doctor'
+        }
+      };
+    });
+
+    res.json({
+      success: true,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      pages: Math.ceil(total / limitNum),
+      data
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
 
 
 

@@ -1100,6 +1100,13 @@ const doctorSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+// Add after followersCount
+socialHandle: {
+  type: String,
+  unique: true,
+  sparse: true,  // allows multiple nulls
+  trim: true
+},
 
   // Status
   isActive: {
@@ -1258,6 +1265,13 @@ doctorSchema.methods.releaseSlot = function(date, startTime) {
   
   return false;
 };
+doctorSchema.index({ socialHandle: 1 });  // Fast handle lookup
+doctorSchema.index({ 
+  firstName: 'text', 
+  lastName: 'text', 
+  socialHandle: 'text',     // ✅ Text search
+  specialization: 'text'
+});
 
 const Doctor = mongoose.model('Doctor', doctorSchema);
 

@@ -142,6 +142,128 @@ const {
 //     }
 //   });
 // });
+
+//main one without city id
+// exports.doctorSignup = catchAsync(async (req, res, next) => {
+//   const {
+//     firstName,
+//     lastName,
+//     email,
+//     phone,
+//     medicalRegistrationNumber,
+//     issuingMedicalCouncil,
+//     specialization,
+//     dateOfBirth,
+//     gender,
+//     address,
+//     yearsOfExperience,
+//     consultationFees,
+//     degrees,
+//     university,
+//     graduationYear,
+//     currentWorkplace,
+//     designation,
+//     professionalBio
+//   } = req.body;
+
+//   console.log('');
+//   console.log('DOCTOR SIGNUP - STEP 1: Registration');
+//   console.log('='.repeat(60));
+
+//   if (
+//     !firstName ||
+//     !email ||
+//     !phone ||
+//     !medicalRegistrationNumber ||
+//     !issuingMedicalCouncil ||
+//     !specialization
+//   ) {
+//     return next(
+//       new AppError(
+//         'Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
+//         400
+//       )
+//     );
+//   }
+
+//   console.log(`Phone: ${phone}`);
+//   console.log(`Email: ${email}`);
+//   console.log(`FirstName: ${firstName}`);
+
+//   const existingDoctor = await Doctor.findOne({
+//     $or: [{ email }, { phone }, { medicalRegistrationNumber }]
+//   });
+
+//   if (existingDoctor) {
+//     if (existingDoctor.email === email) {
+//       return next(new AppError('Doctor with this email already exists', 400));
+//     }
+//     if (existingDoctor.phone === phone) {
+//       return next(
+//         new AppError('Doctor with this phone number already exists', 400)
+//       );
+//     }
+//     if (existingDoctor.medicalRegistrationNumber === medicalRegistrationNumber) {
+//       return next(
+//         new AppError('Doctor with this registration number already exists', 400)
+//       );
+//     }
+//   }
+
+//   const newDoctor = new Doctor({
+//     firstName,
+//     lastName: lastName || '',
+//     email,
+//     phone,
+//     medicalRegistrationNumber,
+//     issuingMedicalCouncil,
+//     specialization,
+//     dateOfBirth,
+//     gender,
+//     address,
+//     yearsOfExperience: yearsOfExperience || 0,
+//     consultationFees: consultationFees || 0,
+//     degrees: degrees || [],
+//     university,
+//     graduationYear,
+//     currentWorkplace,
+//     designation,
+//     professionalBio,
+//     isPhoneVerified: false,
+//     verificationStatus: 'pending',
+//     tokenVersion: 0
+//   });
+
+//   await newDoctor.save();
+//   console.log('SUCCESS: Doctor created in database');
+
+//   const isOtpSent = await sendOtp(phone);
+
+//   if (!isOtpSent) {
+//     await Doctor.findByIdAndDelete(newDoctor._id);
+//     return next(new AppError('Failed to send OTP. Please try again.', 400));
+//   }
+
+//   console.log('SUCCESS: OTP sent to phone');
+//   console.log('='.repeat(60));
+//   console.log('');
+
+//   res.status(201).json({
+//     success: true,
+//     message: 'Registration successful. OTP sent to your phone.',
+//     data: {
+//       doctor: {
+//         id: newDoctor._id,
+//         firstName: newDoctor.firstName,
+//         email: newDoctor.email,
+//         phone: newDoctor.phone,
+//         medicalRegistrationNumber: newDoctor.medicalRegistrationNumber
+//       },
+//       nextStep: 'Verify OTP sent to your phone'
+//     }
+//   });
+// });
+//with city id 
 exports.doctorSignup = catchAsync(async (req, res, next) => {
   const {
     firstName,
@@ -161,24 +283,27 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
     graduationYear,
     currentWorkplace,
     designation,
-    professionalBio
+    professionalBio,
+    cityId,  // Single city - or cityIds: [] for multiple
   } = req.body;
 
   console.log('');
   console.log('DOCTOR SIGNUP - STEP 1: Registration');
   console.log('='.repeat(60));
 
+  // Updated required fields validation
   if (
     !firstName ||
     !email ||
     !phone ||
     !medicalRegistrationNumber ||
     !issuingMedicalCouncil ||
-    !specialization
+    !specialization ||
+    !cityId
   ) {
     return next(
       new AppError(
-        'Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization',
+        'Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization, cityId',
         400
       )
     );
@@ -187,7 +312,9 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
   console.log(`Phone: ${phone}`);
   console.log(`Email: ${email}`);
   console.log(`FirstName: ${firstName}`);
+  console.log(`CityId: ${cityId}`);
 
+  // Check for existing doctor
   const existingDoctor = await Doctor.findOne({
     $or: [{ email }, { phone }, { medicalRegistrationNumber }]
   });
@@ -208,6 +335,16 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
     }
   }
 
+  // ✅ UPDATED: Validate city EXISTS (active/inactive both allowed)
+  const city = await City.findById(cityId);  // Only check existence, ignore isActive
+  
+  if (!city) {
+    return next(new AppError('Selected city does not exist in available cities', 400));
+  }
+
+  console.log(`✅ Valid city found: ${city.name} (ID: ${city._id}) - Status: ${city.isActive ? 'Active' : 'Inactive'}`);
+
+  // Create new doctor with city reference
   const newDoctor = new Doctor({
     firstName,
     lastName: lastName || '',
@@ -227,13 +364,14 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
     currentWorkplace,
     designation,
     professionalBio,
+    cities: [city._id],  // ✅ Add city regardless of active status
     isPhoneVerified: false,
     verificationStatus: 'pending',
     tokenVersion: 0
   });
 
   await newDoctor.save();
-  console.log('SUCCESS: Doctor created in database');
+  console.log('SUCCESS: Doctor created in database with city reference');
 
   const isOtpSent = await sendOtp(phone);
 
@@ -255,7 +393,9 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
         firstName: newDoctor.firstName,
         email: newDoctor.email,
         phone: newDoctor.phone,
-        medicalRegistrationNumber: newDoctor.medicalRegistrationNumber
+        medicalRegistrationNumber: newDoctor.medicalRegistrationNumber,
+        cities: newDoctor.cities,  // Include cities in response
+        cityName: city.name       // Bonus: include city name
       },
       nextStep: 'Verify OTP sent to your phone'
     }

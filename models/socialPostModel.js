@@ -44,7 +44,11 @@ const socialPostSchema = new mongoose.Schema({
   mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' }],
   
 
-
+city: { 
+  type: mongoose.Schema.Types.ObjectId, 
+  ref: 'City', 
+  required: true  // or false if optional
+},
 
 
    isHidden: {
