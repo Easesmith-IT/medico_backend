@@ -162,24 +162,12 @@ const Admin = require('../models/adminModel');
 // };
 exports.createPost = async (req, res, next) => {
   try {
-    // 1) Resolve post type
-    let type;
-    if (req.file) {
-      const isImage = req.file.mimetype.startsWith('image/');
-      type = isImage ? 'GALLERY' : 'REEL';
-    } else {
-      const requestedType = (req.body.type || 'TEXT').toUpperCase();
-      type = ['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes(requestedType)
-        ? requestedType
-        : 'TEXT';
-    }
-
-    // 2) Validate & resolve doctorId + cityId
+    // 1) Doctor & City validation
     let doctorId = req.user._id || req.user.id;
-    const isAdminRole = ['admin', 'superadmin', 'subadmin'].includes(req.user.role);
+    const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(req.user.role);
     
     let cityId;
-    if (isAdminRole) {
+    if (isAdmin) {
       if (!req.body.doctorId || !mongoose.Types.ObjectId.isValid(req.body.doctorId)) {
         return res.status(400).json({ success: false, message: 'Valid doctorId required' });
       }
@@ -189,105 +177,117 @@ exports.createPost = async (req, res, next) => {
       doctorId = req.body.doctorId;
       cityId = req.body.cityId;
     } else {
-      // ✅ Doctor: Get RAW cities array (ObjectIds only)
       const doctor = await Doctor.findById(doctorId).select('cities').lean();
-      if (!doctor) {
-        return res.status(404).json({ success: false, message: 'Doctor not found' });
+      if (!doctor?.cities?.[0]) {
+        return res.status(400).json({ success: false, message: 'Doctor needs city assigned' });
       }
-      
-      if (!doctor.cities?.length) {
-        return res.status(400).json({ success: false, message: 'Doctor needs cities assigned' });
-      }
-      
-      // ✅ RAW ObjectId (cities[0] is already ObjectId string)
       cityId = doctor.cities[0];
     }
 
-    // 3) Build post data (SAFEST possible)
-    const postData = {
-      doctor: doctorId,
-      city: cityId,
-      type,
-      content: req.body.content || '',
-      mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
-      hashtags: Array.isArray(req.body.hashtags)
-        ? req.body.hashtags.filter(Boolean)
-        : (req.body.hashtags || '').split(',').map(h => h.trim()).filter(Boolean),
-      mentions: []
-    };
+    // 2) Post type detection
+    const type = req.file 
+      ? (req.file.mimetype.startsWith('image/') ? 'GALLERY' : 'REEL')
+      : (['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes((req.body.type || 'TEXT').toUpperCase()) 
+         ? (req.body.type || 'TEXT').toUpperCase() 
+         : 'TEXT');
 
-    // ✅ SAFE mentions parsing
+    // 3) ✅ SAFE MENTIONS VALIDATION (Any User/Doctor in DB)
+    const mentions = [];
     if (req.body.mentions) {
       const mentionIds = Array.isArray(req.body.mentions) 
         ? req.body.mentions 
         : String(req.body.mentions).split(',');
-      
-      postData.mentions = mentionIds
-        .map(id => id.trim())
-        .filter(id => mongoose.Types.ObjectId.isValid(id))
-        .map(id => mongoose.Types.ObjectId(id));
+
+      // Validate each mention exists (Doctor OR User)
+      for (const mentionId of mentionIds.map(id => id.trim()).filter(Boolean)) {
+        if (mongoose.Types.ObjectId.isValid(mentionId)) {
+          // Check Doctor first, then User
+          const doctorExists = await Doctor.findById(mentionId).lean();
+          const userExists = doctorExists ? null : await User.findById(mentionId).lean();
+          
+          if (doctorExists || userExists) {
+            mentions.push(mongoose.Types.ObjectId(mentionId));
+          }
+        }
+      }
     }
 
-    // 4) Save post
+    // 4) Create post with validated mentions
+    const postData = {
+      doctor: mongoose.Types.ObjectId(doctorId),
+      city: mongoose.Types.ObjectId(cityId),
+      type,
+      content: req.body.content || '',
+      mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
+      hashtags: (req.body.hashtags || '').split(',').map(h => h.trim()).filter(Boolean),
+      mentions, // ✅ VALIDATED ONLY
+      isHidden: false
+    };
+
     const post = new Post(postData);
     await post.save();
 
-    // 5) Get doctor WITH populated cities (separate query)
-    const doctor = await Doctor.findById(post.doctor)
-      .select('firstName lastName address cities clinics specialization subSpecialties designation profilePhoto')
-      .populate('cities', 'name')
-      .lean();
+    // 5) SAFE Creator (no populate risk)
+    const doctor = await Doctor.findById(post.doctor, {
+      firstName: 1, lastName: 1, specialization: 1,
+      address: 1, profilePhoto: 1
+    }).lean();
 
-    // 6) Build SAFE creator
     const creator = {
-      _id: post.doctor,
-      name: doctor?.firstName ? [doctor.firstName, doctor?.lastName || ''].filter(Boolean).join(' ') : 'Doctor',
-      location: 'Not specified',
-      position: '',
+      _id: post.doctor.toString(),
+      name: doctor ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ') : 'Doctor',
+      location: doctor?.address?.city || 'Not specified',
+      position: doctor?.specialization || '',
       profilePhoto: doctor?.profilePhoto || null,
       role: 'doctor',
-      cities: [] // ✅ SAFE default
+      cities: []
     };
 
-    if (doctor) {
-      // ✅ SAFE city priority (NO post.city lookup - too risky)
-      if (doctor.cities?.[0]?.name) {
-        creator.location = doctor.cities[0].name;
-      } else if (doctor.address?.city) {
-        creator.location = doctor.address.city;
-      } else if (doctor.clinics?.[0]?.address?.city) {
-        creator.location = doctor.clinics[0].address.city;
+    // 6) SAFE Mentions with names (separate lookup)
+    const mentionDetails = [];
+    for (const mentionId of post.mentions) {
+      const doctor = await Doctor.findById(mentionId).select('firstName lastName profilePhoto').lean();
+      const user = doctor ? null : await User.findById(mentionId).select('firstName lastName profilePhoto').lean();
+      
+      if (doctor) {
+        mentionDetails.push({
+          _id: doctor._id,
+          name: [doctor.firstName, doctor.lastName].filter(Boolean).join(' '),
+          profilePhoto: doctor.profilePhoto
+        });
+      } else if (user) {
+        mentionDetails.push({
+          _id: user._id,
+          name: [user.firstName, user.lastName].filter(Boolean).join(' '),
+          profilePhoto: user.profilePhoto
+        });
       }
-
-      // 
-      const parts = [doctor.specialization, doctor.subSpecialties, doctor.designation].filter(Boolean);
-      creator.position = parts.join(', ');
-
-      // 
-      creator.cities = (doctor.cities || [])
-        .filter(city => city && city._id) // Only valid cities
-        .map(city => city._id.toString()); // Stringify ObjectId
     }
 
-    // 7) Populate mentions AFTER creator
-    await post.populate('mentions', 'firstName lastName');
-
+    // 7) Response
     res.status(201).json({
       success: true,
       data: {
-        ...post.toObject(),
+        _id: post._id,
+        doctor: post.doctor,
+        city: post.city,
+        type: post.type,
+        content: post.content,
+        mediaUrls: post.mediaUrls,
+        hashtags: post.hashtags,
+        mentions: mentionDetails, //  POPULATED NAMES
+        isHidden: post.isHidden,
+        createdAt: post.createdAt,
         creator
       }
     });
 
   } catch (err) {
-    console.error('🚨 CREATE POST ERROR:', err.message, err.stack);
-    res.status(500).json({
-      status: 'error',
-      message: err.message || 'Internal server error'
-    });
+    console.error(' CREATE POST:', err.message, err.stack);
+    res.status(500).json({ status: 'error', message: err.message });
   }
 };
+
 
 
 
