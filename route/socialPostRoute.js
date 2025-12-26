@@ -73,4 +73,8 @@ router.get(
   protect(['admin', 'superadmin', 'subadmin']),
   postCtrl.getPostByIdByAdmin
 );
+
+
+
+router.get('/search', postCtrl.searchSocialDoctors); 
 module.exports = router;
