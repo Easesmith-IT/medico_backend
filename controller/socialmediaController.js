@@ -163,7 +163,7 @@ const Patient = require('../models/patientModel');
 
 exports.createPost = async (req, res, next) => {
   try {
-    // 1) Resolve post type (UNCHANGED - PERFECT)
+    // 1) Post type (PERFECT)
     let type;
     if (req.file) {
       const isImage = req.file.mimetype.startsWith('image/');
@@ -175,53 +175,51 @@ exports.createPost = async (req, res, next) => {
         : 'TEXT';
     }
 
-    // 2) ✅ SAFE User ID (handles _id OR id from JWT)
-    let doctorId = req.user?._id || req.user?.id;
+    // 2) SAFE User ID (NO ObjectId)
+    const doctorId = req.user?._id || req.user?.id;
     
-    if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
+    if (!doctorId || doctorId.length !== 24) {
       return res.status(400).json({
         success: false,
         message: `Invalid user ID: ${doctorId}`
       });
     }
 
-    // 3) ✅ SAFE Hashtags/Mentions (ObjectId validation)
+    // 3) SAFE Hashtags (NO ObjectId)
     const hashtags = Array.isArray(req.body.hashtags)
       ? req.body.hashtags
       : (req.body.hashtags
         ? String(req.body.hashtags).split(',').map(h => h.trim()).filter(Boolean)
         : []);
 
+    // 4) SAFE Mentions (NO ObjectId - just 24-char strings)
     const mentions = Array.isArray(req.body.mentions)
-      ? req.body.mentions.filter(id => mongoose.Types.ObjectId.isValid(id))
+      ? req.body.mentions.filter(id => id && id.length === 24)
       : (req.body.mentions
-        ? String(req.body.mentions).split(',').map(m => m.trim()).filter(id => mongoose.Types.ObjectId.isValid(id))
+        ? String(req.body.mentions).split(',').map(m => m.trim()).filter(id => id && id.length === 24)
         : []);
 
-    // 4) Save post FIRST (NO populate crash)
+    // 5) Create post (PLAIN STRINGS)
     const postData = {
       doctor: doctorId,
       type,
       content: req.body.content || '',
       mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
       hashtags,
-      mentions
+      mentions  // Plain strings - Mongoose converts automatically
     };
 
     const post = new Post(postData);
     await post.save();
 
-    // 5) ✅ FULL CREATOR LOGIC (Doctor → Admin → Fallback)
+    // 6) Creator (YOUR PERFECT LOGIC)
     let creator;
-
-    // Check Doctor first
     const doctor = await Doctor.findById(post.doctor)
       .select('firstName lastName address cities clinics specialization subSpecialties designation profilePhoto')
       .populate('cities', 'name')
       .lean();
 
     if (doctor) {
-      // ✅ YOUR PERFECT LOCATION LOGIC
       const name = [doctor.firstName, doctor.lastName].filter(Boolean).join(' ');
       let city = 'Not specified';
 
@@ -237,15 +235,12 @@ exports.createPost = async (req, res, next) => {
         ? doctor.subSpecialties.join(', ')
         : doctor.subSpecialties;
 
-      const positionParts = [
+      const position = [
         doctor.specialization,
         subSpecialties,
         doctor.designation
-      ].filter(Boolean);
+      ].filter(Boolean).join(', ');
 
-      const position = positionParts.join(', ');
-
-      // ✅ SAFE cities mapping
       const cities = (doctor.cities || [])
         .filter(c => c && c._id)
         .map(c => c._id);
@@ -259,33 +254,20 @@ exports.createPost = async (req, res, next) => {
         role: 'doctor',
         cities
       };
-    } 
-    // ✅ YOUR AdminModel lookup
-    else {
+    } else {
+      // Admin fallback
       const admin = await Admin.findById(post.doctor).select('firstName').lean();
-      if (admin) {
-        creator = {
-          _id: post.doctor,
-          name: `${admin.firstName || 'Admin'} Admin`,
-          location: null,
-          position: null,
-          profilePhoto: null,
-          role: 'admin'
-        };
-      } else {
-        // Final fallback
-        creator = {
-          _id: post.doctor,
-          name: 'System User',
-          location: null,
-          position: null,
-          profilePhoto: null,
-          role: 'user'
-        };
-      }
+      creator = {
+        _id: post.doctor,
+        name: admin?.firstName ? `${admin.firstName} Admin` : 'Admin User',
+        location: null,
+        position: null,
+        profilePhoto: null,
+        role: 'admin'
+      };
     }
 
-    // 6) Response
+    // 7) Response
     res.status(201).json({
       success: true,
       data: {
@@ -295,7 +277,7 @@ exports.createPost = async (req, res, next) => {
     });
 
   } catch (err) {
-    console.error(' CREATE POST ERROR:', err.message);
+    console.error('🚨 CREATE POST ERROR:', err.message);
     next(err);
   }
 };
