@@ -1066,17 +1066,95 @@ exports.getPostById = async (req, res, next) => {
   }
 };
 
+//main
+// exports.toggleLikePost = async (req, res, next) => {
+//   try {
+//     const post = await Post.findById(req.params.id);
+//     if (!post) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Post not found" });
+//     }
+
+//     console.log('toggleLikePost req.user =', req.user); // debug
+
+//     const user = req.user || {};
+//     const rawRole = user.role || user.userRole || "";
+//     const userRole = rawRole.toLowerCase();
+//     const userIdRaw = user._id || user.id || user.userId || "";
+//     const userId = userIdRaw ? userIdRaw.toString() : "";
+
+//     const isAdminRole =
+//       userRole === "admin" ||
+//       userRole === "superadmin" ||
+//       userRole === "subadmin";
+
+//     // Admins: no like/unlike, but no 401 either
+//     if (isAdminRole) {
+//       return res.status(200).json({
+//         success: true,
+//         message: "Admins do not toggle likes on posts",
+//         likes: post.stats?.likes || post.likes?.length || 0,
+//         userHasLiked: false,
+//       });
+//     }
+
+//     // Only fail if protect really did not attach any user
+//     if (!userId || !userRole) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Unauthorized: user not found on request",
+//       });
+//     }
+
+//     // ---- like/unlike logic stays the same ----
+//     post.likes = Array.isArray(post.likes) ? post.likes : [];
+
+//     const existingLike = post.likes.find((like) => {
+//       if (!like || !like.userId) return false;
+//       const likeUserId = like.userId.toString();
+//       const likeUserRole = (like.userRole || "").toLowerCase();
+//       return likeUserId === userId && likeUserRole === userRole;
+//     });
+
+//     if (existingLike) {
+//       post.likes = post.likes.filter((like) => {
+//         if (!like || !like.userId) return true;
+//         const likeUserId = like.userId.toString();
+//         const likeUserRole = (like.userRole || "").toLowerCase();
+//         return !(likeUserId === userId && likeUserRole === userRole);
+//       });
+//     } else {
+//       post.likes.push({
+//         userId,
+//         userRole,
+//         createdAt: new Date(),
+//       });
+//     }
+
+//     post.stats = post.stats || {};
+//     post.stats.likes = post.likes.length;
+
+//     await post.save();
+
+//     return res.json({
+//       success: true,
+//       likes: post.stats.likes,
+//       userHasLiked: !existingLike,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 exports.toggleLikePost = async (req, res, next) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
+      return res.status(404).json({ success: false, message: "Post not found" });
     }
 
-    console.log('toggleLikePost req.user =', req.user); // debug
+    console.log('toggleLikePost req.user =', req.user);
 
     const user = req.user || {};
     const rawRole = user.role || user.userRole || "";
@@ -1084,12 +1162,8 @@ exports.toggleLikePost = async (req, res, next) => {
     const userIdRaw = user._id || user.id || user.userId || "";
     const userId = userIdRaw ? userIdRaw.toString() : "";
 
-    const isAdminRole =
-      userRole === "admin" ||
-      userRole === "superadmin" ||
-      userRole === "subadmin";
+    const isAdminRole = userRole === "admin" || userRole === "superadmin" || userRole === "subadmin";
 
-    // Admins: no like/unlike, but no 401 either
     if (isAdminRole) {
       return res.status(200).json({
         success: true,
@@ -1099,7 +1173,6 @@ exports.toggleLikePost = async (req, res, next) => {
       });
     }
 
-    // Only fail if protect really did not attach any user
     if (!userId || !userRole) {
       return res.status(401).json({
         success: false,
@@ -1107,46 +1180,38 @@ exports.toggleLikePost = async (req, res, next) => {
       });
     }
 
-    // ---- like/unlike logic stays the same ----
-    post.likes = Array.isArray(post.likes) ? post.likes : [];
+    // ✅ ATOMIC UPDATE - NO CITY VALIDATION!
+    const existingLike = post.likes?.find(like => 
+      like.userId?.toString() === userId && 
+      (like.userRole || '').toLowerCase() === userRole
+    );
 
-    const existingLike = post.likes.find((like) => {
-      if (!like || !like.userId) return false;
-      const likeUserId = like.userId.toString();
-      const likeUserRole = (like.userRole || "").toLowerCase();
-      return likeUserId === userId && likeUserRole === userRole;
-    });
+    const operation = existingLike 
+      ? { $pull: { likes: { userId, userRole } } }
+      : { $push: { likes: { userId, userRole, createdAt: new Date() } } };
 
-    if (existingLike) {
-      post.likes = post.likes.filter((like) => {
-        if (!like || !like.userId) return true;
-        const likeUserId = like.userId.toString();
-        const likeUserRole = (like.userRole || "").toLowerCase();
-        return !(likeUserId === userId && likeUserRole === userRole);
-      });
-    } else {
-      post.likes.push({
-        userId,
-        userRole,
-        createdAt: new Date(),
-      });
-    }
-
-    post.stats = post.stats || {};
-    post.stats.likes = post.likes.length;
-
-    await post.save();
+    const updatedPost = await Post.findByIdAndUpdate(
+      req.params.id,
+      { 
+        ...operation,
+        $set: { 
+          'stats.likes': existingLike 
+            ? Math.max(0, (post.stats?.likes || 0) - 1)
+            : (post.stats?.likes || 0) + 1 
+        }
+      },
+      { new: true, runValidators: false }  
+    ).select('stats.likes');
 
     return res.json({
       success: true,
-      likes: post.stats.likes,
+      likes: updatedPost.stats.likes,
       userHasLiked: !existingLike,
     });
   } catch (err) {
     next(err);
   }
 };
-
 
 
 

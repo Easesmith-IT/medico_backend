@@ -47,7 +47,7 @@ const socialPostSchema = new mongoose.Schema({
 city: { 
   type: mongoose.Schema.Types.ObjectId, 
   ref: 'City', 
-  required: true  // or false if optional
+  required: false  // or false if optional
 },
 
 
