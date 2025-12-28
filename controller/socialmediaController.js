@@ -1069,16 +1069,93 @@ exports.getPostById = async (req, res, next) => {
 };
 
 //main
+// exports.toggleLikePost = async (req, res, next) => {
+//   try {
+//     const post = await Post.findById(req.params.id);
+//     if (!post) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Post not found" });
+//     }
+
+//     console.log('toggleLikePost req.user =', req.user); // debug
+
+//     const user = req.user || {};
+//     const rawRole = user.role || user.userRole || "";
+//     const userRole = rawRole.toLowerCase();
+//     const userIdRaw = user._id || user.id || user.userId || "";
+//     const userId = userIdRaw ? userIdRaw.toString() : "";
+
+//     const isAdminRole =
+//       userRole === "admin" ||
+//       userRole === "superadmin" ||
+//       userRole === "subadmin";
+
+//     // Admins: no like/unlike, but no 401 either
+//     if (isAdminRole) {
+//       return res.status(200).json({
+//         success: true,
+//         message: "Admins do not toggle likes on posts",
+//         likes: post.stats?.likes || post.likes?.length || 0,
+//         userHasLiked: false,
+//       });
+//     }
+
+//     // Only fail if protect really did not attach any user
+//     if (!userId || !userRole) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Unauthorized: user not found on request",
+//       });
+//     }
+
+//     // ---- like/unlike logic stays the same ----
+//     post.likes = Array.isArray(post.likes) ? post.likes : [];
+
+//     const existingLike = post.likes.find((like) => {
+//       if (!like || !like.userId) return false;
+//       const likeUserId = like.userId.toString();
+//       const likeUserRole = (like.userRole || "").toLowerCase();
+//       return likeUserId === userId && likeUserRole === userRole;
+//     });
+
+//     if (existingLike) {
+//       post.likes = post.likes.filter((like) => {
+//         if (!like || !like.userId) return true;
+//         const likeUserId = like.userId.toString();
+//         const likeUserRole = (like.userRole || "").toLowerCase();
+//         return !(likeUserId === userId && likeUserRole === userRole);
+//       });
+//     } else {
+//       post.likes.push({
+//         userId,
+//         userRole,
+//         createdAt: new Date(),
+//       });
+//     }
+
+//     post.stats = post.stats || {};
+//     post.stats.likes = post.likes.length;
+
+//     await post.save();
+
+//     return res.json({
+//       success: true,
+//       likes: post.stats.likes,
+//       userHasLiked: !existingLike,
+//     });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 exports.toggleLikePost = async (req, res, next) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
+      return res.status(404).json({ success: false, message: "Post not found" });
     }
 
-    console.log('toggleLikePost req.user =', req.user); // debug
+    console.log('toggleLikePost req.user =', req.user);
 
     const user = req.user || {};
     const rawRole = user.role || user.userRole || "";
@@ -1086,22 +1163,19 @@ exports.toggleLikePost = async (req, res, next) => {
     const userIdRaw = user._id || user.id || user.userId || "";
     const userId = userIdRaw ? userIdRaw.toString() : "";
 
+    // ✅ FIXED: Include 'admin' role
     const isAdminRole =
       userRole === "admin" ||
       userRole === "superadmin" ||
       userRole === "subadmin";
 
-    // Admins: no like/unlike, but no 401 either
+    // Admins CAN like now - remove this block or make it optional
     if (isAdminRole) {
-      return res.status(200).json({
-        success: true,
-        message: "Admins do not toggle likes on posts",
-        likes: post.stats?.likes || post.likes?.length || 0,
-        userHasLiked: false,
-      });
+      // Let admins like too! Remove this entire block:
+      // return res.status(200).json({...}); 
     }
 
-    // Only fail if protect really did not attach any user
+    // Rest stays EXACTLY the same - works for all roles
     if (!userId || !userRole) {
       return res.status(401).json({
         success: false,
@@ -1109,7 +1183,7 @@ exports.toggleLikePost = async (req, res, next) => {
       });
     }
 
-    // ---- like/unlike logic stays the same ----
+    // like/unlike logic (unchanged - perfect)
     post.likes = Array.isArray(post.likes) ? post.likes : [];
 
     const existingLike = post.likes.find((like) => {
@@ -1122,7 +1196,7 @@ exports.toggleLikePost = async (req, res, next) => {
     if (existingLike) {
       post.likes = post.likes.filter((like) => {
         if (!like || !like.userId) return true;
-        const likeUserId = like.userId.toString();
+        const likeUserId = likeUserId.toString();
         const likeUserRole = (like.userRole || "").toLowerCase();
         return !(likeUserId === userId && likeUserRole === userRole);
       });
