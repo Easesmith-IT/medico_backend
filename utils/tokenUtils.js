@@ -265,20 +265,20 @@ const generateAccessToken = (userId, userRole, tokenVersion = 0) => {
 
   const payload = {
     id: userId,
-    role: userRole.toLowerCase(), 
+    role: userRole.toLowerCase(),
     tokenVersion,
     type: "access",
   };
 
   const token = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: "5m",  // Short-lived, auto-refreshed
+    expiresIn: "5m",  // Short-lived, auto-refreshed by protect middleware
   });
 
   return token;
 };
 
 /**
- * Generate Refresh Token (90 days - NO frequent login!)
+ * Generate Refresh Token (90 days - long session)
  */
 const generateRefreshToken = (userId, userRole, tokenVersion = 0) => {
   if (!userId) {
@@ -287,20 +287,20 @@ const generateRefreshToken = (userId, userRole, tokenVersion = 0) => {
 
   const payload = {
     id: userId,
-    role: userRole.toLowerCase(), 
+    role: userRole.toLowerCase(),
     tokenVersion,
     type: "refresh",
   };
 
   const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: "90d",  // 90 days session!
+    expiresIn: "90d",  // 90 day sessions!
   });
 
   return token;
 };
 
 /**
- * Generate OTP Token
+ * Generate OTP Token (10 minutes)
  */
 const generateOtpToken = (phone, userRole) => {
   if (!phone) {
@@ -323,7 +323,7 @@ const generateOtpToken = (phone, userRole) => {
 };
 
 /**
- * Verify Token (throws error)
+ * Verify Token (throws AppError on failure)
  */
 const verifyToken = (token, tokenType = "access") => {
   try {
@@ -354,7 +354,7 @@ const verifyToken = (token, tokenType = "access") => {
 };
 
 /**
- * Verify Token SAFELY (returns null, no error thrown)
+ * Verify Token SAFELY (returns null on failure)
  */
 const verifyTokenSafe = (token, tokenType = "access") => {
   try {
@@ -382,7 +382,7 @@ const verifyTokenSafe = (token, tokenType = "access") => {
 };
 
 /**
- * ✅ FIXED: API-ready cookies (localhost + production)
+ * ✅ FIXED: Works on localhost + production
  */
 const setAuthCookies = (res, accessToken, refreshToken) => {
   const commonOptions = {
@@ -396,8 +396,13 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
       sameSite: "none",
       domain: ".rehabmedico.in"
     });
+  } else {
+    // Development: localhost (HTTP OK)
+    Object.assign(commonOptions, {
+      secure: false,        // HTTP works
+      sameSite: "lax"       // Cross-origin safe
+    });
   }
-  // Dev: Localhost works automatically (no domain needed)
 
   // Access token (5min - auto-refreshed by protect)
   res.cookie("accessToken", accessToken, {
@@ -423,6 +428,9 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
   return { accessToken, refreshToken };
 };
 
+/**
+ * Clear all auth cookies
+ */
 const clearAuthCookies = (res) => {
   const prodOptions = isProduction ? {
     secure: true,
