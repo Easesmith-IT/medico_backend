@@ -574,9 +574,89 @@ exports.doctorLogin = catchAsync(async (req, res, next) => {
   });
 });
 
+// exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
+//   const { phone, otp } = req.body;
+
+//   if (!phone || !otp) {
+//     return next(new AppError('Phone number and OTP are required', 400));
+//   }
+
+//   console.log('');
+//   console.log('DOCTOR LOGIN - STEP 2: Verify OTP');
+//   console.log('='.repeat(60));
+//   console.log(`Phone: ${phone}`);
+
+//   const otpDoc = await Otp.findOne({ phone });
+
+//   if (
+//     !otpDoc ||
+//     otpDoc.otp !== parseInt(otp) ||
+//     otpDoc.otpExpiresAt < new Date()
+//   ) {
+//     console.log('ERROR: Invalid or expired OTP');
+//     return next(new AppError('Invalid or expired OTP', 400));
+//   }
+
+//   const doctor = await Doctor.findOne({ phone }).select('+tokenVersion');
+
+//   if (!doctor) {
+//     return next(new AppError('Doctor not found', 404));
+//   }
+
+//   if (!doctor.isPhoneVerified) {
+//     return next(
+//       new AppError('Phone not verified. Please complete signup first.', 400)
+//     );
+//   }
+
+//   if (!doctor.isActive) {
+//     return next(new AppError('Your account has been deactivated.', 403));
+//   }
+
+//   await Otp.deleteOne({ phone });
+//   console.log('SUCCESS: OTP verified');
+
+//   // Generate tokens using utility functions - 3 separate parameters
+//   const accessToken = generateAccessToken(
+//     doctor._id,
+//     'doctor',
+//     doctor.tokenVersion
+//   );
+//   const refreshToken = generateRefreshToken(
+//     doctor._id,
+//     'doctor',
+//     doctor.tokenVersion
+//   );
+
+//   doctor.refreshToken = refreshToken;
+//   await doctor.save();
+
+//   const tokens = setAuthCookies(res, accessToken, refreshToken);
+
+//   console.log('SUCCESS: Tokens generated and cookies set');
+//   console.log('='.repeat(60));
+//   console.log('');
+
+//   res.status(200).json({
+//     success: true,
+//     message: 'OTP verified. Logged in successfully.',
+//     data: {
+//       accessToken: tokens.accessToken,
+//       refreshToken: tokens.refreshToken,
+//       doctor: {
+//         id: doctor._id,
+//         firstName: doctor.firstName,
+//         phone: doctor.phone,
+//         email: doctor.email,
+//         verificationStatus: doctor.verificationStatus
+//       }
+//     }
+//   });
+// });
 exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
   const { phone, otp } = req.body;
 
+  // 1. Basic Validation
   if (!phone || !otp) {
     return next(new AppError('Phone number and OTP are required', 400));
   }
@@ -586,17 +666,31 @@ exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
   console.log('='.repeat(60));
   console.log(`Phone: ${phone}`);
 
-  const otpDoc = await Otp.findOne({ phone });
+  // 2. Find the LATEST OTP for this phone number
+  const otpDoc = await Otp.findOne({ phone }).sort({ createdAt: -1 });
 
-  if (
-    !otpDoc ||
-    otpDoc.otp !== parseInt(otp) ||
-    otpDoc.otpExpiresAt < new Date()
-  ) {
-    console.log('ERROR: Invalid or expired OTP');
-    return next(new AppError('Invalid or expired OTP', 400));
+  // 3. Check if document exists
+  if (!otpDoc) {
+    console.log('ERROR: No OTP record found in database');
+    return next(new AppError('No OTP found for this number. Please request a new one.', 400));
   }
 
+  // 4. Manual Expiry Check (Safety fallback for MongoDB TTL delay)
+  if (otpDoc.otpExpiresAt < new Date()) {
+    console.log('ERROR: OTP document exists but is expired');
+    return next(new AppError('OTP has expired. Please resend.', 400));
+  }
+
+  // 5. Secure String Comparison (Prevents parseInt/leading zero issues)
+  if (otpDoc.otp.toString() !== otp.toString()) {
+    otpDoc.attempts = (otpDoc.attempts || 0) + 1;
+    await otpDoc.save();
+    
+    console.log(`ERROR: OTP Mismatch. Attempt ${otpDoc.attempts}/5`);
+    return next(new AppError('Invalid OTP', 400));
+  }
+
+  // 6. Fetch Doctor & Validate Status
   const doctor = await Doctor.findOne({ phone }).select('+tokenVersion');
 
   if (!doctor) {
@@ -604,19 +698,18 @@ exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
   }
 
   if (!doctor.isPhoneVerified) {
-    return next(
-      new AppError('Phone not verified. Please complete signup first.', 400)
-    );
+    return next(new AppError('Phone not verified. Please complete signup first.', 400));
   }
 
   if (!doctor.isActive) {
     return next(new AppError('Your account has been deactivated.', 403));
   }
 
-  await Otp.deleteOne({ phone });
-  console.log('SUCCESS: OTP verified');
+  // 7. Cleanup: Delete all used OTPs for this phone
+  await Otp.deleteMany({ phone });
+  console.log('SUCCESS: OTP verified and deleted');
 
-  // Generate tokens using utility functions - 3 separate parameters
+  // 8. Generate Tokens using 3-parameter utility pattern
   const accessToken = generateAccessToken(
     doctor._id,
     'doctor',
@@ -628,15 +721,18 @@ exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
     doctor.tokenVersion
   );
 
+  // 9. Update Doctor's refresh token and persist
   doctor.refreshToken = refreshToken;
   await doctor.save();
 
+  // 10. Set Authentication Cookies
   const tokens = setAuthCookies(res, accessToken, refreshToken);
 
   console.log('SUCCESS: Tokens generated and cookies set');
   console.log('='.repeat(60));
   console.log('');
 
+  // 11. Send Response
   res.status(200).json({
     success: true,
     message: 'OTP verified. Logged in successfully.',
@@ -645,7 +741,7 @@ exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
       refreshToken: tokens.refreshToken,
       doctor: {
         id: doctor._id,
-        firstName: doctor.firstName,
+        name: doctor.name,
         phone: doctor.phone,
         email: doctor.email,
         verificationStatus: doctor.verificationStatus

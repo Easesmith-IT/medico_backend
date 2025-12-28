@@ -47,7 +47,7 @@ const socialPostSchema = new mongoose.Schema({
 city: { 
   type: mongoose.Schema.Types.ObjectId, 
   ref: 'City', 
-  required: false  // or false if optional
+  required:  false // or false if optional
 },
 
 
@@ -69,7 +69,7 @@ city: {
     userId: { type: mongoose.Schema.Types.ObjectId, required: true },
     userRole: { 
       type: String, 
-      enum: ['doctor', 'patient'],  // ✅ Matches req.user.role
+      enum: ['doctor', 'patient', 'admin', 'superadmin', 'subadmin'],  // ✅ Matches req.user.role
       required: true 
     },
     createdAt: { type: Date, default: Date.now }

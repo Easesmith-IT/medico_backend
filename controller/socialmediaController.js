@@ -1157,25 +1157,14 @@ exports.toggleLikePost = async (req, res, next) => {
 
     console.log('toggleLikePost req.user =', req.user);
 
+    // 1. Robust User Data Extraction
     const user = req.user || {};
     const rawRole = user.role || user.userRole || "";
     const userRole = rawRole.toLowerCase();
     const userIdRaw = user._id || user.id || user.userId || "";
     const userId = userIdRaw ? userIdRaw.toString() : "";
 
-    // ✅ FIXED: Include 'admin' role
-    const isAdminRole =
-      userRole === "admin" ||
-      userRole === "superadmin" ||
-      userRole === "subadmin";
-
-    // Admins CAN like now - remove this block or make it optional
-    if (isAdminRole) {
-      // Let admins like too! Remove this entire block:
-      // return res.status(200).json({...}); 
-    }
-
-    // Rest stays EXACTLY the same - works for all roles
+    // 2. Authorization Check
     if (!userId || !userRole) {
       return res.status(401).json({
         success: false,
@@ -1183,24 +1172,28 @@ exports.toggleLikePost = async (req, res, next) => {
       });
     }
 
-    // like/unlike logic (unchanged - perfect)
+    // 3. Initialize Likes Array
     post.likes = Array.isArray(post.likes) ? post.likes : [];
 
+    // 4. Find Existing Like
     const existingLike = post.likes.find((like) => {
       if (!like || !like.userId) return false;
-      const likeUserId = like.userId.toString();
-      const likeUserRole = (like.userRole || "").toLowerCase();
-      return likeUserId === userId && likeUserRole === userRole;
+      const lUserId = like.userId.toString();
+      const lUserRole = (like.userRole || "").toLowerCase();
+      return lUserId === userId && lUserRole === userRole;
     });
 
+    // 5. Toggle Logic
     if (existingLike) {
+      // UNLIKE: Filter out the current user's like
       post.likes = post.likes.filter((like) => {
         if (!like || !like.userId) return true;
-        const likeUserId = likeUserId.toString();
-        const likeUserRole = (like.userRole || "").toLowerCase();
-        return !(likeUserId === userId && likeUserRole === userRole);
+        const lUserId = like.userId.toString();
+        const lUserRole = (like.userRole || "").toLowerCase();
+        return !(lUserId === userId && lUserRole === userRole);
       });
     } else {
+      // LIKE: Add new like object
       post.likes.push({
         userId,
         userRole,
@@ -1208,6 +1201,7 @@ exports.toggleLikePost = async (req, res, next) => {
       });
     }
 
+    // 6. Update Stats and Save
     post.stats = post.stats || {};
     post.stats.likes = post.likes.length;
 
@@ -1222,6 +1216,7 @@ exports.toggleLikePost = async (req, res, next) => {
     next(err);
   }
 };
+
 
 // exports.toggleLikePost = async (req, res, next) => {
 //   try {
