@@ -256,202 +256,107 @@ const AppError = require("./appError");
 const isProduction = process.env.NODE_ENV === "production";
 
 /**
- * Generate Access Token (5 minutes - auto-refreshed)
+ * Generate Access Token (5 minutes)
  */
 const generateAccessToken = (userId, userRole, tokenVersion = 0) => {
-  if (!userId) {
-    throw new AppError("UserId is required to generate access token", 400);
-  }
-
-  const payload = {
-    id: userId,
-    role: userRole.toLowerCase(),
-    tokenVersion,
-    type: "access",
-  };
-
-  const token = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: "5m",  // Short-lived, auto-refreshed by protect middleware
-  });
-
-  return token;
+  return jwt.sign(
+    { 
+      id: userId, 
+      role: userRole.toLowerCase(), 
+      tokenVersion, 
+      type: "access" 
+    },
+    process.env.JWT_ACCESS_SECRET,
+    { expiresIn: "5m" }
+  );
 };
 
 /**
- * Generate Refresh Token (90 days - long session)
+ * Generate Refresh Token (90 days)
  */
 const generateRefreshToken = (userId, userRole, tokenVersion = 0) => {
-  if (!userId) {
-    throw new AppError("UserId is required to generate refresh token", 400);
-  }
-
-  const payload = {
-    id: userId,
-    role: userRole.toLowerCase(),
-    tokenVersion,
-    type: "refresh",
-  };
-
-  const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: "90d",  // 90 day sessions!
-  });
-
-  return token;
-};
-
-/**
- * Generate OTP Token (10 minutes)
- */
-const generateOtpToken = (phone, userRole) => {
-  if (!phone) {
-    throw new AppError("Phone is required to generate OTP token", 400);
-  }
-
-  const payload = {
-    phone,
-    role: userRole,
-    type: "otp",
-  };
-
-  const token = jwt.sign(
-    payload,
-    process.env.JWT_OTP_SECRET || process.env.JWT_ACCESS_SECRET,
-    { expiresIn: "10m" }
+  return jwt.sign(
+    { 
+      id: userId, 
+      role: userRole.toLowerCase(), 
+      tokenVersion, 
+      type: "refresh" 
+    },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: "90d" }
   );
-
-  return token;
 };
 
 /**
- * Verify Token (throws AppError on failure)
+ * Verify Token logic
  */
 const verifyToken = (token, tokenType = "access") => {
   try {
     const cleanToken = token.startsWith("Bearer ") ? token.slice(7) : token;
-
-    if (!cleanToken) {
-      throw new Error("Token not provided");
-    }
-
-    let secret;
-
-    if (tokenType === "access") {
-      secret = process.env.JWT_ACCESS_SECRET;
-    } else if (tokenType === "refresh") {
-      secret = process.env.JWT_REFRESH_SECRET;
-    } else if (tokenType === "otp") {
-      secret = process.env.JWT_OTP_SECRET || process.env.JWT_ACCESS_SECRET;
-    }
-
-    const decoded = jwt.verify(cleanToken, secret);
-    return decoded;
+    const secret = tokenType === "access" 
+      ? process.env.JWT_ACCESS_SECRET 
+      : process.env.JWT_REFRESH_SECRET;
+    
+    return jwt.verify(cleanToken, secret);
   } catch (error) {
-    throw new AppError(
-      `Invalid or expired ${tokenType} token: ${error.message}`,
-      401
-    );
+    throw new AppError(`Invalid or expired ${tokenType} token`, 401);
   }
 };
 
 /**
- * Verify Token SAFELY (returns null on failure)
- */
-const verifyTokenSafe = (token, tokenType = "access") => {
-  try {
-    const cleanToken = token.startsWith("Bearer ") ? token.slice(7) : token;
-
-    if (!cleanToken) {
-      return null;
-    }
-
-    let secret;
-
-    if (tokenType === "access") {
-      secret = process.env.JWT_ACCESS_SECRET;
-    } else if (tokenType === "refresh") {
-      secret = process.env.JWT_REFRESH_SECRET;
-    } else if (tokenType === "otp") {
-      secret = process.env.JWT_OTP_SECRET || process.env.JWT_ACCESS_SECRET;
-    }
-
-    const decoded = jwt.verify(cleanToken, secret);
-    return decoded;
-  } catch (error) {
-    return null;
-  }
-};
-
-/**
- * ✅ FIXED: Works on localhost + production
+ * FIXED: Universal Cookie Setter
  */
 const setAuthCookies = (res, accessToken, refreshToken) => {
   const commonOptions = {
     httpOnly: true,
+    secure: isProduction, // CRITICAL: false on localhost for HTTP
+    sameSite: isProduction ? "none" : "lax", // CRITICAL: lax for localhost
   };
 
-  // Production: Live domain (.rehabmedico.in)
+  // Only set domain in production. Hardcoding it breaks localhost cookies.
   if (isProduction) {
-    Object.assign(commonOptions, {
-      secure: true,
-      sameSite: "none",
-      domain: ".rehabmedico.in"
-    });
-  } else {
-    // Development: localhost (HTTP OK)
-    Object.assign(commonOptions, {
-      secure: false,        // HTTP works
-      sameSite: "lax"       // Cross-origin safe
-    });
+    commonOptions.domain = ".rehabmedico.in";
   }
 
-  // Access token (5min - auto-refreshed by protect)
-  res.cookie("accessToken", accessToken, {
-    ...commonOptions,
-    maxAge: 5 * 60 * 1000  // 5 minutes
+  // Access Token
+  res.cookie("accessToken", accessToken, { 
+    ...commonOptions, 
+    maxAge: 5 * 60 * 1000 
   });
 
-  // Refresh token (90 days - NO login needed!)
-  res.cookie("refreshToken", refreshToken, {
-    ...commonOptions,
-    maxAge: 90 * 24 * 60 * 60 * 1000  // 90 days
+  // Refresh Token
+  res.cookie("refreshToken", refreshToken, { 
+    ...commonOptions, 
+    maxAge: 90 * 24 * 60 * 60 * 1000 
   });
 
-  // Frontend-readable flag
-  res.cookie("isAuthenticated", "true", {
-    httpOnly: false,
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
-    maxAge: 90 * 24 * 60 * 60 * 1000,
-    ...(isProduction && { domain: ".rehabmedico.in" })
+  // Frontend flag (Not httpOnly so JS can read it)
+  res.cookie("isAuthenticated", "true", { 
+    ...commonOptions, 
+    httpOnly: false, 
+    maxAge: 90 * 24 * 60 * 60 * 1000 
   });
-
-  return { accessToken, refreshToken };
 };
 
 /**
- * Clear all auth cookies
+ * Clear Cookies
  */
 const clearAuthCookies = (res) => {
-  const prodOptions = isProduction ? {
-    secure: true,
-    sameSite: "none",
-    domain: ".rehabmedico.in"
-  } : {};
-
-  res.clearCookie("accessToken", { httpOnly: true, ...prodOptions });
-  res.clearCookie("refreshToken", { httpOnly: true, ...prodOptions });
-  res.clearCookie("isAuthenticated", { 
-    httpOnly: false, 
-    ...(isProduction ? prodOptions : {}) 
-  });
+  const options = { 
+    httpOnly: true, 
+    secure: isProduction, 
+    sameSite: isProduction ? "none" : "lax",
+    ...(isProduction && { domain: ".rehabmedico.in" }) 
+  };
+  res.clearCookie("accessToken", options);
+  res.clearCookie("refreshToken", options);
+  res.clearCookie("isAuthenticated", { ...options, httpOnly: false });
 };
 
-module.exports = {
-  generateAccessToken,
-  generateRefreshToken,
-  generateOtpToken,
-  verifyToken,
-  verifyTokenSafe,
-  setAuthCookies,
-  clearAuthCookies,
+module.exports = { 
+  generateAccessToken, 
+  generateRefreshToken, 
+  verifyToken, 
+  setAuthCookies, 
+  clearAuthCookies 
 };
