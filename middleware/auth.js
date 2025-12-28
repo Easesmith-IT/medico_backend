@@ -432,50 +432,17 @@ const shouldRenewRefreshToken = (decoded) => {
 };
 
 /**
- * Load user by role (supports all your models)
+ * Load user by role and handle tokenVersion synchronization
  */
-// async function loadUserByRole(role, id, includeTokenVersion = false) {
-//   if (!role || !id) {
-//     console.log("❌ loadUserByRole: missing role/id", { role, id });
-//     return null;
-//   }
-
-//   const selectFields = includeTokenVersion
-//     ? "+tokenVersion isActive email"
-//     : "";
-
-//   const roleLower = role.toLowerCase();
-//   console.log("🔍 loadUserByRole:", roleLower, id);
-
-//   switch (roleLower) {
-//     case "doctor":
-//       return await Doctor.findById(id).select(selectFields);
-//     case "patient":
-//       return await Patient.findById(id).select(selectFields);
-//     case "admin":
-//     case "superadmin":
-//     case "subadmin":
-//       return await Admin.findById(id).select(selectFields);
-//     case "serviceprovider":
-//       return await ServiceProvider.findById(id).select(selectFields);
-//     default:
-//       console.log("❌ UNKNOWN ROLE:", roleLower);
-//       return null;
-//   }
-// }
 async function loadUserByRole(role, id, includeTokenVersion = false) {
   if (!role || !id) {
-    console.log("❌ loadUserByRole: missing role/id", { role, id });
+    console.log("loadUserByRole: missing role/id", { role, id });
     return null;
   }
 
-  const selectFields = includeTokenVersion
-    ? "+tokenVersion isActive email"
-    : "";
-
+  const selectFields = includeTokenVersion ? "+tokenVersion isActive email" : "";
   const roleLower = role.toLowerCase();
-  console.log("🔍 loadUserByRole:", roleLower, id);
-
+  
   let userDoc;
   switch (roleLower) {
     case "doctor":
@@ -493,27 +460,16 @@ async function loadUserByRole(role, id, includeTokenVersion = false) {
       userDoc = await ServiceProvider.findById(id).select(selectFields);
       break;
     default:
-      console.log("❌ UNKNOWN ROLE:", roleLower);
       return null;
   }
 
-  // 🔥 CRITICAL FIX: Handle missing/undefined tokenVersion
+  // Handle missing/undefined tokenVersion
   if (userDoc && includeTokenVersion) {
-    console.log("🔍 TokenVersion DEBUG:", {
-      dbVersion: userDoc.tokenVersion,
-      exists: typeof userDoc.tokenVersion !== 'undefined'
-    });
-
-    // FIX 1: If tokenVersion is null/undefined → Set to 0
     if (userDoc.tokenVersion === undefined || userDoc.tokenVersion === null) {
-      console.log("🔥 HOTFIX: tokenVersion missing, setting to 0");
       userDoc.tokenVersion = 0;
       await userDoc.save({ validateBeforeSave: false });
     }
-
-    // FIX 2: Ensure it's a number (MongoDB sometimes stores as string)
     if (typeof userDoc.tokenVersion !== 'number') {
-      console.log("🔥 HOTFIX: tokenVersion type fix");
       userDoc.tokenVersion = parseInt(userDoc.tokenVersion) || 0;
       await userDoc.save({ validateBeforeSave: false });
     }
@@ -522,294 +478,6 @@ async function loadUserByRole(role, id, includeTokenVersion = false) {
   return userDoc;
 }
 
-/**
- * ✅ MAIN PROTECT MIDDLEWARE (Auto-refresh, 90-day session)
- * Usage: protect(['doctor', 'patient', 'admin'])
- */
-// const protect = (...allowedRoles) => {
-//   const normalizedAllowedRoles = allowedRoles
-//     .flat()
-//     .filter((r) => typeof r === "string")
-//     .map((r) => r.toLowerCase());
-
-//   return async (req, res, next) => {
-//     try {
-//       console.log("🔥 PROTECT START - Cookies:", req.cookies?.accessToken ? "YES" : "NO");
-
-//       let { accessToken, refreshToken } = req.cookies;
-
-//       // Fallback: Authorization header (Postman/mobile/API clients)
-//       if (
-//         !accessToken &&
-//         req.headers.authorization &&
-//         req.headers.authorization.startsWith("Bearer")
-//       ) {
-//         accessToken = req.headers.authorization.split(" ")[1];
-//         console.log("✅ Using Authorization header");
-//       }
-
-//       // No tokens = 401
-//       if (
-//         (!accessToken || accessToken === "undefined") &&
-//         (!refreshToken || refreshToken === "undefined")
-//       ) {
-//         clearAuthCookies(res);
-//         return next(new AppError("Please login first", 401));
-//       }
-
-//       let decoded, userDoc;
-
-//       // 1) TRY ACCESS TOKEN FIRST (5min expiry)
-//       if (accessToken && accessToken !== "undefined") {
-//         try {
-//           decoded = verifyToken(accessToken, "access");
-//           console.log("✅ Access OK:", { id: decoded.id, role: decoded.role });
-
-//           userDoc = await loadUserByRole(decoded.role, decoded.id, true);
-          
-//           if (userDoc && userDoc.tokenVersion === decoded.tokenVersion) {
-//             req.user = {
-//               ...userDoc.toObject(),
-//               id: decoded.id,
-//               _id: decoded.id,        // ✅ Controller needs _id
-//               role: decoded.role,     // ✅ Lowercase from tokenUtils
-//               tokenVersion: decoded.tokenVersion,
-//               isActive: userDoc.isActive !== false,
-//             };
-
-//             console.log("✅ req.user SET:", {
-//               id: req.user.id,
-//               role: req.user.role,
-//               _id: !!req.user._id
-//             });
-
-//             return authorizeAndContinue(
-//               req,
-//               req.user.role,
-//               normalizedAllowedRoles,
-//               next
-//             );
-//           }
-//         } catch (err) {
-//           console.log("❌ Access expired, trying refresh...");
-//         }
-//       }
-
-//       // 2) AUTO-REFRESH using Refresh Token (90 days!)
-//       if (refreshToken && refreshToken !== "undefined") {
-//         try {
-//           const refreshDecoded = verifyToken(refreshToken, "refresh");
-//           console.log("✅ Refresh OK:", { id: refreshDecoded.id, role: refreshDecoded.role });
-
-//           userDoc = await loadUserByRole(refreshDecoded.role, refreshDecoded.id, true);
-          
-//           if (!userDoc) {
-//             clearAuthCookies(res);
-//             return next(new AppError("User not found", 401));
-//           }
-
-//           // Fix tokenVersion if missing
-//           if (userDoc.tokenVersion === undefined || userDoc.tokenVersion === null) {
-//             userDoc.tokenVersion = 0;
-//             await userDoc.save({ validateBeforeSave: false });
-//           }
-
-//           // Generate NEW tokens
-//           const newAccessToken = generateAccessToken(
-//             userDoc._id,
-//             refreshDecoded.role,
-//             userDoc.tokenVersion
-//           );
-
-//           let newRefreshToken = refreshToken;
-//           if (shouldRenewRefreshToken(refreshDecoded)) {
-//             newRefreshToken = generateRefreshToken(
-//               userDoc._id,
-//               refreshDecoded.role,
-//               userDoc.tokenVersion
-//             );
-//           }
-
-//           // ✅ Auto-set new cookies (seamless!)
-//           setAuthCookies(res, newAccessToken, newRefreshToken);
-
-//           // Set req.user for controller
-//           req.user = {
-//             ...userDoc.toObject(),
-//             id: refreshDecoded.id,
-//             _id: refreshDecoded.id,
-//             role: refreshDecoded.role,
-//             tokenVersion: refreshDecoded.tokenVersion,
-//             isActive: userDoc.isActive !== false,
-//           };
-
-//           console.log("✅ AUTO-REFRESH SUCCESS - req.user:", {
-//             id: req.user.id,
-//             role: req.user.role
-//           });
-
-//           return authorizeAndContinue(
-//             req,
-//             req.user.role,
-//             normalizedAllowedRoles,
-//             next
-//           );
-//         } catch (err) {
-//           console.log("❌ Refresh failed:", err.message);
-//           clearAuthCookies(res);
-//           return next(new AppError("Session expired. Please login again", 401));
-//         }
-//       }
-
-//       return next(new AppError("Authentication failed", 401));
-//     } catch (err) {
-//       console.log("❌ PROTECT ERROR:", err.message);
-//       next(err);
-//     }
-//   };
-// };
-const protect = (...allowedRoles) => {
-  const normalizedAllowedRoles = allowedRoles
-    .flat()
-    .filter((r) => typeof r === "string")
-    .map((r) => r.toLowerCase());
-
-  return async (req, res, next) => {
-    try {
-      console.log("🔥 PROTECT START - Cookies:", req.cookies?.accessToken ? "YES" : "NO");
-
-      let { accessToken, refreshToken } = req.cookies;
-
-      // Fallback: Authorization header (Postman/mobile/API clients)
-      if (
-        !accessToken &&
-        req.headers.authorization &&
-        req.headers.authorization.startsWith("Bearer")
-      ) {
-        accessToken = req.headers.authorization.split(" ")[1];
-        console.log("✅ Using Authorization header");
-      }
-
-      // No tokens = 401
-      if (
-        (!accessToken || accessToken === "undefined") &&
-        (!refreshToken || refreshToken === "undefined")
-      ) {
-        clearAuthCookies(res);
-        return next(new AppError("Please login first", 401));
-      }
-
-      let decoded, userDoc;
-
-      // 1) TRY ACCESS TOKEN FIRST (5min expiry)
-      if (accessToken && accessToken !== "undefined") {
-        try {
-          decoded = verifyToken(accessToken, "access");
-          console.log("✅ Access OK:", { id: decoded.id, role: decoded.role });
-
-          userDoc = await loadUserByRole(decoded.role, decoded.id, true);
-          
-          if (userDoc && userDoc.tokenVersion === decoded.tokenVersion) {
-            req.user = {
-              ...userDoc.toObject(),
-              id: decoded.id,
-              _id: decoded.id,        // ✅ Controller needs _id
-              role: decoded.role,     // ✅ Lowercase from tokenUtils
-              tokenVersion: decoded.tokenVersion,
-              isActive: userDoc.isActive !== false,
-            };
-
-            console.log("✅ req.user SET:", {
-              id: req.user.id,
-              role: req.user.role,
-              _id: !!req.user._id
-            });
-
-            return authorizeAndContinue(
-              req,
-              req.user.role,
-              normalizedAllowedRoles,
-              next
-            );
-          }
-        } catch (err) {
-          console.log("❌ Access expired, trying refresh...");
-        }
-      }
-
-      // 2) AUTO-REFRESH using Refresh Token (90 days!)
-      if (refreshToken && refreshToken !== "undefined") {
-        try {
-          const refreshDecoded = verifyToken(refreshToken, "refresh");
-          console.log("✅ Refresh OK:", { id: refreshDecoded.id, role: refreshDecoded.role });
-
-          userDoc = await loadUserByRole(refreshDecoded.role, refreshDecoded.id, true);
-          
-          if (!userDoc) {
-            clearAuthCookies(res);
-            return next(new AppError("User not found", 401));
-          }
-
-          // Fix tokenVersion if missing
-          if (userDoc.tokenVersion === undefined || userDoc.tokenVersion === null) {
-            userDoc.tokenVersion = 0;
-            await userDoc.save({ validateBeforeSave: false });
-          }
-
-          // Generate NEW tokens
-          const newAccessToken = generateAccessToken(
-            userDoc._id,
-            refreshDecoded.role,
-            userDoc.tokenVersion
-          );
-
-          let newRefreshToken = refreshToken;
-          if (shouldRenewRefreshToken(refreshDecoded)) {
-            newRefreshToken = generateRefreshToken(
-              userDoc._id,
-              refreshDecoded.role,
-              userDoc.tokenVersion
-            );
-          }
-
-          // ✅ Auto-set new cookies (seamless!)
-          setAuthCookies(res, newAccessToken, newRefreshToken);
-
-          // Set req.user for controller
-          req.user = {
-            ...userDoc.toObject(),
-            id: refreshDecoded.id,
-            _id: refreshDecoded.id,
-            role: refreshDecoded.role,
-            tokenVersion: refreshDecoded.tokenVersion,
-            isActive: userDoc.isActive !== false,
-          };
-
-          console.log("✅ AUTO-REFRESH SUCCESS - req.user:", {
-            id: req.user.id,
-            role: req.user.role
-          });
-
-          return authorizeAndContinue(
-            req,
-            req.user.role,
-            normalizedAllowedRoles,
-            next
-          );
-        } catch (err) {
-          console.log("❌ Refresh failed:", err.message);
-          clearAuthCookies(res);
-          return next(new AppError("Session expired. Please login again", 401));
-        }
-      }
-
-      return next(new AppError("Authentication failed", 401));
-    } catch (err) {
-      console.log("❌ PROTECT ERROR:", err.message);
-      next(err);
-    }
-  };
-};
 /**
  * Role authorization helper
  */
@@ -828,41 +496,115 @@ function authorizeAndContinue(req, role, allowedRoles, next) {
     return next(new AppError("Account disabled", 403));
   }
 
-  console.log("✅ AUTHORIZED:", userRole);
   next();
 }
 
 /**
- * Simple access token verification (no auto-refresh)
+ * MAIN PROTECT MIDDLEWARE
+ */
+const protect = (...allowedRoles) => {
+  const normalizedAllowedRoles = allowedRoles
+    .flat()
+    .filter((r) => typeof r === "string")
+    .map((r) => r.toLowerCase());
+
+  return async (req, res, next) => {
+    try {
+      let { accessToken, refreshToken } = req.cookies;
+
+      if (!accessToken && req.headers.authorization?.startsWith("Bearer")) {
+        accessToken = req.headers.authorization.split(" ")[1];
+      }
+
+      if ((!accessToken || accessToken === "undefined") && (!refreshToken || refreshToken === "undefined")) {
+        clearAuthCookies(res);
+        return next(new AppError("Please login first", 401));
+      }
+
+      let decoded, userDoc;
+
+      // 1. TRY ACCESS TOKEN
+      if (accessToken && accessToken !== "undefined") {
+        try {
+          decoded = verifyToken(accessToken, "access");
+          userDoc = await loadUserByRole(decoded.role, decoded.id, true);
+          
+          if (userDoc && userDoc.tokenVersion === decoded.tokenVersion) {
+            req.user = {
+              ...userDoc.toObject(),
+              id: decoded.id,
+              _id: decoded.id,
+              role: decoded.role,
+              tokenVersion: decoded.tokenVersion,
+              isActive: userDoc.isActive !== false,
+            };
+
+            return authorizeAndContinue(req, req.user.role, normalizedAllowedRoles, next);
+          }
+        } catch (err) {
+          console.log("Access expired, checking refresh...");
+        }
+      }
+
+      // 2. TRY REFRESH TOKEN (Auto-Refresh)
+      if (refreshToken && refreshToken !== "undefined") {
+        try {
+          const refreshDecoded = verifyToken(refreshToken, "refresh");
+          userDoc = await loadUserByRole(refreshDecoded.role, refreshDecoded.id, true);
+          
+          if (!userDoc || userDoc.tokenVersion !== refreshDecoded.tokenVersion) {
+            clearAuthCookies(res);
+            return next(new AppError("Session invalid", 401));
+          }
+
+          const newAccessToken = generateAccessToken(userDoc._id, refreshDecoded.role, userDoc.tokenVersion);
+          let newRefreshToken = refreshToken;
+          
+          if (shouldRenewRefreshToken(refreshDecoded)) {
+            newRefreshToken = generateRefreshToken(userDoc._id, refreshDecoded.role, userDoc.tokenVersion);
+          }
+
+          setAuthCookies(res, newAccessToken, newRefreshToken);
+
+          req.user = {
+            ...userDoc.toObject(),
+            id: refreshDecoded.id,
+            _id: refreshDecoded.id,
+            role: refreshDecoded.role,
+            tokenVersion: refreshDecoded.tokenVersion,
+            isActive: userDoc.isActive !== false,
+          };
+
+          return authorizeAndContinue(req, req.user.role, normalizedAllowedRoles, next);
+        } catch (err) {
+          clearAuthCookies(res);
+          return next(new AppError("Session expired. Please login again", 401));
+        }
+      }
+
+      return next(new AppError("Authentication failed", 401));
+    } catch (err) {
+      next(err);
+    }
+  };
+};
+
+/**
+ * Simple access token verification
  */
 const verifyAccessToken = (req, res, next) => {
   try {
-    let token = req.cookies?.accessToken;
-    if (!token && req.headers.authorization?.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-    
-    if (!token) {
-      return next(new AppError("No access token", 401));
-    }
+    let token = req.cookies?.accessToken || (req.headers.authorization?.startsWith('Bearer') ? req.headers.authorization.split(' ')[1] : null);
+    if (!token) return next(new AppError("No access token", 401));
 
     const decoded = verifyToken(token, "access");
-    req.user = {
-      id: decoded.id,
-      _id: decoded.id,
-      role: decoded.role,
-      tokenVersion: decoded.tokenVersion,
-      isActive: true
-    };
+    req.user = { id: decoded.id, _id: decoded.id, role: decoded.role, tokenVersion: decoded.tokenVersion, isActive: true };
     next();
   } catch (error) {
     next(error);
   }
 };
 
-/**
- * Verify refresh token only
- */
 const verifyRefreshToken = (req, res, next) => {
   try {
     const token = req.cookies?.refreshToken;
@@ -875,9 +617,6 @@ const verifyRefreshToken = (req, res, next) => {
   }
 };
 
-/**
- * Verify OTP token
- */
 const verifyOtpToken = (req, res, next) => {
   try {
     const token = req.headers["x-otp-token"] || req.body.otpToken;
@@ -895,17 +634,10 @@ const verifyOtpToken = (req, res, next) => {
  */
 const verifyAdminRole = (req, res, next) => {
   try {
-    let token = req.cookies?.accessToken;
-    if (!token && req.headers.authorization?.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-    
+    let token = req.cookies?.accessToken || (req.headers.authorization?.startsWith('Bearer') ? req.headers.authorization.split(' ')[1] : null);
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
-    
-    if (!["admin", "superadmin", "subadmin"].includes(decoded.role)) {
-      return next(new AppError("Admin required", 403));
-    }
+    if (!["admin", "superadmin", "subadmin"].includes(decoded.role)) return next(new AppError("Admin required", 403));
     req.user = decoded;
     next();
   } catch (error) {
@@ -915,17 +647,10 @@ const verifyAdminRole = (req, res, next) => {
 
 const verifySuperAdminRole = (req, res, next) => {
   try {
-    let token = req.cookies?.accessToken;
-    if (!token && req.headers.authorization?.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-    
+    let token = req.cookies?.accessToken || (req.headers.authorization?.startsWith('Bearer') ? req.headers.authorization.split(' ')[1] : null);
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
-    
-    if (decoded.role !== "superadmin") {
-      return next(new AppError("Super admin required", 403));
-    }
+    if (decoded.role !== "superadmin") return next(new AppError("Super admin required", 403));
     req.user = decoded;
     next();
   } catch (error) {
@@ -935,17 +660,10 @@ const verifySuperAdminRole = (req, res, next) => {
 
 const verifyDoctorRole = (req, res, next) => {
   try {
-    let token = req.cookies?.accessToken;
-    if (!token && req.headers.authorization?.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-    
+    let token = req.cookies?.accessToken || (req.headers.authorization?.startsWith('Bearer') ? req.headers.authorization.split(' ')[1] : null);
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
-    
-    if (decoded.role !== "doctor") {
-      return next(new AppError("Doctor required", 403));
-    }
+    if (decoded.role !== "doctor") return next(new AppError("Doctor required", 403));
     req.user = decoded;
     next();
   } catch (error) {
@@ -955,17 +673,10 @@ const verifyDoctorRole = (req, res, next) => {
 
 const verifyPatientRole = (req, res, next) => {
   try {
-    let token = req.cookies?.accessToken;
-    if (!token && req.headers.authorization?.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-    
+    let token = req.cookies?.accessToken || (req.headers.authorization?.startsWith('Bearer') ? req.headers.authorization.split(' ')[1] : null);
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
-    
-    if (decoded.role !== "patient") {
-      return next(new AppError("Patient required", 403));
-    }
+    if (decoded.role !== "patient") return next(new AppError("Patient required", 403));
     req.user = decoded;
     next();
   } catch (error) {
@@ -974,7 +685,7 @@ const verifyPatientRole = (req, res, next) => {
 };
 
 module.exports = {
-  protect,              // ✅ MAIN: Auto-refresh, 90-day session
+  protect,
   verifyAccessToken,
   verifyRefreshToken,
   verifyOtpToken,
@@ -983,3 +694,4 @@ module.exports = {
   verifyDoctorRole,
   verifyPatientRole,
 };
+

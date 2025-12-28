@@ -64,6 +64,11 @@ app.get("/health", (req, res) => {
   });
 });
 
+app.get("/api/test-cookies", (req, res) => {
+  console.log("🍪 COOKIES:", req.cookies);
+  res.json({ cookies: req.cookies });
+});
+
 // Mount all API routes
 app.use("/api/v1", routes);
 
