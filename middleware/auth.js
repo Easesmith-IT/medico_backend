@@ -412,8 +412,8 @@ const {
   verifyTokenSafe,
   generateAccessToken,
   generateRefreshToken,
-  setAuthCookies,  // ✅ Use your utils setAuthCookies
-  clearAuthCookies, // ✅ Use your utils clearAuthCookies
+  setAuthCookies,
+  clearAuthCookies,
 } = require("../utils/tokenUtils");
 const AppError = require("../utils/appError");
 const Patient = require("../models/patientModel");
@@ -422,7 +422,7 @@ const Admin = require("../models/adminModel");
 const ServiceProvider = require("../models/serviceProviderModel");
 
 /**
- * Decide if refresh token should be renewed
+ * Decide if refresh token should be renewed (every 30 days)
  */
 const shouldRenewRefreshToken = (decoded) => {
   const now = Date.now() / 1000;
@@ -432,7 +432,7 @@ const shouldRenewRefreshToken = (decoded) => {
 };
 
 /**
- * ✅ FIXED: Load user by role - works with lowercase roles from your utils
+ * Load user by role (supports all your models)
  */
 async function loadUserByRole(role, id, includeTokenVersion = false) {
   if (!role || !id) {
@@ -444,7 +444,7 @@ async function loadUserByRole(role, id, includeTokenVersion = false) {
     ? "+tokenVersion isActive email"
     : "";
 
-  const roleLower = role.toLowerCase(); // Your utils already lowercase, but safe
+  const roleLower = role.toLowerCase();
   console.log("🔍 loadUserByRole:", roleLower, id);
 
   switch (roleLower) {
@@ -456,6 +456,8 @@ async function loadUserByRole(role, id, includeTokenVersion = false) {
     case "superadmin":
     case "subadmin":
       return await Admin.findById(id).select(selectFields);
+    case "serviceprovider":
+      return await ServiceProvider.findById(id).select(selectFields);
     default:
       console.log("❌ UNKNOWN ROLE:", roleLower);
       return null;
@@ -463,7 +465,8 @@ async function loadUserByRole(role, id, includeTokenVersion = false) {
 }
 
 /**
- * ✅ MAIN PROTECT - Works with your utils + cookies
+ * ✅ MAIN PROTECT MIDDLEWARE (Auto-refresh, 90-day session)
+ * Usage: protect(['doctor', 'patient', 'admin'])
  */
 const protect = (...allowedRoles) => {
   const normalizedAllowedRoles = allowedRoles
@@ -477,7 +480,7 @@ const protect = (...allowedRoles) => {
 
       let { accessToken, refreshToken } = req.cookies;
 
-      // Fallback: Authorization header (for Postman/mobile)
+      // Fallback: Authorization header (Postman/mobile/API clients)
       if (
         !accessToken &&
         req.headers.authorization &&
@@ -498,7 +501,7 @@ const protect = (...allowedRoles) => {
 
       let decoded, userDoc;
 
-      // 1) TRY ACCESS TOKEN FIRST
+      // 1) TRY ACCESS TOKEN FIRST (5min expiry)
       if (accessToken && accessToken !== "undefined") {
         try {
           decoded = verifyToken(accessToken, "access");
@@ -507,12 +510,11 @@ const protect = (...allowedRoles) => {
           userDoc = await loadUserByRole(decoded.role, decoded.id, true);
           
           if (userDoc && userDoc.tokenVersion === decoded.tokenVersion) {
-            // ✅ PERFECT req.user for toggleLikePost controller
             req.user = {
               ...userDoc.toObject(),
               id: decoded.id,
               _id: decoded.id,        // ✅ Controller needs _id
-              role: decoded.role,     // ✅ Already lowercase from utils
+              role: decoded.role,     // ✅ Lowercase from tokenUtils
               tokenVersion: decoded.tokenVersion,
               isActive: userDoc.isActive !== false,
             };
@@ -531,11 +533,11 @@ const protect = (...allowedRoles) => {
             );
           }
         } catch (err) {
-          console.log("Access expired, trying refresh...");
+          console.log("❌ Access expired, trying refresh...");
         }
       }
 
-      // 2) REFRESH TOKEN (your auto-refresh magic)
+      // 2) AUTO-REFRESH using Refresh Token (90 days!)
       if (refreshToken && refreshToken !== "undefined") {
         try {
           const refreshDecoded = verifyToken(refreshToken, "refresh");
@@ -548,13 +550,13 @@ const protect = (...allowedRoles) => {
             return next(new AppError("User not found", 401));
           }
 
-          // Fix tokenVersion if needed
+          // Fix tokenVersion if missing
           if (userDoc.tokenVersion === undefined || userDoc.tokenVersion === null) {
             userDoc.tokenVersion = 0;
             await userDoc.save({ validateBeforeSave: false });
           }
 
-          // Generate NEW tokens using YOUR utils
+          // Generate NEW tokens
           const newAccessToken = generateAccessToken(
             userDoc._id,
             refreshDecoded.role,
@@ -570,20 +572,20 @@ const protect = (...allowedRoles) => {
             );
           }
 
-          // ✅ Use YOUR setAuthCookies utility
+          // ✅ Auto-set new cookies (seamless!)
           setAuthCookies(res, newAccessToken, newRefreshToken);
 
-          // ✅ Set req.user for controller
+          // Set req.user for controller
           req.user = {
             ...userDoc.toObject(),
             id: refreshDecoded.id,
             _id: refreshDecoded.id,
-            role: refreshDecoded.role,  // Already lowercase
+            role: refreshDecoded.role,
             tokenVersion: refreshDecoded.tokenVersion,
             isActive: userDoc.isActive !== false,
           };
 
-          console.log("✅ REFRESH SUCCESS - req.user:", {
+          console.log("✅ AUTO-REFRESH SUCCESS - req.user:", {
             id: req.user.id,
             role: req.user.role
           });
@@ -597,7 +599,7 @@ const protect = (...allowedRoles) => {
         } catch (err) {
           console.log("❌ Refresh failed:", err.message);
           clearAuthCookies(res);
-          return next(new AppError("Session expired", 401));
+          return next(new AppError("Session expired. Please login again", 401));
         }
       }
 
@@ -610,7 +612,7 @@ const protect = (...allowedRoles) => {
 };
 
 /**
- * Role authorization
+ * Role authorization helper
  */
 function authorizeAndContinue(req, role, allowedRoles, next) {
   const userRole = role?.toLowerCase();
@@ -631,7 +633,9 @@ function authorizeAndContinue(req, role, allowedRoles, next) {
   next();
 }
 
-// All your other middleware (unchanged, but fixed verifyAccessToken)
+/**
+ * Simple access token verification (no auto-refresh)
+ */
 const verifyAccessToken = (req, res, next) => {
   try {
     let token = req.cookies?.accessToken;
@@ -646,8 +650,8 @@ const verifyAccessToken = (req, res, next) => {
     const decoded = verifyToken(token, "access");
     req.user = {
       id: decoded.id,
-      _id: decoded.id,     // ✅ For controller
-      role: decoded.role,  // ✅ Already lowercase
+      _id: decoded.id,
+      role: decoded.role,
       tokenVersion: decoded.tokenVersion,
       isActive: true
     };
@@ -657,6 +661,9 @@ const verifyAccessToken = (req, res, next) => {
   }
 };
 
+/**
+ * Verify refresh token only
+ */
 const verifyRefreshToken = (req, res, next) => {
   try {
     const token = req.cookies?.refreshToken;
@@ -669,6 +676,9 @@ const verifyRefreshToken = (req, res, next) => {
   }
 };
 
+/**
+ * Verify OTP token
+ */
 const verifyOtpToken = (req, res, next) => {
   try {
     const token = req.headers["x-otp-token"] || req.body.otpToken;
@@ -681,12 +691,20 @@ const verifyOtpToken = (req, res, next) => {
   }
 };
 
+/**
+ * Role-specific middlewares
+ */
 const verifyAdminRole = (req, res, next) => {
   try {
-    const token = req.cookies?.accessToken;
+    let token = req.cookies?.accessToken;
+    if (!token && req.headers.authorization?.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
-    if (!["superAdmin", "subAdmin"].includes(decoded.role)) {
+    
+    if (!["admin", "superadmin", "subadmin"].includes(decoded.role)) {
       return next(new AppError("Admin required", 403));
     }
     req.user = decoded;
@@ -698,10 +716,15 @@ const verifyAdminRole = (req, res, next) => {
 
 const verifySuperAdminRole = (req, res, next) => {
   try {
-    const token = req.cookies?.accessToken;
+    let token = req.cookies?.accessToken;
+    if (!token && req.headers.authorization?.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
-    if (decoded.role !== "superAdmin") {
+    
+    if (decoded.role !== "superadmin") {
       return next(new AppError("Super admin required", 403));
     }
     req.user = decoded;
@@ -713,9 +736,14 @@ const verifySuperAdminRole = (req, res, next) => {
 
 const verifyDoctorRole = (req, res, next) => {
   try {
-    const token = req.cookies?.accessToken;
+    let token = req.cookies?.accessToken;
+    if (!token && req.headers.authorization?.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
+    
     if (decoded.role !== "doctor") {
       return next(new AppError("Doctor required", 403));
     }
@@ -728,9 +756,14 @@ const verifyDoctorRole = (req, res, next) => {
 
 const verifyPatientRole = (req, res, next) => {
   try {
-    const token = req.cookies?.accessToken;
+    let token = req.cookies?.accessToken;
+    if (!token && req.headers.authorization?.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
+    
     if (decoded.role !== "patient") {
       return next(new AppError("Patient required", 403));
     }
@@ -742,7 +775,7 @@ const verifyPatientRole = (req, res, next) => {
 };
 
 module.exports = {
-  protect,
+  protect,              // ✅ MAIN: Auto-refresh, 90-day session
   verifyAccessToken,
   verifyRefreshToken,
   verifyOtpToken,

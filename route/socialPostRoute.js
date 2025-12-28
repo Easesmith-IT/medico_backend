@@ -38,17 +38,13 @@ router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin',
 //   protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
 //   postCtrl.toggleLikePost
 // );
+
+
 router.post(
   '/likePost/:id/toggle',
-  verifyAccessToken, // Simple token check only
+  protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
   postCtrl.toggleLikePost
 );
-
-// router.post(
-//   '/likePost/:id/toggle',
-//   protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
-//   postCtrl.toggleLikePost
-// );
 router.get('/feed',  postCtrl.getSocialFeed);
 // router.get('/getPostById/:id', postCtrl.getPostById);
 router.get(
