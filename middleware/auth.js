@@ -463,7 +463,6 @@ async function loadUserByRole(role, id, includeTokenVersion = false) {
       return null;
   }
 
-  // Handle missing/undefined tokenVersion
   if (userDoc && includeTokenVersion) {
     if (userDoc.tokenVersion === undefined || userDoc.tokenVersion === null) {
       userDoc.tokenVersion = 0;
@@ -501,6 +500,7 @@ function authorizeAndContinue(req, role, allowedRoles, next) {
 
 /**
  * MAIN PROTECT MIDDLEWARE
+ * Fixed: Added optional chaining to prevent 'undefined' property crashes
  */
 const protect = (...allowedRoles) => {
   const normalizedAllowedRoles = allowedRoles
@@ -510,7 +510,9 @@ const protect = (...allowedRoles) => {
 
   return async (req, res, next) => {
     try {
-      let { accessToken, refreshToken } = req.cookies;
+      // FIX: Use optional chaining (?.) on req.cookies
+      let accessToken = req.cookies?.accessToken;
+      let refreshToken = req.cookies?.refreshToken;
 
       if (!accessToken && req.headers.authorization?.startsWith("Bearer")) {
         accessToken = req.headers.authorization.split(" ")[1];
@@ -594,6 +596,7 @@ const protect = (...allowedRoles) => {
  */
 const verifyAccessToken = (req, res, next) => {
   try {
+    // FIX: Use optional chaining
     let token = req.cookies?.accessToken || (req.headers.authorization?.startsWith('Bearer') ? req.headers.authorization.split(' ')[1] : null);
     if (!token) return next(new AppError("No access token", 401));
 
@@ -607,6 +610,7 @@ const verifyAccessToken = (req, res, next) => {
 
 const verifyRefreshToken = (req, res, next) => {
   try {
+    // FIX: Use optional chaining
     const token = req.cookies?.refreshToken;
     if (!token) return next(new AppError("No refresh token", 401));
     const decoded = verifyToken(token, "refresh");
@@ -634,6 +638,7 @@ const verifyOtpToken = (req, res, next) => {
  */
 const verifyAdminRole = (req, res, next) => {
   try {
+    // FIX: Use optional chaining
     let token = req.cookies?.accessToken || (req.headers.authorization?.startsWith('Bearer') ? req.headers.authorization.split(' ')[1] : null);
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
@@ -647,6 +652,7 @@ const verifyAdminRole = (req, res, next) => {
 
 const verifySuperAdminRole = (req, res, next) => {
   try {
+    // FIX: Use optional chaining
     let token = req.cookies?.accessToken || (req.headers.authorization?.startsWith('Bearer') ? req.headers.authorization.split(' ')[1] : null);
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
@@ -660,6 +666,7 @@ const verifySuperAdminRole = (req, res, next) => {
 
 const verifyDoctorRole = (req, res, next) => {
   try {
+    // FIX: Use optional chaining
     let token = req.cookies?.accessToken || (req.headers.authorization?.startsWith('Bearer') ? req.headers.authorization.split(' ')[1] : null);
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
@@ -673,6 +680,7 @@ const verifyDoctorRole = (req, res, next) => {
 
 const verifyPatientRole = (req, res, next) => {
   try {
+    // FIX: Use optional chaining
     let token = req.cookies?.accessToken || (req.headers.authorization?.startsWith('Bearer') ? req.headers.authorization.split(' ')[1] : null);
     if (!token) return next(new AppError("No token", 401));
     const decoded = verifyToken(token, "access");
