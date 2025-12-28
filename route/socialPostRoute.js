@@ -4,6 +4,7 @@ const router = express.Router();
 const postCtrl = require('../controller/socialmediaController');
 const postUpload = require('../middleware/multerConfig');
 const { protect } = require('../middleware/auth');
+ const {verifyAccessToken}= require('../middleware/auth')
 // router.post('/createPost', postCtrl.createPost);
 // router.post('/createPost', protect('doctor'), postCtrl.createPost);
 // router.post('/createPost', 
@@ -37,12 +38,17 @@ router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin',
 //   protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
 //   postCtrl.toggleLikePost
 // );
-
 router.post(
   '/likePost/:id/toggle',
-  protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
+  verifyAccessToken, // Simple token check only
   postCtrl.toggleLikePost
 );
+
+// router.post(
+//   '/likePost/:id/toggle',
+//   protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
+//   postCtrl.toggleLikePost
+// );
 router.get('/feed',  postCtrl.getSocialFeed);
 // router.get('/getPostById/:id', postCtrl.getPostById);
 router.get(
