@@ -1190,34 +1190,151 @@ exports.getByIdBooking = async (req, res) => {
   }
 };
 
+// exports.updateServiceStatus = async (req, res) => {
+
+//   try {
+//     const { bookingId } = req.params;
+//     const { status, equipment } = req.body; 
+//     const providerId = req.user.id;
+
+//     const booking = await Booking.findById(bookingId);
+//     if (!booking) {
+//       return res.status(404).json({ success: false, message: "Booking not found" });
+//     }
+
+//     // Verify authorized provider (ensure it is a string comparison)
+//     if (booking.servicePartnerId.toString() !== providerId.toString()) {
+//       return res.status(403).json({ success: false, message: "Unauthorized provider" });
+//     }
+
+//     if (status === "Started") {
+//       // Prevent starting a booking that is already done or cancelled
+//       if (["Completed", "Cancelled", "Rejected"].includes(booking.status)) {
+//         return res.status(400).json({ success: false, message: "Invalid status transition" });
+//       }
+//       booking.status = "In-Progress";
+//       booking.serviceStartedAt = new Date();
+//     } 
+//     else if (status === "Completed") {
+//       // Must be started before it can be completed
+//       if (booking.status !== "In-Progress") {
+//         return res.status(400).json({ success: false, message: "Service must be 'In-Progress' to complete" });
+//       }
+
+//       booking.status = "Completed";
+//       booking.serviceEndedAt = new Date();
+
+//       // Handle Manual Equipment Charges
+//       if (equipment && Array.isArray(equipment)) {
+//         let extraCharge = 0;
+//         booking.additionalEquipment = equipment.map(item => {
+//           const charge = Number(item.charge || 0);
+//           extraCharge += charge;
+//           return { name: item.name, charge: charge };
+//         });
+        
+//         // Update Pricing Snapshot
+//         booking.pricing.equipmentCharges = extraCharge; 
+        
+//         // Calculate final total based on original basePrice + new manual charges
+//         const baseAmount = booking.pricing.basePrice || 0;
+//         booking.pricing.totalAmount = baseAmount + extraCharge;
+//       }
+//     } else {
+//       return res.status(400).json({ success: false, message: "Invalid status provided" });
+//     }
+
+//     await booking.save();
+//     res.status(200).json({
+//       success: true,
+//       message: `Status updated to ${booking.status}`,
+//       data: booking
+//     });
+//   } catch (error) {
+//     console.error("Update status error:", error);
+//     res.status(500).json({ success: false, error: error.message });
+//   }
+// };
+
+
 exports.updateServiceStatus = async (req, res) => {
   try {
+    console.log("========== UPDATE SERVICE STATUS ==========");
+
+    console.log("➡️ req.user:", req.user);
+    console.log("➡️ req.user.id:", req.user?.id);
+    console.log("➡️ req.user.role:", req.user?.role);
+
     const { bookingId } = req.params;
-    const { status, equipment } = req.body; 
-    const providerId = req.user.id;
+    const { status, equipment } = req.body;
+    const providerId = req.user?.id;
+
+    console.log("➡️ bookingId:", bookingId);
+    console.log("➡️ requested status:", status);
+
+    if (!providerId) {
+      console.log("❌ providerId missing in req.user");
+      return res.status(401).json({
+        success: false,
+        message: "Invalid authenticated user",
+      });
+    }
 
     const booking = await Booking.findById(bookingId);
     if (!booking) {
-      return res.status(404).json({ success: false, message: "Booking not found" });
+      console.log("❌ Booking not found");
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
     }
 
-    // Verify authorized provider (ensure it is a string comparison)
+    console.log("➡️ booking.servicePartnerId:", booking.servicePartnerId?.toString());
+    console.log("➡️ providerId (from token):", providerId.toString());
+
+    // Verify authorized provider
     if (booking.servicePartnerId.toString() !== providerId.toString()) {
-      return res.status(403).json({ success: false, message: "Unauthorized provider" });
+      console.log("❌ Unauthorized provider");
+      console.log(
+        "❌ MISMATCH:",
+        booking.servicePartnerId.toString(),
+        "!==",
+        providerId.toString()
+      );
+
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized provider",
+      });
     }
 
+    // ---------------- STATUS TRANSITIONS ----------------
     if (status === "Started") {
-      // Prevent starting a booking that is already done or cancelled
+      console.log("➡️ Attempting to START service");
+
       if (["Completed", "Cancelled", "Rejected"].includes(booking.status)) {
-        return res.status(400).json({ success: false, message: "Invalid status transition" });
+        console.log("❌ Invalid status transition from:", booking.status);
+        return res.status(400).json({
+          success: false,
+          message: "Invalid status transition",
+        });
       }
+
       booking.status = "In-Progress";
       booking.serviceStartedAt = new Date();
     } 
     else if (status === "Completed") {
-      // Must be started before it can be completed
+      console.log("➡️ Attempting to COMPLETE service");
+
       if (booking.status !== "In-Progress") {
-        return res.status(400).json({ success: false, message: "Service must be 'In-Progress' to complete" });
+        console.log(
+          "❌ Cannot complete. Current status:",
+          booking.status
+        );
+        return res.status(400).json({
+          success: false,
+          message: "Service must be 'In-Progress' to complete",
+        });
       }
 
       booking.status = "Completed";
@@ -1225,37 +1342,49 @@ exports.updateServiceStatus = async (req, res) => {
 
       // Handle Manual Equipment Charges
       if (equipment && Array.isArray(equipment)) {
+        console.log("➡️ Equipment received:", equipment);
+
         let extraCharge = 0;
         booking.additionalEquipment = equipment.map(item => {
           const charge = Number(item.charge || 0);
           extraCharge += charge;
-          return { name: item.name, charge: charge };
+          return { name: item.name, charge };
         });
-        
-        // Update Pricing Snapshot
-        booking.pricing.equipmentCharges = extraCharge; 
-        
-        // Calculate final total based on original basePrice + new manual charges
+
+        booking.pricing.equipmentCharges = extraCharge;
+
         const baseAmount = booking.pricing.basePrice || 0;
         booking.pricing.totalAmount = baseAmount + extraCharge;
+
+        console.log("➡️ Equipment charges:", extraCharge);
+        console.log("➡️ Final amount:", booking.pricing.totalAmount);
       }
     } else {
-      return res.status(400).json({ success: false, message: "Invalid status provided" });
+      console.log("❌ Invalid status provided:", status);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status provided",
+      });
     }
 
     await booking.save();
+
+    console.log("✅ Status updated successfully:", booking.status);
+    console.log("==========================================");
+
     res.status(200).json({
       success: true,
       message: `Status updated to ${booking.status}`,
-      data: booking
+      data: booking,
     });
   } catch (error) {
-    console.error("Update status error:", error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error("🔥 Update status error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 };
-
-
 
 
 // exports.addEquipment = async (req, res) => {
