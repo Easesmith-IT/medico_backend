@@ -263,7 +263,15 @@
 const ServiceProvider = require("../models/serviceProviderModel");
 const City = require("../models/availableCities");
 const bcrypt = require('bcryptjs');
-const { generateAccessToken }=require('../utils/tokenUtils')
+// const { generateAccessToken }=require('../utils/tokenUtils')
+
+
+
+const { 
+  generateAccessToken, 
+  generateRefreshToken, 
+  setAuthCookies 
+} = require("../utils/tokenUtils");
 // Create service provider
 // exports.createServiceProvider = async (req, res) => {
 //   try {
@@ -356,7 +364,51 @@ exports.createServiceProvider = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+exports.loginServiceProvider = async (req, res) => {
+  try {
+    const { email, mobile, password } = req.body;
 
+    // Fetch provider with password for comparison
+    const provider = await ServiceProvider.findOne({
+      $or: [{ email: email }, { mobile: mobile }],
+      isDeleted: { $ne: true }
+    }).select("+password isActive approvalStatus tokenVersion");
+
+    if (!provider || !(await provider.comparePassword(password))) {
+      return res.status(401).json({ success: false, message: "Invalid email/mobile or password" });
+    }
+
+    if (!provider.isActive) {
+      return res.status(403).json({ success: false, message: "Your account is currently inactive" });
+    }
+
+    // 1. Generate both tokens using your utility functions
+    const accessToken = generateAccessToken(provider._id, "serviceprovider", provider.tokenVersion);
+    const refreshToken = generateRefreshToken(provider._id, "serviceprovider", provider.tokenVersion);
+
+    // 2. Log tokens to console as requested
+    console.log("--- Login Success ---");
+    console.log("Access Token:", accessToken);
+    console.log("Refresh Token:", refreshToken);
+
+    // 3. Use your utility to set cookies (handles domain, maxAge, and security)
+    setAuthCookies(res, accessToken, refreshToken);
+
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      data: { 
+        id: provider._id, 
+        firstName: provider.firstName, 
+        role: "serviceprovider",
+        accessToken, // Optional: sending in body for frontend accessibility
+        refreshToken 
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 // exports.createServiceProvider = async (req, res) => {
 //   try {
 //     const data = req.body;
@@ -402,38 +454,38 @@ exports.createServiceProvider = async (req, res) => {
 //     res.status(500).json({ success: false, message: error.message });
 //   }
 // };
-exports.loginServiceProvider = async (req, res) => {
-  try {
-    const { email, mobile, password } = req.body;
+// exports.loginServiceProvider = async (req, res) => {
+//   try {
+//     const { email, mobile, password } = req.body;
 
-    // Fetch provider with password for comparison
-    const provider = await ServiceProvider.findOne({
-      $or: [{ email: email }, { mobile: mobile }],
-      isDeleted: { $ne: true }
-    }).select("+password isActive approvalStatus");
+//     // Fetch provider with password for comparison
+//     const provider = await ServiceProvider.findOne({
+//       $or: [{ email: email }, { mobile: mobile }],
+//       isDeleted: { $ne: true }
+//     }).select("+password isActive approvalStatus");
 
-    if (!provider || !(await provider.comparePassword(password))) {
-      return res.status(401).json({ success: false, message: "Invalid email/mobile or password" });
-    }
+//     if (!provider || !(await provider.comparePassword(password))) {
+//       return res.status(401).json({ success: false, message: "Invalid email/mobile or password" });
+//     }
 
-    if (!provider.isActive) {
-      return res.status(403).json({ success: false, message: "Your account is currently inactive" });
-    }
+//     if (!provider.isActive) {
+//       return res.status(403).json({ success: false, message: "Your account is currently inactive" });
+//     }
 
-    // Generate tokens
-    const accessToken = generateAccessToken(provider._id, "serviceprovider", provider.tokenVersion);
+//     // Generate tokens
+//     const accessToken = generateAccessToken(provider._id, "serviceprovider", provider.tokenVersion);
     
-    res.cookie("accessToken", accessToken, { httpOnly: true, secure: true, sameSite: "none" });
+//     res.cookie("accessToken", accessToken, { httpOnly: true, secure: true, sameSite: "none" });
 
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      data: { id: provider._id, firstName: provider.firstName, role: "serviceprovider" }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       message: "Login successful",
+//       data: { id: provider._id, firstName: provider.firstName, role: "serviceprovider" }
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
 
 // Get all service providers
 exports.getAllServiceProviders = async (req, res) => {
