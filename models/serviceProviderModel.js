@@ -470,13 +470,7 @@ const serviceProviderSchema = new mongoose.Schema({
       message: 'Invalid email format'
     }
   },
-password: {
-  type: String,
-  required: true,
-  minlength: 8,
-  select: false
-},
-
+ password: { type: String, required: true, select: false },
 
   // Address Details
   currentAddress: {
@@ -736,16 +730,10 @@ serviceProviderSchema.index({ 'services.serviceId': 1 });
 serviceProviderSchema.index({ registrationNumber: 1 });
 
 // Pre Hooks
-// serviceProviderSchema.pre(/^find/, function (next) {
-//   this.find({ isDeleted: { $ne: true } });
-//   next();
-// });
-
 serviceProviderSchema.pre(/^find/, function (next) {
-  this.where({ isDeleted: { $ne: true } });
+  this.find({ isDeleted: { $ne: true } });
   next();
 });
-
 serviceProviderSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
