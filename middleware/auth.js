@@ -395,30 +395,58 @@ const protect = (...allowedRoles) => {
 //       return null;
 //   }
 // }
+// async function loadUserByRole(role, id, includeTokenVersion = false) {
+//   if (!role) return null;
+
+//   // Add firstName to selectFields so it is fetched from DB
+//   const selectFields = includeTokenVersion
+//     ? "+tokenVersion isActive email firstName role"
+//     : "firstName email isActive role";
+
+//   switch (role.toLowerCase()) {
+//     case "doctor":
+//       return await Doctor.findById(id).select(selectFields);
+//           case "serviceprovider": // Add support for the new model
+//       return await ServiceProvider.findById(id).select(selectFields);
+//     case "patient":
+//       return await Patient.findById(id).select(selectFields);
+//     case "admin":
+//     case "superadmin":
+//     case "subadmin":
+//       return await Admin.findById(id).select(selectFields);
+//     default:
+//       return null;
+//   }
+// }
+
+
 async function loadUserByRole(role, id, includeTokenVersion = false) {
   if (!role) return null;
 
-  // Add firstName to selectFields so it is fetched from DB
   const selectFields = includeTokenVersion
     ? "+tokenVersion isActive email firstName role"
     : "firstName email isActive role";
 
   switch (role.toLowerCase()) {
     case "doctor":
+      return await Doctor.findById(id).select(selectFields);
+
     case "serviceprovider":
-  return await ServiceProvider.findById(id).select(selectFields);
- // Add support for the new model
       return await ServiceProvider.findById(id).select(selectFields);
+
     case "patient":
       return await Patient.findById(id).select(selectFields);
+
     case "admin":
     case "superadmin":
     case "subadmin":
       return await Admin.findById(id).select(selectFields);
+
     default:
       return null;
   }
 }
+
 
 const isProduction = process.env.NODE_ENV === "production";
 
