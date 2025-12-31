@@ -405,8 +405,9 @@ async function loadUserByRole(role, id, includeTokenVersion = false) {
 
   switch (role.toLowerCase()) {
     case "doctor":
-      return await Doctor.findById(id).select(selectFields);
-          case "serviceprovider": // Add support for the new model
+    case "serviceprovider":
+  return await ServiceProvider.findById(id).select(selectFields);
+ // Add support for the new model
       return await ServiceProvider.findById(id).select(selectFields);
     case "patient":
       return await Patient.findById(id).select(selectFields);
