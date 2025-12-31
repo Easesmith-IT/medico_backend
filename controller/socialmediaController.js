@@ -2173,7 +2173,7 @@ exports.searchSocialPosts = async (req, res) => {
 
     const results = {};
 
-    // ✅ 1. DOCTORS SEARCH
+    //  1. DOCTORS SEARCH
     if (type === 'all' || type === 'doctors') {
       const doctorQuery = { 
         isActive: true,

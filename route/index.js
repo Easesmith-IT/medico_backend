@@ -9,7 +9,7 @@ const bookingRoute= require('../route/bookingRoute');
 const serviceRoute= require('../route/serviceRoute');
 const serviceProviderRoute= require('../route/serviceProvider');
 const socialPostRoute = require('../route/socialPostRoute');
-
+const invoiceRoute = require('../route/invoiceRoute');
 const router = express.Router();
 
 // Mount all routes
@@ -22,6 +22,6 @@ router.use('/article',articleRoute);
 router.use('/booking',bookingRoute);
 router.use('/service',serviceRoute);
 router.use('/serviceProvider',serviceProviderRoute)
-
+router.use('/invoice',invoiceRoute)
 router.use('/socialPost',socialPostRoute) // Social media posts
 module.exports = router;

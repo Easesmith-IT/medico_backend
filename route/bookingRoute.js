@@ -52,7 +52,11 @@ router.get('/bookings/:bookingId', bookingController.getByIdBooking);
 router.put('/cancel/:bookingId', protect(['patient']), bookingController.cancelBooking);
 
 
-
-
+// Add equipment (Admin only)
+router.put(
+  '/update-status/:bookingId', 
+  protect(['doctor','serviceprovider']), 
+  bookingController.updateServiceStatus
+);
 
 module.exports = router;

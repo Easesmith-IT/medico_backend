@@ -4185,5 +4185,206 @@ exports.adminRemoveMedication = catchAsync(async (req, res, next) => {
     data: { currentMedications: patient.currentMedications },
   });
 });
+// exports.addEquipment = async (req, res) => {
+//   try {
+//     const { 
+//       name, 
+//       description, 
+//       basePrice, 
+//       equipmentCharges, 
+//       cities, 
+//       image,
+//       minDuration,
+//       maxDuration 
+//     } = req.body;
 
+//     // Build the equipment document
+//     const newEquipment = new Service({
+//       name,
+//       description,
+//       category: 'equipment', // Fixed for this admin action
+//       basePrice,
+//       equipmentCharges: equipmentCharges || 0,
+//       cities,
+//       image,
+//       modes: ["Home Service"],
+//       slotConfig: {
+//         equipmentBooking: {
+//           enabled: true,
+//           minDuration: minDuration || 60,
+//           maxDuration: maxDuration || 1440, // Default to 24-hour limit
+//           available24x7: true
+//         }
+//       },
+//       // Uses data from your 'protect' middleware
+//       createdBy: {
+//         userId: req.user.id,
+//         userModel: req.user.role === 'superAdmin' ? 'SuperAdmin' : 'Admin',
+//         name: req.user.firstName,
+//         email: req.user.email
+//       }
+//     });
+
+//     const savedEquipment = await newEquipment.save();
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Equipment added successfully by admin",
+//       data: savedEquipment
+//     });
+//   } catch (error) {
+//     res.status(400).json({
+//       success: false,
+//       message: `Validation Error: ${error.message}`
+//     });
+//   }
+// };
+
+
+exports.addEquipment = async (req, res) => {
+  try {
+    const { 
+      name, 
+      description, 
+      basePrice, 
+      equipmentCharges, 
+      cities, 
+      image,
+      minDuration,
+      maxDuration 
+    } = req.body;
+
+    // 1. Validate that cities exist and are ACTIVE
+    if (!cities || !Array.isArray(cities) || cities.length === 0) {
+      return res.status(400).json({ success: false, message: "At least one city ID is required." });
+    }
+
+    // Fetch cities that match the IDs AND are active
+    const activeCities = await City.find({ 
+      _id: { $in: cities },
+      isActive: true 
+    }).select('name');
+    
+    // Check if any provided IDs were missing or inactive
+    if (activeCities.length !== cities.length) {
+      const foundIds = activeCities.map(c => c._id.toString());
+      const invalidIds = cities.filter(id => !foundIds.includes(id));
+      
+      return res.status(400).json({ 
+        success: false, 
+        message: "Some cities are invalid or inactive",
+        invalidIds 
+      });
+    }
+
+    // 2. Build the equipment document
+    const newEquipment = new Service({
+      name,
+      description,
+      category: 'equipment',
+      basePrice,
+      equipmentCharges: equipmentCharges || 0,
+      cities, // Storing the validated ObjectIds
+      image,
+      modes: ["Home Service"],
+      slotConfig: {
+        equipmentBooking: {
+          enabled: true,
+          minDuration: minDuration || 60,
+          maxDuration: maxDuration || 1440,
+          available24x7: true
+        }
+      },
+      createdBy: {
+        userId: req.user.id,
+        userModel: req.user.role === 'superAdmin' ? 'SuperAdmin' : 'Admin',
+        name: req.user.firstName,
+        email: req.user.email
+      }
+    });
+
+    const savedEquipment = await newEquipment.save();
+
+    res.status(201).json({
+      success: true,
+      message: `Equipment added successfully for ${activeCities.map(c => c.name).join(', ')}`,
+      data: savedEquipment
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: `Validation Error: ${error.message}`
+    });
+  }
+};
+
+
+// exports.addEquipment = async (req, res) => {
+//   try {
+//     const { 
+//       name, 
+//       description, 
+//       basePrice, 
+//       equipmentCharges, 
+//       cities, 
+//       image,
+//       minDuration,
+//       maxDuration 
+//     } = req.body;
+
+//     // 1. City ID Validation Logic
+//     if (!cities || !Array.isArray(cities) || cities.length === 0) {
+//       return res.status(400).json({ success: false, message: "At least one valid city is required." });
+//     }
+
+//     // Check if provided city IDs exist in the City collection
+//     const validCities = await City.find({ _id: { $in: cities } }).select('_id');
+    
+//     if (validCities.length !== cities.length) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: "One or more provided city IDs are invalid or not available in the city module." 
+//       });
+//     }
+
+//     // 2. Build and save the equipment document
+//     const newEquipment = new Service({
+//       name,
+//       description,
+//       category: 'equipment',
+//       basePrice,
+//       equipmentCharges: equipmentCharges || 0,
+//       cities, // These are now verified to exist
+//       image,
+//       modes: ["Home Service"],
+//       slotConfig: {
+//         equipmentBooking: {
+//           enabled: true,
+//           minDuration: minDuration || 60,
+//           maxDuration: maxDuration || 1440,
+//           available24x7: true
+//         }
+//       },
+//       createdBy: {
+//         userId: req.user.id,
+//         userModel: req.user.role === 'superAdmin' ? 'SuperAdmin' : 'Admin',
+//         name: req.user.firstName,
+//         email: req.user.email
+//       }
+//     });
+
+//     const savedEquipment = await newEquipment.save();
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Equipment added successfully with valid city mappings",
+//       data: savedEquipment
+//     });
+//   } catch (error) {
+//     res.status(400).json({
+//       success: false,
+//       message: `Validation Error: ${error.message}`
+//     });
+//   }
+// };
 module.exports = exports;
