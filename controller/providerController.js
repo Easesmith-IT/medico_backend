@@ -261,36 +261,176 @@
 // };
 
 const ServiceProvider = require("../models/serviceProviderModel");
-
+const City = require("../models/availableCities");
+const bcrypt = require('bcryptjs');
+const { generateAccessToken }=require('../utils/tokenUtils')
 // Create service provider
+// exports.createServiceProvider = async (req, res) => {
+//   try {
+//     const data = req.body;
+//     if (
+//       req.user &&
+//       (req.user.role === "superadmin" || req.user.role === "subadmin")
+//     ) {
+//       data.approvedBy = {
+//         adminId: req.user.id,
+//         adminName: req.user.email || "Admin",
+//       };
+//       data.approvalStatus = "Approved";
+//       data.isActive = true;
+//     }
+//     const newProvider = await ServiceProvider.create(data);
+//     res.status(201).json({
+//       success: true,
+//       message: "Service provider created successfully",
+//       data: newProvider,
+//     });
+//   } catch (error) {
+//     // if (error.code === 11000) {
+//     //   return res.status(400).json({
+//     //     success: false,
+//     //     message: "Duplicate field value",
+//     //     details: error.keyValue,
+//     //   });
+//     // }
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
 exports.createServiceProvider = async (req, res) => {
   try {
     const data = req.body;
-    if (
-      req.user &&
-      (req.user.role === "superadmin" || req.user.role === "subadmin")
-    ) {
+
+    // 1. Validate Cities if provided
+    if (data.serviceCities && Array.isArray(data.serviceCities)) {
+      const validCities = await City.find({
+        _id: { $in: data.serviceCities },
+        isActive: true
+      });
+
+      if (validCities.length !== data.serviceCities.length) {
+        return res.status(400).json({
+          success: false,
+          message: "One or more selected cities are invalid or inactive"
+        });
+      }
+    }
+
+    // 2. Admin Auto-Approval Logic
+    if (req.user && (req.user.role === "superadmin" || req.user.role === "subadmin")) {
       data.approvedBy = {
         adminId: req.user.id,
         adminName: req.user.email || "Admin",
+        approvedAt: new Date()
       };
       data.approvalStatus = "Approved";
       data.isActive = true;
     }
+
+    // 3. Password Requirement
+    if (!data.password) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Password is required for service provider account creation" 
+      });
+    }
+
+    // 4. Create Provider
     const newProvider = await ServiceProvider.create(data);
+    
+    const providerResponse = newProvider.toObject();
+    delete providerResponse.password;
+
     res.status(201).json({
       success: true,
-      message: "Service provider created successfully",
-      data: newProvider,
+      message: "Service provider created successfully with assigned cities.",
+      data: providerResponse,
     });
   } catch (error) {
-    // if (error.code === 11000) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Duplicate field value",
-    //     details: error.keyValue,
-    //   });
-    // }
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Mobile or Email already exists",
+        details: error.keyValue,
+      });
+    }
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// exports.createServiceProvider = async (req, res) => {
+//   try {
+//     const data = req.body;
+    
+//     // Check if the creator is an Admin
+//     if (req.user && (req.user.role === "superadmin" || req.user.role === "subadmin")) {
+//       data.approvedBy = {
+//         adminId: req.user.id,
+//         adminName: req.user.email || "Admin",
+//         approvedAt: new Date()
+//       };
+//       data.approvalStatus = "Approved";
+//       data.isActive = true;
+//     }
+
+//     // Ensure password is provided for first-time login
+//     if (!data.password) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: "Password is required for service provider account creation" 
+//       });
+//     }
+
+//     const newProvider = await ServiceProvider.create(data);
+    
+//     // Remove password from response for security
+//     const providerResponse = newProvider.toObject();
+//     delete providerResponse.password;
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Service provider created by admin. They can now login with the provided credentials.",
+//       data: providerResponse,
+//     });
+//   } catch (error) {
+//     if (error.code === 11000) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Mobile or Email already exists",
+//         details: error.keyValue,
+//       });
+//     }
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+exports.loginServiceProvider = async (req, res) => {
+  try {
+    const { email, mobile, password } = req.body;
+
+    // Fetch provider with password for comparison
+    const provider = await ServiceProvider.findOne({
+      $or: [{ email: email }, { mobile: mobile }],
+      isDeleted: { $ne: true }
+    }).select("+password isActive approvalStatus");
+
+    if (!provider || !(await provider.comparePassword(password))) {
+      return res.status(401).json({ success: false, message: "Invalid email/mobile or password" });
+    }
+
+    if (!provider.isActive) {
+      return res.status(403).json({ success: false, message: "Your account is currently inactive" });
+    }
+
+    // Generate tokens
+    const accessToken = generateAccessToken(provider._id, "serviceprovider", provider.tokenVersion);
+    
+    res.cookie("accessToken", accessToken, { httpOnly: true, secure: true, sameSite: "none" });
+
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      data: { id: provider._id, firstName: provider.firstName, role: "serviceprovider" }
+    });
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };

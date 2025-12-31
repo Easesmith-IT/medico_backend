@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const dotenv = require("dotenv");
-
+const path = require("path");
 dotenv.config();
 
 const routes = require("./route");
@@ -68,10 +68,15 @@ app.get("/api/test-cookies", (req, res) => {
   console.log("🍪 COOKIES:", req.cookies);
   res.json({ cookies: req.cookies });
 });
-
+app.use("/invoices", express.static(path.join(__dirname, "invoices")));
 // Mount all API routes
 app.use("/api/v1", routes);
 
+
+
+app.use((req, res, next) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+});
 // Handle undefined routes
 app.use((req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));

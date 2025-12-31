@@ -13,7 +13,10 @@ router.post(
   protect("superadmin", "subadmin"),
   serviceProviderController.createServiceProvider
 );
-
+router.post(
+  "/login", 
+  serviceProviderController.loginServiceProvider
+);
 // Get all service providers - can be public or protected as needed
 router.get(
   "/getAllServiceProviders",

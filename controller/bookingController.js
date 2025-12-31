@@ -1189,3 +1189,132 @@ exports.getByIdBooking = async (req, res) => {
     });
   }
 };
+
+exports.updateServiceStatus = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { status, equipment } = req.body; 
+    const providerId = req.user.id;
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    // Verify authorized provider (ensure it is a string comparison)
+    if (booking.servicePartnerId.toString() !== providerId.toString()) {
+      return res.status(403).json({ success: false, message: "Unauthorized provider" });
+    }
+
+    if (status === "Started") {
+      // Prevent starting a booking that is already done or cancelled
+      if (["Completed", "Cancelled", "Rejected"].includes(booking.status)) {
+        return res.status(400).json({ success: false, message: "Invalid status transition" });
+      }
+      booking.status = "In-Progress";
+      booking.serviceStartedAt = new Date();
+    } 
+    else if (status === "Completed") {
+      // Must be started before it can be completed
+      if (booking.status !== "In-Progress") {
+        return res.status(400).json({ success: false, message: "Service must be 'In-Progress' to complete" });
+      }
+
+      booking.status = "Completed";
+      booking.serviceEndedAt = new Date();
+
+      // Handle Manual Equipment Charges
+      if (equipment && Array.isArray(equipment)) {
+        let extraCharge = 0;
+        booking.additionalEquipment = equipment.map(item => {
+          const charge = Number(item.charge || 0);
+          extraCharge += charge;
+          return { name: item.name, charge: charge };
+        });
+        
+        // Update Pricing Snapshot
+        booking.pricing.equipmentCharges = extraCharge; 
+        
+        // Calculate final total based on original basePrice + new manual charges
+        const baseAmount = booking.pricing.basePrice || 0;
+        booking.pricing.totalAmount = baseAmount + extraCharge;
+      }
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid status provided" });
+    }
+
+    await booking.save();
+    res.status(200).json({
+      success: true,
+      message: `Status updated to ${booking.status}`,
+      data: booking
+    });
+  } catch (error) {
+    console.error("Update status error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+
+
+
+// exports.addEquipment = async (req, res) => {
+//   try {
+//     const { 
+//       name, 
+//       description, 
+//       basePrice, 
+//       equipmentCharges, 
+//       cities, 
+//       image,
+//       minDuration,
+//       maxDuration 
+//     } = req.body;
+
+//     // 1. Validate mandatory fields for equipment
+//     if (!name || !basePrice || !cities) {
+//       return res.status(400).json({ message: "Name, Base Price, and Cities are required" });
+//     }
+
+//     // 2. Create the new service document with 'equipment' category
+//     const newEquipment = new Service({
+//       name,
+//       description,
+//       category: 'equipment', // Fixed for this function
+//       basePrice,
+//       equipmentCharges: equipmentCharges || 0,
+//       cities,
+//       image,
+//       // Configure equipment booking logic based on your schema
+//       slotConfig: {
+//         equipmentBooking: {
+//           enabled: true,
+//           minDuration: minDuration || 60,
+//           maxDuration: maxDuration || 720,
+//           available24x7: true
+//         }
+//       },
+//       // Admin metadata (from your auth middleware)
+//       createdBy: {
+//         userId: req.user._id,
+//          userModel: req.user.role === 'superAdmin' ? 'SuperAdmin' : 'Admin', 
+//         // userModel: req.user.role, // "Admin" or "SuperAdmin"
+//         name: req.user.name,
+//         email: req.user.email
+//       }
+//     });
+
+//     // 3. Save to MongoDB
+//     const savedEquipment = await newEquipment.save();
+
+//     res.status(201).json({
+//       status: 'success',
+//       data: savedEquipment
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       status: 'error',
+//       message: error.message
+//     });
+//   }
+// };

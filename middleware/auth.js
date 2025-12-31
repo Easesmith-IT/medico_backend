@@ -180,34 +180,18 @@ const shouldRenewRefreshToken = (decoded) => {
 //     }
 //   };
 // };
+
+
 const protect = (...allowedRoles) => {
-  const normalizedAllowedRoles = allowedRoles
-    .flat()
-    .filter((r) => typeof r === "string")
-    .map((r) => r.toLowerCase());
+  const normalizedAllowedRoles = allowedRoles.flat().filter(r => typeof r === "string").map(r => r.toLowerCase());
 
   return async (req, res, next) => {
     try {
       let { accessToken, refreshToken } = req.cookies;
 
-      // 1. Robust Authorization header fallback
-      if (
-        !accessToken &&
-        req.headers.authorization &&
-        req.headers.authorization.startsWith("Bearer")
-      ) {
-        // .trim() and .replace removes potential malformed characters like quotes or spaces
+      // Header Fallback
+      if (!accessToken && req.headers.authorization?.startsWith("Bearer")) {
         accessToken = req.headers.authorization.split(" ")[1]?.trim().replace(/^["'](.+)["']$/, '$1');
-        console.log("Using token from Authorization header");
-      }
-
-      // 2. Immediate block if no tokens present
-      if (
-        (!accessToken || accessToken === "undefined" || accessToken === "null") &&
-        (!refreshToken || refreshToken === "undefined" || refreshToken === "null")
-      ) {
-        clearAuthCookies(res);
-        return next(new AppError("Not authorized to access this route", 401));
       }
 
       // ---------------------------------------------------------
@@ -219,21 +203,18 @@ const protect = (...allowedRoles) => {
           const user = await loadUserByRole(decoded.role, decoded.id, true);
 
           if (user) {
-            req.user = { ...decoded, isActive: user.isActive }; // Attach user status
-            return authorizeAndContinue(
-              req,
-              decoded?.role,
-              normalizedAllowedRoles,
-              next
-            );
+            // FIX: Attach email and firstName for the Service Schema validation
+            req.user = { 
+              ...decoded, 
+              isActive: user.isActive,
+              email: user.email,
+              firstName: user.firstName 
+            }; 
+            return authorizeAndContinue(req, decoded?.role, normalizedAllowedRoles, next);
           }
         } catch (err) {
-          // If the token is physically malformed, do not attempt refresh; block immediately
-          if (err.message.includes("jwt malformed")) {
-            console.log("Blocking malformed JWT");
-            return next(new AppError("Invalid token format. Please login again.", 401));
-          }
-          console.log("Access token expired/invalid, attempting refresh:", err.message);
+          // Just log the error; don't use 'refreshDecoded' here as it doesn't exist yet
+          console.log("Access token invalid, moving to refresh check...");
         }
       }
 
@@ -250,24 +231,21 @@ const protect = (...allowedRoles) => {
             return next(new AppError("Session expired. Please login again.", 401));
           }
 
-          // Safety check for token version
-          if (user.tokenVersion === undefined || user.tokenVersion === null) {
-            user.tokenVersion = 0;
-            await user.save({ validateBeforeSave: false });
-          }
-
           // Generate new access token
           const newAccessToken = generateAccessToken(user._id, refreshDecoded.role, user.tokenVersion);
 
-          // Set refreshed access token cookie
           res.cookie("accessToken", newAccessToken, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
-            maxAge: 24 * 60 * 60 * 1000,
+            httpOnly: true, secure: true, sameSite: "none", maxAge: 24 * 60 * 60 * 1000,
           });
 
-          req.user = { ...refreshDecoded, isActive: user.isActive };
+          // FIX: Attach email and firstName here for refreshed sessions
+          req.user = { 
+            ...refreshDecoded, 
+            isActive: user.isActive,
+            email: user.email,
+            firstName: user.firstName
+          };
+
           return authorizeAndContinue(req, refreshDecoded?.role, normalizedAllowedRoles, next);
         } catch (err) {
           clearAuthCookies(res);
@@ -275,7 +253,6 @@ const protect = (...allowedRoles) => {
         }
       }
 
-      // 3. Final Fallback: If logic reaches here, authentication failed
       return next(new AppError("Authentication required", 401));
     } catch (err) {
       next(err);
@@ -284,25 +261,159 @@ const protect = (...allowedRoles) => {
 };
 
 
+
+// const protect = (...allowedRoles) => {
+//   const normalizedAllowedRoles = allowedRoles
+//     .flat()
+//     .filter((r) => typeof r === "string")
+//     .map((r) => r.toLowerCase());
+
+//   return async (req, res, next) => {
+//     try {
+//       let { accessToken, refreshToken } = req.cookies;
+
+//       // 1. Robust Authorization header fallback
+//       if (
+//         !accessToken &&
+//         req.headers.authorization &&
+//         req.headers.authorization.startsWith("Bearer")
+//       ) {
+//         // .trim() and .replace removes potential malformed characters like quotes or spaces
+//         accessToken = req.headers.authorization.split(" ")[1]?.trim().replace(/^["'](.+)["']$/, '$1');
+//         console.log("Using token from Authorization header");
+//       }
+
+//       // 2. Immediate block if no tokens present
+//       if (
+//         (!accessToken || accessToken === "undefined" || accessToken === "null") &&
+//         (!refreshToken || refreshToken === "undefined" || refreshToken === "null")
+//       ) {
+//         clearAuthCookies(res);
+//         return next(new AppError("Not authorized to access this route", 401));
+//       }
+
+//       // ---------------------------------------------------------
+//       // 1) TRY ACCESS TOKEN
+//       // ---------------------------------------------------------
+//       if (accessToken && accessToken !== "undefined" && accessToken !== "null") {
+//         try {
+//           const decoded = verifyToken(accessToken, "access");
+//           const user = await loadUserByRole(decoded.role, decoded.id, true);
+
+//           if (user) {
+//             // req.user = { ...decoded, isActive: user.isActive }; // Attach user status
+//                req.user = { 
+//             ...refreshDecoded, 
+//             isActive: user.isActive,
+//             email: user.email,
+//             firstName: user.firstName
+//           };
+//             return authorizeAndContinue(
+//               req,
+//               decoded?.role,
+//               normalizedAllowedRoles,
+//               next
+//             );
+//           }
+//         } catch (err) {
+//           // If the token is physically malformed, do not attempt refresh; block immediately
+//           if (err.message.includes("jwt malformed")) {
+//             console.log("Blocking malformed JWT");
+//             return next(new AppError("Invalid token format. Please login again.", 401));
+//           }
+//           console.log("Access token expired/invalid, attempting refresh:", err.message);
+//         }
+//       }
+
+//       // ---------------------------------------------------------
+//       // 2) TRY REFRESH TOKEN
+//       // ---------------------------------------------------------
+//       if (refreshToken && refreshToken !== "undefined" && refreshToken !== "null") {
+//         try {
+//           const refreshDecoded = verifyToken(refreshToken, "refresh");
+//           let user = await loadUserByRole(refreshDecoded.role, refreshDecoded.id, true);
+
+//           if (!user) {
+//             clearAuthCookies(res);
+//             return next(new AppError("Session expired. Please login again.", 401));
+//           }
+
+//           // Safety check for token version
+//           if (user.tokenVersion === undefined || user.tokenVersion === null) {
+//             user.tokenVersion = 0;
+//             await user.save({ validateBeforeSave: false });
+//           }
+
+//           // Generate new access token
+//           const newAccessToken = generateAccessToken(user._id, refreshDecoded.role, user.tokenVersion);
+
+//           // Set refreshed access token cookie
+//           res.cookie("accessToken", newAccessToken, {
+//             httpOnly: true,
+//             secure: true,
+//             sameSite: "none",
+//             maxAge: 24 * 60 * 60 * 1000,
+//           });
+
+//           req.user = { ...refreshDecoded, isActive: user.isActive };
+//           return authorizeAndContinue(req, refreshDecoded?.role, normalizedAllowedRoles, next);
+//         } catch (err) {
+//           clearAuthCookies(res);
+//           return next(new AppError("Session expired. Please login again.", 401));
+//         }
+//       }
+
+//       // 3. Final Fallback: If logic reaches here, authentication failed
+//       return next(new AppError("Authentication required", 401));
+//     } catch (err) {
+//       next(err);
+//     }
+//   };
+// };
+
+
+// async function loadUserByRole(role, id, includeTokenVersion = false) {
+//   if (!role) return null;
+
+//   const selectFields = includeTokenVersion
+//     ? "+tokenVersion isActive email"
+//     : "";
+
+//   switch (role.toLowerCase()) {
+//     case "doctor":
+//       return await Doctor.findById(id).select(selectFields);
+
+//     case "patient":                           //  ADD THIS LINE
+//       return await Patient.findById(id).select(selectFields);
+
+//     case "admin":
+//     case "superadmin":
+//     case "subadmin":
+//       return await Admin.findById(id).select(selectFields);
+
+//     default:
+//       return null;
+//   }
+// }
 async function loadUserByRole(role, id, includeTokenVersion = false) {
   if (!role) return null;
 
+  // Add firstName to selectFields so it is fetched from DB
   const selectFields = includeTokenVersion
-    ? "+tokenVersion isActive email"
-    : "";
+    ? "+tokenVersion isActive email firstName role"
+    : "firstName email isActive role";
 
   switch (role.toLowerCase()) {
     case "doctor":
       return await Doctor.findById(id).select(selectFields);
-
-    case "patient":                           //  ADD THIS LINE
+          case "serviceprovider": // Add support for the new model
+      return await ServiceProvider.findById(id).select(selectFields);
+    case "patient":
       return await Patient.findById(id).select(selectFields);
-
     case "admin":
     case "superadmin":
     case "subadmin":
       return await Admin.findById(id).select(selectFields);
-
     default:
       return null;
   }
