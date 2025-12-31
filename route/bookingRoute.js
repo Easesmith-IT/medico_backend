@@ -55,7 +55,8 @@ router.put('/cancel/:bookingId', protect(['patient']), bookingController.cancelB
 // Add equipment (Admin only)
 router.put(
   '/update-status/:bookingId', 
-  protect(['doctor','serviceprovider']), 
+  // protect(['doctor','serviceprovider']), 
+   protect('doctor', 'serviceprovider'),
   bookingController.updateServiceStatus
 );
 
