@@ -59,5 +59,9 @@ router.put(
    protect('doctor', 'serviceprovider'),
   bookingController.updateServiceStatus
 );
-
+router.get(
+    '/my-bookings/:providerId', 
+    protect, 
+    bookingController.getBookingsByServiceProvider
+);
 module.exports = router;
