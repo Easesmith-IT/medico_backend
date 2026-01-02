@@ -1392,39 +1392,42 @@ exports.getBookingsByServiceProvider = async (req, res, next) => {
     try {
         const { providerId } = req.params;
 
-        // 1. Validate ID to prevent casting errors
+        // 1. Validate the ID format
         if (!mongoose.Types.ObjectId.isValid(providerId)) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid Service Provider ID format"
+                message: "Invalid Service Provider ID"
             });
         }
 
-        // 2. Fetch ALL bookings (no status filter applied)
+        // 2. Fetch bookings using the correct schema field: servicePartnerId
         const bookings = await Booking.find({ 
-            serviceProvider: providerId 
+            servicePartnerId: providerId 
         })
         .populate({
-            path: 'patient',
-            select: 'firstName lastName email phone profilePhoto'
+            path: 'patientId', // Matches your schema
+            select: 'firstName lastName email mobile profilePhoto'
         })
         .populate({
-            path: 'serviceId',
-            select: 'name description basePrice icon'
+            path: 'serviceId', // Matches your schema
+            select: 'name category modes'
+        })
+        .populate({
+            path: 'city',
+            select: 'name'
         })
         .sort({ createdAt: -1 });
 
-        // 3. Always return a response to prevent Postman from hanging
+        // 3. Return response
         return res.status(200).json({
             success: true,
             count: bookings.length,
-            message: bookings.length === 0 ? "No records found" : "All bookings retrieved successfully",
+            message: bookings.length === 0 ? "No bookings found" : "Bookings retrieved successfully",
             data: bookings
         });
 
     } catch (err) {
-        console.error("Error in getBookingsByServiceProvider:", err.message);
-        // Send actual error back so the client doesn't wait forever
+        console.error("Error fetching provider bookings:", err.message);
         res.status(500).json({
             success: false,
             message: "Internal Server Error",
