@@ -61,7 +61,7 @@ router.put(
 );
 router.get(
     '/my-bookings/:providerId', 
-    protect, 
+    protect('serviceprovider'), 
     bookingController.getBookingsByServiceProvider
 );
 module.exports = router;
