@@ -1388,13 +1388,19 @@ exports.updateServiceStatus = async (req, res) => {
 
 
 
-
 exports.getBookingsByServiceProvider = async (req, res, next) => {
     try {
         const { providerId } = req.params;
 
-        // 1. Fetch bookings for the specific provider
-        // Filtering by serviceProvider ID and often status (e.g., 'booked', 'confirmed')
+        // 1. Validate ID to prevent casting errors
+        if (!mongoose.Types.ObjectId.isValid(providerId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid Service Provider ID format"
+            });
+        }
+
+        // 2. Fetch ALL bookings (no status filter applied)
         const bookings = await Booking.find({ 
             serviceProvider: providerId 
         })
@@ -1408,28 +1414,65 @@ exports.getBookingsByServiceProvider = async (req, res, next) => {
         })
         .sort({ createdAt: -1 });
 
-        // 2. Check if bookings exist
-        if (!bookings || bookings.length === 0) {
-            return res.status(200).json({
-                success: true,
-                count: 0,
-                message: "No bookings found for this service provider",
-                data: []
-            });
-        }
-
-        // 3. Return response
-        res.status(200).json({
+        // 3. Always return a response to prevent Postman from hanging
+        return res.status(200).json({
             success: true,
             count: bookings.length,
+            message: bookings.length === 0 ? "No records found" : "All bookings retrieved successfully",
             data: bookings
         });
 
     } catch (err) {
-        console.error("Error fetching provider bookings:", err.message);
-        next(err);
+        console.error("Error in getBookingsByServiceProvider:", err.message);
+        // Send actual error back so the client doesn't wait forever
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            error: err.message
+        });
     }
 };
+// exports.getBookingsByServiceProvider = async (req, res, next) => {
+//     try {
+//         const { providerId } = req.params;
+
+//         // 1. Fetch bookings for the specific provider
+//         // Filtering by serviceProvider ID and often status (e.g., 'booked', 'confirmed')
+//         const bookings = await Booking.find({ 
+//             serviceProvider: providerId 
+//         })
+//         .populate({
+//             path: 'patient',
+//             select: 'firstName lastName email phone profilePhoto'
+//         })
+//         .populate({
+//             path: 'serviceId',
+//             select: 'name description basePrice icon'
+//         })
+//         .sort({ createdAt: -1 });
+
+//         // 2. Check if bookings exist
+//         if (!bookings || bookings.length === 0) {
+//             return res.status(200).json({
+//                 success: true,
+//                 count: 0,
+//                 message: "No bookings found for this service provider",
+//                 data: []
+//             });
+//         }
+
+//         // 3. Return response
+//         res.status(200).json({
+//             success: true,
+//             count: bookings.length,
+//             data: bookings
+//         });
+
+//     } catch (err) {
+//         console.error("Error fetching provider bookings:", err.message);
+//         next(err);
+//     }
+// };
 
 
 
