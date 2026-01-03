@@ -1312,7 +1312,7 @@ exports.updateServiceStatus = async (req, res) => {
     if (status === "Started") {
       console.log("➡️ Attempting to START service");
 
-      if (["Completed", "Cancelled", "Rejected"].includes(booking.status)) {
+      if (["Completed", "Cancelled", "Rejected","In-Progress"].includes(booking.status)) {
         console.log("❌ Invalid status transition from:", booking.status);
         return res.status(400).json({
           success: false,
