@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page { size: A4; margin: 15mm; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.5; margin: 0; padding: 0; }
+        .invoice-container { width: 100%; padding: 20px; }
+        
+        /* Header & Branding */
+        .header-table { width: 100%; border-bottom: 3px solid #2c3e50; padding-bottom: 10px; margin-bottom: 30px; }
+        .brand-name { font-size: 28px; font-weight: bold; color: #2c3e50; }
+        .invoice-label { text-align: right; font-size: 22px; color: #7f8c8d; text-transform: uppercase; }
+
+        /* Participant Details Grid */
+        .info-grid { width: 100%; display: table; margin-bottom: 40px; table-layout: fixed; }
+        .info-col { display: table-cell; vertical-align: top; padding-right: 20px; }
+        .info-box { background: #f9f9f9; padding: 15px; border-radius: 5px; border-left: 4px solid #3498db; }
+        .info-box h4 { margin: 0 0 8px 0; color: #2c3e50; font-size: 14px; text-transform: uppercase; }
+        .info-box p { margin: 2px 0; font-size: 13px; }
+
+        /* Items Table */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th { background-color: #2c3e50; color: white; padding: 12px; text-align: left; font-size: 13px; text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        .row-category { background: #f2f2f2; font-weight: bold; font-size: 11px; color: #666; }
+
+        /* Financial Summary */
+        .summary-wrapper { width: 100%; display: table; }
+        .summary-left { display: table-cell; width: 60%; vertical-align: bottom; font-size: 12px; color: #7f8c8d; }
+        .summary-right { display: table-cell; width: 40%; }
+        .summary-table { width: 100%; border-collapse: collapse; }
+        .summary-table td { padding: 8px; border: none; text-align: right; }
+        .grand-total-row { background: #2c3e50; color: white; font-weight: bold; font-size: 16px; }
+        .grand-total-row td { padding: 15px 8px; }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <!-- Header -->
+        <table class="header-table">
+            <tr>
+                <td class="brand-name" style="border:none">MEDICO PLATFORM</td>
+                <td class="invoice-label" style="border:none">Tax Invoice</td>
+            </tr>
+            <tr>
+                <td style="border:none; font-size: 12px; color: #7f8c8d;">Invoice #: <%= invoice.invoiceNumber %></td>
+                <td style="border:none; font-size: 12px; color: #7f8c8d; text-align: right;">Date: <%= new Date(invoice.issuedAt).toLocaleDateString() %></td>
+            </tr>
+        </table>
+
+        <!-- Participant Details -->
+        <!-- <div class="info-grid">
+            <div class="info-col">
+                <div class="info-box">
+                    <h4>Billed To (Patient)</h4>
+                    <p><strong>Name:</strong> <%= invoice.patientId ? invoice.patientId.name : 'N/A' %></p>
+                    <p><strong>Patient ID:</strong> <%= invoice.patientId ? invoice.patientId._id : 'N/A' %></p>
+                </div>
+            </div>
+            <div class="info-col">
+                <div class="info-box" style="border-left-color: #2ecc71;">
+                    <h4>Service Provider</h4>
+                    <p><strong>Doctor:</strong> <%= invoice.doctorId ? invoice.doctorId.name : 'N/A' %></p>
+                    <p><strong>Dept:</strong> <%= invoice.doctorId ? invoice.doctorId.specialization : 'General' %></p>
+                </div>
+            </div>
+        </div> -->
+<!-- Participant Details -->
+<div class="info-grid">
+    <!-- Patient Details -->
+    <div class="info-col">
+        <div class="info-box">
+            <h4>Billed To (Patient)</h4>
+            <p><strong>Name:</strong> <%= invoice.patientId ? invoice.patientId.firstName : 'N/A' %></p>
+            <p><strong>Phone:</strong> <%= invoice.patientId ? invoice.patientId.phone : 'N/A' %></p>
+            <p><strong>Address:</strong> 
+                <% if (invoice.patientId && invoice.patientId.address) { %>
+                    <%= invoice.patientId.address.street %>, <%= invoice.patientId.address.city %>, <%= invoice.patientId.address.pincode %>
+                <% } else { %>
+                    Address Not Provided
+                <% } %>
+            </p>
+            <p><strong>ID:</strong> <%= invoice.patientId ? invoice.patientId._id : 'N/A' %></p>
+        </div>
+    </div>
+
+    <!-- Doctor Details -->
+    <div class="info-col">
+        <div class="info-box" style="border-left-color: #2ecc71;">
+            <h4>Service Provider (Doctor)</h4>
+            <p><strong>Dr. <%= invoice.doctorId ? invoice.doctorId.firstName : 'N/A' %></strong></p>
+            <p><strong>Specialization:</strong> <%= invoice.doctorId ? invoice.doctorId.specialization : 'General' %></p>
+            <p><strong>Reg No:</strong> <%= invoice.doctorId ? invoice.doctorId.medicalRegistrationNumber : 'N/A' %></p>
+            <p><strong>Phone:</strong> <%= invoice.doctorId ? invoice.doctorId.phone : 'N/A' %></p>
+            <p><strong>Clinic:</strong> 
+                <% if (invoice.doctorId && invoice.doctorId.address) { %>
+                    <%= invoice.doctorId.address.city %>, <%= invoice.doctorId.address.state %>
+                <% } else { %>
+                    N/A
+                <% } %>
+            </p>
+        </div>
+    </div>
+</div>
+
+        <!-- Service & Product Table -->
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th style="width: 80px;">Qty</th>
+                    <th>Rate</th>
+                    <th>GST %</th>
+                    <th style="text-align: right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 1. Medicines -->
+                <tr class="row-category"><td colspan="5">MEDICINES & PHARMACY</td></tr>
+                <% invoice.medicines.forEach(item => { %>
+                    <tr>
+                        <td><%= item.name %></td>
+                        <td><%= item.quantity %></td>
+                        <td>₹<%= item.pricePerUnit %></td>
+                        <td><%= item.gstPercentage %>%</td>
+                        <td style="text-align: right;">₹<%= item.total.toFixed(2) %></td>
+                    </tr>
+                <% }) %>
+
+                <!-- 2. Additional Equipment -->
+                <tr class="row-category"><td colspan="5">ADDITIONAL EQUIPMENT & RENTALS</td></tr>
+                <% invoice.additionalEquipment.forEach(item => { %>
+                    <tr>
+                        <td><%= item.name %></td>
+                        <td><%= item.quantity %></td>
+                        <td>₹<%= item.rate %></td>
+                        <td><%= item.gstPercentage %>%</td>
+                        <td style="text-align: right;">₹<%= item.total.toFixed(2) %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+
+        <!-- Total Calculation -->
+        <div class="summary-wrapper">
+            <div class="summary-left">
+                <p><strong>Note:</strong> This is a computer-generated invoice and does not require a physical signature. Healthcare services may be subject to different GST exemptions based on local laws.</p>
+            </div>
+            <div class="summary-right">
+                <table class="summary-table">
+                    <tr>
+                        <td>Subtotal:</td>
+                        <td>₹<%= invoice.totals.subtotal.toFixed(2) %></td>
+                    </tr>
+                    <tr>
+                        <td>CGST (50%):</td>
+                        <td>₹<%= invoice.totals.cgst.toFixed(2) %></td>
+                    </tr>
+                    <tr>
+                        <td>SGST (50%):</td>
+                        <td>₹<%= invoice.totals.sgst.toFixed(2) %></td>
+                    </tr>
+                    <tr class="grand-total-row">
+                        <td>GRAND TOTAL:</td>
+                        <td>₹<%= invoice.totals.grandTotal.toFixed(2) %></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

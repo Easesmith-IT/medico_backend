@@ -8,9 +8,14 @@ const ServiceProvider = require('../models/serviceProviderModel');
 const Service = require('../models/serviceModel');
 const PDFDocument = require('pdfkit');
 const moment = require('moment');
-const fs = require('fs');
+const puppeteer = require('puppeteer');
 const path = require('path');
 const crypto = require("node:crypto");
+const { uploadInvoiceToCloudinary } = require('../config/cloudinaryConfig');
+const os = require('os');
+const fs = require('fs');
+
+
 
 exports.generateInvoice = async (req, res) => {
   try {
@@ -42,89 +47,74 @@ exports.generateInvoice = async (req, res) => {
   }
 };
 
-// 2. Download Invoice PDF
+exports.downloadInvoice = async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.invoiceId)
+      .populate("patientId")
+      .populate("doctorId");
+
+    if (!invoice) return res.status(404).send("Invoice not found");
+
+    const templatePath = path.join(__dirname, "..", "views", "invoice-template.ejs");
+    const html = await ejs.renderFile(templatePath, { invoice });
+
+    const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const pdf = await page.pdf({ format: "A4", printBackground: true });
+    await browser.close();
+
+    res.set({ "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename=INV-${invoice.invoiceNumber}.pdf` });
+    res.send(pdf);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
 // exports.downloadInvoice = async (req, res) => {
 //   try {
-//     const { invoiceNumber } = req.params;
-//     const invoice = await Invoice.findOne({ invoiceNumber }).populate("patientId doctorId");
-
+//     // 1. Fetch data from DB
+//     const invoice = await Invoice.findById(req.params.invoiceId).populate("patientId doctorId");
 //     if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
-//     // Render HTML using EJS [web:21][web:40]
-//     const templatePath = path.join(__dirname, "../views/invoice-template.ejs");
+//     // 2. Define path to your local 'temp' folder
+//     const uploadDir = path.join(__dirname, "..", "temp");
+//     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    
+//     const fileName = `inv-${invoice.invoiceNumber}.pdf`;
+//     const localPath = path.join(uploadDir, fileName);
+
+//     // 3. Render HTML and Generate PDF
+//     const templatePath = path.join(__dirname, "..", "views", "invoice-template.ejs");
 //     const htmlContent = await ejs.renderFile(templatePath, { invoice });
 
-//     // Launch Puppeteer [web:23][web:47]
-//     const browser = await puppeteer.launch({ headless: "new", args: ["--no-sandbox"] });
+//     const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
 //     const page = await browser.newPage();
 //     await page.setContent(htmlContent, { waitUntil: "networkidle0" });
-
-//     const pdfBuffer = await page.pdf({
-//       format: "A4",
-//       printBackground: true,
-//       margin: { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" }
-//     });
-
+    
+//     // Save to local 'temp' folder
+//     await page.pdf({ path: localPath, format: "A4" });
 //     await browser.close();
 
-//     // Set headers for file download [web:44][web:49]
-//     res.set({
-//       "Content-Type": "application/pdf",
-//       "Content-Disposition": `attachment; filename=Invoice-${invoiceNumber}.pdf`,
-//       "Content-Length": pdfBuffer.length,
+//     // 4. Send the file as a response
+//     // Option A: res.sendFile (Opens in browser)
+//     // Option B: res.download (Forces download)
+//     res.status(200).sendFile(localPath, (err) => {
+//       if (err) {
+//         console.error("Error sending file:", err);
+//         res.status(500).send("Could not send the file.");
+//       }
 //     });
 
-//     res.send(pdfBuffer);
 //   } catch (error) {
-//     res.status(500).json({ message: "Error generating PDF", error: error.message });
+//     res.status(500).json({ success: false, message: error.message });
 //   }
 // };
 
 
-exports.downloadInvoice = async (req, res) => {
-  try {
-    const invoice = await Invoice.findById(req.params.invoiceId).populate("patientId doctorId");
-    if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
-    // 1. Render HTML
-    // const templatePath = path.join(__dirname, "../views/invoice-template.ejs");
 
-    const templatePath = path.join(process.cwd(), "views", "invoice-template.ejs");
-console.log("Looking for template at:", templatePath);
-
-    const htmlContent = await ejs.renderFile(templatePath, { invoice });
-
-    // 2. Generate PDF in system temp
-    const browser = await puppeteer.launch({ headless: "new", args: ["--no-sandbox"] });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
-    
-    // Use the system temp directory for universal access
-    const tempPath = path.join("/tmp", `inv-${invoice.invoiceNumber}.pdf`);
-    await page.pdf({ path: tempPath, format: "A4" });
-    await browser.close();
-
-    // 3. Upload to Cloudinary for GLOBAL access [web:27][web:30]
-    const uploadResult = await cloudinary.uploader.upload(tempPath, {
-      resource_type: "raw", // Needed for PDF files
-      public_id: `invoices/${invoice.invoiceNumber}`,
-      access_mode: "public"
-    });
-
-    // 4. Delete local temp file
-    fs.unlinkSync(tempPath);
-
-    // 5. Return the GLOBAL URL to the user
-    res.status(200).json({
-      success: true,
-      message: "Invoice generated and uploaded globally",
-      pdfUrl: uploadResult.secure_url // This link works everywhere! [web:33]
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: "Error", error: error.message });
-  }
-};
 // exports.downloadInvoice = async (req, res) => {
 //   try {
 //     const { invoiceId } = req.params;
