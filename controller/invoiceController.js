@@ -47,7 +47,6 @@ exports.generateInvoice = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 exports.downloadInvoice = async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.invoiceId)
@@ -59,18 +58,57 @@ exports.downloadInvoice = async (req, res) => {
     const templatePath = path.join(__dirname, "..", "views", "invoice-template.ejs");
     const html = await ejs.renderFile(templatePath, { invoice });
 
-    const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+    // --- FIX STARTS HERE ---
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    const browser = await puppeteer.launch({
+      args: isProduction ? chromium.args : ["--no-sandbox", "--disable-setuid-sandbox"],
+      defaultViewport: chromium.defaultViewport,
+      executablePath: isProduction 
+        ? await chromium.executablePath() 
+        : "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // Path for Windows
+      headless: isProduction ? chromium.headless : true,
+    });
+    // --- FIX ENDS HERE ---
+
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
     const pdf = await page.pdf({ format: "A4", printBackground: true });
     await browser.close();
 
-    res.set({ "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename=INV-${invoice.invoiceNumber}.pdf` });
+    res.set({ 
+      "Content-Type": "application/pdf", 
+      "Content-Disposition": `attachment; filename=INV-${invoice.invoiceNumber}.pdf` 
+    });
     res.send(pdf);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
+// exports.downloadInvoice = async (req, res) => {
+//   try {
+//     const invoice = await Invoice.findById(req.params.invoiceId)
+//       .populate("patientId")
+//       .populate("doctorId");
+
+//     if (!invoice) return res.status(404).send("Invoice not found");
+
+//     const templatePath = path.join(__dirname, "..", "views", "invoice-template.ejs");
+//     const html = await ejs.renderFile(templatePath, { invoice });
+
+//     const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+//     const page = await browser.newPage();
+//     await page.setContent(html, { waitUntil: "networkidle0" });
+//     const pdf = await page.pdf({ format: "A4", printBackground: true });
+//     await browser.close();
+
+//     res.set({ "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename=INV-${invoice.invoiceNumber}.pdf` });
+//     res.send(pdf);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 
 
 // exports.downloadInvoice = async (req, res) => {
