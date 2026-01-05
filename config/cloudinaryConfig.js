@@ -63,7 +63,19 @@ const uploadVideoToCloudinary = async (fileBuffer, filename) => {
     uploadStream.end(fileBuffer);
   });
 };
-
+const uploadInvoiceToCloudinary = async (filePath, invoiceNumber) => {
+  try {
+    const result = await cloudinary.uploader.upload(filePath, {
+      resource_type: 'raw', // Critical for non-image/video files
+      folder: 'medico/invoices',
+      public_id: `INV-${invoiceNumber}`,
+      access_mode: 'public'
+    });
+    return result;
+  } catch (error) {
+    throw new AppError(`Failed to upload invoice: ${error.message}`, 500);
+  }
+};
 /**
  * Delete file from Cloudinary
  * @param {string} publicId - Public ID of the file
@@ -105,5 +117,6 @@ module.exports = {
   uploadImageToCloudinary,
   uploadVideoToCloudinary,
   deleteFromCloudinary,
-  uploadMultipleImagesToCloudinary
+  uploadMultipleImagesToCloudinary,
+    uploadInvoiceToCloudinary 
 };

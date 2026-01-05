@@ -68,7 +68,10 @@ app.get("/api/test-cookies", (req, res) => {
   console.log("🍪 COOKIES:", req.cookies);
   res.json({ cookies: req.cookies });
 });
-app.use("/invoices", express.static(path.join(__dirname, "invoices")));
+// app.use("/invoices", express.static(path.join(__dirname, "invoices")));
+
+
+app.use("/temp", express.static(path.join(__dirname, "temp")));
 // Mount all API routes
 app.use("/api/v1", routes);
 
