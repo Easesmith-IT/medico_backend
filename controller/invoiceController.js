@@ -8,13 +8,14 @@ const ServiceProvider = require('../models/serviceProviderModel');
 const Service = require('../models/serviceModel');
 const PDFDocument = require('pdfkit');
 const moment = require('moment');
-const puppeteer = require('puppeteer');
+// const puppeteer = require('puppeteer');
 const path = require('path');
 const crypto = require("node:crypto");
 const { uploadInvoiceToCloudinary } = require('../config/cloudinaryConfig');
 const os = require('os');
 const fs = require('fs');
-
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium-min');
 
 
 exports.generateInvoice = async (req, res) => {
