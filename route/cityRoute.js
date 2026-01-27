@@ -41,4 +41,11 @@ router.patch(
   cityController.toggleCityStatus
 );
 
+
+
+router.patch("/:cityId/toggle", cityController.toggleCityStatus);
+
+// ✅ GEO TEST
+router.get("/find/by-location", cityController.findCityByLocation);
+
 module.exports = router;

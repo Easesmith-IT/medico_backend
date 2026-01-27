@@ -1,38 +1,302 @@
+// const City = require("../models/availableCities");
+
+// // 1. Add City by Name and Coordinates
+// const addCity = async (req, res) => {
+//   try {
+//     const { name, latitude, longitude } = req.body;
+
+//     // Validate required fields
+//     if (!name || latitude === undefined || longitude === undefined) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "name, latitude, and longitude are required",
+//       });
+//     }
+
+//     // Validate latitude range
+//     if (latitude < -90 || latitude > 90) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Latitude must be between -90 and 90",
+//       });
+//     }
+
+//     // Validate longitude range
+//     if (longitude < -180 || longitude > 180) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Longitude must be between -180 and 180",
+//       });
+//     }
+
+//     // Check if city already exists
+//     const existingCity = await City.findOne({
+//       name: name.toLowerCase().trim(),
+//     });
+//     if (existingCity) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "City already exists",
+//       });
+//     }
+
+//     // Create new city
+//     const newCity = await City.create({
+//       name: name.toLowerCase().trim(),
+//       latitude,
+//       longitude,
+//     });
+
+//     res.status(201).json({
+//       success: true,
+//       message: "City added successfully",
+//       data: newCity,
+//     });
+//   } catch (error) {
+//     console.error("Error in addCity:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error adding city",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// // 2. Get All Cities
+// const getAllCities = async (req, res) => {
+//   try {
+//     const cities = await City.find().sort({ name: 1 });
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Cities retrieved successfully",
+//       data: cities,
+//       total: cities.length,
+//     });
+//   } catch (error) {
+//     console.error("Error in getAllCities:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching cities",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// // 3. Get City by ID
+// const getCityById = async (req, res) => {
+//   try {
+//     const { cityId } = req.params;
+
+//     if (!cityId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "City ID is required",
+//       });
+//     }
+
+//     const city = await City.findById(cityId);
+
+//     if (!city) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "City not found",
+//       });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: "City retrieved successfully",
+//       data: city,
+//     });
+//   } catch (error) {
+//     console.error("Error in getCityById:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching city",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// // 4. Delete City
+// const deleteCity = async (req, res) => {
+//   try {
+//     const { cityId } = req.params;
+
+//     if (!cityId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "City ID is required",
+//       });
+//     }
+
+//     const city = await City.findByIdAndDelete(cityId);
+
+//     if (!city) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "City not found",
+//       });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: "City deleted successfully",
+//       data: city,
+//     });
+//   } catch (error) {
+//     console.error("Error in deleteCity:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error deleting city",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// // 5. Update City
+// const updateCity = async (req, res) => {
+//   try {
+//     const { cityId } = req.params;
+//     const { name, latitude, longitude } = req.body;
+
+//     if (!cityId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "City ID is required",
+//       });
+//     }
+
+//     const updateData = {};
+
+//     if (name) {
+//       updateData.name = name.toLowerCase().trim();
+//     }
+
+//     if (latitude !== undefined) {
+//       if (latitude < -90 || latitude > 90) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Latitude must be between -90 and 90",
+//         });
+//       }
+//       updateData.latitude = latitude;
+//     }
+
+//     if (longitude !== undefined) {
+//       if (longitude < -180 || longitude > 180) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Longitude must be between -180 and 180",
+//         });
+//       }
+//       updateData.longitude = longitude;
+//     }
+
+//     const updatedCity = await City.findByIdAndUpdate(cityId, updateData, {
+//       new: true,
+//       runValidators: true,
+//     });
+
+//     if (!updatedCity) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "City not found",
+//       });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: "City updated successfully",
+//       data: updatedCity,
+//     });
+//   } catch (error) {
+//     console.error("Error in updateCity:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error updating city",
+//       error: error.message,
+//     });
+//   }
+// };
+
+
+// // Toggle City Active Status
+// const toggleCityStatus = async (req, res) => {
+//   try {
+//     const { cityId } = req.params;
+
+//     if (!cityId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "City ID is required",
+//       });
+//     }
+
+//     const city = await City.findById(cityId);
+//     if (!city) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "City not found",
+//       });
+//     }
+
+//     // Toggle isActive (if does not exist, default to true)
+//     city.isActive = city.isActive === undefined ? true : !city.isActive;
+
+//     await city.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: `City is now ${city.isActive ? "active" : "inactive"}`,
+//       data: city,
+//     });
+//   } catch (error) {
+//     console.error("Error in toggleCityStatus:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error toggling city status",
+//       error: error.message,
+//     });
+//   }
+// };
+
+
+
+
+// module.exports = {
+//   addCity,
+//   getAllCities,
+//   getCityById,
+//   deleteCity,
+//   updateCity,
+//   toggleCityStatus,
+// };
+
+
 const City = require("../models/availableCities");
 
-// 1. Add City by Name and Coordinates
+/**
+ * 1. Add City With Polygon
+ */
 const addCity = async (req, res) => {
   try {
-    const { name, latitude, longitude } = req.body;
+    const { name, latitude, longitude, polygon } = req.body;
 
-    // Validate required fields
-    if (!name || latitude === undefined || longitude === undefined) {
+    // Validation
+    if (!name || !polygon || polygon.length < 4) {
       return res.status(400).json({
         success: false,
-        message: "name, latitude, and longitude are required",
+        message: "Name and valid polygon are required",
       });
     }
 
-    // Validate latitude range
-    if (latitude < -90 || latitude > 90) {
-      return res.status(400).json({
-        success: false,
-        message: "Latitude must be between -90 and 90",
-      });
-    }
-
-    // Validate longitude range
-    if (longitude < -180 || longitude > 180) {
-      return res.status(400).json({
-        success: false,
-        message: "Longitude must be between -180 and 180",
-      });
-    }
-
-    // Check if city already exists
+    // Check existing
     const existingCity = await City.findOne({
       name: name.toLowerCase().trim(),
     });
+
     if (existingCity) {
       return res.status(400).json({
         success: false,
@@ -40,41 +304,55 @@ const addCity = async (req, res) => {
       });
     }
 
-    // Create new city
-    const newCity = await City.create({
+    // Close polygon if needed
+    const first = polygon[0];
+    const last = polygon[polygon.length - 1];
+
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      polygon.push(first);
+    }
+
+    // Create city
+    const city = await City.create({
       name: name.toLowerCase().trim(),
       latitude,
       longitude,
+
+      area: {
+        type: "Polygon",
+        coordinates: [polygon],
+      },
     });
 
     res.status(201).json({
       success: true,
-      message: "City added successfully",
-      data: newCity,
+      message: "City created successfully",
+      data: city,
     });
   } catch (error) {
-    console.error("Error in addCity:", error);
+    console.error("addCity:", error);
     res.status(500).json({
       success: false,
-      message: "Error adding city",
+      message: "Error creating city",
       error: error.message,
     });
   }
 };
 
-// 2. Get All Cities
+/**
+ * 2. Get All Cities
+ */
 const getAllCities = async (req, res) => {
   try {
     const cities = await City.find().sort({ name: 1 });
 
     res.status(200).json({
       success: true,
-      message: "Cities retrieved successfully",
-      data: cities,
       total: cities.length,
+      data: cities,
     });
   } catch (error) {
-    console.error("Error in getAllCities:", error);
+    console.error("getAllCities:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching cities",
@@ -83,17 +361,12 @@ const getAllCities = async (req, res) => {
   }
 };
 
-// 3. Get City by ID
+/**
+ * 3. Get City By ID
+ */
 const getCityById = async (req, res) => {
   try {
     const { cityId } = req.params;
-
-    if (!cityId) {
-      return res.status(400).json({
-        success: false,
-        message: "City ID is required",
-      });
-    }
 
     const city = await City.findById(cityId);
 
@@ -104,13 +377,12 @@ const getCityById = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    res.json({
       success: true,
-      message: "City retrieved successfully",
       data: city,
     });
   } catch (error) {
-    console.error("Error in getCityById:", error);
+    console.error("getCityById:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching city",
@@ -119,17 +391,80 @@ const getCityById = async (req, res) => {
   }
 };
 
-// 4. Delete City
+/**
+ * 4. Update City (Name / LatLng / Polygon)
+ */
+const updateCity = async (req, res) => {
+  try {
+    const { cityId } = req.params;
+    const { name, latitude, longitude, polygon } = req.body;
+
+    const updateData = {};
+
+    if (name) {
+      updateData.name = name.toLowerCase().trim();
+    }
+
+    if (latitude !== undefined) {
+      updateData.latitude = latitude;
+    }
+
+    if (longitude !== undefined) {
+      updateData.longitude = longitude;
+    }
+
+    // Update polygon if provided
+    if (polygon && polygon.length >= 4) {
+      const first = polygon[0];
+      const last = polygon[polygon.length - 1];
+
+      if (first[0] !== last[0] || first[1] !== last[1]) {
+        polygon.push(first);
+      }
+
+      updateData.area = {
+        type: "Polygon",
+        coordinates: [polygon],
+      };
+    }
+
+    const updatedCity = await City.findByIdAndUpdate(
+      cityId,
+      updateData,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!updatedCity) {
+      return res.status(404).json({
+        success: false,
+        message: "City not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "City updated successfully",
+      data: updatedCity,
+    });
+  } catch (error) {
+    console.error("updateCity:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error updating city",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * 5. Delete City
+ */
 const deleteCity = async (req, res) => {
   try {
     const { cityId } = req.params;
-
-    if (!cityId) {
-      return res.status(400).json({
-        success: false,
-        message: "City ID is required",
-      });
-    }
 
     const city = await City.findByIdAndDelete(cityId);
 
@@ -140,13 +475,13 @@ const deleteCity = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    res.json({
       success: true,
       message: "City deleted successfully",
       data: city,
     });
   } catch (error) {
-    console.error("Error in deleteCity:", error);
+    console.error("deleteCity:", error);
     res.status(500).json({
       success: false,
       message: "Error deleting city",
@@ -155,86 +490,15 @@ const deleteCity = async (req, res) => {
   }
 };
 
-// 5. Update City
-const updateCity = async (req, res) => {
-  try {
-    const { cityId } = req.params;
-    const { name, latitude, longitude } = req.body;
-
-    if (!cityId) {
-      return res.status(400).json({
-        success: false,
-        message: "City ID is required",
-      });
-    }
-
-    const updateData = {};
-
-    if (name) {
-      updateData.name = name.toLowerCase().trim();
-    }
-
-    if (latitude !== undefined) {
-      if (latitude < -90 || latitude > 90) {
-        return res.status(400).json({
-          success: false,
-          message: "Latitude must be between -90 and 90",
-        });
-      }
-      updateData.latitude = latitude;
-    }
-
-    if (longitude !== undefined) {
-      if (longitude < -180 || longitude > 180) {
-        return res.status(400).json({
-          success: false,
-          message: "Longitude must be between -180 and 180",
-        });
-      }
-      updateData.longitude = longitude;
-    }
-
-    const updatedCity = await City.findByIdAndUpdate(cityId, updateData, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!updatedCity) {
-      return res.status(404).json({
-        success: false,
-        message: "City not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "City updated successfully",
-      data: updatedCity,
-    });
-  } catch (error) {
-    console.error("Error in updateCity:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error updating city",
-      error: error.message,
-    });
-  }
-};
-
-
-// Toggle City Active Status
+/**
+ * 6. Toggle City Status
+ */
 const toggleCityStatus = async (req, res) => {
   try {
     const { cityId } = req.params;
 
-    if (!cityId) {
-      return res.status(400).json({
-        success: false,
-        message: "City ID is required",
-      });
-    }
-
     const city = await City.findById(cityId);
+
     if (!city) {
       return res.status(404).json({
         success: false,
@@ -242,34 +506,78 @@ const toggleCityStatus = async (req, res) => {
       });
     }
 
-    // Toggle isActive (if does not exist, default to true)
-    city.isActive = city.isActive === undefined ? true : !city.isActive;
-
+    city.isActive = !city.isActive;
     await city.save();
 
-    res.status(200).json({
+    res.json({
       success: true,
       message: `City is now ${city.isActive ? "active" : "inactive"}`,
       data: city,
     });
   } catch (error) {
-    console.error("Error in toggleCityStatus:", error);
+    console.error("toggleCityStatus:", error);
     res.status(500).json({
       success: false,
-      message: "Error toggling city status",
+      message: "Error toggling status",
       error: error.message,
     });
   }
 };
 
+/**
+ * 7. Find City By User Location (Geofence)
+ */
+const findCityByLocation = async (req, res) => {
+  try {
+    const { lat, lng } = req.query;
 
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        message: "lat and lng are required",
+      });
+    }
 
+    const city = await City.findOne({
+      area: {
+        $geoIntersects: {
+          $geometry: {
+            type: "Point",
+            coordinates: [Number(lng), Number(lat)],
+          },
+        },
+      },
+      isActive: true,
+    });
+
+    if (!city) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not available in this area",
+      });
+    }
+
+    res.json({
+      success: true,
+      city: city.name,
+      cityId: city._id,
+    });
+  } catch (error) {
+    console.error("findCityByLocation:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error checking location",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
   addCity,
   getAllCities,
   getCityById,
-  deleteCity,
   updateCity,
+  deleteCity,
   toggleCityStatus,
+  findCityByLocation,
 };
