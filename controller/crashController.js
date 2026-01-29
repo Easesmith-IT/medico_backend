@@ -1,6 +1,8 @@
 const CrashReport = require("../models/CrashReport");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
+const crypto = require("crypto");
+
 
 exports.createCrashReport = catchAsync(async (req, res, next) => {
   const {
@@ -46,6 +48,16 @@ exports.createCrashReport = catchAsync(async (req, res, next) => {
   console.log(`Severity: ${severity}`);
   console.log(`UserType: ${userType}`);
 
+  //  const errorId = crypto
+  //    .createHash("sha256")
+  //    .update(
+  //      `${errorName || ""}|${errorMessage || ""}|${stackTrace || ""}`,
+  //    )
+  //    .digest("hex");
+
+  const errorId = `ERR_${Date.now()}`;
+
+
   // ----------------------------
   // Create crash report
   // ----------------------------
@@ -58,6 +70,8 @@ exports.createCrashReport = catchAsync(async (req, res, next) => {
     stackTrace,
     severity,
     screenName,
+    errorId,
+    source: "FRONTEND",
 
     request: request || {
       method: req.method,

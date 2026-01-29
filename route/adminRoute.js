@@ -14,7 +14,11 @@ router.post("/check-auth", adminController.checkAuthStatus);
 router.post("/logout", adminController.logout);
 router.post("/logout-all-devices", adminController.logoutAllDevices);
 
-router.get("/subadmins", adminController.getSubAdmins);
+router.get(
+  "/subadmins",
+  protect("superadmin", "subadmin"),
+  adminController.getSubAdmins,
+);
 router.patch(
   "/subadmins/:id/toggle-status",
   adminController.toggleSubAdminStatus

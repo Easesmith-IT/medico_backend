@@ -22,6 +22,17 @@ const crashReportSchema = new mongoose.Schema(
       type: String,
     },
 
+    errorId: {
+      type: String,
+      index: true,
+    },
+
+    source: {
+      type: String,
+      enum: ["FRONTEND", "BACKEND"],
+      default: "BACKEND",
+    },
+
     errorMessage: {
       type: String,
     },
