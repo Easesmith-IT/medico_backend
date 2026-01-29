@@ -1560,7 +1560,7 @@ exports.getSubAdmins = catchAsync(async (req, res, next) => {
 
   const skip = (page - 1) * limit;
 
-  const subAdmins = await Admins.find(filter)
+  const subAdmins = await Admin.find(filter)
     .select(
       "firstName lastName email phone role status isActive createdAt permissions"
     )
