@@ -47,6 +47,7 @@ const serviceProviderRoute = require('../route/serviceProvider');
 const socialPostRoute = require('../route/socialPostRoute');
 const invoiceRoute = require('../route/invoiceRoute');
 const geoRoutes = require('../route/geoRoutes');
+const crashReportRoutes = require("../route/crashReportRoutes");
 
 const router = express.Router();
 
@@ -62,5 +63,6 @@ router.use('/serviceProvider', serviceProviderRoute);
 router.use('/invoice', invoiceRoute);
 router.use('/socialPost', socialPostRoute);
 router.use('/geo', geoRoutes);
+router.use("/crash-report", crashReportRoutes);
 
 module.exports = router;
