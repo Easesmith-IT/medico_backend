@@ -1,36 +1,45 @@
 const CrashReport = require("../models/CrashReport");
 
 module.exports = async function reportBackendCrash(err, req) {
+  const errorName = err.name || "Error";
+  const errorMessage = err.message || "Unknown error";
+  const stackTrace = err.stack || "";
+  const errorId = `ERR_${Date.now()}`;
+
+  console.log("req.user", req.user);
+
   try {
     await CrashReport.create({
-      source: "backend",
+      source: "BACKEND",
 
-      errorName: err.name,
-      errorMessage: err.message,
-      stackTrace: err.stack,
+      errorId,
+      errorName,
+      errorMessage,
+      stackTrace,
 
-      // Request context
-      method: req.method,
-      url: req.originalUrl,
-      params: req.params,
-      query: req.query,
+      severity: "HIGH",
+      environment: process.env.NODE_ENV || "development",
 
-      // ⚠️ optional: sanitize body in prod
-      body: process.env.NODE_ENV === "production" ? undefined : req.body,
-
-      headers: {
-        "user-agent": req.headers["user-agent"],
-        host: req.headers.host,
+      // ✅ matches schema
+      request: {
+        method: req.method,
+        url: req.originalUrl,
+        params: req.params,
+        query: req.query,
+        body: process.env.NODE_ENV === "production" ? undefined : req.body,
+        headers: {
+          "user-agent": req.headers["user-agent"],
+          host: req.headers.host,
+        },
+        ip: req.ip,
       },
 
-      // Auth context (if available)
-      userId: req.user?._id,
-      userType: req.user?.role,
-
-      environment: process.env.NODE_ENV,
-      severity: "HIGH",
-
-      createdAt: new Date(),
+      // Auth context
+      userId: req.user?.id || null,
+      userType:
+        req.user?.role === "superadmin" || req.user?.role === "subadmin"
+          ? "Admin"
+          : req.user?.role || null,
     });
   } catch (e) {
     // Never crash the app because crash reporting failed
