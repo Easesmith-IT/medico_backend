@@ -418,10 +418,11 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
 
   if (
     !otpDoc ||
-    otpDoc.otp !== parseInt(otp) ||
+    otpDoc.otp !== (otp) ||
     otpDoc.otpExpiresAt < new Date()
   ) {
     console.log('ERROR: Invalid or expired OTP');
+    console.log(`otpDoc: ${otpDoc}, otpDoc.otp: ${otpDoc ? otpDoc.otp : 'N/A'}`);
     return next(new AppError('Invalid or expired OTP', 400));
   }
 
