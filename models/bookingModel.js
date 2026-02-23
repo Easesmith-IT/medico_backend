@@ -115,7 +115,7 @@ treatmentStatus: {
       },
       userModel: {
         type: String,
-        enum: ["Patient", "Admin", "SuperAdmin"],
+        enum: ["Patient", "Admin", "SuperAdmin","ServiceProvider"],
         default: "Patient",
       },
     },
@@ -161,6 +161,12 @@ treatmentStatus: {
   },
 
 
+// Add this field BEFORE closing the schema in bookingModel.js
+previousBookingId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Booking',  // Self-reference
+  default: null
+},
 
 
   

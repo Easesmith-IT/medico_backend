@@ -2069,13 +2069,203 @@ exports.getBookingsByServiceProvider = async (req, res, next) => {
 
 
 //provider booking 
+// exports.createProviderBooking = async (req, res) => {
+//   const session = await mongoose.startSession();
+//   let transactionStarted = false;
+  
+//   try {
+//     const servicePartnerId = req.user.id;
+//     const { patientId, previousBookingId, serviceId, appointmentDate, startTime, endTime, duration, shiftType, notes, category, modes, cityId } = req.body;
+
+//     // 1. VALIDATION - NO SESSION NEEDED
+//     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "patientId, serviceId, appointmentDate, startTime, endTime required",
+//       });
+//     }
+
+//     // 2. START TRANSACTION ONLY FOR DB OPERATIONS
+//     await session.startTransaction();
+//     transactionStarted = true;
+
+//     // 3. Validate Service
+//     const service = await Service.findById(serviceId).session(session);
+//     if (!service || !service.isActive || service.isDeleted) {
+//       throw new Error("Service not found or inactive");  // Will trigger rollback
+//     }
+
+//     // 4. Validate Patient
+//     const patient = await Patient.findById(patientId)
+//       .select("address.cityId firstName phone")
+//       .session(session);
+//     if (!patient) {
+//       throw new Error("Patient not found");
+//     }
+
+//     // 5. Validate City
+//     let bookingCity = cityId ? await City.findById(cityId).session(session) : 
+//                              await City.findById(patient.address.cityId).session(session);
+//     if (!bookingCity || !bookingCity.isActive) {
+//       throw new Error("Invalid or inactive city");
+//     }
+
+//     // 6. Previous Booking Validation
+//     let previousTreatmentId = null;
+//     if (previousBookingId) {
+//       const previousBooking = await Booking.findById(previousBookingId)
+//         .populate('treatmentId', 'status')
+//         .session(session);
+        
+//       if (!previousBooking) {
+//         throw new Error("Previous booking not found");
+//       }
+      
+//       if (previousBooking.treatmentId?.status !== 'Completed') {
+//         throw new Error("Can only create follow-up after treatment completion");
+//       }
+      
+//       previousTreatmentId = previousBooking.treatmentId._id;
+//     }
+
+//     // 7. Check slot conflicts
+//     const dayStart = new Date(appointmentDate); 
+//     dayStart.setHours(0, 0, 0, 0);
+//     const dayEnd = new Date(appointmentDate); 
+//     dayEnd.setHours(23, 59, 59, 999);
+    
+//     const conflictQuery = {
+//       serviceId,
+//       appointmentDate: { $gte: dayStart, $lte: dayEnd },
+//       status: { $nin: ["Cancelled", "Rejected"] },
+//       "slotTime.startTime": startTime,
+//       "slotTime.endTime": endTime,
+//       servicePartnerId: servicePartnerId
+//     };
+
+//     const existingBooking = await Booking.findOne(conflictQuery).session(session);
+//     if (existingBooking) {
+//       throw new Error("Your slot already booked");
+//     }
+
+//     // 8. Calculate duration & pricing
+//     let bookingDuration = duration;
+//     if (!bookingDuration) {
+//       const [sh, sm] = startTime.split(":").map(Number);
+//       const [eh, em] = endTime.split(":").map(Number);
+//       bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+//       if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+//     }
+//     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
+
+//     // 9. CREATE NEW TREATMENT
+//     const newTreatment = new Treatment({
+//       patientId,
+//       serviceId,
+//       servicePartnerId,
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime: { startTime, endTime },
+//       status: 'Active',
+//       previousTreatmentId: previousTreatmentId || null
+//     });
+//     await newTreatment.save({ session });
+//     const treatmentId = newTreatment._id;
+
+//     // 10. CREATE BOOKING
+//     const newBooking = new Booking({
+//       patientId,
+//       serviceId,
+//       category: category || service.category,
+//       modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+//       servicePartnerId,
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime: { startTime, endTime },
+//       duration: bookingDuration,
+//       shiftType: shiftType || null,
+//       status: "Pending",
+//       pricing,
+//       notes: notes || "",
+//       city: bookingCity._id,
+//       createdBy: { userId: servicePartnerId, userModel: "ServiceProvider" },
+//       treatmentId,
+//       treatmentStatus: 'Active',
+//       invoiceGenerated: false,
+//       previousBookingId: previousBookingId || null
+//     });
+//     await newBooking.save({ session });
+
+//     // 11. COMMIT - Only reaches here if ALL operations succeed
+//     await session.commitTransaction();
+
+//     // Populate response
+//     const populatedBooking = await Booking.findById(newBooking._id)
+//       .populate('city', 'name latitude longitude')
+//       .populate('treatmentId', 'status validTill previousTreatmentId')
+//       .populate('patientId', 'firstName phone')
+//       .populate('previousBookingId', 'appointmentDate status treatmentId');
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Provider booking created successfully",
+//       data: {
+//         booking: populatedBooking,
+//         treatmentId,
+//         previousDetails: previousBookingId ? {
+//           bookingId: previousBookingId,
+//           previousTreatmentId,
+//         } : null
+//       }
+//     });
+
+//   } catch (error) {
+//     // Rollback ONLY if transaction was started AND error is database-related
+//     if (transactionStarted) {
+//       try {
+//         await session.abortTransaction();
+//       } catch (rollbackError) {
+//         console.error("Rollback failed:", rollbackError);
+//       }
+//     }
+    
+//     // Handle validation/business logic errors separately
+//     if (error.message.includes("not found") || error.message.includes("inactive")) {
+//       const statusCode = error.message.includes("slot") ? 409 : 404;
+//       return res.status(statusCode).json({ 
+//         success: false, 
+//         message: error.message 
+//       });
+//     }
+    
+//     console.error("Provider booking error:", error);
+//     res.status(500).json({ 
+//       success: false, 
+//       message: "Error creating provider booking", 
+//       error: error.message 
+//     });
+//   } finally {
+//     await session.endSession();
+//   }
+// };
 exports.createProviderBooking = async (req, res) => {
   const session = await mongoose.startSession();
   let transactionStarted = false;
   
   try {
     const servicePartnerId = req.user.id;
-    const { patientId, previousBookingId, serviceId, appointmentDate, startTime, endTime, duration, shiftType, notes, category, modes, cityId } = req.body;
+    const { 
+      patientId, 
+      previousBookingId, 
+      serviceId, 
+      appointmentDate, 
+      startTime, 
+      endTime, 
+      duration, 
+      shiftType, 
+      notes, 
+      category, 
+      modes, 
+      cityId 
+    } = req.body;
 
     // 1. VALIDATION - NO SESSION NEEDED
     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
@@ -2085,14 +2275,14 @@ exports.createProviderBooking = async (req, res) => {
       });
     }
 
-    // 2. START TRANSACTION ONLY FOR DB OPERATIONS
+    // 2. START TRANSACTION
     await session.startTransaction();
     transactionStarted = true;
 
     // 3. Validate Service
     const service = await Service.findById(serviceId).session(session);
     if (!service || !service.isActive || service.isDeleted) {
-      throw new Error("Service not found or inactive");  // Will trigger rollback
+      throw new Error("Service not found or inactive");
     }
 
     // 4. Validate Patient
@@ -2110,22 +2300,19 @@ exports.createProviderBooking = async (req, res) => {
       throw new Error("Invalid or inactive city");
     }
 
-    // 6. Previous Booking Validation
+    // 6. Previous Booking Validation - SIMPLIFIED ✅
     let previousTreatmentId = null;
     if (previousBookingId) {
-      const previousBooking = await Booking.findById(previousBookingId)
-        .populate('treatmentId', 'status')
-        .session(session);
-        
+      const previousBooking = await Booking.findById(previousBookingId).session(session);
       if (!previousBooking) {
         throw new Error("Previous booking not found");
       }
-      
-      if (previousBooking.treatmentId?.status !== 'Completed') {
-        throw new Error("Can only create follow-up after treatment completion");
+
+      if (previousBooking.treatmentStatus !== 'Completed') {
+        throw new Error(`Previous booking must be Completed (current: "${previousBooking.treatmentStatus}")`);
       }
-      
-      previousTreatmentId = previousBooking.treatmentId._id;
+
+      previousTreatmentId = previousBooking.treatmentId;
     }
 
     // 7. Check slot conflicts
@@ -2158,7 +2345,7 @@ exports.createProviderBooking = async (req, res) => {
     }
     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
 
-    // 9. CREATE NEW TREATMENT
+    // 9. ✅ FIXED: CREATE NEW TREATMENT (No bookingId for provider bookings)
     const newTreatment = new Treatment({
       patientId,
       serviceId,
@@ -2166,7 +2353,8 @@ exports.createProviderBooking = async (req, res) => {
       appointmentDate: new Date(appointmentDate),
       slotTime: { startTime, endTime },
       status: 'Active',
-      previousTreatmentId: previousTreatmentId || null
+      previousTreatmentId: previousTreatmentId || null,
+      // ✅ NO bookingId - Provider bookings don't reference back
     });
     await newTreatment.save({ session });
     const treatmentId = newTreatment._id;
@@ -2194,14 +2382,15 @@ exports.createProviderBooking = async (req, res) => {
     });
     await newBooking.save({ session });
 
-    // 11. COMMIT - Only reaches here if ALL operations succeed
+    // 11. COMMIT
     await session.commitTransaction();
 
-    // Populate response
+    // 12. Response
     const populatedBooking = await Booking.findById(newBooking._id)
       .populate('city', 'name latitude longitude')
       .populate('treatmentId', 'status validTill previousTreatmentId')
       .populate('patientId', 'firstName phone')
+      .populate('serviceId', 'name category')
       .populate('previousBookingId', 'appointmentDate status treatmentId');
 
     res.status(201).json({
@@ -2218,7 +2407,6 @@ exports.createProviderBooking = async (req, res) => {
     });
 
   } catch (error) {
-    // Rollback ONLY if transaction was started AND error is database-related
     if (transactionStarted) {
       try {
         await session.abortTransaction();
@@ -2227,9 +2415,10 @@ exports.createProviderBooking = async (req, res) => {
       }
     }
     
-    // Handle validation/business logic errors separately
-    if (error.message.includes("not found") || error.message.includes("inactive")) {
-      const statusCode = error.message.includes("slot") ? 409 : 404;
+    // Specific error handling
+    if (error.message.includes("not found") || error.message.includes("inactive") || 
+        error.message.includes("must be") || error.message.includes("required")) {
+      const statusCode = error.message.includes("slot") ? 409 : 400;
       return res.status(statusCode).json({ 
         success: false, 
         message: error.message 
@@ -2241,6 +2430,180 @@ exports.createProviderBooking = async (req, res) => {
       success: false, 
       message: "Error creating provider booking", 
       error: error.message 
+    });
+  } finally {
+    await session.endSession();
+  }
+};
+exports.createProviderBooking = async (req, res) => {
+  const session = await mongoose.startSession();
+  let transactionStarted = false;
+  
+  try {
+    const servicePartnerId = req.user.id;
+    const { 
+      patientId, 
+      previousBookingId, 
+      serviceId, 
+      appointmentDate, 
+      startTime, 
+      endTime, 
+      duration, 
+      shiftType, 
+      notes, 
+      category, 
+      modes, 
+      cityId 
+    } = req.body;
+
+    // 1. Input validation
+    if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: "patientId, serviceId, appointmentDate, startTime, endTime required"
+      });
+    }
+
+    // 2. Start transaction
+    await session.startTransaction();
+    transactionStarted = true;
+
+    // 3. Validate Service
+    const service = await Service.findById(serviceId).session(session);
+    if (!service?.isActive || service?.isDeleted) {
+      throw new Error("Service not found or inactive");
+    }
+
+    // 4. Validate Patient
+    const patient = await Patient.findById(patientId)
+      .select("address.cityId firstName phone")
+      .session(session);
+    if (!patient) {
+      throw new Error("Patient not found");
+    }
+
+    // 5. Validate City
+    const bookingCityId = cityId || patient.address.cityId;
+    const bookingCity = await City.findById(bookingCityId).session(session);
+    if (!bookingCity?.isActive) {
+      throw new Error("Invalid or inactive city");
+    }
+
+    // 6. Validate Previous Booking (if provided)
+    if (previousBookingId) {
+      const prevBooking = await Booking.findById(previousBookingId).session(session);
+      if (!prevBooking) {
+        throw new Error("Previous booking not found");
+      }
+      if (prevBooking.treatmentStatus !== 'Completed') {
+        throw new Error(`Previous booking must have treatmentStatus: "Completed" (current: "${prevBooking.treatmentStatus}")`);
+      }
+    }
+
+    // 7. Check slot conflicts (provider-specific)
+    const dayStart = new Date(appointmentDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(appointmentDate);
+    dayEnd.setHours(23, 59, 59, 999);
+    
+    const conflictQuery = {
+      serviceId,
+      appointmentDate: { $gte: dayStart, $lte: dayEnd },
+      status: { $nin: ['Cancelled', 'Rejected'] },
+      'slotTime.startTime': startTime,
+      'slotTime.endTime': endTime,
+      servicePartnerId: servicePartnerId
+    };
+
+    const existingBooking = await Booking.findOne(conflictQuery).session(session);
+    if (existingBooking) {
+      throw new Error("Your slot is already booked");
+    }
+
+    // 8. Calculate duration & pricing
+    let bookingDuration = duration;
+    if (!bookingDuration) {
+      const [sh, sm] = startTime.split(':').map(Number);
+      const [eh, em] = endTime.split(':').map(Number);
+      bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+      if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+    }
+    
+    const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
+
+    // 9. ✅ CREATE BOOKING DIRECTLY (No Treatment needed)
+    const newBooking = new Booking({
+      patientId,
+      serviceId,
+      category: category || service.category,
+      modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+      servicePartnerId,
+      appointmentDate: new Date(appointmentDate),
+      slotTime: { startTime, endTime },
+      duration: bookingDuration,
+      shiftType: shiftType || null,
+      status: 'Pending',
+      pricing,
+      notes: notes || '',
+      city: bookingCity._id,
+      createdBy: { 
+        userId: servicePartnerId, 
+        userModel: 'ServiceProvider' 
+      },
+      treatmentStatus: 'Active',  // Provider will update this after treatment
+      invoiceGenerated: false,
+      previousBookingId: previousBookingId || null
+      // ✅ NO treatmentId needed for provider bookings
+    });
+
+    await newBooking.save({ session });
+
+    // 10. Commit transaction
+    await session.commitTransaction();
+
+    // 11. Populate response
+    const populatedBooking = await Booking.findById(newBooking._id)
+      .populate('city', 'name')
+      .populate('patientId', 'firstName phone')
+      .populate('serviceId', 'name category basePrice')
+      .populate('previousBookingId', 'appointmentDate status treatmentStatus');
+
+    res.status(201).json({
+      success: true,
+      message: 'Provider booking created successfully',
+      data: {
+        booking: populatedBooking,
+        previousDetails: previousBookingId ? {
+          bookingId: previousBookingId,
+          treatmentStatus: 'Completed'  // From validation
+        } : null
+      }
+    });
+
+  } catch (error) {
+    if (transactionStarted) {
+      try {
+        await session.abortTransaction();
+      } catch (rollbackError) {
+        console.error('Transaction rollback failed:', rollbackError);
+      }
+    }
+
+    // Business logic errors
+    if (error.message.includes('not found') || error.message.includes('inactive') || 
+        error.message.includes('must have') || error.message.includes('already booked')) {
+      const statusCode = error.message.includes('booked') ? 409 : 400;
+      return res.status(statusCode).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    console.error('Provider booking error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create provider booking',
+      error: error.message
     });
   } finally {
     await session.endSession();
