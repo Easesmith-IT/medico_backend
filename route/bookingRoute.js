@@ -64,4 +64,10 @@ router.get(
     protect('serviceprovider'), 
     bookingController.getBookingsByServiceProvider
 );
+router.post('/providerBookings', 
+  protect('serviceprovider'), 
+    bookingController.createProviderBooking
+);
+
+
 module.exports = router;
