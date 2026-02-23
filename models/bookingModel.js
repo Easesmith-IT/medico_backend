@@ -3,6 +3,22 @@ const mongoose = require("mongoose");
 
 const bookingSchema = new mongoose.Schema(
   {
+
+
+
+
+    // models/bookingModel.js - Treatment document link
+treatmentId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Treatment',  // New Treatment model
+
+},
+treatmentStatus: {
+  type: String,
+  enum: ['Active', 'Completed', 'Cancelled'],
+  default: 'Active'
+},
+
     // Patient who books
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -143,6 +159,10 @@ const bookingSchema = new mongoose.Schema(
     type: Number, // hours
     default: null
   },
+
+
+
+
   
   },
   { timestamps: true }
