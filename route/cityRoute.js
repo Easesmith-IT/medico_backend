@@ -45,7 +45,7 @@ router.patch(
 
 router.patch("/:cityId/toggle", cityController.toggleCityStatus);
 
-// ✅ GEO TEST
+//  GEO TEST
 router.get("/find/by-location", cityController.findCityByLocation);
 
 module.exports = router;
