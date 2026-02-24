@@ -78,7 +78,7 @@ treatmentStatus: {
     // Status of booking
     status: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected", "Rescheduled", "Cancelled",'In-Progress','Completed'],
+      enum: ["Pending", "Approved", "Rejected", "Rescheduled", "Cancelled",'In-Progress','Completed','Confirmed','Started'],
       default: "Pending",
     },
     statusReason: {

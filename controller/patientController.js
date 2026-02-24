@@ -20,11 +20,7 @@ const {
 } = require('../utils/tokenUtils');
 const otpUtils = require('../utils/otpUtils');
 
-/**
- * ====================================================================
- * UNIFIED SIGNUP (Auto-detect existing phone)
- * ====================================================================
- */
+
 // exports.patientSignup = catchAsync(async (req, res, next) => {
 //   const { firstName, email, phone, password, dateOfBirth, gender, address, bloodGroup, emergencyContact } = req.body;
 
@@ -224,10 +220,10 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
   const existingPatient = await Patient.findOne({ phone });
 
   if (existingPatient) {
-    console.log('✅ Phone found in database → LOGIN FLOW');
+    console.log(' Phone found in database → LOGIN FLOW');
 
     if (!existingPatient.isVerified) {
-      console.log('⚠️ Patient not verified yet → Complete signup verification');
+      console.log('Patient not verified yet → Complete signup verification');
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -270,7 +266,7 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     }
 
     // Patient verified → LOGIN OTP
-    console.log('✅ Patient verified → SEND LOGIN OTP');
+    console.log(' Patient verified → SEND LOGIN OTP');
 
     if (!existingPatient.isActive) {
       return next(new AppError('Your account has been deactivated. Please contact support.', 403));
@@ -336,7 +332,7 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
 
   const otpToken = generateOtpToken(phone, 'patient');
 
-  console.log('✅ New patient created - Awaiting OTP verification');
+  console.log(' New patient created - Awaiting OTP verification');
   console.log('='.repeat(60));
   console.log('\n');
 
@@ -372,7 +368,7 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid OTP. Please try again.', 400));
   }
 
-  console.log('✅ OTP verified successfully');
+  console.log(' OTP verified successfully');
 
   // Find patient
   const patient = await Patient.findOne({ phone });
@@ -386,11 +382,11 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   console.log('Current isActive BEFORE:', patient.isActive);
 
   if (patient.isVerified) {
-    console.log('⚠️ Patient already verified');
+    console.log(' Patient already verified');
     return next(new AppError('Phone number already verified. Please login instead.', 400));
   }
 
-  // ✅ SET VERIFICATION FLAGS EXPLICITLY
+  //  SET VERIFICATION FLAGS EXPLICITLY
   patient.isVerified = true;
   patient.isActive = true;
   patient.signupOtp = undefined;
@@ -406,10 +402,10 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   // Save to database
   await patient.save({ validateBeforeSave: false });
 
-  console.log('✅ Patient saved - isVerified AFTER:', patient.isVerified);
-  console.log('✅ Patient saved - isActive AFTER:', patient.isActive);
+  console.log(' Patient saved - isVerified AFTER:', patient.isVerified);
+  console.log(' Patient saved - isActive AFTER:', patient.isActive);
 
-  // ✅ VERIFY FROM DB
+  //  VERIFY FROM DB
   const verifiedPatient = await Patient.findById(patient._id);
   console.log('Verification from DB - isVerified:', verifiedPatient.isVerified);
   console.log('Verification from DB - isActive:', verifiedPatient.isActive);
@@ -424,7 +420,7 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
 
   const tokens = setAuthCookies(res, accessToken, refreshToken);
 
-  console.log('✅ Tokens generated and cookies set (365 days)');
+  console.log('Tokens generated and cookies set (365 days)');
   console.log('='.repeat(60));
   console.log('\n');
 
@@ -442,18 +438,14 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
       refreshToken: tokens.refreshToken,
       user: {
         ...verifiedPatient.toObject(),
-        isVerified: true,    // ✅ Explicitly include in response
-        isActive: true       // ✅ Explicitly include in response
+        isVerified: true,    //  Explicitly include in response
+        isActive: true       //  Explicitly include in response
       }
     }
   });
 });
 
-/**
- * ====================================================================
- * RESEND SIGNUP OTP
- * ====================================================================
- */
+
 exports.resendSignupOtp = catchAsync(async (req, res, next) => {
   const { phone } = req.body;
 
@@ -498,11 +490,7 @@ exports.resendSignupOtp = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * ====================================================================
- * PATIENT LOGIN - REQUEST LOGIN OTP
- * ====================================================================
- */
+
 exports.patientLogin = catchAsync(async (req, res, next) => {
   const { email, phone } = req.body;
 
@@ -566,11 +554,7 @@ exports.patientLogin = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * ====================================================================
- * VERIFY LOGIN OTP
- * ====================================================================
- */
+
 exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
   const { phone, otp } = req.body;
 
@@ -642,11 +626,7 @@ exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * ====================================================================
- * RESEND LOGIN OTP
- * ====================================================================
- */
+
 exports.resendLoginOtp = catchAsync(async (req, res, next) => {
   const { phone } = req.body;
 
@@ -699,11 +679,7 @@ exports.resendLoginOtp = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * ====================================================================
- * CHECK AUTH STATUS (Auto-refresh tokens)
- * ====================================================================
- */
+
 exports.checkAuthStatus = catchAsync(async (req, res, next) => {
   console.log('DEBUG: Inside checkAuthStatus');
 
@@ -797,11 +773,7 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * ====================================================================
- * LOGOUT
- * ====================================================================
- */
+
 exports.logout = catchAsync(async (req, res, next) => {
   clearAuthCookies(res);
 
@@ -811,11 +783,7 @@ exports.logout = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * ====================================================================
- * LOGOUT ALL DEVICES
- * ====================================================================
- */
+
 exports.patientLogoutAll = catchAsync(async (req, res, next) => {
   const { phone } = req.body;
 
@@ -840,11 +808,7 @@ exports.patientLogoutAll = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * ====================================================================
- * PROFILE MANAGEMENT
- * ====================================================================
- */
+
 exports.getMyProfile = catchAsync(async (req, res, next) => {
   const patient = await Patient.findById(req.user?.id)
     .select('-password -tokenVersion')
