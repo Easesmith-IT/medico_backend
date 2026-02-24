@@ -197,9 +197,9 @@ router.post(
 );
 // DELETE /api/v1/patients/admin/patient/:patientId/medications
 router.delete('/patient/:patientId/medications', protect('superadmin', 'subadmin', 'admin'),   adminController.adminRemoveMedication);
-// router.post(
-//   "/addEquipments",
-//   protect("superadmin", "subadmin","admin"),
-//   adminController.addEquipment
-// );
+router.post(
+  "/addEquipments",
+  protect("superadmin", "subadmin","admin"),
+  adminController.addEquipment
+);
 module.exports = router;
