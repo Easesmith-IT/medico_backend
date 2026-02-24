@@ -2267,21 +2267,21 @@ exports.createProviderBooking = async (req, res) => {
       cityId 
     } = req.body;
 
-    // 1. VALIDATION - NO SESSION NEEDED
+    // 1. Input validation
     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
       return res.status(400).json({
         success: false,
-        message: "patientId, serviceId, appointmentDate, startTime, endTime required",
+        message: "patientId, serviceId, appointmentDate, startTime, endTime required"
       });
     }
 
-    // 2. START TRANSACTION
+    // 2. Start transaction
     await session.startTransaction();
     transactionStarted = true;
 
     // 3. Validate Service
     const service = await Service.findById(serviceId).session(session);
-    if (!service || !service.isActive || service.isDeleted) {
+    if (!service?.isActive || service?.isDeleted) {
       throw new Error("Service not found or inactive");
     }
 
@@ -2294,72 +2294,65 @@ exports.createProviderBooking = async (req, res) => {
     }
 
     // 5. Validate City
-    let bookingCity = cityId ? await City.findById(cityId).session(session) : 
-                             await City.findById(patient.address.cityId).session(session);
-    if (!bookingCity || !bookingCity.isActive) {
+    const bookingCityId = cityId || patient.address.cityId;
+    const bookingCity = await City.findById(bookingCityId).session(session);
+    if (!bookingCity?.isActive) {
       throw new Error("Invalid or inactive city");
     }
 
-    // 6. Previous Booking Validation - SIMPLIFIED ✅
-    let previousTreatmentId = null;
-    if (previousBookingId) {
-      const previousBooking = await Booking.findById(previousBookingId).session(session);
-      if (!previousBooking) {
-        throw new Error("Previous booking not found");
-      }
-
-      if (previousBooking.treatmentStatus !== 'Completed') {
-        throw new Error(`Previous booking must be Completed (current: "${previousBooking.treatmentStatus}")`);
-      }
-
-      previousTreatmentId = previousBooking.treatmentId;
+    // 6. ✅ EXACT FLOW: Current booking COMPLETED → Next booking (treatment in progress)
+    if (!previousBookingId) {
+      throw new Error("previousBookingId is required - current booking must be completed first");
     }
 
-    // 7. Check slot conflicts
-    const dayStart = new Date(appointmentDate); 
+    const prevBooking = await Booking.findById(previousBookingId).session(session);
+    if (!prevBooking) {
+      throw new Error("Previous booking not found");
+    }
+
+    // ✅ CURRENT BOOKING MUST BE COMPLETED
+    if (prevBooking.status !== 'Completed') {
+      throw new Error(`Current booking must have status: "Completed" (current: "${prevBooking.status}")`);
+    }
+
+    // ✅ TREATMENT STATUS doesn't matter for completed bookings
+    const validTreatmentStatuses = ['Active', 'InProgress', 'Completed'];
+    if (!validTreatmentStatuses.includes(prevBooking.treatmentStatus)) {
+      throw new Error(`Previous booking treatmentStatus must be valid (current: "${prevBooking.treatmentStatus}")`);
+    }
+
+    // 7. Check slot conflicts (provider-specific)
+    const dayStart = new Date(appointmentDate);
     dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(appointmentDate); 
+    const dayEnd = new Date(appointmentDate);
     dayEnd.setHours(23, 59, 59, 999);
     
     const conflictQuery = {
       serviceId,
       appointmentDate: { $gte: dayStart, $lte: dayEnd },
-      status: { $nin: ["Cancelled", "Rejected"] },
-      "slotTime.startTime": startTime,
-      "slotTime.endTime": endTime,
+      status: { $nin: ['Cancelled', 'Rejected'] },
+      'slotTime.startTime': startTime,
+      'slotTime.endTime': endTime,
       servicePartnerId: servicePartnerId
     };
 
     const existingBooking = await Booking.findOne(conflictQuery).session(session);
     if (existingBooking) {
-      throw new Error("Your slot already booked");
+      throw new Error("Your slot is already booked");
     }
 
     // 8. Calculate duration & pricing
     let bookingDuration = duration;
     if (!bookingDuration) {
-      const [sh, sm] = startTime.split(":").map(Number);
-      const [eh, em] = endTime.split(":").map(Number);
+      const [sh, sm] = startTime.split(':').map(Number);
+      const [eh, em] = endTime.split(':').map(Number);
       bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
       if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
     }
+    
     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
 
-    // 9. ✅ FIXED: CREATE NEW TREATMENT (No bookingId for provider bookings)
-    const newTreatment = new Treatment({
-      patientId,
-      serviceId,
-      servicePartnerId,
-      appointmentDate: new Date(appointmentDate),
-      slotTime: { startTime, endTime },
-      status: 'Active',
-      previousTreatmentId: previousTreatmentId || null,
-      // ✅ NO bookingId - Provider bookings don't reference back
-    });
-    await newTreatment.save({ session });
-    const treatmentId = newTreatment._id;
-
-    // 10. CREATE BOOKING
+    // 9. ✅ NEXT BOOKING: Treatment is in progress
     const newBooking = new Booking({
       patientId,
       serviceId,
@@ -2370,39 +2363,51 @@ exports.createProviderBooking = async (req, res) => {
       slotTime: { startTime, endTime },
       duration: bookingDuration,
       shiftType: shiftType || null,
-      status: "Pending",
+      status: 'Pending',  // New booking starts as Pending
       pricing,
-      notes: notes || "",
+      notes: notes || `Next treatment session after completed booking ${previousBookingId}`,
       city: bookingCity._id,
-      createdBy: { userId: servicePartnerId, userModel: "ServiceProvider" },
-      treatmentId,
-      treatmentStatus: 'Active',
+      createdBy: { 
+        userId: servicePartnerId, 
+        userModel: 'ServiceProvider' 
+      },
+      treatmentStatus: 'Active',  // ✅ Treatment is ready to start (in progress phase)
+      validTill: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days prescription
       invoiceGenerated: false,
-      previousBookingId: previousBookingId || null
+      previousBookingId: previousBookingId,
+      treatmentFlow: true
     });
+
     await newBooking.save({ session });
 
-    // 11. COMMIT
+    // 10. Link back to chain
+    await Booking.findByIdAndUpdate(
+      previousBookingId,
+      { nextBookingId: newBooking._id },
+      { session }
+    );
+
+    // 11. Commit transaction
     await session.commitTransaction();
 
-    // 12. Response
+    // 12. Populate response
     const populatedBooking = await Booking.findById(newBooking._id)
-      .populate('city', 'name latitude longitude')
-      .populate('treatmentId', 'status validTill previousTreatmentId')
+      .populate('city', 'name')
       .populate('patientId', 'firstName phone')
-      .populate('serviceId', 'name category')
-      .populate('previousBookingId', 'appointmentDate status treatmentId');
+      .populate('serviceId', 'name category basePrice')
+      .populate('previousBookingId', 'appointmentDate status treatmentStatus');
 
     res.status(201).json({
       success: true,
-      message: "Provider booking created successfully",
+      message: 'Next treatment booking created successfully after completed booking',
       data: {
         booking: populatedBooking,
-        treatmentId,
-        previousDetails: previousBookingId ? {
+        flow: 'completed-to-inprogress',
+        previousBooking: {
           bookingId: previousBookingId,
-          previousTreatmentId,
-        } : null
+          status: 'Completed',
+          treatmentStatus: prevBooking.treatmentStatus
+        }
       }
     });
 
@@ -2411,31 +2416,31 @@ exports.createProviderBooking = async (req, res) => {
       try {
         await session.abortTransaction();
       } catch (rollbackError) {
-        console.error("Rollback failed:", rollbackError);
+        console.error('Transaction rollback failed:', rollbackError);
       }
     }
-    
-    // Specific error handling
-    if (error.message.includes("not found") || error.message.includes("inactive") || 
-        error.message.includes("must be") || error.message.includes("required")) {
-      const statusCode = error.message.includes("slot") ? 409 : 400;
-      return res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
+
+    if (error.message.includes('not found') || error.message.includes('inactive') || 
+        error.message.includes('must have') || error.message.includes('already booked') ||
+        error.message.includes('required')) {
+      const statusCode = error.message.includes('booked') ? 409 : 400;
+      return res.status(statusCode).json({
+        success: false,
+        message: error.message
       });
     }
-    
-    console.error("Provider booking error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error creating provider booking", 
-      error: error.message 
+
+    console.error('Provider booking error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create provider booking',
+      error: error.message
     });
   } finally {
     await session.endSession();
   }
 };
-// exports.createProviderBooking = async (req, res) => {
+
 //   const session = await mongoose.startSession();
 //   let transactionStarted = false;
   
@@ -2613,200 +2618,200 @@ exports.createProviderBooking = async (req, res) => {
 
 
 
-exports.createProviderBooking = async (req, res) => {
-  const session = await mongoose.startSession();
-  let transactionStarted = false;
+// exports.createProviderBooking = async (req, res) => {
+//   const session = await mongoose.startSession();
+//   let transactionStarted = false;
   
-  try {
-    const servicePartnerId = req.user.id;
-    const { 
-      patientId, 
-      previousBookingId, 
-      serviceId, 
-      appointmentDate, 
-      startTime, 
-      endTime, 
-      duration, 
-      shiftType, 
-      notes, 
-      category, 
-      modes, 
-      cityId 
-    } = req.body;
+//   try {
+//     const servicePartnerId = req.user.id;
+//     const { 
+//       patientId, 
+//       previousBookingId, 
+//       serviceId, 
+//       appointmentDate, 
+//       startTime, 
+//       endTime, 
+//       duration, 
+//       shiftType, 
+//       notes, 
+//       category, 
+//       modes, 
+//       cityId 
+//     } = req.body;
 
-    // 1. Input validation
-    if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
-      return res.status(400).json({
-        success: false,
-        message: "patientId, serviceId, appointmentDate, startTime, endTime required"
-      });
-    }
+//     // 1. Input validation
+//     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "patientId, serviceId, appointmentDate, startTime, endTime required"
+//       });
+//     }
 
-    // 2. Start transaction
-    await session.startTransaction();
-    transactionStarted = true;
+//     // 2. Start transaction
+//     await session.startTransaction();
+//     transactionStarted = true;
 
-    // 3. Validate Service
-    const service = await Service.findById(serviceId).session(session);
-    if (!service?.isActive || service?.isDeleted) {
-      throw new Error("Service not found or inactive");
-    }
+//     // 3. Validate Service
+//     const service = await Service.findById(serviceId).session(session);
+//     if (!service?.isActive || service?.isDeleted) {
+//       throw new Error("Service not found or inactive");
+//     }
 
-    // 4. Validate Patient
-    const patient = await Patient.findById(patientId)
-      .select("address.cityId firstName phone")
-      .session(session);
-    if (!patient) {
-      throw new Error("Patient not found");
-    }
+//     // 4. Validate Patient
+//     const patient = await Patient.findById(patientId)
+//       .select("address.cityId firstName phone")
+//       .session(session);
+//     if (!patient) {
+//       throw new Error("Patient not found");
+//     }
 
-    // 5. Validate City
-    const bookingCityId = cityId || patient.address.cityId;
-    const bookingCity = await City.findById(bookingCityId).session(session);
-    if (!bookingCity?.isActive) {
-      throw new Error("Invalid or inactive city");
-    }
+//     // 5. Validate City
+//     const bookingCityId = cityId || patient.address.cityId;
+//     const bookingCity = await City.findById(bookingCityId).session(session);
+//     if (!bookingCity?.isActive) {
+//       throw new Error("Invalid or inactive city");
+//     }
 
-    // 6. ✅ EXACT FLOW: Current booking COMPLETED → Next booking (treatment in progress)
-    if (!previousBookingId) {
-      throw new Error("previousBookingId is required - current booking must be completed first");
-    }
+//     // 6. ✅ EXACT FLOW: Current booking COMPLETED → Next booking (treatment in progress)
+//     if (!previousBookingId) {
+//       throw new Error("previousBookingId is required - current booking must be completed first");
+//     }
 
-    const prevBooking = await Booking.findById(previousBookingId).session(session);
-    if (!prevBooking) {
-      throw new Error("Previous booking not found");
-    }
+//     const prevBooking = await Booking.findById(previousBookingId).session(session);
+//     if (!prevBooking) {
+//       throw new Error("Previous booking not found");
+//     }
 
-    // ✅ CURRENT BOOKING MUST BE COMPLETED
-    if (prevBooking.status !== 'Completed') {
-      throw new Error(`Current booking must have status: "Completed" (current: "${prevBooking.status}")`);
-    }
+//     // ✅ CURRENT BOOKING MUST BE COMPLETED
+//     if (prevBooking.status !== 'Completed') {
+//       throw new Error(`Current booking must have status: "Completed" (current: "${prevBooking.status}")`);
+//     }
 
-    // ✅ TREATMENT STATUS doesn't matter for completed bookings
-    const validTreatmentStatuses = ['Active', 'InProgress', 'Completed'];
-    if (!validTreatmentStatuses.includes(prevBooking.treatmentStatus)) {
-      throw new Error(`Previous booking treatmentStatus must be valid (current: "${prevBooking.treatmentStatus}")`);
-    }
+//     // ✅ TREATMENT STATUS doesn't matter for completed bookings
+//     const validTreatmentStatuses = ['Active', 'InProgress', 'Completed'];
+//     if (!validTreatmentStatuses.includes(prevBooking.treatmentStatus)) {
+//       throw new Error(`Previous booking treatmentStatus must be valid (current: "${prevBooking.treatmentStatus}")`);
+//     }
 
-    // 7. Check slot conflicts (provider-specific)
-    const dayStart = new Date(appointmentDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(appointmentDate);
-    dayEnd.setHours(23, 59, 59, 999);
+//     // 7. Check slot conflicts (provider-specific)
+//     const dayStart = new Date(appointmentDate);
+//     dayStart.setHours(0, 0, 0, 0);
+//     const dayEnd = new Date(appointmentDate);
+//     dayEnd.setHours(23, 59, 59, 999);
     
-    const conflictQuery = {
-      serviceId,
-      appointmentDate: { $gte: dayStart, $lte: dayEnd },
-      status: { $nin: ['Cancelled', 'Rejected'] },
-      'slotTime.startTime': startTime,
-      'slotTime.endTime': endTime,
-      servicePartnerId: servicePartnerId
-    };
+//     const conflictQuery = {
+//       serviceId,
+//       appointmentDate: { $gte: dayStart, $lte: dayEnd },
+//       status: { $nin: ['Cancelled', 'Rejected'] },
+//       'slotTime.startTime': startTime,
+//       'slotTime.endTime': endTime,
+//       servicePartnerId: servicePartnerId
+//     };
 
-    const existingBooking = await Booking.findOne(conflictQuery).session(session);
-    if (existingBooking) {
-      throw new Error("Your slot is already booked");
-    }
+//     const existingBooking = await Booking.findOne(conflictQuery).session(session);
+//     if (existingBooking) {
+//       throw new Error("Your slot is already booked");
+//     }
 
-    // 8. Calculate duration & pricing
-    let bookingDuration = duration;
-    if (!bookingDuration) {
-      const [sh, sm] = startTime.split(':').map(Number);
-      const [eh, em] = endTime.split(':').map(Number);
-      bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
-      if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
-    }
+//     // 8. Calculate duration & pricing
+//     let bookingDuration = duration;
+//     if (!bookingDuration) {
+//       const [sh, sm] = startTime.split(':').map(Number);
+//       const [eh, em] = endTime.split(':').map(Number);
+//       bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+//       if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+//     }
     
-    const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
+//     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
 
-    // 9. ✅ NEXT BOOKING: Treatment is in progress
-    const newBooking = new Booking({
-      patientId,
-      serviceId,
-      category: category || service.category,
-      modes: Array.isArray(modes) && modes.length ? modes : service.modes,
-      servicePartnerId,
-      appointmentDate: new Date(appointmentDate),
-      slotTime: { startTime, endTime },
-      duration: bookingDuration,
-      shiftType: shiftType || null,
-      status: 'Pending',  // New booking starts as Pending
-      pricing,
-      notes: notes || `Next treatment session after completed booking ${previousBookingId}`,
-      city: bookingCity._id,
-      createdBy: { 
-        userId: servicePartnerId, 
-        userModel: 'ServiceProvider' 
-      },
-      treatmentStatus: 'Active',  // ✅ Treatment is ready to start (in progress phase)
-      validTill: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days prescription
-      invoiceGenerated: false,
-      previousBookingId: previousBookingId,
-      treatmentFlow: true
-    });
+//     // 9. ✅ NEXT BOOKING: Treatment is in progress
+//     const newBooking = new Booking({
+//       patientId,
+//       serviceId,
+//       category: category || service.category,
+//       modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+//       servicePartnerId,
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime: { startTime, endTime },
+//       duration: bookingDuration,
+//       shiftType: shiftType || null,
+//       status: 'Pending',  // New booking starts as Pending
+//       pricing,
+//       notes: notes || `Next treatment session after completed booking ${previousBookingId}`,
+//       city: bookingCity._id,
+//       createdBy: { 
+//         userId: servicePartnerId, 
+//         userModel: 'ServiceProvider' 
+//       },
+//       treatmentStatus: 'Active',  // ✅ Treatment is ready to start (in progress phase)
+//       validTill: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days prescription
+//       invoiceGenerated: false,
+//       previousBookingId: previousBookingId,
+//       treatmentFlow: true
+//     });
 
-    await newBooking.save({ session });
+//     await newBooking.save({ session });
 
-    // 10. Link back to chain
-    await Booking.findByIdAndUpdate(
-      previousBookingId,
-      { nextBookingId: newBooking._id },
-      { session }
-    );
+//     // 10. Link back to chain
+//     await Booking.findByIdAndUpdate(
+//       previousBookingId,
+//       { nextBookingId: newBooking._id },
+//       { session }
+//     );
 
-    // 11. Commit transaction
-    await session.commitTransaction();
+//     // 11. Commit transaction
+//     await session.commitTransaction();
 
-    // 12. Populate response
-    const populatedBooking = await Booking.findById(newBooking._id)
-      .populate('city', 'name')
-      .populate('patientId', 'firstName phone')
-      .populate('serviceId', 'name category basePrice')
-      .populate('previousBookingId', 'appointmentDate status treatmentStatus');
+//     // 12. Populate response
+//     const populatedBooking = await Booking.findById(newBooking._id)
+//       .populate('city', 'name')
+//       .populate('patientId', 'firstName phone')
+//       .populate('serviceId', 'name category basePrice')
+//       .populate('previousBookingId', 'appointmentDate status treatmentStatus');
 
-    res.status(201).json({
-      success: true,
-      message: 'Next treatment booking created successfully after completed booking',
-      data: {
-        booking: populatedBooking,
-        flow: 'completed-to-inprogress',
-        previousBooking: {
-          bookingId: previousBookingId,
-          status: 'Completed',
-          treatmentStatus: prevBooking.treatmentStatus
-        }
-      }
-    });
+//     res.status(201).json({
+//       success: true,
+//       message: 'Next treatment booking created successfully after completed booking',
+//       data: {
+//         booking: populatedBooking,
+//         flow: 'completed-to-inprogress',
+//         previousBooking: {
+//           bookingId: previousBookingId,
+//           status: 'Completed',
+//           treatmentStatus: prevBooking.treatmentStatus
+//         }
+//       }
+//     });
 
-  } catch (error) {
-    if (transactionStarted) {
-      try {
-        await session.abortTransaction();
-      } catch (rollbackError) {
-        console.error('Transaction rollback failed:', rollbackError);
-      }
-    }
+//   } catch (error) {
+//     if (transactionStarted) {
+//       try {
+//         await session.abortTransaction();
+//       } catch (rollbackError) {
+//         console.error('Transaction rollback failed:', rollbackError);
+//       }
+//     }
 
-    if (error.message.includes('not found') || error.message.includes('inactive') || 
-        error.message.includes('must have') || error.message.includes('already booked') ||
-        error.message.includes('required')) {
-      const statusCode = error.message.includes('booked') ? 409 : 400;
-      return res.status(statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
+//     if (error.message.includes('not found') || error.message.includes('inactive') || 
+//         error.message.includes('must have') || error.message.includes('already booked') ||
+//         error.message.includes('required')) {
+//       const statusCode = error.message.includes('booked') ? 409 : 400;
+//       return res.status(statusCode).json({
+//         success: false,
+//         message: error.message
+//       });
+//     }
 
-    console.error('Provider booking error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create provider booking',
-      error: error.message
-    });
-  } finally {
-    await session.endSession();
-  }
-};
+//     console.error('Provider booking error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to create provider booking',
+//       error: error.message
+//     });
+//   } finally {
+//     await session.endSession();
+//   }
+// };
 
 
 
