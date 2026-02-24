@@ -901,3 +901,164 @@ exports.getSingleAppointment = async (req, res) => {
     });
   }
 };
+
+
+
+exports.createProviderBooking = async (req, res) => {
+  const session = await mongoose.startSession();
+  
+  try {
+    // ServiceProvider creates booking after treatment completion
+    const servicePartnerId = req.user.id; // Logged-in provider
+    const { patientId, previousBookingId, serviceId, appointmentDate, startTime, endTime, duration, shiftType, notes, category, modes, cityId } = req.body;
+
+    if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "patientId, serviceId, appointmentDate, startTime, endTime required",
+      });
+    }
+
+    await session.startTransaction();
+
+    // 1) Validate service
+    const service = await Service.findById(serviceId).session(session);
+    if (!service || !service.isActive || service.isDeleted) {
+      await session.abortTransaction();
+      return res.status(404).json({ success: false, message: "Service not found or inactive" });
+    }
+
+    // 2) Fetch & validate patient (reuse from previous if provided)
+    let patient = await Patient.findById(patientId).select("address.cityId name phone").session(session);
+    if (!patient || !patient.address?.cityId) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Patient not found or city not set" });
+    }
+
+    // ✅ 3) FETCH PREVIOUS BOOKING DETAILS (if provided for reschedule)
+    let previousBooking = null;
+    let previousTreatmentId = null;
+    if (previousBookingId) {
+      previousBooking = await Booking.findById(previousBookingId)
+        .populate('treatmentId', 'status')
+        .session(session);
+      
+      if (!previousBooking) {
+        await session.abortTransaction();
+        return res.status(404).json({ success: false, message: "Previous booking not found" });
+      }
+      
+      // ✅ Verify treatment COMPLETED before reschedule
+      if (previousBooking.treatmentId?.status !== 'Completed') {
+        await session.abortTransaction();
+        return res.status(400).json({ success: false, message: "Can only create after treatment completion" });
+      }
+      
+      previousTreatmentId = previousBooking.treatmentId._id;
+      console.log(`📋 Previous booking: ${previousBookingId}, treatment: ${previousTreatmentId}`);
+    }
+
+    // 4) Determine booking city
+    let bookingCity = cityId ? await City.findById(cityId).session(session) : 
+                      await City.findById(patient.address.cityId).session(session);
+    if (!bookingCity) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Invalid city" });
+    }
+
+    // 5) Check slot conflicts (PROVIDER-SPECIFIC)
+    const dayStart = new Date(appointmentDate); dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(appointmentDate); dayEnd.setHours(23, 59, 59, 999);
+    const conflictQuery = {
+      serviceId,
+      appointmentDate: { $gte: dayStart, $lte: dayEnd },
+      status: { $nin: ["Cancelled", "Rejected"] },
+      "slotTime.startTime": startTime,
+      "slotTime.endTime": endTime,
+      servicePartnerId: servicePartnerId  // Only provider's own slots
+    };
+
+    const existingBooking = await Booking.findOne(conflictQuery).session(session);
+    if (existingBooking) {
+      await session.abortTransaction();
+      return res.status(409).json({ success: false, message: "Your slot already booked" });
+    }
+
+    // 6) Calculate duration & pricing
+    let bookingDuration = duration;
+    if (!bookingDuration) {
+      const [sh, sm] = startTime.split(":").map(Number);
+      const [eh, em] = endTime.split(":").map(Number);
+      bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+      if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+    }
+    const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
+
+    // ✅ 7) CREATE NEW TREATMENT (post-completion → always new)
+    const newTreatment = new Treatment({
+      patientId,
+      serviceId,
+      servicePartnerId,
+      appointmentDate: new Date(appointmentDate),
+      slotTime: { startTime, endTime },
+      status: 'Active',
+      previousTreatmentId: previousTreatmentId || null  // Track chain
+    });
+    await newTreatment.save({ session });
+    const treatmentId = newTreatment._id;
+
+    // ✅ 8) CREATE BOOKING (provider-created)
+    const newBooking = new Booking({
+      patientId,
+      serviceId,
+      category: category || service.category,
+      modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+      servicePartnerId,  // Fixed to logged-in provider
+      appointmentDate: new Date(appointmentDate),
+      slotTime: { startTime, endTime },
+      duration: bookingDuration,
+      shiftType: shiftType || null,
+      status: "Pending",
+      pricing,
+      notes: notes || "",
+      city: bookingCity._id,
+      createdBy: { userId: servicePartnerId, userModel: "ServiceProvider" },  // Provider!
+      treatmentId,
+      treatmentStatus: 'Active',
+      invoiceGenerated: false,
+      previousBookingId: previousBooking?._id || null  // Reference for reschedule
+    });
+    await newBooking.save({ session });
+
+    await session.commitTransaction();
+
+    // Populate response with previous details
+    const populatedBooking = await Booking.findById(newBooking._id)
+      .populate('city', 'name latitude longitude')
+      .populate('treatmentId', 'status validTill previousTreatmentId')
+      .populate('patientId', 'name phone')
+      .populate('previousBookingId', 'appointmentDate status treatmentId');
+
+    res.status(201).json({
+      success: true,
+      message: "Provider booking created successfully",
+      data: {
+        booking: populatedBooking,
+        treatmentId,
+        previousDetails: previousBooking ? {
+          bookingId: previousBooking._id,
+          previousTreatmentId: previousTreatmentId,
+          oldDate: previousBooking.appointmentDate
+        } : null
+      }
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Provider booking error:", error);
+    res.status(500).json({ success: false, message: "Error creating booking", error: error.message });
+  } finally {
+    session.endSession();
+  }
+};

@@ -19,6 +19,7 @@ const chromium = require('@sparticuz/chromium-min');
 
 
 exports.generateInvoice = async (req, res) => {
+
   try {
     const { bookingId, patientId, doctorId, billingDetails, medicines, additionalEquipment } = req.body;
 
@@ -200,3 +201,6 @@ exports.getInvoice = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
+
