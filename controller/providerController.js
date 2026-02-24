@@ -1,264 +1,4 @@
-// // controllers/serviceProvider.controller.js
-// const ServiceProvider = require('../models/serviceProviderModel');
 
-// // Create service provider (by Admin)
-// // exports.createServiceProvider = async (req, res) => {
-// //   try {
-// //     // optionally you can attach approvedBy from req.admin later
-// //     const data = req.body;
-
-// //     const newProvider = await ServiceProvider.create(data);
-
-// //     res.status(201).json({
-// //       success: true,
-// //       message: 'Service provider created successfully',
-// //       data: newProvider,
-// //     });
-// //   } catch (error) {
-// //     console.error('Create ServiceProvider error:', error);
-
-// //     // Duplicate key handling for mobile / email / registrationNumber
-// //     if (error.code === 11000) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: 'Duplicate field value',
-// //         details: error.keyValue,
-// //       });
-// //     }
-
-// //     res.status(500).json({
-// //       success: false,
-// //       message: 'Failed to create service provider',
-// //       error: error.message,
-// //     });
-// //   }
-// // };
-// exports.createServiceProvider = async (req, res) => {
-//   try {
-//     const data = req.body;
-
-//     // Optionally attach approvedBy admin info from req.user if wanted
-//     if (req.user && (req.user.role === 'superadmin' || req.user.role === 'subadmin')) {
-//       data.approvedBy = {
-//         adminId: req.user.id,
-//         adminName: req.user.email || 'Admin'
-//       };
-//       data.approvalStatus = 'Approved';
-//       data.isActive = true;
-//     }
-
-//     const newProvider = await ServiceProvider.create(data);
-
-//     res.status(201).json({
-//       success: true,
-//       message: 'Service provider created successfully',
-//       data: newProvider,
-//     });
-//   } catch (error) {
-//     if (error.code === 11000) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Duplicate field value',
-//         details: error.keyValue,
-//       });
-//     }
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to create service provider',
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // Get all service providers (with optional filters)
-// exports.getAllServiceProviders = async (req, res) => {
-//   try {
-//     const {
-//       approvalStatus,
-//       isActive,
-//       cityId,
-//       serviceId,
-//       page = 1,
-//       limit = 10,
-//       search,
-//     } = req.query;
-
-//     const filter = {};
-
-//     if (approvalStatus) filter.approvalStatus = approvalStatus;
-//     if (typeof isActive !== 'undefined') filter.isActive = isActive === 'true';
-
-//     if (cityId) filter.serviceCities = cityId;
-//     if (serviceId) filter['services.serviceId'] = serviceId;
-
-//     if (search) {
-//       filter.$or = [
-//         { firstName: { $regex: search, $options: 'i' } },
-//         { lastName: { $regex: search, $options: 'i' } },
-//         { ownerName: { $regex: search, $options: 'i' } },
-//         { mobile: { $regex: search, $options: 'i' } },
-//         { email: { $regex: search, $options: 'i' } },
-//         { registrationNumber: { $regex: search, $options: 'i' } },
-//       ];
-//     }
-
-//     const skip = (Number(page) - 1) * Number(limit);
-
-//     const [providers, total] = await Promise.all([
-//       ServiceProvider.find(filter)
-//         .populate('services.serviceId')
-//         .populate('serviceCities')
-//         .skip(skip)
-//         .limit(Number(limit))
-//         .sort({ createdAt: -1 }),
-//       ServiceProvider.countDocuments(filter),
-//     ]);
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Service providers fetched successfully',
-//       data: providers,
-//       pagination: {
-//         total,
-//         page: Number(page),
-//         limit: Number(limit),
-//         totalPages: Math.ceil(total / Number(limit)),
-//       },
-//     });
-//   } catch (error) {
-//     console.error('GetAll ServiceProvider error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch service providers',
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // Get single provider by ID
-// exports.getServiceProviderById = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-
-//     const provider = await ServiceProvider.findById(id)
-//       .populate('services.serviceId')
-//       .populate('serviceCities')
-//       .populate('approvedBy.adminId');
-
-//     if (!provider) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service provider not found',
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Service provider fetched successfully',
-//       data: provider,
-//     });
-//   } catch (error) {
-//     console.error('GetById ServiceProvider error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch service provider',
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // Update provider (full or partial) by Admin
-// exports.updateServiceProvider = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const updateData = req.body;
-
-//     // Example: if you want to auto-copy current to permanent when flag true
-//     if (updateData.permanentAddress?.sameAsCurrent && updateData.currentAddress) {
-//       updateData.permanentAddress = {
-//         ...updateData.currentAddress,
-//         sameAsCurrent: true,
-//       };
-//     }
-
-//     const updated = await ServiceProvider.findByIdAndUpdate(
-//       id,
-//       { $set: updateData },
-//       { new: true, runValidators: true }
-//     )
-//       .populate('services.serviceId')
-//       .populate('serviceCities')
-//       .populate('approvedBy.adminId');
-
-//     if (!updated) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service provider not found',
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Service provider updated successfully',
-//       data: updated,
-//     });
-//   } catch (error) {
-//     console.error('Update ServiceProvider error:', error);
-
-//     if (error.code === 11000) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Duplicate field value',
-//         details: error.keyValue,
-//       });
-//     }
-
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to update service provider',
-//       error: error.message,
-//     });
-//   }
-// };
-
-// // Soft delete provider by Admin
-// exports.deleteServiceProvider = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const adminId = req.admin?._id; // if you store admin on req in auth middleware
-
-//     const provider = await ServiceProvider.findById(id);
-//     if (!provider) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Service provider not found',
-//       });
-//     }
-
-//     provider.isDeleted = true;
-//     provider.deletedAt = new Date();
-//     provider.deletedBy = {
-//       userId: adminId,
-//       userModel: 'Admin',
-//     };
-//     provider.isActive = false;
-//     provider.isAvailable = false;
-
-//     await provider.save();
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Service provider deleted (soft) successfully',
-//     });
-//   } catch (error) {
-//     console.error('Delete ServiceProvider error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to delete service provider',
-//       error: error.message,
-//     });
-//   }
-// };
 
 const ServiceProvider = require("../models/serviceProviderModel");
 const City = require("../models/availableCities");
@@ -904,161 +644,166 @@ exports.getSingleAppointment = async (req, res) => {
 
 
 
-exports.createProviderBooking = async (req, res) => {
-  const session = await mongoose.startSession();
+// exports.createProviderBooking = async (req, res) => {
+//   const session = await mongoose.startSession();
   
-  try {
-    // ServiceProvider creates booking after treatment completion
-    const servicePartnerId = req.user.id; // Logged-in provider
-    const { patientId, previousBookingId, serviceId, appointmentDate, startTime, endTime, duration, shiftType, notes, category, modes, cityId } = req.body;
+//   try {
+//     // ServiceProvider creates booking after treatment completion
+//     const servicePartnerId = req.user.id; // Logged-in provider
+//     const { patientId, previousBookingId, serviceId, appointmentDate, startTime, endTime, duration, shiftType, notes, category, modes, cityId } = req.body;
 
-    if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
-      await session.abortTransaction();
-      return res.status(400).json({
-        success: false,
-        message: "patientId, serviceId, appointmentDate, startTime, endTime required",
-      });
-    }
+//     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+//       await session.abortTransaction();
+//       return res.status(400).json({
+//         success: false,
+//         message: "patientId, serviceId, appointmentDate, startTime, endTime required",
+//       });
+//     }
 
-    await session.startTransaction();
+//     await session.startTransaction();
 
-    // 1) Validate service
-    const service = await Service.findById(serviceId).session(session);
-    if (!service || !service.isActive || service.isDeleted) {
-      await session.abortTransaction();
-      return res.status(404).json({ success: false, message: "Service not found or inactive" });
-    }
+//     // 1) Validate service
+//     const service = await Service.findById(serviceId).session(session);
+//     if (!service || !service.isActive || service.isDeleted) {
+//       await session.abortTransaction();
+//       return res.status(404).json({ success: false, message: "Service not found or inactive" });
+//     }
 
-    // 2) Fetch & validate patient (reuse from previous if provided)
-    let patient = await Patient.findById(patientId).select("address.cityId name phone").session(session);
-    if (!patient || !patient.address?.cityId) {
-      await session.abortTransaction();
-      return res.status(400).json({ success: false, message: "Patient not found or city not set" });
-    }
+//     // 2) Fetch & validate patient (reuse from previous if provided)
+//     let patient = await Patient.findById(patientId).select("address.cityId name phone").session(session);
+//     if (!patient || !patient.address?.cityId) {
+//       await session.abortTransaction();
+//       return res.status(400).json({ success: false, message: "Patient not found or city not set" });
+//     }
 
-    // ✅ 3) FETCH PREVIOUS BOOKING DETAILS (if provided for reschedule)
-    let previousBooking = null;
-    let previousTreatmentId = null;
-    if (previousBookingId) {
-      previousBooking = await Booking.findById(previousBookingId)
-        .populate('treatmentId', 'status')
-        .session(session);
+//     //  3) FETCH PREVIOUS BOOKING DETAILS (if provided for reschedule)
+//     let previousBooking = null;
+//     let previousTreatmentId = null;
+//     if (previousBookingId) {
+//       previousBooking = await Booking.findById(previousBookingId)
+//         .populate('treatmentId', 'status')
+//         .session(session);
       
-      if (!previousBooking) {
-        await session.abortTransaction();
-        return res.status(404).json({ success: false, message: "Previous booking not found" });
-      }
+//       if (!previousBooking) {
+//         await session.abortTransaction();
+//         return res.status(404).json({ success: false, message: "Previous booking not found" });
+//       }
       
-      // ✅ Verify treatment COMPLETED before reschedule
-      if (previousBooking.treatmentId?.status !== 'Completed') {
-        await session.abortTransaction();
-        return res.status(400).json({ success: false, message: "Can only create after treatment completion" });
-      }
+//       //  Verify treatment COMPLETED before reschedule
+//       if (previousBooking.treatmentId?.status !== 'Completed') {
+//         await session.abortTransaction();
+//         return res.status(400).json({ success: false, message: "Can only create after treatment completion" });
+//       }
       
-      previousTreatmentId = previousBooking.treatmentId._id;
-      console.log(`📋 Previous booking: ${previousBookingId}, treatment: ${previousTreatmentId}`);
-    }
+//       previousTreatmentId = previousBooking.treatmentId._id;
+//       console.log(`📋 Previous booking: ${previousBookingId}, treatment: ${previousTreatmentId}`);
+//     }
 
-    // 4) Determine booking city
-    let bookingCity = cityId ? await City.findById(cityId).session(session) : 
-                      await City.findById(patient.address.cityId).session(session);
-    if (!bookingCity) {
-      await session.abortTransaction();
-      return res.status(400).json({ success: false, message: "Invalid city" });
-    }
+//     // 4) Determine booking city
+//     let bookingCity = cityId ? await City.findById(cityId).session(session) : 
+//                       await City.findById(patient.address.cityId).session(session);
+//     if (!bookingCity) {
+//       await session.abortTransaction();
+//       return res.status(400).json({ success: false, message: "Invalid city" });
+//     }
 
-    // 5) Check slot conflicts (PROVIDER-SPECIFIC)
-    const dayStart = new Date(appointmentDate); dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(appointmentDate); dayEnd.setHours(23, 59, 59, 999);
-    const conflictQuery = {
-      serviceId,
-      appointmentDate: { $gte: dayStart, $lte: dayEnd },
-      status: { $nin: ["Cancelled", "Rejected"] },
-      "slotTime.startTime": startTime,
-      "slotTime.endTime": endTime,
-      servicePartnerId: servicePartnerId  // Only provider's own slots
-    };
+//     // 5) Check slot conflicts (PROVIDER-SPECIFIC)
+//     const dayStart = new Date(appointmentDate); dayStart.setHours(0, 0, 0, 0);
+//     const dayEnd = new Date(appointmentDate); dayEnd.setHours(23, 59, 59, 999);
+//     const conflictQuery = {
+//       serviceId,
+//       appointmentDate: { $gte: dayStart, $lte: dayEnd },
+//       status: { $nin: ["Cancelled", "Rejected"] },
+//       "slotTime.startTime": startTime,
+//       "slotTime.endTime": endTime,
+//       servicePartnerId: servicePartnerId  // Only provider's own slots
+//     };
 
-    const existingBooking = await Booking.findOne(conflictQuery).session(session);
-    if (existingBooking) {
-      await session.abortTransaction();
-      return res.status(409).json({ success: false, message: "Your slot already booked" });
-    }
+//     const existingBooking = await Booking.findOne(conflictQuery).session(session);
+//     if (existingBooking) {
+//       await session.abortTransaction();
+//       return res.status(409).json({ success: false, message: "Your slot already booked" });
+//     }
 
-    // 6) Calculate duration & pricing
-    let bookingDuration = duration;
-    if (!bookingDuration) {
-      const [sh, sm] = startTime.split(":").map(Number);
-      const [eh, em] = endTime.split(":").map(Number);
-      bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
-      if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
-    }
-    const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
+//     // 6) Calculate duration & pricing
+//     let bookingDuration = duration;
+//     if (!bookingDuration) {
+//       const [sh, sm] = startTime.split(":").map(Number);
+//       const [eh, em] = endTime.split(":").map(Number);
+//       bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+//       if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+//     }
+//     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
 
-    // ✅ 7) CREATE NEW TREATMENT (post-completion → always new)
-    const newTreatment = new Treatment({
-      patientId,
-      serviceId,
-      servicePartnerId,
-      appointmentDate: new Date(appointmentDate),
-      slotTime: { startTime, endTime },
-      status: 'Active',
-      previousTreatmentId: previousTreatmentId || null  // Track chain
-    });
-    await newTreatment.save({ session });
-    const treatmentId = newTreatment._id;
+//     //  7) CREATE NEW TREATMENT (post-completion → always new)
+//     const newTreatment = new Treatment({
+//       patientId,
+//       serviceId,
+//       servicePartnerId,
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime: { startTime, endTime },
+//       status: 'Active',
+//       previousTreatmentId: previousTreatmentId || null  // Track chain
+//     });
+//     await newTreatment.save({ session });
+//     const treatmentId = newTreatment._id;
 
-    // ✅ 8) CREATE BOOKING (provider-created)
-    const newBooking = new Booking({
-      patientId,
-      serviceId,
-      category: category || service.category,
-      modes: Array.isArray(modes) && modes.length ? modes : service.modes,
-      servicePartnerId,  // Fixed to logged-in provider
-      appointmentDate: new Date(appointmentDate),
-      slotTime: { startTime, endTime },
-      duration: bookingDuration,
-      shiftType: shiftType || null,
-      status: "Pending",
-      pricing,
-      notes: notes || "",
-      city: bookingCity._id,
-      createdBy: { userId: servicePartnerId, userModel: "ServiceProvider" },  // Provider!
-      treatmentId,
-      treatmentStatus: 'Active',
-      invoiceGenerated: false,
-      previousBookingId: previousBooking?._id || null  // Reference for reschedule
-    });
-    await newBooking.save({ session });
+//     //  8) CREATE BOOKING (provider-created)
+//     const newBooking = new Booking({
+//       patientId,
+//       serviceId,
+//       category: category || service.category,
+//       modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+//       servicePartnerId,  // Fixed to logged-in provider
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime: { startTime, endTime },
+//       duration: bookingDuration,
+//       shiftType: shiftType || null,
+//       status: "Pending",
+//       pricing,
+//       notes: notes || "",
+//       city: bookingCity._id,
+//       createdBy: { userId: servicePartnerId, userModel: "ServiceProvider" },  // Provider!
+//       treatmentId,
+//       treatmentStatus: 'Active',
+//       invoiceGenerated: false,
+//       previousBookingId: previousBooking?._id || null  // Reference for reschedule
+//     });
+//     await newBooking.save({ session });
 
-    await session.commitTransaction();
+//     await session.commitTransaction();
 
-    // Populate response with previous details
-    const populatedBooking = await Booking.findById(newBooking._id)
-      .populate('city', 'name latitude longitude')
-      .populate('treatmentId', 'status validTill previousTreatmentId')
-      .populate('patientId', 'name phone')
-      .populate('previousBookingId', 'appointmentDate status treatmentId');
+//     // Populate response with previous details
+//     const populatedBooking = await Booking.findById(newBooking._id)
+//       .populate('city', 'name latitude longitude')
+//       .populate('treatmentId', 'status validTill previousTreatmentId')
+//       .populate('patientId', 'name phone')
+//       .populate('previousBookingId', 'appointmentDate status treatmentId');
 
-    res.status(201).json({
-      success: true,
-      message: "Provider booking created successfully",
-      data: {
-        booking: populatedBooking,
-        treatmentId,
-        previousDetails: previousBooking ? {
-          bookingId: previousBooking._id,
-          previousTreatmentId: previousTreatmentId,
-          oldDate: previousBooking.appointmentDate
-        } : null
-      }
-    });
+//     res.status(201).json({
+//       success: true,
+//       message: "Provider booking created successfully",
+//       data: {
+//         booking: populatedBooking,
+//         treatmentId,
+//         previousDetails: previousBooking ? {
+//           bookingId: previousBooking._id,
+//           previousTreatmentId: previousTreatmentId,
+//           oldDate: previousBooking.appointmentDate
+//         } : null
+//       }
+//     });
 
-  } catch (error) {
-    await session.abortTransaction();
-    console.error("Provider booking error:", error);
-    res.status(500).json({ success: false, message: "Error creating booking", error: error.message });
-  } finally {
-    session.endSession();
-  }
-};
+//   } catch (error) {
+//     await session.abortTransaction();
+//     console.error("Provider booking error:", error);
+//     res.status(500).json({ success: false, message: "Error creating booking", error: error.message });
+//   } finally {
+//     session.endSession();
+//   }
+// };
+
+
+
+
+
