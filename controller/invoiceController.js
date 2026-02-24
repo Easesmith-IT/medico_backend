@@ -18,14 +18,83 @@ const puppeteer = require('puppeteer-core');
 const chromium = require('@sparticuz/chromium-min');
 
 
+// exports.generateInvoice = async (req, res) => {
+
+//   try {
+//     const { bookingId, patientId, doctorId, billingDetails, medicines, additionalEquipment } = req.body;
+
+//     // Generate unique invoice number: INV-TIMESTAMP-HEX
+//     const invoiceNumber = `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+
+//     const newInvoice = new Invoice({
+//       invoiceNumber,
+//       bookingId,
+//       patientId,
+//       doctorId,
+//       billingDetails,
+//       medicines,
+//       additionalEquipment,
+//     });
+
+//     // The pre-save hook in the schema will handle all calculations for totals and GST [web:1]
+//     const savedInvoice = await newInvoice.save();
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Invoice generated successfully",
+//       data: savedInvoice,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+
 exports.generateInvoice = async (req, res) => {
-
   try {
-    const { bookingId, patientId, doctorId, billingDetails, medicines, additionalEquipment } = req.body;
+    const { 
+      bookingId, 
+      patientId, 
+      doctorId, 
+      billingDetails, 
+      medicines, 
+      additionalEquipment 
+    } = req.body;
 
-    // Generate unique invoice number: INV-TIMESTAMP-HEX
+    // Validate categories exist for medicines
+    if (medicines?.length > 0) {
+      for (let med of medicines) {
+        if (med.categoryId) {
+          const category = await ItemCategory.findById(med.categoryId);
+          if (!category || !category.isActive) {
+            return res.status(400).json({
+              success: false,
+              message: `Invalid medicine category: ${med.name}`
+            });
+          }
+          med.categoryName = category.name; // Denormalize
+        }
+      }
+    }
+
+    // Validate categories exist for equipment
+    if (additionalEquipment?.length > 0) {
+      for (let equip of additionalEquipment) {
+        if (equip.categoryId) {
+          const category = await ItemCategory.findById(equip.categoryId);
+          if (!category || !category.isActive) {
+            return res.status(400).json({
+              success: false,
+              message: `Invalid equipment category: ${equip.name}`
+            });
+          }
+          equip.categoryName = category.name; // Denormalize
+        }
+      }
+    }
+
     const invoiceNumber = `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
-
+    
     const newInvoice = new Invoice({
       invoiceNumber,
       bookingId,
@@ -36,9 +105,8 @@ exports.generateInvoice = async (req, res) => {
       additionalEquipment,
     });
 
-    // The pre-save hook in the schema will handle all calculations for totals and GST [web:1]
     const savedInvoice = await newInvoice.save();
-
+    
     res.status(201).json({
       success: true,
       message: "Invoice generated successfully",
@@ -48,6 +116,11 @@ exports.generateInvoice = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+
+
+
 exports.downloadInvoice = async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.invoiceId)
