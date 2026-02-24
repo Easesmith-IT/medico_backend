@@ -64,7 +64,7 @@ city: {
     ref: 'User',   // or 'Admin' / 'Doctor' depending on your auth model
     default: null
   },
-  // ✅ FIXED: Embedded likes (Doctor + Patient) - lowercase enum
+  //  FIXED: Embedded likes (Doctor + Patient) - lowercase enum
   likes: [{
     userId: { type: mongoose.Schema.Types.ObjectId, required: true },
     userRole: { 

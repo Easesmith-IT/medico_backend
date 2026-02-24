@@ -65,7 +65,10 @@ router.get(
   serviceProviderController.getSingleAppointment
 );
 
-
+// router.post('/providerBookings', 
+//   protect(['serviceprovider']), 
+//   serviceProviderController.createProviderBooking
+// );
 
 module.exports = router;
 
