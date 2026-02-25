@@ -464,39 +464,7 @@ exports.deleteCategory = catchAsync(async (req, res) => {
   });
 });
 
-// exports.getItemsByCategory = catchAsync(async (req, res) => {
-//   const { id } = req.params;  // ✅ Changed from categoryId to id
 
-//   console.log('🔍 categoryId:', id); // DEBUG
-
-//   const category = await ItemCategory.findById(id)
-//     .select('name items _id description isActive isDeleted')
-//     .lean();
-
-//   if (!category || category.isDeleted) {
-//     return res.status(404).json({
-//       success: false,
-//       message: `Category ${id} not found or deleted`
-//     });
-//   }
-
-//   const activeItems = (category.items || [])
-//     .filter(item => item.isActive)
-//     .map(item => ({
-//       _id: item._id,
-//       name: item.name,
-//       unitPrice: parseFloat(item.unitPrice)
-//     }));
-
-//   res.status(200).json({
-//     success: true,
-//     data: {
-//       categoryId: category._id.toString(),
-//       categoryName: category.name,
-//       items: activeItems
-//     }
-//   });
-// });
 exports.getItemsByCategory = catchAsync(async (req, res) => {
   const { id } = req.params; // ✅ Matches your route :id
 
@@ -531,5 +499,26 @@ exports.getItemsByCategory = catchAsync(async (req, res) => {
       categoryName: category.name,
       items: trackableItems  //  Ready for frontend tracking!
     }
+  });
+});
+exports.getCategoryDetails = catchAsync(async (req, res) => {
+  const { id } = req.params; // ✅ Matches your route :id
+
+  const category = await ItemCategory.findById(id)
+    .select("name items type _id description isActive isDeleted")
+    .lean();
+
+  if (!category || category.isDeleted) {
+    return res.status(404).json({
+      success: false,
+      message: `Category ${id} not found or deleted`,
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      category: category,
+    },
   });
 });
