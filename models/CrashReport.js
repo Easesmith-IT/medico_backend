@@ -76,7 +76,14 @@ const crashReportSchema = new mongoose.Schema(
 
     userType: {
       type: String,
-      enum: ["Doctor", "Patient", "Admin"],
+      enum: [
+        "Doctor",
+        "Patient",
+        "Admin",
+        "Hospital",
+        "ServiceProvider",
+        "MedicalStudent",
+      ],
       default: "Patient",
     },
 
