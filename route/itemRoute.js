@@ -14,6 +14,7 @@ router.get('/active', itemCategoryController.getActiveCategories);
 router.get('/getAllCategories', protect(['superAdmin', 'subAdmin']), itemCategoryController.getAllCategories);
 router.post('/create', protect(['superAdmin', 'subAdmin']), itemCategoryController.createCategory);
 router.get('/getItemCategoryById/:id', itemCategoryController.getItemsByCategory );
+router.get('/category/:id', itemCategoryController.getCategoryDetails );
 /**
  *  Category operations by ID - Admin only
  */
