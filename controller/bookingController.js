@@ -1,13 +1,16 @@
 // controllers/bookingController.js
 const Booking = require("../models/bookingModel");
 const Service = require("../models/serviceModel");
+const catchAsync = require('../utils/catchAsync');
 const { autoFilterSlots } = require("../utils/timeFIlter");
 const { formatDuration } = require("../utils/timeFormat");
 const City = require("../models/availableCities");
 const mongoose = require("mongoose");
 const Patient = require("../models/patientModel");
-
+const ItemCategory = require('../models/itemCategoryModel');
 const Treatment = require("../models/treatmentModel");
+const crypto = require('crypto');   
+const Invoice = require("../models/invoiceModel");
 // exports.createBooking = async (req, res) => {
 //   try {
 //     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
@@ -732,7 +735,7 @@ exports.createBooking = async (req, res) => {
   
   try {
     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
-    const { serviceId, appointmentDate, startTime, endTime, duration, shiftType, servicePartnerId, notes, category, modes, cityId } = req.body;
+    const { serviceId, appointmentDate, startTime, endTime, duration, shiftType, servicePartnerId, notes, category, modes, cityId, } = req.body;
 
     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
       await session.abortTransaction();
@@ -1901,7 +1904,8 @@ exports.getByIdBooking = async (req, res) => {
   }
 };
 
-exports.updateServiceStatus = async (req, res) => {
+exports.updateServiceStatus = async (req, res) => { //todo after completeion of booking need to add details about medicine,equipment,billing date   
+                                                    //get api for all the details of booking and invoice and treatment and show in frontend
   try {
     const { bookingId } = req.params;
     const { status } = req.body;
@@ -2004,6 +2008,490 @@ exports.updateServiceStatus = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+
+//adding booking details 
+// exports.bookingCompletedDetails = async (req, res) => {
+//   try {
+//     const { bookingId } = req.params;
+//     const {
+//       billingDetails,  // { calculatedBase, taxPercentage, serviceName, category, shiftType, durationMinutes }
+//       medicines = [],
+//       additionalEquipment = []
+//     } = req.body;
+//     const providerId = req.user?.id;
+
+//     if (!providerId) {
+//       return res.status(401).json({ success: false, message: "Service provider required" });
+//     }
+
+//     // Fetch booking with populated service details
+//     const booking = await Booking.findById(bookingId)
+//       .populate('serviceId', 'name category basePrice equipmentCharges taxPercentage')
+//       .populate('patientId', 'name phoneNumber'); // For invoice display
+
+//     if (!booking) {
+//       return res.status(404).json({ success: false, message: "Booking not found" });
+//     }
+
+//     if (booking.servicePartnerId?.toString() !== providerId.toString()) {
+//       return res.status(403).json({ success: false, message: "Unauthorized provider" });
+//     }
+
+//     // ✅ CRITICAL: Only allow for COMPLETED bookings
+//     if (booking.status !== 'Completed') {
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: "Booking must be Completed first. Use updateServiceStatus to complete it." 
+//       });
+//     }
+
+//     if (!booking.patientId) {
+//       return res.status(400).json({ success: false, message: "Patient ID missing from booking" });
+//     }
+
+//     // ✅ ENHANCED: Validate & attach category details for MEDICINES
+//     const validatedMedicines = [];
+//     for (let med of medicines) {
+//       const validatedMed = { ...med };
+      
+//       // If categoryId provided, validate & fetch category details
+//       if (validatedMed.categoryId) {
+//         const category = await ItemCategory.findOne({
+//           _id: validatedMed.categoryId, 
+//           isActive: true, 
+//           isDeleted: false 
+//         });
+        
+//         if (!category) {
+//           return res.status(400).json({
+//             success: false,
+//             message: `Invalid medicine category: ${validatedMed.name || 'Unknown'}`
+//           });
+//         }
+//         // ✅ Attach full category details
+//         validatedMed.categoryName = category.name;
+//         validatedMed.categoryDescription = category.description || '';
+//         validatedMed.categoryId = category._id;
+//       } else {
+//         // If no categoryId, mark as uncategorized (still allow)
+//         validatedMed.categoryName = 'Uncategorized';
+//       }
+      
+//       validatedMedicines.push(validatedMed);
+//     }
+
+//     // ✅ ENHANCED: Validate & attach category details for EQUIPMENT
+//     const validatedEquipment = [];
+//     for (let equip of additionalEquipment) {
+//       const validatedEquip = { ...equip };
+      
+//       // If categoryId provided, validate & fetch category details
+//       if (validatedEquip.categoryId) {
+//         const category = await ItemCategory.findOne({
+//           _id: validatedEquip.categoryId, 
+//           isActive: true, 
+//           isDeleted: false 
+//         });
+        
+//         if (!category) {
+//           return res.status(400).json({
+//             success: false,
+//             message: `Invalid equipment category: ${validatedEquip.name || 'Unknown'}`
+//           });
+//         }
+//         // ✅ Attach full category details
+//         validatedEquip.categoryName = category.name;
+//         validatedEquip.categoryDescription = category.description || '';
+//         validatedEquip.categoryId = category._id;
+//       } else {
+//         // If no categoryId, mark as uncategorized (still allow)
+//         validatedEquip.categoryName = 'Uncategorized';
+//       }
+      
+//       validatedEquipment.push(validatedEquip);
+//     }
+
+//     let invoice;
+//     const invoiceNumber = `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+
+//     // Check if basic invoice exists (from TreatmentCompleted) - UPDATE it
+//     if (booking.invoiceId) {
+//       invoice = await Invoice.findById(booking.invoiceId);
+//       if (!invoice) {
+//         return res.status(404).json({ success: false, message: "Invoice not found" });
+//       }
+
+//       // ✅ UPDATE with full category details
+//       invoice.invoiceNumber = invoiceNumber;
+//       invoice.billingDetails = { 
+//         ...invoice.billingDetails, 
+//         ...billingDetails,
+//         serviceName: booking.serviceId?.name || billingDetails.serviceName,
+//         category: booking.serviceId?.category || billingDetails.category
+//       };
+//       invoice.medicines = validatedMedicines;
+//       invoice.additionalEquipment = validatedEquipment;
+//       invoice.issuedAt = new Date();
+
+//     } else {
+//       // Create new detailed invoice with service details from booking
+//       const invoicePayload = {
+//         invoiceNumber,
+//         bookingId: booking._id,
+//         patientId: booking.patientId,
+//         doctorId: providerId,
+//         billingDetails: {
+//           ...billingDetails,
+//           serviceName: booking.serviceId?.name || billingDetails.serviceName,
+//           category: booking.serviceId?.category || billingDetails.category,
+//           durationMinutes: booking.duration || billingDetails.durationMinutes
+//         },
+//         medicines: validatedMedicines,
+//         additionalEquipment: validatedEquipment
+//       };
+
+//       invoice = new Invoice(invoicePayload);
+//     }
+
+//     const savedInvoice = await invoice.save();
+
+//     // Link/update booking
+//     booking.invoiceId = savedInvoice._id;
+//     booking.invoiceGenerated = true;
+//     await booking.save();
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Booking details with categories added and invoice generated/updated successfully",
+//       data: {
+//         bookingStatus: booking.status,
+//         invoiceGenerated: true,
+//         invoiceId: savedInvoice._id,
+//         invoiceNumber: savedInvoice.invoiceNumber,
+//         grandTotal: savedInvoice.totals.grandTotal,
+//         patientName: booking.patientId?.name,
+//         invoice: savedInvoice  // Full invoice with category details for frontend
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error("Error in bookingCompletedDetails:", error);
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+
+
+
+
+
+
+// exports.bookingCompletedDetails = async (req, res) => {
+//   try {
+//     const { 
+//       bookingId, 
+//       patientId, 
+//       doctorId, 
+//       billingDetails, 
+//       medicines = [],
+//       additionalEquipment = [],
+//       categories = []
+//     } = req.body;
+
+//     const providerId = req.user?.id;
+    
+//     if (!providerId) {
+//       return res.status(401).json({ success: false, message: "Service provider required" });
+//     }
+
+//     const actualBookingId = bookingId || req.params.bookingId;
+//     if (!actualBookingId) {
+//       return res.status(400).json({ success: false, message: "Booking ID required" });
+//     }
+
+//     const booking = await Booking.findById(actualBookingId)
+//       .populate('serviceId', 'name category basePrice equipmentCharges taxPercentage')
+//       .populate('patientId', 'name phoneNumber');
+
+//     if (!booking) {
+//       return res.status(404).json({ success: false, message: "Booking not found" });
+//     }
+
+//     if (booking.servicePartnerId?.toString() !== providerId.toString()) {
+//       return res.status(403).json({ success: false, message: "Unauthorized provider" });
+//     }
+
+//     if (!['Completed', 'In-Progress'].includes(booking.status)) {
+//       return res.status(400).json({ success: false, message: "Booking must be Completed/In-Progress" });
+//     }
+
+//     // ✅ PROCESS ITEMS
+//     const processedMedicines = processSimpleItems(medicines, 'medicine');
+//     const processedEquipment = processSimpleItems(additionalEquipment, 'equipment');
+//     const processedCategories = await processCategoryItems(categories);
+
+//     // ✅ FIXED TOTALS CALCULATION
+//     const medicinesTotal = processedMedicines.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+//     const equipmentTotal = processedEquipment.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+//     const categoriesTotal = processedCategories.reduce((sum, cat) => sum + parseFloat(cat.categoryTotal), 0);
+    
+//     const calculatedBase = parseFloat(billingDetails?.calculatedBase) || 0;
+//     const subTotal = calculatedBase + medicinesTotal + equipmentTotal + categoriesTotal;
+//     const taxPercentage = parseFloat(billingDetails?.taxPercentage) || 18;
+//     const taxAmount = subTotal * (taxPercentage / 100);
+//     const grandTotal = subTotal + taxAmount;
+
+//     const billingSummary = {
+//       bookingId: booking._id,
+//       patientId: patientId || booking.patientId,
+//       doctorId: doctorId || providerId,
+//       patientName: booking.patientId?.name,
+//       bookingStatus: booking.status,
+      
+//       billingDetails: {
+//         ...billingDetails,
+//         serviceName: booking.serviceId?.name || billingDetails?.serviceName || 'Service',
+//         serviceCategory: booking.serviceId?.category || billingDetails?.category || 'general',
+//         calculatedBase: calculatedBase
+//       },
+      
+//       medicines: processedMedicines,
+//       additionalEquipment: processedEquipment,
+//       categories: processedCategories,
+      
+//       totals: {
+//         medicinesTotal: medicinesTotal.toFixed(2),
+//         equipmentTotal: equipmentTotal.toFixed(2),
+//         categoriesTotal: categoriesTotal.toFixed(2),
+//         subTotal: subTotal.toFixed(2),
+//         taxAmount: taxAmount.toFixed(2),
+//         grandTotal: grandTotal.toFixed(2),
+//         taxPercentage
+//       }
+//     };
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Booking completion details processed successfully",
+//       data: billingSummary
+//     });
+
+//   } catch (error) {
+//     console.error("Error in bookingCompletedDetails:", error);
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+// // ================================
+// // HELPER FUNCTIONS (FIXED)
+// const processSimpleItems = (items, type) => {
+//   if (!Array.isArray(items)) return [];
+//   return items.map(item => ({
+//     name: item.name || 'Unnamed Item',
+//     quantity: parseInt(item.quantity) || 0,
+//     unitPrice: parseFloat(item.unitPrice) || 0,
+//     totalPrice: (parseInt(item.quantity) * parseFloat(item.unitPrice)).toFixed(2),
+//     type
+//   }));
+// };
+
+// const processCategoryItems = async (categoriesData) => {
+//   if (!Array.isArray(categoriesData)) return [];
+  
+//   const ItemCategory = require('../models/itemCategoryModel');
+//   const result = [];
+  
+//   for (let catEntry of categoriesData) {
+//     const catId = catEntry.categoryId;
+//     let category = null;
+    
+//     if (catId) {
+//       try {
+//         category = await ItemCategory.findOne({
+//           _id: catId, 
+//           isActive: true, 
+//           isDeleted: false
+//         });
+//       } catch (err) {
+//         console.warn(`Category ${catId} not found`);
+//       }
+//     }
+    
+//     const items = (catEntry.items || []).map(item => ({
+//       name: item.name || 'Unnamed Item',
+//       quantity: parseInt(item.quantity) || 0,
+//       unitPrice: parseFloat(item.unitPrice) || 0,
+//       totalPrice: (parseInt(item.quantity) * parseFloat(item.unitPrice)).toFixed(2)
+//     }));
+    
+//     const categoryTotal = items.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+    
+//     const categoryObj = {
+//       category: category || { 
+//         _id: catId || null, 
+//         name: catEntry.category?.name || 'Uncategorized', 
+//         description: catEntry.category?.description || '' 
+//       },
+//       items,
+//       categoryTotal: categoryTotal.toFixed(2)
+//     };
+    
+//     if (items.length > 0) {
+//       result.push(categoryObj);
+//     }
+//   }
+  
+//   return result;
+// };
+exports.bookingCompletedDetails = catchAsync(async (req, res) => {
+  const { 
+    bookingId, 
+    billingDetails = {}, 
+    categories = []  // [{categoryId, items: [{name, quantity, unitPrice}]}]
+  } = req.body;
+
+  const providerId = req.user.id;
+
+  // 1. Validate provider & booking
+  const booking = await Booking.findById(bookingId)
+    .populate('serviceId', 'name category basePrice equipmentCharges')
+    .populate('patientId', 'name phoneNumber')
+    .populate('servicePartnerId');
+
+  if (!booking) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Booking not found' 
+    });
+  }
+
+  if (booking.servicePartnerId._id.toString() !== providerId) {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Unauthorized provider' 
+    });
+  }
+
+  // 2. ✅ VALIDATE YOUR ADMIN CATEGORIES
+  const processedCategories = await processBillingCategories(categories);
+
+  // 3. Calculate totals
+  const serviceBase = parseFloat(billingDetails.calculatedBase) || 
+                     booking.serviceId?.basePrice || 0;
+  
+  const categoriesTotal = processedCategories.reduce(
+    (sum, cat) => sum + parseFloat(cat.categoryTotal || 0), 0
+  );
+  
+  const subTotal = serviceBase + categoriesTotal;
+  const taxPercentage = parseFloat(billingDetails.taxPercentage) || 18;
+  const taxAmount = subTotal * (taxPercentage / 100);
+  const grandTotal = subTotal + taxAmount;
+
+  // 4. Response
+  res.status(200).json({
+    success: true,
+    message: 'Billing processed successfully',
+    data: {
+      bookingId: booking._id,
+      patientName: booking.patientId?.name,
+      serviceName: booking.serviceId?.name,
+      
+      billingDetails: {
+        serviceBase: serviceBase.toFixed(2),
+        serviceCategory: booking.serviceId?.category
+      },
+      
+      // ✅ Your validated categories
+      categories: processedCategories,
+      
+      totals: {
+        serviceBase: serviceBase.toFixed(2),
+        categoriesTotal: categoriesTotal.toFixed(2),
+        subTotal: subTotal.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        taxPercentage,
+        grandTotal: grandTotal.toFixed(2)
+      }
+    }
+  });
+
+});
+
+const processBillingCategories = async (categoriesData) => {
+  if (!Array.isArray(categoriesData)) return [];
+
+  const processed = [];
+
+  for (const catEntry of categoriesData) {
+    const { categoryId, items = [] } = catEntry;
+
+    // ✅ VALIDATE category exists and is active
+    const category = await ItemCategory.findOne({
+      _id: categoryId,
+      isActive: true,
+      isDeleted: false
+    })
+    .populate({
+      path: 'items',
+      match: { isActive: true }, // Only active items
+      select: 'name unitPrice _id'
+    })
+    .lean();
+
+    if (!category) continue; // Skip invalid categories
+
+    // ✅ Get all allowed item names from this category
+    const allowedItemNames = category.items.map(item => item.name.toLowerCase());
+
+    // ✅ Filter ONLY items that exist in this category
+    const validItems = items
+      .filter(item => {
+        // Must have required fields
+        if (!item.name?.trim() || (item.quantity || 0) <= 0 || (item.unitPrice || 0) <= 0) {
+          return false;
+        }
+
+        // ✅ CRITICAL: Item name MUST exist in category's items array
+        return allowedItemNames.includes(item.name.trim().toLowerCase());
+      })
+      .map(item => {
+        // Find the exact matching item from category to validate unitPrice
+        const categoryItem = category.items.find(catItem => 
+          catItem.name.toLowerCase() === item.name.trim().toLowerCase()
+        );
+
+        return {
+          _id: categoryItem?._id,           // ✅ Original item ID
+          name: item.name.trim(),
+          unitPrice: categoryItem?.unitPrice || parseFloat(item.unitPrice), // Use category's price if available
+          quantity: parseInt(item.quantity),
+          totalPrice: (parseInt(item.quantity) * 
+            (categoryItem?.unitPrice || parseFloat(item.unitPrice))).toFixed(2)
+        };
+      });
+
+    if (validItems.length === 0) continue;
+
+    const categoryTotal = validItems.reduce(
+      (sum, item) => sum + parseFloat(item.totalPrice), 0
+    );
+
+    processed.push({
+      categoryId: category._id,
+      categoryName: category.name,
+      description: category.description,
+      items: validItems,
+      itemCount: validItems.length,
+      categoryTotal: categoryTotal.toFixed(2)
+    });
+  }
+
+  return processed;
+};
+
 
 
 //before id
