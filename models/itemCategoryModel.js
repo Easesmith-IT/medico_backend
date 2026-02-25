@@ -35,13 +35,18 @@
 // models/itemCategoryModel.js - type at Category level
 const mongoose = require('mongoose');
 
-// ✅ Item sub-schema (NO type - inherits from category)
+//  Item sub-schema (NO type - inherits from category)
 const itemSchema = new mongoose.Schema({
   name: {
-    type: String,
-    required: true,
-    trim: true
-  },
+  type: String,
+  required: [true, 'Category name required'],
+  trim: true
+},
+  // name: {
+  //   type: String,
+  //   required: true,
+  //   trim: true
+  // },
   unitPrice: {
     type: Number,
     required: true,
