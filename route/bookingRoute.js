@@ -64,6 +64,14 @@ router.get(
     protect('serviceprovider'), 
     bookingController.getBookingsByServiceProvider
 );
+
+
+
+router.post('/completed-details/:bookingId', protect('serviceProvider'), bookingController.bookingCompletedDetails);
+
+
+
+
 router.post('/providerBookings', 
   protect('serviceprovider'), 
     bookingController.createProviderBooking
