@@ -16,7 +16,7 @@ exports.createCrashReport = catchAsync(async (req, res, next) => {
     request,
     device,
     userId,
-    userType = "User",
+    userType,
     screenName,
   } = req.body;
 
