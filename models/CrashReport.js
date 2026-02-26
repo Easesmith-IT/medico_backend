@@ -78,7 +78,7 @@ const crashReportSchema = new mongoose.Schema(
       type: String,
       enum: [
         "Doctor",
-        "Patient",
+        "patient",
         "Admin",
         "Hospital",
         "ServiceProvider",
