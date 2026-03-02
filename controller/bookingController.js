@@ -2009,6 +2009,88 @@ exports.updateServiceStatus = async (req, res) => { //todo after completeion of 
   }
 };
 
+exports.getTreatmentById = catchAsync(async (req, res, next) => {
+  const { treatmentId } = req.params;
+  const { details = 'basic' } = req.query;
+  
+  if (!mongoose.Types.ObjectId.isValid(treatmentId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid treatment ID format'
+    });
+  }
+
+  // 1. Fetch treatment with patient ownership check
+  const treatment = await Treatment.findById(treatmentId)
+    .populate('patientId', 'firstName phone email')
+    .populate('serviceId', 'name category basePrice modes')
+    .populate('servicePartnerId', 'firstName specialization phone');
+
+  if (!treatment) {
+    return res.status(404).json({
+      success: false,
+      message: 'Treatment not found'
+    });
+  }
+
+  // 2. Verify patient owns this treatment
+  const patientId = req.user?.id || req.body.patientId;
+  if (treatment.patientId._id.toString() !== patientId) {
+    return res.status(403).json({
+      success: false,
+      message: 'Unauthorized - not your treatment'
+    });
+  }
+
+  // 3. Get all bookings for this treatment (your existing pattern)
+  const bookings = await Booking.find({ treatmentId })
+    .populate('serviceId', 'name category')
+    .populate('servicePartnerId', 'firstName specialization')
+    .populate('city', 'name')
+    .sort({ appointmentDate: 1 })
+    .lean();
+
+  // 4. Calculate treatment progress
+  const totalBookings = bookings.length;
+  const completedBookings = bookings.filter(b => 
+    ['Completed', 'TreatmentCompleted'].includes(b.status)
+  ).length;
+  const progressPercentage = totalBookings > 0 
+    ? Math.round((completedBookings / totalBookings) * 100) 
+    : 0;
+
+  // 5. Summary stats
+  const stats = {
+    totalSessions: totalBookings,
+    completedSessions: completedBookings,
+    pendingSessions: bookings.filter(b => b.status === 'Pending').length,
+    inProgressSessions: bookings.filter(b => b.status === 'In-Progress').length,
+    progressPercentage,
+    status: treatment.status,
+    validTill: treatment.validTill,
+    nextBooking: bookings.find(b => b.status === 'Pending') || null
+  };
+
+  const response = {
+    success: true,
+    data: {
+      treatment: {
+        ...treatment.toObject(),
+        _id: treatment._id.toString()  // Clean ObjectId
+      },
+      bookings,
+      stats,
+      summary: `${completedBookings}/${totalBookings} sessions completed (${progressPercentage}%)`
+    }
+  };
+
+  if (details === 'full') {
+    // Add invoice/equipment/medicine details from your bookingCompletedDetails
+    response.data.invoices = await Invoice.find({ bookingId: { $in: bookings.map(b => b._id) } });
+  }
+
+  res.status(200).json(response);
+});
 
 
 //adding booking details 
