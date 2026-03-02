@@ -869,70 +869,178 @@ exports.createBooking = async (req, res) => {
   }
 };
 
-exports.getBookedServicesByPatientId = async (req, res) => {
-  try {
-    const patientId =
-      req.user && req.user.id ? req.user.id : req.params.patientId;
+// exports.getBookedServicesByPatientId = async (req, res) => {
+//   try {
+//     const patientId =
+//       req.user && req.user.id ? req.user.id : req.params.patientId;
 
-    if (!patientId) {
-      return res.status(400).json({
-        success: false,
-        message: "Patient ID is required",
-      });
-    }
+//     if (!patientId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Patient ID is required",
+//       });
+//     }
 
-    const { status, dateFilterType, startDate, endDate } = req.query;
+//     const { status, dateFilterType, startDate, endDate } = req.query;
 
-    let query = { patientId };
+//     let query = { patientId };
 
-    if (status) {
-      query.status = status;
-    }
+//     if (status) {
+//       query.status = status;
+//     }
 
-    // Date filters
-    if (dateFilterType === "today") {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-      query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
-    } else if (dateFilterType === "week") {
-      const now = new Date();
-      const firstDayOfWeek = new Date(
-        now.setDate(now.getDate() - now.getDay())
-      );
-      firstDayOfWeek.setHours(0, 0, 0, 0);
-      const lastDayOfWeek = new Date(firstDayOfWeek);
-      lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
-      lastDayOfWeek.setHours(23, 59, 59, 999);
-      query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
-    } else if (dateFilterType === "custom" && startDate && endDate) {
-      query.appointmentDate = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      };
-    }
+//     // Date filters
+//     if (dateFilterType === "today") {
+//       const todayStart = new Date();
+//       todayStart.setHours(0, 0, 0, 0);
+//       const todayEnd = new Date();
+//       todayEnd.setHours(23, 59, 59, 999);
+//       query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
+//     } else if (dateFilterType === "week") {
+//       const now = new Date();
+//       const firstDayOfWeek = new Date(
+//         now.setDate(now.getDate() - now.getDay())
+//       );
+//       firstDayOfWeek.setHours(0, 0, 0, 0);
+//       const lastDayOfWeek = new Date(firstDayOfWeek);
+//       lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+//       lastDayOfWeek.setHours(23, 59, 59, 999);
+//       query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
+//     } else if (dateFilterType === "custom" && startDate && endDate) {
+//       query.appointmentDate = {
+//         $gte: new Date(startDate),
+//         $lte: new Date(endDate),
+//       };
+//     }
 
-    const bookings = await Booking.find(query)
-      .populate("serviceId", "name category modes")
-      .populate("servicePartnerId", "name email phone")
-        .populate("treatmentId", "status validTill") 
-      .sort({ appointmentDate: 1 });
+//     const bookings = await Booking.find(query)
+//       .populate("serviceId", "name category modes")
+//       .populate("servicePartnerId", "name email phone")
+//         .populate("treatmentId", "status validTill") 
+//       .sort({ appointmentDate: 1 });
 
-    res.status(200).json({
-      success: true,
-      count: bookings.length,
-      data: bookings,
-    });
-  } catch (error) {
-    console.error("Get booked services error:", error);
-    res.status(500).json({
+//     res.status(200).json({
+//       success: true,
+//       count: bookings.length,
+//       data: bookings,
+//     });
+//   } catch (error) {
+//     console.error("Get booked services error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching booked services",
+//       error: error.message,
+//     });
+//   }
+// };
+
+
+
+// This is exported as getBookedServicesByPatientId
+exports.getBookedServicesByPatientId = catchAsync(async (req, res, next) => {
+  const patientId = req.params.patientId; // from route `/patient/:patientId/bookings`
+  const { details = "basic", dateFilterType, startDate, endDate, treatmentId: queryTreatmentId } = req.query;
+
+  if (!mongoose.Types.ObjectId.isValid(patientId)) {
+    return res.status(400).json({
       success: false,
-      message: "Error fetching booked services",
-      error: error.message,
+      message: "Invalid patient ID format",
     });
   }
-};
+
+  // 1. Optional: verify patient exists (if you want)
+  const patient = await Patient.findById(patientId);
+  if (!patient) {
+    return res.status(404).json({
+      success: false,
+      message: "Patient not found",
+    });
+  }
+
+  // 2. Build Booking filter (by patientId)
+  let query = { patientId };
+
+  // Optional: also filter by treatmentId from query
+  if (queryTreatmentId) {
+    if (!mongoose.Types.ObjectId.isValid(queryTreatmentId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid treatment ID format",
+      });
+    }
+    query.treatmentId = queryTreatmentId;
+  }
+
+  // 3. Date filters (same as before)
+  if (dateFilterType === "today") {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
+  } else if (dateFilterType === "week") {
+    const now = new Date();
+    const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+    firstDayOfWeek.setHours(0, 0, 0, 0);
+    const lastDayOfWeek = new Date(firstDayOfWeek);
+    lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+    lastDayOfWeek.setHours(23, 59, 59, 999);
+    query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
+  } else if (dateFilterType === "month") {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    lastDayOfMonth.setHours(23, 59, 59, 999);
+    query.appointmentDate = { $gte: firstDayOfMonth, $lte: lastDayOfMonth };
+  } else if (dateFilterType === "custom" && startDate && endDate) {
+    query.appointmentDate = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate),
+    };
+  }
+
+  // 4. Get filtered bookings – latest on top
+  const bookings = await Booking.find(query)
+    .populate("serviceId", "name category modes")
+    .populate("servicePartnerId", "name email phone")
+    .populate("treatmentId", "status validTill")
+    .sort({ appointmentDate: -1 }); // latest booking first
+
+  // 5. Stats (unchanged)
+  const totalBookings = bookings.length;
+  const completedBookings = bookings.filter((b) =>
+    ["Completed", "TreatmentCompleted"].includes(b.status)
+  ).length;
+  const progressPercentage =
+    totalBookings > 0
+      ? Math.round((completedBookings / totalBookings) * 100)
+      : 0;
+
+  const stats = {
+    totalSessions: totalBookings,
+    completedSessions: completedBookings,
+    pendingSessions: bookings.filter((b) => b.status === "Pending").length,
+    inProgressSessions: bookings.filter((b) => b.status === "In-Progress").length,
+    progressPercentage,
+  };
+
+  const response = {
+    success: true,
+    count: bookings.length,
+    data: bookings,
+  };
+
+  if (details === "full") {
+    response.data.invoices = await Invoice.find({
+      bookingId: { $in: bookings.map((b) => b._id) },
+    });
+  }
+
+  res.status(200).json(response);
+});
+
+
 
 exports.getServiceSummaryByServiceId = async (req, res) => {
   try {
