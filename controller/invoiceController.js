@@ -51,17 +51,28 @@ const upload = require('../middleware/multerConfig');
 // ✅ LAMBDA-PROVEN WORKING
 async function launchBrowser(isProduction) {
   if (isProduction) {
-    // Lambda: ONLY full chromium (120MB bundle - works)
+    // FORCE Lambda chromium (ignores chromium-min)
     const chromium = require('@sparticuz/chromium');
+    
+    // Lambda-specific args FIRST
+    const lambdaArgs = [
+      ...chromium.args,
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process',
+      '--no-zygote'
+    ];
+    
     return puppeteer.launch({
-      args: chromium.args,
+      args: lambdaArgs,
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-      pipe: true  // Lambda stdout fix
+      headless: 'new',  // Puppeteer v23+
+      pipe: true
     });
   } else {
-    // Windows dev
     return puppeteer.launch({
       headless: true,
       executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -69,6 +80,7 @@ async function launchBrowser(isProduction) {
     });
   }
 }
+
 
 /** 
  * 1. GENERATE INVOICE 
