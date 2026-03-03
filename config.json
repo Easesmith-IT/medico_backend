@@ -1,0 +1,7 @@
+{
+  "ignoredFiles": [
+    "src/config/db.js",
+    "**/*.log",
+    "package-lock.json"
+  ]
+}

@@ -78,4 +78,8 @@ router.post('/providerBookings',
 );
 
 
+
+
+router.get('/patient/:treatmentId', protect('patient'),bookingController.getTreatmentById);
+
 module.exports = router;
