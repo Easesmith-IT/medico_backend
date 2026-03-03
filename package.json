@@ -14,8 +14,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@sparticuz/chromium": "^143.0.4",
-    "@sparticuz/chromium-min": "^143.0.4",
+    "@sparticuz/chromium": "^138.0.2",
     "axios": "^1.13.1",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
@@ -35,7 +34,8 @@
     "otp-generator": "^4.0.1",
     "pdfkit": "^0.17.2",
     "pdfkit-table": "^0.1.77",
-    "puppeteer": "^24.37.5"
+    "puppeteer": "^24.37.5",
+    "puppeteer-core": "^23.4.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
