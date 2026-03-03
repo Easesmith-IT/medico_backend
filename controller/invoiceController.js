@@ -1,6 +1,6 @@
-
+const mongoose = require('mongoose');
 const ejs = require('ejs')
-
+const catchAsync = require('../utils/catchAsync'); 
 const Invoice = require('../models/invoiceModel');
 const Booking = require('../models/bookingModel');
 const Patient = require('../models/bookingModel');
@@ -276,4 +276,92 @@ exports.getInvoice = async (req, res) => {
 };
 
 
+exports.getPatientInvoicesByServiceProvider = catchAsync(async (req, res, next) => {
+  let patientId;
+  
+  // ✅ FLEXIBLE: Works with /invoice/:patientId OR /service-provider/:spId/patient/:patientId
+  if (req.params.patientId) {
+    patientId = req.params.patientId;
+  } else {
+    return res.status(400).json({
+      success: false,
+      message: "Patient ID required",
+    });
+  }
 
+  const { details = "basic", serviceProviderId, dateFilterType, startDate, endDate } = req.query;
+
+  // Validate patient ID
+  if (!mongoose.Types.ObjectId.isValid(patientId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid patient ID format",
+    });
+  }
+
+  // Optional: Filter by service provider (if provided)
+  let query = { patientId };
+  if (serviceProviderId && mongoose.Types.ObjectId.isValid(serviceProviderId)) {
+    query.servicePartnerId = serviceProviderId;
+  }
+
+  // Date filters (same logic)
+  if (dateFilterType === "today") {
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+    query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
+  } else if (dateFilterType === "week") {
+    const now = new Date();
+    const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+    firstDayOfWeek.setHours(0, 0, 0, 0);
+    const lastDayOfWeek = new Date(firstDayOfWeek); 
+    lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+    lastDayOfWeek.setHours(23, 59, 59, 999);
+    query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
+  } // ... other date filters
+
+  const bookings = await Booking.find(query)
+    .populate("serviceId", "name category modes")
+    .populate("servicePartnerId", "name email phone")
+    .populate("treatmentId", "status validTill")
+    .sort({ appointmentDate: -1 });
+
+  const stats = {
+    totalSessions: bookings.length,
+    completedSessions: bookings.filter(b => ["Completed", "TreatmentCompleted"].includes(b.status)).length,
+    pendingSessions: bookings.filter(b => b.status === "Pending").length,
+    inProgressSessions: bookings.filter(b => b.status === "In-Progress").length,
+  };
+
+  const response = {
+    success: true,
+    count: bookings.length,
+    stats,
+    data: bookings,
+  };
+
+  // FULL details → Add invoices with CORRECT URLs
+  if (details === "full") {
+    const invoices = await Invoice.find({
+      bookingId: { $in: bookings.map(b => b._id) },
+    })
+      .populate("patientId", "name email phone")
+      .populate("doctorId", "name email phone");
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
+    response.data = {
+      bookings,
+      invoices: invoices.map(inv => ({
+        ...inv.toObject(),
+        downloadUrl: `${baseUrl}/api/v1/invoice/${inv._id}/download`  // ✅ FIXED URL
+      })),
+      invoiceSummary: {
+        totalInvoices: invoices.length,
+        hasInvoices: invoices.length > 0,
+      }
+    };
+  }
+
+  res.status(200).json(response);
+});
