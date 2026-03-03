@@ -167,7 +167,10 @@ previousBookingId: {
   ref: 'Booking',  // Self-reference
   default: null
 },
-
+isInvoiceGenerated: { 
+  type: Boolean, 
+  default: false 
+},
 
   
   },
