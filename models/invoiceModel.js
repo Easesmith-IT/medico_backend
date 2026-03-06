@@ -117,9 +117,17 @@ const invoiceSchema = new mongoose.Schema({
     gstPercentage: { type: Number, default: 18 },
     total: { type: Number, default: 0 }
   }],
-  invoicePdfUrl: {
+//   invoicePdfUrl: {
+//   type: String,
+//   default: null
+// },
+invoiceUrl: {
   type: String,
   default: null
+},
+isInvoiceGenerated: {
+  type: Boolean,
+  default: false
 },
   totals: {
     subtotal: { type: Number, default: 0 },

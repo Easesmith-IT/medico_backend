@@ -29,11 +29,7 @@ router.get('/generateinv/:patientId',
 // router.get('/download/:invoiceId', invoiceController.downloadInvoice);
 // router.get('/:invoiceId/download', invoiceController.downloadInvoice);
 // ✅ ONE ROUTE handles ALL link types
-router.get([
-  '/:bookingId/download', 
-  '/generateinv/:patientId',
-  '/:invoiceId'
-], invoiceController.downloadInvoice);
+router.get("/download/:invoiceId", invoiceController.downloadInvoice);
 
 // 4. Generic param route LAST
 router.get('/:invoiceId', invoiceController.getInvoice);

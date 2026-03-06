@@ -6,12 +6,14 @@ const Booking = require('../models/bookingModel');
 const Patient = require('../models/bookingModel');
 const ServiceProvider = require('../models/serviceProviderModel');
 const Service = require('../models/serviceModel');
-const PDFDocument = require('pdfkit');
+// const PDFDocument = require('pdfkit');
 const moment = require('moment');
 // const puppeteer = require('puppeteer');
 const path = require('path');
 const crypto = require("node:crypto");
 const { uploadInvoiceToCloudinary } = require('../config/cloudinaryConfig');
+const PDFDocument = require("pdfkit");
+const uploadFile = require("../utils/uploadFile");
 const os = require('os');
 const fs = require('fs');
 // const puppeteer = require('puppeteer-core');
@@ -49,52 +51,88 @@ const fs = require('fs');
 //   }
 // };
 
+//best one 
+// exports.generateInvoice = async (req, res) => {
+//   try {
+//     const { 
+//       bookingId, 
+//       patientId, 
+//       doctorId, 
+//       billingDetails, 
+//       medicines, 
+//       additionalEquipment 
+//     } = req.body;
+
+//     // Validate categories exist for medicines
+//     if (medicines?.length > 0) {
+//       for (let med of medicines) {
+//         if (med.categoryId) {
+//           const category = await ItemCategory.findById(med.categoryId);
+//           if (!category || !category.isActive) {
+//             return res.status(400).json({
+//               success: false,
+//               message: `Invalid medicine category: ${med.name}`
+//             });
+//           }
+//           med.categoryName = category.name; // Denormalize
+//         }
+//       }
+//     }
+
+//     // Validate categories exist for equipment
+//     if (additionalEquipment?.length > 0) {
+//       for (let equip of additionalEquipment) {
+//         if (equip.categoryId) {
+//           const category = await ItemCategory.findById(equip.categoryId);
+//           if (!category || !category.isActive) {
+//             return res.status(400).json({
+//               success: false,
+//               message: `Invalid equipment category: ${equip.name}`
+//             });
+//           }
+//           equip.categoryName = category.name; // Denormalize
+//         }
+//       }
+//     }
+
+//     const invoiceNumber = `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+    
+//     const newInvoice = new Invoice({
+//       invoiceNumber,
+//       bookingId,
+//       patientId,
+//       doctorId,
+//       billingDetails,
+//       medicines,
+//       additionalEquipment,
+//     });
+
+//     const savedInvoice = await newInvoice.save();
+    
+//     res.status(201).json({
+//       success: true,
+//       message: "Invoice generated successfully",
+//       data: savedInvoice,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
 
 exports.generateInvoice = async (req, res) => {
   try {
-    const { 
-      bookingId, 
-      patientId, 
-      doctorId, 
-      billingDetails, 
-      medicines, 
-      additionalEquipment 
+
+    const {
+      bookingId,
+      patientId,
+      doctorId,
+      billingDetails,
+      medicines,
+      additionalEquipment
     } = req.body;
 
-    // Validate categories exist for medicines
-    if (medicines?.length > 0) {
-      for (let med of medicines) {
-        if (med.categoryId) {
-          const category = await ItemCategory.findById(med.categoryId);
-          if (!category || !category.isActive) {
-            return res.status(400).json({
-              success: false,
-              message: `Invalid medicine category: ${med.name}`
-            });
-          }
-          med.categoryName = category.name; // Denormalize
-        }
-      }
-    }
-
-    // Validate categories exist for equipment
-    if (additionalEquipment?.length > 0) {
-      for (let equip of additionalEquipment) {
-        if (equip.categoryId) {
-          const category = await ItemCategory.findById(equip.categoryId);
-          if (!category || !category.isActive) {
-            return res.status(400).json({
-              success: false,
-              message: `Invalid equipment category: ${equip.name}`
-            });
-          }
-          equip.categoryName = category.name; // Denormalize
-        }
-      }
-    }
-
     const invoiceNumber = `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
-    
+
     const newInvoice = new Invoice({
       invoiceNumber,
       bookingId,
@@ -102,64 +140,186 @@ exports.generateInvoice = async (req, res) => {
       doctorId,
       billingDetails,
       medicines,
-      additionalEquipment,
+      additionalEquipment
     });
 
     const savedInvoice = await newInvoice.save();
-    
-    res.status(201).json({
-      success: true,
-      message: "Invoice generated successfully",
-      data: savedInvoice,
+
+    // ---------- GENERATE PDF ----------
+    const doc = new PDFDocument();
+
+    let buffers = [];
+    doc.on("data", buffers.push.bind(buffers));
+
+    doc.on("end", async () => {
+
+      const pdfBuffer = Buffer.concat(buffers);
+
+      const file = {
+        originalname: `${invoiceNumber}.pdf`,
+        buffer: pdfBuffer
+      };
+
+      const pdfUrl = await uploadFile(file);
+
+      savedInvoice.invoiceUrl = pdfUrl;
+      savedInvoice.isInvoiceGenerated = true;
+
+      await savedInvoice.save();
+
+      res.status(201).json({
+        success: true,
+        message: "Invoice generated successfully",
+        data: savedInvoice
+      });
+
     });
+
+    doc.fontSize(20).text("Invoice", { align: "center" });
+    doc.moveDown();
+
+    doc.text(`Invoice Number: ${invoiceNumber}`);
+    doc.text(`Booking ID: ${bookingId}`);
+    doc.text(`Total: ₹${billingDetails.calculatedBase}`);
+
+    doc.end();
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
 
+//best one
+// exports.downloadInvoice = async (req, res) => {
+//   try {
+//     const invoice = await Invoice.findById(req.params.invoiceId)
+//       .populate("patientId")
+//       .populate("doctorId");
 
+//     if (!invoice) return res.status(404).send("Invoice not found");
 
+//     const templatePath = path.join(__dirname, "..", "views", "invoice-template.ejs");
+//     const html = await ejs.renderFile(templatePath, { invoice });
 
+//     // --- FIX STARTS HERE ---
+//     const isProduction = process.env.NODE_ENV === 'production';
+    
+//     const browser = await puppeteer.launch({
+//       args: isProduction ? chromium.args : ["--no-sandbox", "--disable-setuid-sandbox"],
+//       defaultViewport: chromium.defaultViewport,
+//       executablePath: isProduction 
+//         ? await chromium.executablePath() 
+//         : "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // Path for Windows
+//       headless: isProduction ? chromium.headless : true,
+//     });
+//     // --- FIX ENDS HERE ---
+
+//     const page = await browser.newPage();
+//     await page.setContent(html, { waitUntil: "networkidle0" });
+//     const pdf = await page.pdf({ format: "A4", printBackground: true });
+//     await browser.close();
+
+//     res.set({ 
+//       "Content-Type": "application/pdf", 
+//       "Content-Disposition": `attachment; filename=INV-${invoice.invoiceNumber}.pdf` 
+//     });
+//     res.send(pdf);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 exports.downloadInvoice = async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.invoiceId)
       .populate("patientId")
       .populate("doctorId");
 
-    if (!invoice) return res.status(404).send("Invoice not found");
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found"
+      });
+    }
 
-    const templatePath = path.join(__dirname, "..", "views", "invoice-template.ejs");
-    const html = await ejs.renderFile(templatePath, { invoice });
+    // If already generated return URL
+    if (invoice.isInvoiceGenerated && invoice.invoiceUrl) {
+      return res.json({
+        success: true,
+        downloadUrl: invoice.invoiceUrl
+      });
+    }
 
-    // --- FIX STARTS HERE ---
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    const browser = await puppeteer.launch({
-      args: isProduction ? chromium.args : ["--no-sandbox", "--disable-setuid-sandbox"],
-      defaultViewport: chromium.defaultViewport,
-      executablePath: isProduction 
-        ? await chromium.executablePath() 
-        : "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // Path for Windows
-      headless: isProduction ? chromium.headless : true,
+    const doc = new PDFDocument();
+
+    let buffers = [];
+    doc.on("data", buffers.push.bind(buffers));
+
+    doc.on("end", async () => {
+
+      const pdfBuffer = Buffer.concat(buffers);
+
+      const file = {
+        originalname: `${invoice.invoiceNumber}.pdf`,
+        buffer: pdfBuffer
+      };
+
+      const pdfUrl = await uploadFile(file);
+
+      invoice.invoiceUrl = pdfUrl;
+      invoice.isInvoiceGenerated = true;
+
+      await invoice.save();
+
+      return res.json({
+        success: true,
+        downloadUrl: pdfUrl
+      });
+
     });
-    // --- FIX ENDS HERE ---
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    const pdf = await page.pdf({ format: "A4", printBackground: true });
-    await browser.close();
+    // ---------- PDF CONTENT ----------
+    doc.fontSize(20).text("Invoice", { align: "center" });
 
-    res.set({ 
-      "Content-Type": "application/pdf", 
-      "Content-Disposition": `attachment; filename=INV-${invoice.invoiceNumber}.pdf` 
+    doc.moveDown();
+
+    doc.fontSize(12).text(`Invoice Number: ${invoice.invoiceNumber}`);
+    doc.text(`Patient: ${invoice.patientId?.name || ""}`);
+    doc.text(`Doctor: ${invoice.doctorId?.name || ""}`);
+    doc.text(`Date: ${new Date().toDateString()}`);
+
+    doc.moveDown();
+
+    doc.text("Medicines");
+
+    invoice.medicines?.forEach((med, i) => {
+      doc.text(`${i + 1}. ${med.name} - ₹${med.price}`);
     });
-    res.send(pdf);
+
+    doc.moveDown();
+
+    doc.text("Additional Equipment");
+
+    invoice.additionalEquipment?.forEach((equip, i) => {
+      doc.text(`${i + 1}. ${equip.name} - ₹${equip.price}`);
+    });
+
+    doc.moveDown();
+
+    doc.text(`Total Amount: ₹${invoice.billingDetails?.totalAmount}`);
+
+    doc.end();
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
-
 // exports.downloadInvoice = async (req, res) => {
 //   try {
 //     const invoice = await Invoice.findById(req.params.invoiceId)
