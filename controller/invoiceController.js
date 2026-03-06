@@ -14,8 +14,8 @@ const crypto = require("node:crypto");
 const { uploadInvoiceToCloudinary } = require('../config/cloudinaryConfig');
 const os = require('os');
 const fs = require('fs');
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium-min');
+// const puppeteer = require('puppeteer-core');
+// const chromium = require('@sparticuz/chromium-min');
 
 
 // exports.generateInvoice = async (req, res) => {
