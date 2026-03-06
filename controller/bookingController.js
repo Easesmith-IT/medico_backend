@@ -1,4 +1,5 @@
 // controllers/bookingController.js
+const path = require('path');
 const Booking = require("../models/bookingModel");
 const Service = require("../models/serviceModel");
 const catchAsync = require('../utils/catchAsync');
@@ -13,6 +14,7 @@ const Treatment = require("../models/treatmentModel");
 const crypto = require('crypto');   
 const Invoice = require("../models/invoiceModel");
 const upload = require("../middleware/multerConfig");
+const fs = require('fs');
 // exports.createBooking = async (req, res) => {
 //   try {
 //     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
@@ -732,12 +734,174 @@ const upload = require("../middleware/multerConfig");
 //     session.endSession();
 //   }
 // };
+
+//original one
+// exports.createBooking = async (req, res) => {
+//   const session = await mongoose.startSession();
+  
+//   try {
+//     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
+//     const { serviceId, appointmentDate, startTime, endTime, duration, shiftType, servicePartnerId, notes, category, modes, cityId, } = req.body;
+
+//     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+//       await session.abortTransaction();
+//       return res.status(400).json({
+//         success: false,
+//         message: "patientId, serviceId, appointmentDate, startTime, and endTime are required",
+//       });
+//     }
+
+//     await session.startTransaction();
+
+//     // 1) Validate service
+//     const service = await Service.findById(serviceId).session(session);
+//     if (!service || !service.isActive || service.isDeleted) {
+//       await session.abortTransaction();
+//       return res.status(404).json({ success: false, message: "Service not found or inactive" });
+//     }
+
+//     // 2) Load patient and ensure patient has a city
+//     const patient = await Patient.findById(patientId).select("address.cityId").session(session);
+//     if (!patient || !patient.address?.cityId) {
+//       await session.abortTransaction();
+//       return res.status(400).json({ success: false, message: "Patient city not set" });
+//     }
+
+//     // 3) Determine booking city
+//     let bookingCity = cityId ? await City.findById(cityId).session(session) : 
+//                        await City.findById(patient.address.cityId).session(session);
+//     if (!bookingCity) {
+//       await session.abortTransaction();
+//       return res.status(400).json({ success: false, message: "Invalid city" });
+//     }
+
+//     // 4) Check slot conflicts
+//     const dayStart = new Date(appointmentDate); dayStart.setHours(0, 0, 0, 0);
+//     const dayEnd = new Date(appointmentDate); dayEnd.setHours(23, 59, 59, 999);
+//     const conflictQuery = {
+//       serviceId, appointmentDate: { $gte: dayStart, $lte: dayEnd },
+//       status: { $nin: ["Cancelled", "Rejected"] },
+//       "slotTime.startTime": startTime, "slotTime.endTime": endTime
+//     };
+//     if (servicePartnerId) conflictQuery.servicePartnerId = servicePartnerId;
+
+//     const existingBooking = await Booking.findOne(conflictQuery).session(session);
+//     if (existingBooking) {
+//       await session.abortTransaction();
+//       return res.status(409).json({ success: false, message: "Slot already booked" });
+//     }
+
+//     // 5) Calculate duration & pricing
+//     let bookingDuration = duration;
+//     if (!bookingDuration) {
+//       const [sh, sm] = startTime.split(":").map(Number);
+//       const [eh, em] = endTime.split(":").map(Number);
+//       bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+//       if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+//     }
+//     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
+
+//     // ✅ 6) CHECK EXISTING ACTIVE TREATMENT FOR SAME PATIENT
+//     const existingTreatment = await Treatment.findOne({
+//       patientId,
+//       status: { $in: ['Active', 'InProgress'] }  // Not completed
+//     }).session(session);
+
+//     let treatmentId;
+
+//     // ✅ 7) IF NO ACTIVE TREATMENT → CREATE NEW
+//     if (!existingTreatment) {
+//       const treatment = new Treatment({
+//         patientId, 
+//         serviceId, 
+//         servicePartnerId: servicePartnerId || null,
+//         appointmentDate: new Date(appointmentDate),
+//         slotTime: { startTime, endTime },
+//         status: 'Active'
+//       });
+//       await treatment.save({ session });
+//       treatmentId = treatment._id;
+//     } 
+//     // ✅ 8) ELSE → REUSE EXISTING treatmentId
+//     else {
+//       treatmentId = existingTreatment._id;
+//       console.log(`🔄 Reusing existing treatmentId: ${treatmentId} for patient: ${patientId}`);
+//     }
+
+//     // ✅ 9) CREATE BOOKING with SAME treatmentId
+//     // const newBooking = new Booking({
+//     //   patientId, 
+//     //   serviceId, 
+//     //   category: category || service.category,
+//     //   modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+//     //   servicePartnerId: servicePartnerId || null,
+//     //   appointmentDate: new Date(appointmentDate),
+//     //   slotTime: { startTime, endTime }, 
+//     //   duration: bookingDuration,
+//     //   shiftType: shiftType || null, 
+//     //   status: "Pending", 
+//     //   pricing,
+//     //   notes: notes || "", 
+//     //   city: bookingCity._id,
+//     //   createdBy: { userId: patientId, userModel: "Patient" },
+//     //   treatmentId,  // ← SAME treatmentId across all bookings!
+//     //   treatmentStatus: 'Active',
+//     //   invoiceGenerated: false
+//     // });
+
+
+//     const newBooking = new Booking({
+//   patientId,
+//   serviceId,
+//   category: category || service.category,
+//   modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+//   servicePartnerId: servicePartnerId || null,
+//   appointmentDate: new Date(appointmentDate),
+//   slotTime: { startTime, endTime },
+//   duration: bookingDuration,
+//   shiftType: shiftType || null,
+//   status: "Pending",
+//   pricing,
+//   notes: notes || "",
+//   city: bookingCity._id,
+//   createdBy: { userId: patientId, userModel: "Patient" },
+//   treatmentStatus: "Active",
+//   invoiceGenerated: false
+// });
+
+// await newBooking.save({ session });
+//     await newBooking.save({ session });
+
+//     await session.commitTransaction();
+
+//     // Populate response
+//     const populatedBooking = await Booking.findById(newBooking._id)
+//       .populate('city', 'name latitude longitude')
+//       .populate('treatmentId', 'status validTill');
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Booking & Treatment created successfully",
+//       data: {
+//         booking: populatedBooking,
+//         treatmentId: treatmentId  // ← SAME across all bookings for this patient!
+//       }
+//     });
+
+//   } catch (error) {
+//     await session.abortTransaction();
+//     console.error("Error creating booking:", error);
+//     res.status(500).json({ success: false, message: "Error creating booking", error: error.message });
+//   } finally {
+//     session.endSession();
+//   }
+// };
 exports.createBooking = async (req, res) => {
   const session = await mongoose.startSession();
   
   try {
     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
-    const { serviceId, appointmentDate, startTime, endTime, duration, shiftType, servicePartnerId, notes, category, modes, cityId, } = req.body;
+    const { serviceId, appointmentDate, startTime, endTime, duration, shiftType, servicePartnerId, notes, category, modes, cityId } = req.body;
 
     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
       await session.abortTransaction();
@@ -774,11 +938,15 @@ exports.createBooking = async (req, res) => {
     // 4) Check slot conflicts
     const dayStart = new Date(appointmentDate); dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(appointmentDate); dayEnd.setHours(23, 59, 59, 999);
+
     const conflictQuery = {
-      serviceId, appointmentDate: { $gte: dayStart, $lte: dayEnd },
+      serviceId,
+      appointmentDate: { $gte: dayStart, $lte: dayEnd },
       status: { $nin: ["Cancelled", "Rejected"] },
-      "slotTime.startTime": startTime, "slotTime.endTime": endTime
+      "slotTime.startTime": startTime,
+      "slotTime.endTime": endTime
     };
+
     if (servicePartnerId) conflictQuery.servicePartnerId = servicePartnerId;
 
     const existingBooking = await Booking.findOne(conflictQuery).session(session);
@@ -789,66 +957,68 @@ exports.createBooking = async (req, res) => {
 
     // 5) Calculate duration & pricing
     let bookingDuration = duration;
+
     if (!bookingDuration) {
       const [sh, sm] = startTime.split(":").map(Number);
       const [eh, em] = endTime.split(":").map(Number);
+
       bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+
       if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
     }
+
     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
 
-    // ✅ 6) CHECK EXISTING ACTIVE TREATMENT FOR SAME PATIENT
-    const existingTreatment = await Treatment.findOne({
-      patientId,
-      status: { $in: ['Active', 'InProgress'] }  // Not completed
-    }).session(session);
+    // -------------------------------
+    // ✅ CREATE BOOKING FIRST
+    // -------------------------------
 
-    let treatmentId;
-
-    // ✅ 7) IF NO ACTIVE TREATMENT → CREATE NEW
-    if (!existingTreatment) {
-      const treatment = new Treatment({
-        patientId, 
-        serviceId, 
-        servicePartnerId: servicePartnerId || null,
-        appointmentDate: new Date(appointmentDate),
-        slotTime: { startTime, endTime },
-        status: 'Active'
-      });
-      await treatment.save({ session });
-      treatmentId = treatment._id;
-    } 
-    // ✅ 8) ELSE → REUSE EXISTING treatmentId
-    else {
-      treatmentId = existingTreatment._id;
-      console.log(`🔄 Reusing existing treatmentId: ${treatmentId} for patient: ${patientId}`);
-    }
-
-    // ✅ 9) CREATE BOOKING with SAME treatmentId
     const newBooking = new Booking({
-      patientId, 
-      serviceId, 
+      patientId,
+      serviceId,
       category: category || service.category,
       modes: Array.isArray(modes) && modes.length ? modes : service.modes,
       servicePartnerId: servicePartnerId || null,
       appointmentDate: new Date(appointmentDate),
-      slotTime: { startTime, endTime }, 
+      slotTime: { startTime, endTime },
       duration: bookingDuration,
-      shiftType: shiftType || null, 
-      status: "Pending", 
+      shiftType: shiftType || null,
+      status: "Pending",
       pricing,
-      notes: notes || "", 
+      notes: notes || "",
       city: bookingCity._id,
       createdBy: { userId: patientId, userModel: "Patient" },
-      treatmentId,  // ← SAME treatmentId across all bookings!
       treatmentStatus: 'Active',
       invoiceGenerated: false
     });
+
+    await newBooking.save({ session });
+
+    // -------------------------------
+    // ✅ CREATE TREATMENT WITH bookingId
+    // -------------------------------
+
+    const treatment = new Treatment({
+      bookingId: newBooking._id,
+      patientId,
+      serviceId,
+      servicePartnerId: servicePartnerId || null,
+      appointmentDate: new Date(appointmentDate),
+      slotTime: { startTime, endTime },
+      status: 'Active'
+    });
+
+    await treatment.save({ session });
+
+    // -------------------------------
+    // ✅ LINK BOOKING → TREATMENT
+    // -------------------------------
+
+    newBooking.treatmentId = treatment._id;
     await newBooking.save({ session });
 
     await session.commitTransaction();
 
-    // Populate response
     const populatedBooking = await Booking.findById(newBooking._id)
       .populate('city', 'name latitude longitude')
       .populate('treatmentId', 'status validTill');
@@ -858,19 +1028,24 @@ exports.createBooking = async (req, res) => {
       message: "Booking & Treatment created successfully",
       data: {
         booking: populatedBooking,
-        treatmentId: treatmentId  // ← SAME across all bookings for this patient!
+        treatmentId: treatment._id
       }
     });
 
   } catch (error) {
     await session.abortTransaction();
     console.error("Error creating booking:", error);
-    res.status(500).json({ success: false, message: "Error creating booking", error: error.message });
+
+    res.status(500).json({
+      success: false,
+      message: "Error creating booking",
+      error: error.message
+    });
+
   } finally {
     session.endSession();
   }
 };
-
 // exports.getBookedServicesByPatientId = async (req, res) => {
 //   try {
 //     const patientId =
@@ -1094,178 +1269,178 @@ exports.createBooking = async (req, res) => {
 // });
 
 //better one
-// exports.getBookedServicesByPatientId = catchAsync(async (req, res, next) => {
-//   const patientId = req.params.patientId;
-//   const { 
-//     details = "basic", 
-//     dateFilterType, 
-//     startDate, 
-//     endDate, 
-//     treatmentId: queryTreatmentId,
-//     download  // ✅ NEW: ?download=BOOKING_ID
-//   } = req.query;
+exports.getBookedServicesByPatientId = catchAsync(async (req, res, next) => {
+  const patientId = req.params.patientId;
+  const { 
+    details = "basic", 
+    dateFilterType, 
+    startDate, 
+    endDate, 
+    treatmentId: queryTreatmentId,
+    download  // ✅ NEW: ?download=BOOKING_ID
+  } = req.query;
 
-//   // ✅ DIRECT DOWNLOAD - Only 12 lines added!
-//   if (download && mongoose.Types.ObjectId.isValid(download)) {
-//     let browser;
-//     try {
-//       let invoice = await Invoice.findOne({ bookingId: download });
-//       if (!invoice) {
-//         const booking = await Booking.findById(download);
-//         invoice = await Invoice.create({
-//           invoiceNumber: `INV-${Date.now()}`,
-//           bookingId: download,
-//           patientId: booking.patientId,
-//           totals: { grandTotal: booking.pricing?.totalAmount || 500 }
-//         });
-//       }
+  // ✅ DIRECT DOWNLOAD - Only 12 lines added!
+  if (download && mongoose.Types.ObjectId.isValid(download)) {
+    let browser;
+    try {
+      let invoice = await Invoice.findOne({ bookingId: download });
+      if (!invoice) {
+        const booking = await Booking.findById(download);
+        invoice = await Invoice.create({
+          invoiceNumber: `INV-${Date.now()}`,
+          bookingId: download,
+          patientId: booking.patientId,
+          totals: { grandTotal: booking.pricing?.totalAmount || 500 }
+        });
+      }
       
-//       const html = await ejs.renderFile(path.join(__dirname, "..", "views", "invoice-template.ejs"), { invoice });
-//       browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-//       const page = await browser.newPage();
-//       await page.setContent(html);
-//       const pdf = await page.pdf({ format: "A4", printBackground: true });
+      const html = await ejs.renderFile(path.join(__dirname, "..", "views", "invoice-template.ejs"), { invoice });
+      browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+      const page = await browser.newPage();
+      await page.setContent(html);
+      const pdf = await page.pdf({ format: "A4", printBackground: true });
       
-//       res.set({
-//         "Content-Type": "application/pdf",
-//         "Content-Disposition": `attachment; filename="invoice-${download}.pdf"`,
-//         "Content-Length": pdf.length
-//       });
-//       res.send(pdf);
-//       return;
-//     } catch (error) {
-//       console.error('PDF Error:', error);
-//       return res.status(500).json({ success: false, message: error.message });
-//     } finally {
-//       if (browser) await browser.close();
-//     }
-//   }
+      res.set({
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="invoice-${download}.pdf"`,
+        "Content-Length": pdf.length
+      });
+      res.send(pdf);
+      return;
+    } catch (error) {
+      console.error('PDF Error:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    } finally {
+      if (browser) await browser.close();
+    }
+  }
 
-//   // [YOUR EXACT SAME CODE BELOW - NOTHING CHANGED]
-//   if (!mongoose.Types.ObjectId.isValid(patientId)) {
-//     return res.status(400).json({
-//       success: false,
-//       message: "Invalid patient ID format",
-//     });
-//   }
+  // [YOUR EXACT SAME CODE BELOW - NOTHING CHANGED]
+  if (!mongoose.Types.ObjectId.isValid(patientId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid patient ID format",
+    });
+  }
 
-//   const patient = await Patient.findById(patientId) || await User.findById(patientId);
-//   if (!patient) {
-//     return res.status(404).json({
-//       success: false,
-//       message: "Patient not found",
-//     });
-//   }
+  const patient = await Patient.findById(patientId) || await User.findById(patientId);
+  if (!patient) {
+    return res.status(404).json({
+      success: false,
+      message: "Patient not found",
+    });
+  }
 
-//   let query = { patientId };
-//   if (queryTreatmentId && mongoose.Types.ObjectId.isValid(queryTreatmentId)) {
-//     query.treatmentId = queryTreatmentId;
-//   }
+  let query = { patientId };
+  if (queryTreatmentId && mongoose.Types.ObjectId.isValid(queryTreatmentId)) {
+    query.treatmentId = queryTreatmentId;
+  }
 
-//   if (dateFilterType === "today") {
-//     const todayStart = new Date();
-//     todayStart.setHours(0, 0, 0, 0);
-//     const todayEnd = new Date();
-//     todayEnd.setHours(23, 59, 59, 999);
-//     query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
-//   } else if (dateFilterType === "week") {
-//     const now = new Date();
-//     const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-//     firstDayOfWeek.setHours(0, 0, 0, 0);
-//     const lastDayOfWeek = new Date(firstDayOfWeek);
-//     lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
-//     lastDayOfWeek.setHours(23, 59, 59, 999);
-//     query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
-//   } else if (dateFilterType === "month") {
-//     const now = new Date();
-//     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-//     firstDayOfMonth.setHours(0, 0, 0, 0);
-//     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-//     lastDayOfMonth.setHours(23, 59, 59, 999);
-//     query.appointmentDate = { $gte: firstDayOfMonth, $lte: lastDayOfMonth };
-//   } else if (dateFilterType === "custom" && startDate && endDate) {
-//     query.appointmentDate = {
-//       $gte: new Date(startDate),
-//       $lte: new Date(endDate),
-//     };
-//   }
+  if (dateFilterType === "today") {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
+  } else if (dateFilterType === "week") {
+    const now = new Date();
+    const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+    firstDayOfWeek.setHours(0, 0, 0, 0);
+    const lastDayOfWeek = new Date(firstDayOfWeek);
+    lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+    lastDayOfWeek.setHours(23, 59, 59, 999);
+    query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
+  } else if (dateFilterType === "month") {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    lastDayOfMonth.setHours(23, 59, 59, 999);
+    query.appointmentDate = { $gte: firstDayOfMonth, $lte: lastDayOfMonth };
+  } else if (dateFilterType === "custom" && startDate && endDate) {
+    query.appointmentDate = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate),
+    };
+  }
 
-//   const bookings = await Booking.find(query)
-//     .populate("serviceId", "name category modes price")
-//     .populate("servicePartnerId", "name email phone firstName")
-//     .populate("treatmentId", "status validTill")
-//     .sort({ appointmentDate: -1 });
+  const bookings = await Booking.find(query)
+    .populate("serviceId", "name category modes price")
+    .populate("servicePartnerId", "name email phone firstName")
+    .populate("treatmentId", "status validTill")
+    .sort({ appointmentDate: -1 });
 
-//   const totalBookings = bookings.length;
-//   const completedBookings = bookings.filter((b) =>
-//     ["Completed", "TreatmentCompleted"].includes(b.status)
-//   ).length;
-//   const progressPercentage =
-//     totalBookings > 0
-//       ? Math.round((completedBookings / totalBookings) * 100)
-//       : 0;
+  const totalBookings = bookings.length;
+  const completedBookings = bookings.filter((b) =>
+    ["Completed", "TreatmentCompleted"].includes(b.status)
+  ).length;
+  const progressPercentage =
+    totalBookings > 0
+      ? Math.round((completedBookings / totalBookings) * 100)
+      : 0;
 
-//   const stats = {
-//     totalSessions: totalBookings,
-//     completedSessions: completedBookings,
-//     pendingSessions: bookings.filter((b) => b.status === "Pending").length,
-//     inProgressSessions: bookings.filter((b) => b.status === "In-Progress").length,
-//     progressPercentage,
-//   };
+  const stats = {
+    totalSessions: totalBookings,
+    completedSessions: completedBookings,
+    pendingSessions: bookings.filter((b) => b.status === "Pending").length,
+    inProgressSessions: bookings.filter((b) => b.status === "In-Progress").length,
+    progressPercentage,
+  };
 
-//   const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-//   const bookingsWithInvoiceStatus = bookings.map(booking => {
-//     const isInvoiceGenerated = Boolean(
-//       booking.isInvoiceGenerated === true || 
-//       booking.isInvoiceGenerated === 'true' || 
-//       booking.get('isInvoiceGenerated')
-//     );
+  const bookingsWithInvoiceStatus = bookings.map(booking => {
+    const isInvoiceGenerated = Boolean(
+      booking.isInvoiceGenerated === true || 
+      booking.isInvoiceGenerated === 'true' || 
+      booking.get('isInvoiceGenerated')
+    );
     
-//     const isTreatmentCompleted = ["Completed", "TreatmentCompleted"].includes(booking.status);
+    const isTreatmentCompleted = ["Completed", "TreatmentCompleted"].includes(booking.status);
 
-//     return {
-//       ...booking.toObject(),
-//       isInvoiceGenerated,
-//       invoiceStatus: isInvoiceGenerated ? 'generated' : 'pending',
-//       // invoiceAction: `${baseUrl}/api/v1/patient/${patientId}/bookings?download=${booking._id}`, // ✅ SINGLE LINK!
-//           invoiceAction: `${baseUrl}/api/v1/invoice/${booking._id}/download`,
-//       generateAction: !isInvoiceGenerated ? booking._id : null,
-//       showInvoiceButton: isTreatmentCompleted,
-//       buttonText: isInvoiceGenerated ? '📥 Download Invoice' : '➕ Generate Invoice',
-//       buttonType: isInvoiceGenerated ? 'download' : 'generate',
-//       buttonVariant: isInvoiceGenerated ? 'success' : 'warning',
-//       isTreatmentCompleted,
-//     };
-//   });
+    return {
+      ...booking.toObject(),
+      isInvoiceGenerated,
+      invoiceStatus: isInvoiceGenerated ? 'generated' : 'pending',
+      invoiceAction: `${baseUrl}/api/v1/patient/${patientId}/bookings?download=${booking._id}`, // ✅ SINGLE LINK!
+          // invoiceAction: `${baseUrl}/api/v1/invoice/${booking._id}/download`,
+      generateAction: !isInvoiceGenerated ? booking._id : null,
+      showInvoiceButton: isTreatmentCompleted,
+      buttonText: isInvoiceGenerated ? '📥 Download Invoice' : '➕ Generate Invoice',
+      buttonType: isInvoiceGenerated ? 'download' : 'generate',
+      buttonVariant: isInvoiceGenerated ? 'success' : 'warning',
+      isTreatmentCompleted,
+    };
+  });
 
-//   const response = {
-//     success: true,
-//     count: bookings.length,
-//     stats,
-//     data: bookingsWithInvoiceStatus,
-//   };
+  const response = {
+    success: true,
+    count: bookings.length,
+    stats,
+    data: bookingsWithInvoiceStatus,
+  };
 
-//   if (details === "full") {
-//     const invoices = await Invoice.find({
-//       bookingId: { $in: bookings.map((b) => b._id) },
-//     })
-//       .populate("patientId", "name email phone")
-//       .populate("doctorId", "name email phone");
+  if (details === "full") {
+    const invoices = await Invoice.find({
+      bookingId: { $in: bookings.map((b) => b._id) },
+    })
+      .populate("patientId", "name email phone")
+      .populate("doctorId", "name email phone");
 
-//     response.invoices = invoices.map(inv => ({
-//       ...inv.toObject(),
-//       downloadUrl: `${baseUrl}/api/v1/patient/${patientId}/bookings?download=${inv.bookingId}`,
-//     }));
+    response.invoices = invoices.map(inv => ({
+      ...inv.toObject(),
+      downloadUrl: `${baseUrl}/api/v1/patient/${patientId}/bookings?download=${inv.bookingId}`,
+    }));
 
-//     response.invoiceSummary = {
-//       totalInvoices: invoices.length,
-//       hasInvoices: invoices.length > 0,
-//     };
-//   }
+    response.invoiceSummary = {
+      totalInvoices: invoices.length,
+      hasInvoices: invoices.length > 0,
+    };
+  }
 
-//   res.status(200).json(response);
-// });
+  res.status(200).json(response);
+});
 async function handlePdfDownload(req, res, bookingId, uploadsDir) {
   let browser;
   
@@ -1373,226 +1548,118 @@ async function handlePdfDownload(req, res, bookingId, uploadsDir) {
 }
 
 
-exports.getBookedServicesByPatientId = [
-  upload.single('attachment'),
-  catchAsync(async (req, res) => {
-    const patientId = req.params.patientId;
-    const { details = "basic", download, dateFilterType, startDate, endDate, treatmentId: queryTreatmentId } = req.query;
+// exports.getBookedServicesByPatientId = [
+//   upload.single('attachment'),
+//   catchAsync(async (req, res) => {
+//     const patientId = req.params.patientId;
+//     const { details = "basic", download, dateFilterType, startDate, endDate, treatmentId: queryTreatmentId } = req.query;
 
-    const UPLOADS_DIR = path.join(__dirname, '..', '..', 'public', 'invoices');
-    await fs.mkdir(UPLOADS_DIR, { recursive: true });
+//     const UPLOADS_DIR = path.join(__dirname, '..', '..', 'public', 'invoices');
+//     await fs.mkdir(UPLOADS_DIR, { recursive: true });
 
-    // 🔥 PDF DOWNLOAD
-    if (download && mongoose.Types.ObjectId.isValid(download)) {
-      return handlePdfDownload(req, res, download, UPLOADS_DIR);
-    }
+//     // 🔥 PDF DOWNLOAD
+//     if (download && mongoose.Types.ObjectId.isValid(download)) {
+//       return handlePdfDownload(req, res, download, UPLOADS_DIR);
+//     }
 
-    // VALIDATE PATIENT
-    if (!mongoose.Types.ObjectId.isValid(patientId)) {
-      return res.status(400).json({ success: false, message: "Invalid patient ID" });
-    }
+//     // VALIDATE PATIENT
+//     if (!mongoose.Types.ObjectId.isValid(patientId)) {
+//       return res.status(400).json({ success: false, message: "Invalid patient ID" });
+//     }
 
-    const patient = await Patient.findById(patientId) || await User.findById(patientId);
-    if (!patient) {
-      return res.status(404).json({ success: false, message: "Patient not found" });
-    }
+//     const patient = await Patient.findById(patientId) || await User.findById(patientId);
+//     if (!patient) {
+//       return res.status(404).json({ success: false, message: "Patient not found" });
+//     }
 
-    // BUILD QUERY
-    let query = { patientId };
-    if (queryTreatmentId && mongoose.Types.ObjectId.isValid(queryTreatmentId)) {
-      query.treatmentId = queryTreatmentId;
-    }
+//     // BUILD QUERY
+//     let query = { patientId };
+//     if (queryTreatmentId && mongoose.Types.ObjectId.isValid(queryTreatmentId)) {
+//       query.treatmentId = queryTreatmentId;
+//     }
 
-    // DATE FILTERS
-    if (dateFilterType === "today") {
-      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-      query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
-    } else if (dateFilterType === "week") {
-      const now = new Date();
-      const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-      firstDayOfWeek.setHours(0, 0, 0, 0);
-      const lastDayOfWeek = new Date(firstDayOfWeek);
-      lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
-      lastDayOfWeek.setHours(23, 59, 59, 999);
-      query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
-    } else if (dateFilterType === "month") {
-      const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      firstDayOfMonth.setHours(0, 0, 0, 0);
-      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      lastDayOfMonth.setHours(23, 59, 59, 999);
-      query.appointmentDate = { $gte: firstDayOfMonth, $lte: lastDayOfMonth };
-    } else if (dateFilterType === "custom" && startDate && endDate) {
-      query.appointmentDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
-    }
+//     // DATE FILTERS
+//     if (dateFilterType === "today") {
+//       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+//       const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+//       query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
+//     } else if (dateFilterType === "week") {
+//       const now = new Date();
+//       const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+//       firstDayOfWeek.setHours(0, 0, 0, 0);
+//       const lastDayOfWeek = new Date(firstDayOfWeek);
+//       lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+//       lastDayOfWeek.setHours(23, 59, 59, 999);
+//       query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
+//     } else if (dateFilterType === "month") {
+//       const now = new Date();
+//       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+//       firstDayOfMonth.setHours(0, 0, 0, 0);
+//       const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+//       lastDayOfMonth.setHours(23, 59, 59, 999);
+//       query.appointmentDate = { $gte: firstDayOfMonth, $lte: lastDayOfMonth };
+//     } else if (dateFilterType === "custom" && startDate && endDate) {
+//       query.appointmentDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
+//     }
 
-    // FETCH BOOKINGS
-    const bookings = await Booking.find(query)
-      .populate("serviceId", "name category modes price")
-      .populate("servicePartnerId", "name email phone firstName")
-      .populate("treatmentId", "status validTill")
-      .sort({ appointmentDate: -1 });
+//     // FETCH BOOKINGS
+//     const bookings = await Booking.find(query)
+//       .populate("serviceId", "name category modes price")
+//       .populate("servicePartnerId", "name email phone firstName")
+//       .populate("treatmentId", "status validTill")
+//       .sort({ appointmentDate: -1 });
 
-    // STATS
-    const stats = {
-      totalSessions: bookings.length,
-      completedSessions: bookings.filter(b => ["Completed", "TreatmentCompleted"].includes(b.status)).length,
-      approvedSessions: bookings.filter(b => b.status === "Approved").length,
-      pendingSessions: bookings.filter(b => b.status === "Pending").length,
-      progressPercentage: bookings.length > 0 ? Math.round((stats.completedSessions / bookings.length) * 100) : 0,
-    };
+//     // STATS
+//     const stats = {
+//       totalSessions: bookings.length,
+//       completedSessions: bookings.filter(b => ["Completed", "TreatmentCompleted"].includes(b.status)).length,
+//       approvedSessions: bookings.filter(b => b.status === "Approved").length,
+//       pendingSessions: bookings.filter(b => b.status === "Pending").length,
+//       progressPercentage: bookings.length > 0 ? Math.round((stats.completedSessions / bookings.length) * 100) : 0,
+//     };
 
-    // 🔥 DOWNLOAD LINKS
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://api.rehabmedico.in/api'
-      : `${req.protocol}://${req.get('host')}`;
+//     // 🔥 DOWNLOAD LINKS
+//     const baseUrl = process.env.NODE_ENV === 'production'
+//       ? 'https://api.rehabmedico.in/api'
+//       : `${req.protocol}://${req.get('host')}`;
 
-    const bookingsWithLinks = bookings.map(booking => {
-      const hasInvoice = Boolean(booking.isInvoiceGenerated);
-      const isDownloadable = ["Approved", "Completed", "TreatmentCompleted"].includes(booking.status);
+//     const bookingsWithLinks = bookings.map(booking => {
+//       const hasInvoice = Boolean(booking.isInvoiceGenerated);
+//       const isDownloadable = ["Approved", "Completed", "TreatmentCompleted"].includes(booking.status);
 
-      return {
-        ...booking.toObject(),
-        isInvoiceGenerated: hasInvoice,
-        invoiceStatus: hasInvoice ? '✅ Generated' : '⚠️ Pending',
-        downloadUrl: `${baseUrl}/v1/booking/patient/${patientId}/bookings?download=${booking._id}`,
-        directLocalUrl: `${baseUrl.replace('/api', '')}/invoices/INV-${booking._id.slice(-8)}.pdf`,
-        canDownload: isDownloadable,
-        buttonText: hasInvoice ? '📥 Download PDF' : '➕ Generate PDF',
-        buttonType: hasInvoice ? 'success' : 'warning',
-      };
-    });
+//       return {
+//         ...booking.toObject(),
+//         isInvoiceGenerated: hasInvoice,
+//         invoiceStatus: hasInvoice ? '✅ Generated' : '⚠️ Pending',
+//         downloadUrl: `${baseUrl}/v1/booking/patient/${patientId}/bookings?download=${booking._id}`,
+//         directLocalUrl: `${baseUrl.replace('/api', '')}/invoices/INV-${booking._id.slice(-8)}.pdf`,
+//         canDownload: isDownloadable,
+//         buttonText: hasInvoice ? '📥 Download PDF' : '➕ Generate PDF',
+//         buttonType: hasInvoice ? 'success' : 'warning',
+//       };
+//     });
 
-    const response = {
-      success: true,
-      count: bookings.length,
-      stats,
-      data: bookingsWithLinks,
-    };
+//     const response = {
+//       success: true,
+//       count: bookings.length,
+//       stats,
+//       data: bookingsWithLinks,
+//     };
 
-    if (details === "full") {
-      const invoices = await Invoice.find({ bookingId: { $in: bookings.map(b => b._id) } });
-      response.invoices = invoices.map(inv => ({
-        ...inv.toObject(),
-        downloadUrl: `${baseUrl}/v1/booking/patient/${patientId}/bookings?download=${inv.bookingId}`,
-      }));
-    }
+//     if (details === "full") {
+//       const invoices = await Invoice.find({ bookingId: { $in: bookings.map(b => b._id) } });
+//       response.invoices = invoices.map(inv => ({
+//         ...inv.toObject(),
+//         downloadUrl: `${baseUrl}/v1/booking/patient/${patientId}/bookings?download=${inv.bookingId}`,
+//       }));
+//     }
 
-    res.status(200).json(response);
-  })
-];
+//     res.status(200).json(response);
+//   })
+// ];
 
 // 🔥 SHARED PDF DOWNLOAD HANDLER
-async function handlePdfDownload(req, res, bookingId, uploadsDir) {
-  let browser;
-  
-  try {
-    // Find or create invoice
-    let invoice = await Invoice.findOne({ bookingId })
-      .populate("patientId", "firstName phone address email")
-      .populate("doctorId", "firstName specialization medicalRegistrationNumber phone address");
 
-    if (!invoice) {
-      const booking = await Booking.findById(bookingId)
-        .populate('serviceId', 'name category')
-        .populate('servicePartnerId', 'firstName phone specialization');
-      
-      if (!booking) {
-        return res.status(404).json({ success: false, message: "Booking not found" });
-      }
-
-      invoice = await Invoice.create({
-        invoiceNumber: `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
-        bookingId,
-        patientId: booking.patientId,
-        doctorId: booking.servicePartnerId?._id || null,
-        billingDetails: {
-          serviceName: booking.serviceId?.name || 'Service',
-          durationMinutes: booking.duration || 30,
-          calculatedBase: booking.pricing?.totalAmount || 500,
-        },
-        totals: {
-          subtotal: booking.pricing?.totalAmount || 500,
-          grandTotal: booking.pricing?.totalAmount || 500
-        },
-        attachment: req.file?.path || null,
-        attachmentName: req.file?.originalname || null
-      });
-
-      invoice = await Invoice.findById(invoice._id)
-        .populate("patientId", "firstName phone address email")
-        .populate("doctorId", "firstName specialization medicalRegistrationNumber phone address");
-    }
-
-    // ✅ FILENAME & PATHS
-    const filename = `INV-${invoice.invoiceNumber}.pdf`;
-    const localPath = path.join(uploadsDir, filename);
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://api.rehabmedico.in/api'
-      : `${req.protocol}://${req.get('host')}`;
-
-    // ⚡ CHECK CACHE FIRST (INSTANT!)
-    try {
-      await fs.access(localPath);
-      console.log(`✅ Serving cached PDF: ${filename}`);
-      return res.download(localPath, filename); // DIRECT FILE STREAM
-    } catch {}
-
-    // ✅ GENERATE FRESH PDF
-    const html = await ejs.renderFile(
-      path.join(__dirname, "..", "views", "invoice-template.ejs"), 
-      { 
-        invoice: {
-          ...invoice.toObject(),
-          hasAttachment: !!req.file,
-          attachmentName: req.file?.originalname
-        }
-      }
-    );
-
-    browser = await puppeteer.launch({ 
-      headless: true, 
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-    });
-    
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdf = await page.pdf({ 
-      format: "A4", 
-      printBackground: true,
-      margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' }
-    });
-
-    // 💾 SAVE TO LOCAL for future instant access
-    await fs.writeFile(localPath, pdf);
-    console.log(`✅ Generated & cached: ${filename}`);
-
-    // Cleanup temp file
-    if (req.file?.path) {
-      require('fs').unlinkSync(req.file.path);
-    }
-
-    // 🚀 STREAM PDF
-    res.set({
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Content-Length": pdf.length,
-      "Cache-Control": "no-store"
-    });
-    res.send(pdf);
-
-  } catch (error) {
-    console.error('PDF Generation Error:', error);
-    if (req.file?.path) require('fs').unlinkSync(req.file.path);
-    return res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    });
-  } finally {
-    if (browser) await browser.close();
-  }
-}
 // This is exported as getBookedServicesByPatientId
 // exports.getBookedServicesByPatientId = catchAsync(async (req, res, next) => {
 //   const patientId = req.params.patientId; // from route `/patient/:patientId/bookings`

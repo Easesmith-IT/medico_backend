@@ -15,6 +15,7 @@
   "type": "commonjs",
   "dependencies": {
     "@sparticuz/chromium": "^138.0.2",
+    "@sparticuz/chromium-min": "^143.0.4",
     "axios": "^1.13.1",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",

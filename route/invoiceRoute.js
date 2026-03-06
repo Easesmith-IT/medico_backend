@@ -39,4 +39,4 @@ router.get([
 router.get('/:invoiceId', invoiceController.getInvoice);
 
 module.exports = router;
-module.exports = router;
+
