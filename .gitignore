@@ -29,3 +29,8 @@ logs/
 # Google Cloud bucket key
 config/extreme-ability-475608-c9-e702cd34fb5d.json
 config/gcpbucket.json
+config/*bucket*.json
+config/*ability*.json
+
+
+.cache/
