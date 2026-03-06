@@ -25,3 +25,6 @@ build/
 # Logs
 logs/
 *.log
+
+# Google Cloud bucket key
+config/extreme-ability-475608-c9-e702cd34fb5d.json
