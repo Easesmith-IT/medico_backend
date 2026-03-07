@@ -31,7 +31,7 @@ router.post('/create', protect(['patient']), bookingController.createBooking);
 // router.get('/service-summary/:serviceId', protect(['admin', 'provider']), bookingController.getServiceSummaryByServiceId);
 router.get('/service-summary/:serviceId', bookingController.getServiceSummaryByServiceId);
 // Get bookings by patient ID
-router.get('/patient/:patientId/bookings', protect(['admin','superadmin', 'patient']), bookingController.getBookedServicesByPatientId);
+router.get('/patient/:patientId/bookings', protect(['admin','superadmin', 'patient','superAdmin']), bookingController.getBookedServicesByPatientId);
 
 // Get my bookings (patient)
 router.get('/my-bookings', protect(['patient']), (req, res, next) => {

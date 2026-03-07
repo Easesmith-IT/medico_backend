@@ -119,7 +119,10 @@ treatmentStatus: {
         default: "Patient",
       },
     },
-
+invoiceUrl: {          // 🔥 ADD THIS LINE
+  type: String,
+  default: null
+},
 
 
     // Cancellation related fields
