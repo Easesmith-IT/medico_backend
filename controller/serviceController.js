@@ -1,4 +1,4 @@
-
+s
 const mongoose = require('mongoose');
 const Service = require('../models/serviceModel');
 const City = require('../models/availableCities');
@@ -6,6 +6,7 @@ const Admin = require('../models/adminModel');
 const Doctor = require('../models/doctorModel');
 const { autoFilterSlots } = require('../utils/timeFIlter');
 const { formatDuration } = require('../utils/timeFormat');
+const uploadFile = require("../utils/uploadFile");
 
 // Helper: Format duration labels
 // const formatDuration = (minutes) => {
@@ -162,59 +163,205 @@ const validateCities = async (cityIds) => {
 // };
 
 
+// exports.createService = async (req, res) => {
+//   try {
+//     const userRole = req.user.role.toLowerCase();
+//     console.log("req.user", req.user);
+    
+
+//     if (!['admin', 'superadmin'].includes(userRole)) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'Access denied. Only admins and superadmins can create services.'
+//       });
+//     }
+
+//     const admin = await Admin.findById(req.user.id)
+//     console.log("admin-log", admin);
+    
+
+//     if (!admin.email) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Authenticated user email is required to create service.",
+//       });
+//     }
+
+//     const {
+//       name,
+//       category,
+//       nursingType,           // Required for nursing category
+//       description,
+//       basePrice,
+//       equipmentCharges = 0,
+//       taxPercentage = 18,
+//       modes = ['Home Service'],
+//       supportsDuration = true,
+//       paymentMode = 'Both',
+//       icon,
+//       image,
+//       cities,
+//       slotConfig = {},
+//       timeFormat = '24-hour'
+//     } = req.body;
+
+//     if (!name || !category || !description || basePrice == null) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Name, category, description, and base price are required.'
+//       });
+//     }
+
+//     if (!['12-hour', '24-hour'].includes(timeFormat)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Time format must be '12-hour' or '24-hour'."
+//       });
+//     }
+
+//     let validatedCities;
+//     try {
+//       validatedCities = await validateCities(cities);
+//     } catch (error) {
+//       return res.status(400).json({ success: false, message: error.message });
+//     }
+
+//     const existingService = await Service.findOne({
+//       name,
+//       category,
+//       isDeleted: false
+//     });
+//     if (existingService) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `${category} service with name '${name}' already exists`
+//       });
+//     }
+
+//     // Filter out disabled nursingSlots and equipmentBooking from slotConfig
+//     if (slotConfig.nursingSlots && !slotConfig.nursingSlots.enabled) {
+//       delete slotConfig.nursingSlots;
+//     }
+//     if (slotConfig.equipmentBooking && !slotConfig.equipmentBooking.enabled) {
+//       delete slotConfig.equipmentBooking;
+//     }
+
+//     const service = new Service({
+//       name,
+//       category,
+//       nursingType,
+//       description,
+//       basePrice,
+//       equipmentCharges,
+//       taxPercentage,
+//       modes,
+//       supportsDuration,
+//       paymentMode,
+//       timeFormat,
+//       icon,
+//       image,
+//       cities: validatedCities.map(c => c._id),
+//       slotConfig,
+//       createdBy: {
+//         userId: admin?._id,
+//         userModel: userRole === 'superadmin' ? 'SuperAdmin' : 'Admin',
+//         name: admin.firstName || 'Admin User',
+//         email: admin.email
+//       },
+//       isActive: true,
+//       isDeleted: false
+//     });
+
+//     await service.save();
+//     await service.populate('cities', 'name latitude longitude');
+
+//     // Filter slotConfig to include only enabled, relevant slots
+//     const filteredSlotConfig = autoFilterSlots(service.slotConfig, service.category, service.timeFormat);
+
+//     const responseObj = service.toObject();
+//     responseObj.slotConfig = filteredSlotConfig;
+//     responseObj.formattedDuration = formatDuration(service.defaultDuration);
+
+//     res.status(201).json({
+//       success: true,
+//       message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully.`,
+//       data: responseObj
+//     });
+
+//   } catch (error) {
+//     console.error('Create service error:', error);
+//     res.status(500).json({ success: false, message: 'Error creating service', error: error.message });
+//   }
+// };
+
 exports.createService = async (req, res) => {
   try {
     const userRole = req.user.role.toLowerCase();
-    console.log("req.user", req.user);
-    
 
-    if (!['admin', 'superadmin'].includes(userRole)) {
+    console.log("req.body", req.body);
+
+    if (!["admin", "superadmin"].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Only admins and superadmins can create services.'
+        message:
+          "Access denied. Only admins and superadmins can create services.",
       });
     }
 
-    const admin = await Admin.findById(req.user.id)
-    console.log("admin-log", admin);
-    
-
-    if (!admin.email) {
+    const admin = await Admin.findById(req.user.id);
+    if (!admin?.email) {
       return res.status(400).json({
         success: false,
         message: "Authenticated user email is required to create service.",
       });
     }
 
-    const {
-      name,
-      category,
-      nursingType,           // Required for nursing category
-      description,
-      basePrice,
-      equipmentCharges = 0,
-      taxPercentage = 18,
-      modes = ['Home Service'],
-      supportsDuration = true,
-      paymentMode = 'Both',
-      icon,
-      image,
-      cities,
-      slotConfig = {},
-      timeFormat = '24-hour'
-    } = req.body;
+    // Parse body (multipart/form-data sends all fields as strings; parse JSON/numbers where needed)
+    const raw = req.body;
+    const parseJson = (val, fallback) => {
+      if (val == null) return fallback;
+      if (
+        typeof val === "string" &&
+        (val.startsWith("[") || val.startsWith("{"))
+      ) {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return fallback;
+        }
+      }
+      return val;
+    };
+    const name = raw.name;
+    const category = raw.category;
+    const nursingType = raw.nursingType;
+    const description = raw.description;
+    const basePrice = raw.basePrice != null ? Number(raw.basePrice) : null;
+    const equipmentCharges =
+      raw.equipmentCharges != null ? Number(raw.equipmentCharges) : 0;
+    const taxPercentage =
+      raw.taxPercentage != null ? Number(raw.taxPercentage) : 18;
+    const modes = parseJson(raw.modes, ["Home Service"]);
+    const supportsDuration =
+      raw.supportsDuration === false || raw.supportsDuration === "false"
+        ? false
+        : true;
+    const paymentMode = raw.paymentMode || "Both";
+    const timeFormat = raw.timeFormat || "24-hour";
+    let cities = parseJson(raw.cities, null);
+    let slotConfig = parseJson(raw.slotConfig, {});
 
     if (!name || !category || !description || basePrice == null) {
       return res.status(400).json({
         success: false,
-        message: 'Name, category, description, and base price are required.'
+        message: "Name, category, description, and base price are required.",
       });
     }
 
-    if (!['12-hour', '24-hour'].includes(timeFormat)) {
+    if (!["12-hour", "24-hour"].includes(timeFormat)) {
       return res.status(400).json({
         success: false,
-        message: "Time format must be '12-hour' or '24-hour'."
+        message: "Time format must be '12-hour' or '24-hour'.",
       });
     }
 
@@ -228,13 +375,45 @@ exports.createService = async (req, res) => {
     const existingService = await Service.findOne({
       name,
       category,
-      isDeleted: false
+      isDeleted: false,
     });
     if (existingService) {
       return res.status(400).json({
         success: false,
-        message: `${category} service with name '${name}' already exists`
+        message: `${category} service with name '${name}' already exists`,
       });
+    }
+
+    // Image/icon: upload to GCP if files present, else use body URLs
+    let icon = raw.icon || undefined;
+    let image = raw.image || undefined;
+    if (req.files?.image?.[0]) {
+      try {
+        image = await uploadFile(req.files.image[0]);
+      } catch (err) {
+        console.error("Service image upload error:", err);
+        return res
+          .status(500)
+          .json({
+            success: false,
+            message: "Failed to upload service image.",
+            error: err.message,
+          });
+      }
+    }
+    if (req.files?.icon?.[0]) {
+      try {
+        icon = await uploadFile(req.files.icon[0]);
+      } catch (err) {
+        console.error("Service icon upload error:", err);
+        return res
+          .status(500)
+          .json({
+            success: false,
+            message: "Failed to upload service icon.",
+            error: err.message,
+          });
+      }
     }
 
     // Filter out disabled nursingSlots and equipmentBooking from slotConfig
@@ -259,24 +438,26 @@ exports.createService = async (req, res) => {
       timeFormat,
       icon,
       image,
-      cities: validatedCities.map(c => c._id),
+      cities: validatedCities.map((c) => c._id),
       slotConfig,
       createdBy: {
-        userId: admin?._id,
-        userModel: userRole === 'superadmin' ? 'SuperAdmin' : 'Admin',
-        name: admin.firstName || 'Admin User',
-        email: admin.email
+        userId: admin._id,
+        userModel: userRole === "superadmin" ? "SuperAdmin" : "Admin",
+        name: admin.firstName || "Admin User",
+        email: admin.email,
       },
       isActive: true,
-      isDeleted: false
+      isDeleted: false,
     });
 
     await service.save();
-    await service.populate('cities', 'name latitude longitude');
+    await service.populate("cities", "name latitude longitude");
 
-    // Filter slotConfig to include only enabled, relevant slots
-    const filteredSlotConfig = autoFilterSlots(service.slotConfig, service.category, service.timeFormat);
-
+    const filteredSlotConfig = autoFilterSlots(
+      service.slotConfig,
+      service.category,
+      service.timeFormat,
+    );
     const responseObj = service.toObject();
     responseObj.slotConfig = filteredSlotConfig;
     responseObj.formattedDuration = formatDuration(service.defaultDuration);
@@ -284,15 +465,166 @@ exports.createService = async (req, res) => {
     res.status(201).json({
       success: true,
       message: `${category.charAt(0).toUpperCase() + category.slice(1)} service created successfully.`,
-      data: responseObj
+      data: responseObj,
     });
-
   } catch (error) {
-    console.error('Create service error:', error);
-    res.status(500).json({ success: false, message: 'Error creating service', error: error.message });
+    console.error("Create service error:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Error creating service",
+        error: error.message,
+      });
   }
 };
 
+// Get All Services with filters
+exports.getAllServices = async (req, res) => {
+  try {
+    const {
+      category,
+      cityId,
+      isActive,
+      page = 1,
+      limit = 10,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      timeFormat = "24-hour",
+    } = req.query;
+    const query = { isDeleted: false };
+
+    if (category) query.category = category;
+    if (cityId) query.cities = cityId;
+    if (isActive !== undefined) query.isActive = isActive === "true";
+
+    const skip = (page - 1) * limit;
+    const sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
+
+    const services = await Service.find(query)
+      .populate("cities", "name latitude longitude")
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Service.countDocuments(query);
+    const formattedServices = services.map((service) => ({
+      ...service.toObject(),
+      formattedDuration: formatDuration(service.defaultDuration),
+      displayTimeFormat: timeFormat,
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        services: formattedServices,
+        pagination: {
+          total,
+          page: parseInt(page),
+          pages: Math.ceil(total / limit),
+          limit: parseInt(limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get all services error:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Error fetching services",
+        error: error.message,
+      });
+  }
+};
+
+// Get Service By ID
+// exports.getServiceById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { timeFormat = '24-hour' } = req.query;
+//     const service = await Service.findById(id)
+//       .populate('cities', 'name latitude longitude')
+//       .populate('createdBy.userId', 'firstName lastName name email phone');
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Service not found' });
+//     }
+//     const serviceObj = service.toObject();
+//     serviceObj.formattedDuration = formatDuration(service.defaultDuration);
+//     serviceObj.displayTimeFormat = timeFormat;
+
+//     res.status(200).json({ success: true, data: serviceObj });
+//   } catch (error) {
+//     console.error('Get service by ID error:', error);
+//     res.status(500).json({ success: false, message: 'Error fetching service', error: error.message });
+//   }
+// };
+exports.getServiceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { timeFormat = "24-hour" } = req.query;
+
+    const service = await Service.findById(id).populate(
+      "cities",
+      "name latitude longitude",
+    );
+
+    if (!service) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Service not found" });
+    }
+
+    // Normalize userModel for population
+    const userModel =
+      service.createdBy.userModel === "SuperAdmin"
+        ? "Admin"
+        : service.createdBy.userModel;
+
+    // Populate createdBy.userId with normalized model
+    await service.populate({
+      path: "createdBy.userId",
+      select: "firstName lastName name email phone",
+      model: userModel,
+    });
+
+    const serviceObj = service.toObject();
+
+    // Filter slotConfig by enabled flags
+    const filteredSlotConfig = {};
+    if (service.slotConfig.consultationSlots) {
+      filteredSlotConfig.consultationSlots =
+        service.slotConfig.consultationSlots;
+    }
+    if (
+      service.slotConfig.nursingSlots &&
+      service.slotConfig.nursingSlots.enabled
+    ) {
+      filteredSlotConfig.nursingSlots = service.slotConfig.nursingSlots;
+    }
+    if (
+      service.slotConfig.equipmentBooking &&
+      service.slotConfig.equipmentBooking.enabled
+    ) {
+      filteredSlotConfig.equipmentBooking = service.slotConfig.equipmentBooking;
+    }
+    serviceObj.slotConfig = filteredSlotConfig;
+
+    serviceObj.formattedDuration = formatDuration(service.defaultDuration);
+    serviceObj.displayTimeFormat = timeFormat;
+
+    res.status(200).json({ success: true, data: serviceObj });
+  } catch (error) {
+    console.error("Get service by ID error:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Error fetching service",
+        error: error.message,
+      });
+  }
+};
 
 // Get All Services with filters
 exports.getAllServices = async (req, res) => {
@@ -463,28 +795,152 @@ exports.getServiceById = async (req, res) => {
 
 
 
+// exports.updateService = async (req, res) => {
+//   try {
+//     // The protect middleware will already have set req.user if the user is authenticated and authorized
+//     const { id } = req.params;
+//     if (!req.user || !['admin', 'superadmin'].includes(req.user.role)) {
+//       return res.status(403).json({ success: false, message: 'Access denied.' });
+//     }
+
+//     const service = await Service.findById(id);
+//     if (!service) {
+//       return res.status(404).json({ success: false, message: 'Service not found' });
+//     }
+
+//     // extract and update fields as before...
+//     const {
+//       name, description, basePrice, equipmentCharges,
+//       taxPercentage, modes, defaultDuration, durationOptions,
+//       paymentMode, timeFormat, icon, image, cities,
+//       isActive, slotConfig
+//     } = req.body;
+
+//     // ... rest of your update code remains unchanged ...
+
+//     if (cities) {
+//       try {
+//         await validateCities(cities);
+//         service.cities = cities;
+//       } catch (error) {
+//         return res.status(400).json({ success: false, message: error.message });
+//       }
+//     }
+//     if (name) service.name = name;
+//     if (description) service.description = description;
+//     if (basePrice !== undefined) service.basePrice = basePrice;
+//     if (equipmentCharges !== undefined) service.equipmentCharges = equipmentCharges;
+//     if (taxPercentage !== undefined) service.taxPercentage = taxPercentage;
+//     if (modes) service.modes = modes;
+//     if (defaultDuration !== undefined) service.defaultDuration = defaultDuration;
+//     if (durationOptions) service.durationOptions = durationOptions;
+//     if (paymentMode) service.paymentMode = paymentMode;
+//     if (timeFormat) service.timeFormat = timeFormat;
+//     if (icon !== undefined) service.icon = icon;
+//     if (image !== undefined) service.image = image;
+//     if (isActive !== undefined) service.isActive = isActive;
+//     if (slotConfig) service.slotConfig = { ...service.slotConfig, ...slotConfig };
+
+//     await service.save();
+//     await service.populate('cities', 'name latitude longitude');
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Service updated successfully',
+//       data: service,
+//     });
+//   } catch (error) {
+//     console.error('Update service error:', error);
+//     res.status(500).json({ success: false, message: 'Error updating service', error: error.message });
+//   }
+// };
+
 exports.updateService = async (req, res) => {
   try {
-    // The protect middleware will already have set req.user if the user is authenticated and authorized
     const { id } = req.params;
-    if (!req.user || !['admin', 'superadmin'].includes(req.user.role)) {
-      return res.status(403).json({ success: false, message: 'Access denied.' });
+    if (!req.user || !["admin", "superadmin"].includes(req.user.role)) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied." });
     }
 
     const service = await Service.findById(id);
     if (!service) {
-      return res.status(404).json({ success: false, message: 'Service not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Service not found" });
     }
 
-    // extract and update fields as before...
-    const {
-      name, description, basePrice, equipmentCharges,
-      taxPercentage, modes, defaultDuration, durationOptions,
-      paymentMode, timeFormat, icon, image, cities,
-      isActive, slotConfig
-    } = req.body;
+    // Parse body (multipart sends fields as strings; parse JSON/numbers where needed)
+    const parseJson = (val, fallback) => {
+      if (val == null) return fallback;
+      if (
+        typeof val === "string" &&
+        (val.startsWith("[") || val.startsWith("{"))
+      ) {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return fallback;
+        }
+      }
+      return val;
+    };
+    const raw = req.body;
 
-    // ... rest of your update code remains unchanged ...
+    let name = raw.name;
+    let description = raw.description;
+    let basePrice = raw.basePrice != null ? Number(raw.basePrice) : undefined;
+    let equipmentCharges =
+      raw.equipmentCharges != null ? Number(raw.equipmentCharges) : undefined;
+    let taxPercentage =
+      raw.taxPercentage != null ? Number(raw.taxPercentage) : undefined;
+    let modes = parseJson(raw.modes, undefined);
+    let defaultDuration =
+      raw.defaultDuration != null ? Number(raw.defaultDuration) : undefined;
+    let durationOptions = parseJson(raw.durationOptions, undefined);
+    let paymentMode = raw.paymentMode;
+    let timeFormat = raw.timeFormat;
+    let icon = raw.icon;
+    let image = raw.image;
+    let cities = parseJson(raw.cities, undefined);
+    let isActive =
+      raw.isActive === "true"
+        ? true
+        : raw.isActive === "false"
+          ? false
+          : raw.isActive;
+    let slotConfig = parseJson(raw.slotConfig, undefined);
+
+    // Image/icon: upload to GCP if files present
+    if (req.files?.image?.[0]) {
+      try {
+        image = await uploadFile(req.files.image[0]);
+      } catch (err) {
+        console.error("Service image upload error:", err);
+        return res
+          .status(500)
+          .json({
+            success: false,
+            message: "Failed to upload service image.",
+            error: err.message,
+          });
+      }
+    }
+    if (req.files?.icon?.[0]) {
+      try {
+        icon = await uploadFile(req.files.icon[0]);
+      } catch (err) {
+        console.error("Service icon upload error:", err);
+        return res
+          .status(500)
+          .json({
+            success: false,
+            message: "Failed to upload service icon.",
+            error: err.message,
+          });
+      }
+    }
 
     if (cities) {
       try {
@@ -497,32 +953,40 @@ exports.updateService = async (req, res) => {
     if (name) service.name = name;
     if (description) service.description = description;
     if (basePrice !== undefined) service.basePrice = basePrice;
-    if (equipmentCharges !== undefined) service.equipmentCharges = equipmentCharges;
+    if (equipmentCharges !== undefined)
+      service.equipmentCharges = equipmentCharges;
     if (taxPercentage !== undefined) service.taxPercentage = taxPercentage;
     if (modes) service.modes = modes;
-    if (defaultDuration !== undefined) service.defaultDuration = defaultDuration;
+    if (defaultDuration !== undefined)
+      service.defaultDuration = defaultDuration;
     if (durationOptions) service.durationOptions = durationOptions;
     if (paymentMode) service.paymentMode = paymentMode;
     if (timeFormat) service.timeFormat = timeFormat;
     if (icon !== undefined) service.icon = icon;
     if (image !== undefined) service.image = image;
     if (isActive !== undefined) service.isActive = isActive;
-    if (slotConfig) service.slotConfig = { ...service.slotConfig, ...slotConfig };
+    if (slotConfig)
+      service.slotConfig = { ...service.slotConfig, ...slotConfig };
 
     await service.save();
-    await service.populate('cities', 'name latitude longitude');
+    await service.populate("cities", "name latitude longitude");
 
     res.status(200).json({
       success: true,
-      message: 'Service updated successfully',
+      message: "Service updated successfully",
       data: service,
     });
   } catch (error) {
-    console.error('Update service error:', error);
-    res.status(500).json({ success: false, message: 'Error updating service', error: error.message });
+    console.error("Update service error:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Error updating service",
+        error: error.message,
+      });
   }
 };
-
 
 // Delete Service (Soft Delete)
 // exports.deleteService = async (req, res) => {

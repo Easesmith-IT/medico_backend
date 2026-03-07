@@ -4,7 +4,7 @@ const ServiceProvider = require("../models/serviceProviderModel");
 const City = require("../models/availableCities");
 const bcrypt = require('bcryptjs');
 // const { generateAccessToken }=require('../utils/tokenUtils')
-
+const uploadFile = require("../utils/uploadFile");
 
 
 const { 
@@ -44,56 +44,249 @@ const {
 //     res.status(500).json({ success: false, message: error.message });
 //   }
 // };
+// exports.createServiceProvider = async (req, res) => {
+//   try {
+//     const data = req.body;
+
+//     // 1. Validate Cities if provided
+//     if (data.serviceCities && Array.isArray(data.serviceCities)) {
+//       const validCities = await City.find({
+//         _id: { $in: data.serviceCities },
+//         isActive: true
+//       });
+
+//       if (validCities.length !== data.serviceCities.length) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "One or more selected cities are invalid or inactive"
+//         });
+//       }
+//     }
+
+//     // 2. Admin Auto-Approval Logic
+//     if (req.user && (req.user.role === "superadmin" || req.user.role === "subadmin")) {
+//       data.approvedBy = {
+//         adminId: req.user.id,
+//         adminName: req.user.email || "Admin",
+//         approvedAt: new Date()
+//       };
+//       data.approvalStatus = "Approved";
+//       data.isActive = true;
+//     }
+
+//     // 3. Password Requirement
+//     if (!data.password) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: "Password is required for service provider account creation" 
+//       });
+//     }
+
+//     // 4. Create Provider
+//     const newProvider = await ServiceProvider.create(data);
+    
+//     const providerResponse = newProvider.toObject();
+//     delete providerResponse.password;
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Service provider created successfully with assigned cities.",
+//       data: providerResponse,
+//     });
+//   } catch (error) {
+//     if (error.code === 11000) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Mobile or Email already exists",
+//         details: error.keyValue,
+//       });
+//     }
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
 exports.createServiceProvider = async (req, res) => {
   try {
-    const data = req.body;
+    const raw = req.body;
 
-    // 1. Validate Cities if provided
-    if (data.serviceCities && Array.isArray(data.serviceCities)) {
+    console.log("req.files", req.files);
+
+    console.log("req.body", req.body);
+
+    const parseJson = (val, fallback) => {
+      if (!val) return fallback;
+      if (
+        typeof val === "string" &&
+        (val.startsWith("[") || val.startsWith("{"))
+      ) {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return fallback;
+        }
+      }
+      return val;
+    };
+
+    const data = {
+      ...raw,
+
+      currentAddress: parseJson(raw.currentAddress, {}),
+      permanentAddress: parseJson(raw.permanentAddress, {}),
+      workAddress: parseJson(raw.workAddress, {}),
+
+      services: parseJson(raw.services, []),
+
+      bankDetails: parseJson(raw.bankDetails, {}),
+      availability: parseJson(raw.availability, {}),
+
+      emergencyContact: parseJson(raw.emergencyContact, {}),
+
+      serviceCities: parseJson(raw.serviceCities, []),
+      languages: parseJson(raw.languages, []),
+
+      dateOfBirth: raw.dateOfBirth
+        ? new Date(JSON.parse(raw.dateOfBirth))
+        : null,
+    };
+
+    /* ---------------------------
+       1️⃣ Validate Cities
+    ----------------------------*/
+    if (data.serviceCities?.length) {
       const validCities = await City.find({
         _id: { $in: data.serviceCities },
-        isActive: true
+        isActive: true,
       });
 
       if (validCities.length !== data.serviceCities.length) {
         return res.status(400).json({
           success: false,
-          message: "One or more selected cities are invalid or inactive"
+          message: "One or more selected cities are invalid or inactive",
         });
       }
     }
 
-    // 2. Admin Auto-Approval Logic
-    if (req.user && (req.user.role === "superadmin" || req.user.role === "subadmin")) {
+    /* ---------------------------
+       2️⃣ Admin Auto Approval
+    ----------------------------*/
+    if (req.user && ["superadmin", "subadmin"].includes(req.user.role)) {
       data.approvedBy = {
         adminId: req.user.id,
         adminName: req.user.email || "Admin",
-        approvedAt: new Date()
+        approvedAt: new Date(),
       };
       data.approvalStatus = "Approved";
       data.isActive = true;
     }
 
-    // 3. Password Requirement
-    if (!data.password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Password is required for service provider account creation" 
-      });
+    /* ---------------------------
+       3️⃣ Password Validation
+    ----------------------------*/
+    // if (!data.password) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Password is required for service provider account creation"
+    //   });
+    // }
+
+    /* ---------------------------
+       4️⃣ Documents Object
+    ----------------------------*/
+    const documents = {};
+
+    /* Profile Photo */
+    if (req.files?.profilePhoto?.[0]) {
+      documents.profilePhoto = await uploadFile(req.files.profilePhoto[0]);
     }
 
-    // 4. Create Provider
+    /* Identity Proof */
+    if (req.files?.identityProofFile?.[0]) {
+      documents.identityProof = {
+        ...parseJson(raw.identityProof, {}),
+        documentUrl: await uploadFile(req.files.identityProofFile[0]),
+      };
+    }
+
+    /* Address Proof */
+    if (req.files?.addressProofFile?.[0]) {
+      documents.addressProof = {
+        ...parseJson(raw.addressProof, {}),
+        documentUrl: await uploadFile(req.files.addressProofFile[0]),
+      };
+    }
+
+    /* Registration Certificate */
+    if (req.files?.registrationCertificateFile?.[0]) {
+      documents.registrationCertificate = {
+        ...parseJson(raw.registrationCertificate, {}),
+        certificateUrl: await uploadFile(
+          req.files.registrationCertificateFile[0],
+        ),
+      };
+    }
+
+    /* Police Verification */
+    if (req.files?.policeVerificationFile?.[0]) {
+      documents.policeVerification = {
+        ...parseJson(raw.policeVerification, {}),
+        certificateUrl: await uploadFile(req.files.policeVerificationFile[0]),
+      };
+    }
+
+    /* Educational Certificates */
+    if (req.files?.educationalCertificatesFiles?.length) {
+      const educationMeta = parseJson(raw.educationalCertificates, []);
+
+      documents.educationalCertificates = await Promise.all(
+        req.files.educationalCertificatesFiles.map(async (file, index) => ({
+          ...educationMeta[index],
+          certificateUrl: await uploadFile(file),
+        })),
+      );
+    }
+
+    /* Professional Certificates */
+    if (req.files?.professionalCertificatesFiles?.length) {
+      const professionalMeta = parseJson(raw.professionalCertificates, []);
+
+      documents.professionalCertificates = await Promise.all(
+        req.files.professionalCertificatesFiles.map(async (file, index) => ({
+          ...professionalMeta[index],
+          certificateUrl: await uploadFile(file),
+        })),
+      );
+    }
+
+    /* Experience Certificates */
+    if (req.files?.experienceCertificatesFiles?.length) {
+      const experienceMeta = parseJson(raw.experienceCertificates, []);
+
+      documents.experienceCertificates = await Promise.all(
+        req.files.experienceCertificatesFiles.map(async (file, index) => ({
+          ...experienceMeta[index],
+          certificateUrl: await uploadFile(file),
+        })),
+      );
+    }
+
+    data.documents = documents;
+
+    /* ---------------------------
+       5️⃣ Create Provider
+    ----------------------------*/
     const newProvider = await ServiceProvider.create(data);
-    
+
     const providerResponse = newProvider.toObject();
     delete providerResponse.password;
 
     res.status(201).json({
       success: true,
-      message: "Service provider created successfully with assigned cities.",
+      message: "Service provider created successfully",
       data: providerResponse,
     });
   } catch (error) {
+    console.error("Create provider error:", error);
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
@@ -101,9 +294,14 @@ exports.createServiceProvider = async (req, res) => {
         details: error.keyValue,
       });
     }
-    res.status(500).json({ success: false, message: error.message });
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
+
 exports.loginServiceProvider = async (req, res) => {
   try {
     const { email, mobile, password } = req.body;
@@ -311,10 +509,125 @@ exports.getServiceProviderById = async (req, res) => {
 };
 
 // Update service provider
+// exports.updateServiceProvider = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const updateData = req.body;
+
+//     if (
+//       updateData.permanentAddress?.sameAsCurrent &&
+//       updateData.currentAddress
+//     ) {
+//       updateData.permanentAddress = {
+//         ...updateData.currentAddress,
+//         sameAsCurrent: true,
+//       };
+//     }
+
+//     const updated = await ServiceProvider.findByIdAndUpdate(
+//       id,
+//       { $set: updateData },
+//       { new: true, runValidators: true }
+//     )
+//       .populate("services.serviceId")
+//       .populate("serviceCities")
+//       .populate("approvedBy.adminId");
+
+//     if (!updated)
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Service provider not found" });
+
+//     res
+//       .status(200)
+//       .json({
+//         success: true,
+//         message: "Service provider updated successfully",
+//         data: updated,
+//       });
+//   } catch (error) {
+//     if (error.code === 11000) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Duplicate field value",
+//         details: error.keyValue,
+//       });
+//     }
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
 exports.updateServiceProvider = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const raw = req.body;
+
+    /* ---------------------------
+       Helpers
+    ----------------------------*/
+
+    const parseJson = (val, fallback) => {
+      if (!val) return fallback;
+      if (
+        typeof val === "string" &&
+        (val.startsWith("[") || val.startsWith("{"))
+      ) {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return fallback;
+        }
+      }
+      return val;
+    };
+
+    const parseDate = (val) => {
+      if (!val) return null;
+      try {
+        return new Date(JSON.parse(val));
+      } catch {
+        return new Date(val);
+      }
+    };
+
+    /* ---------------------------
+       Find Existing Provider
+    ----------------------------*/
+
+    const existingProvider = await ServiceProvider.findById(id);
+
+    if (!existingProvider) {
+      return res.status(404).json({
+        success: false,
+        message: "Service provider not found",
+      });
+    }
+
+    /* ---------------------------
+       Parse Incoming Data
+    ----------------------------*/
+
+    const updateData = {
+      ...raw,
+
+      currentAddress: parseJson(raw.currentAddress, {}),
+      permanentAddress: parseJson(raw.permanentAddress, {}),
+      workAddress: parseJson(raw.workAddress, {}),
+
+      services: parseJson(raw.services, []),
+      bankDetails: parseJson(raw.bankDetails, {}),
+      availability: parseJson(raw.availability, {}),
+      emergencyContact: parseJson(raw.emergencyContact, {}),
+
+      serviceCities: parseJson(raw.serviceCities, []),
+      languages: parseJson(raw.languages, []),
+
+      dateOfBirth: raw.dateOfBirth ? parseDate(raw.dateOfBirth) : undefined,
+    };
+
+    /* ---------------------------
+       sameAsCurrent Address Logic
+    ----------------------------*/
 
     if (
       updateData.permanentAddress?.sameAsCurrent &&
@@ -326,28 +639,114 @@ exports.updateServiceProvider = async (req, res) => {
       };
     }
 
+    /* ---------------------------
+       Documents Merge Logic
+    ----------------------------*/
+
+    const documents = { ...existingProvider.documents };
+
+    /* Profile Photo */
+    if (req.files?.profilePhoto?.[0]) {
+      documents.profilePhoto = await uploadFile(req.files.profilePhoto[0]);
+    }
+
+    /* Identity Proof */
+    if (req.files?.identityProofFile?.[0]) {
+      documents.identityProof = {
+        ...parseJson(raw.identityProof, {}),
+        documentUrl: await uploadFile(req.files.identityProofFile[0]),
+      };
+    }
+
+    /* Address Proof */
+    if (req.files?.addressProofFile?.[0]) {
+      documents.addressProof = {
+        ...parseJson(raw.addressProof, {}),
+        documentUrl: await uploadFile(req.files.addressProofFile[0]),
+      };
+    }
+
+    /* Registration Certificate */
+    if (req.files?.registrationCertificateFile?.[0]) {
+      documents.registrationCertificate = {
+        ...parseJson(raw.registrationCertificate, {}),
+        certificateUrl: await uploadFile(
+          req.files.registrationCertificateFile[0],
+        ),
+      };
+    }
+
+    /* Police Verification */
+    if (req.files?.policeVerificationFile?.[0]) {
+      documents.policeVerification = {
+        ...parseJson(raw.policeVerification, {}),
+        certificateUrl: await uploadFile(req.files.policeVerificationFile[0]),
+      };
+    }
+
+    /* Educational Certificates */
+    if (req.files?.educationalCertificatesFiles?.length) {
+      const meta = parseJson(raw.educationalCertificates, []);
+
+      documents.educationalCertificates = await Promise.all(
+        req.files.educationalCertificatesFiles.map(async (file, index) => ({
+          ...meta[index],
+          certificateUrl: await uploadFile(file),
+        })),
+      );
+    }
+
+    /* Professional Certificates */
+    if (req.files?.professionalCertificatesFiles?.length) {
+      const meta = parseJson(raw.professionalCertificates, []);
+
+      documents.professionalCertificates = await Promise.all(
+        req.files.professionalCertificatesFiles.map(async (file, index) => ({
+          ...meta[index],
+          certificateUrl: await uploadFile(file),
+        })),
+      );
+    }
+
+    /* Experience Certificates */
+    if (req.files?.experienceCertificatesFiles?.length) {
+      const meta = parseJson(raw.experienceCertificates, []);
+
+      documents.experienceCertificates = await Promise.all(
+        req.files.experienceCertificatesFiles.map(async (file, index) => ({
+          ...meta[index],
+          certificateUrl: await uploadFile(file),
+        })),
+      );
+    }
+
+    /* Attach documents */
+    updateData.documents = documents;
+
+    /* ---------------------------
+       Update Provider
+    ----------------------------*/
+
     const updated = await ServiceProvider.findByIdAndUpdate(
       id,
       { $set: updateData },
-      { new: true, runValidators: true }
+      {
+        new: true,
+        runValidators: true,
+      },
     )
       .populate("services.serviceId")
       .populate("serviceCities")
       .populate("approvedBy.adminId");
 
-    if (!updated)
-      return res
-        .status(404)
-        .json({ success: false, message: "Service provider not found" });
-
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Service provider updated successfully",
-        data: updated,
-      });
+    res.status(200).json({
+      success: true,
+      message: "Service provider updated successfully",
+      data: updated,
+    });
   } catch (error) {
+    console.error("Update provider error:", error);
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
@@ -355,7 +754,11 @@ exports.updateServiceProvider = async (req, res) => {
         details: error.keyValue,
       });
     }
-    res.status(500).json({ success: false, message: error.message });
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
