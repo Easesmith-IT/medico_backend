@@ -16,6 +16,7 @@ const PDFDocument = require("pdfkit");
 const uploadFile = require("../utils/uploadFile");
 const os = require('os');
 const fs = require('fs');
+const generateInvoicePdf = require("../utils/generateInvoicePdf");
 // const puppeteer = require('puppeteer-core');
 // const chromium = require('@sparticuz/chromium-min');
 
@@ -118,7 +119,6 @@ const fs = require('fs');
 //     res.status(500).json({ success: false, message: error.message });
 //   }
 // };
-
 exports.generateInvoice = async (req, res) => {
   try {
 
@@ -146,43 +146,25 @@ exports.generateInvoice = async (req, res) => {
     const savedInvoice = await newInvoice.save();
 
     // ---------- GENERATE PDF ----------
-    const doc = new PDFDocument();
+    const pdfBuffer = await generateInvoicePdf(savedInvoice);
 
-    let buffers = [];
-    doc.on("data", buffers.push.bind(buffers));
+    const file = {
+      originalname: `${invoiceNumber}.pdf`,
+      buffer: pdfBuffer
+    };
 
-    doc.on("end", async () => {
+    const pdfUrl = await uploadFile(file);
 
-      const pdfBuffer = Buffer.concat(buffers);
+    savedInvoice.invoiceUrl = pdfUrl;
+    savedInvoice.isInvoiceGenerated = true;
 
-      const file = {
-        originalname: `${invoiceNumber}.pdf`,
-        buffer: pdfBuffer
-      };
+    await savedInvoice.save();
 
-      const pdfUrl = await uploadFile(file);
-
-      savedInvoice.invoiceUrl = pdfUrl;
-      savedInvoice.isInvoiceGenerated = true;
-
-      await savedInvoice.save();
-
-      res.status(201).json({
-        success: true,
-        message: "Invoice generated successfully",
-        data: savedInvoice
-      });
-
+    res.status(201).json({
+      success: true,
+      message: "Invoice generated successfully",
+      data: savedInvoice
     });
-
-    doc.fontSize(20).text("Invoice", { align: "center" });
-    doc.moveDown();
-
-    doc.text(`Invoice Number: ${invoiceNumber}`);
-    doc.text(`Booking ID: ${bookingId}`);
-    doc.text(`Total: ₹${billingDetails.calculatedBase}`);
-
-    doc.end();
 
   } catch (error) {
     res.status(500).json({
@@ -191,6 +173,78 @@ exports.generateInvoice = async (req, res) => {
     });
   }
 };
+// exports.generateInvoice = async (req, res) => {
+//   try {
+
+//     const {
+//       bookingId,
+//       patientId,
+//       doctorId,
+//       billingDetails,
+//       medicines,
+//       additionalEquipment
+//     } = req.body;
+
+//     const invoiceNumber = `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+
+//     const newInvoice = new Invoice({
+//       invoiceNumber,
+//       bookingId,
+//       patientId,
+//       doctorId,
+//       billingDetails,
+//       medicines,
+//       additionalEquipment
+//     });
+
+//     const savedInvoice = await newInvoice.save();
+
+//     // ---------- GENERATE PDF ----------
+//     const doc = new PDFDocument();
+
+//     let buffers = [];
+//     doc.on("data", buffers.push.bind(buffers));
+
+//     doc.on("end", async () => {
+
+//       const pdfBuffer = Buffer.concat(buffers);
+
+//       const file = {
+//         originalname: `${invoiceNumber}.pdf`,
+//         buffer: pdfBuffer
+//       };
+
+//       const pdfUrl = await uploadFile(file);
+
+//       savedInvoice.invoiceUrl = pdfUrl;
+//       savedInvoice.isInvoiceGenerated = true;
+
+//       await savedInvoice.save();
+
+//       res.status(201).json({
+//         success: true,
+//         message: "Invoice generated successfully",
+//         data: savedInvoice
+//       });
+
+//     });
+
+//     doc.fontSize(20).text("Invoice", { align: "center" });
+//     doc.moveDown();
+
+//     doc.text(`Invoice Number: ${invoiceNumber}`);
+//     doc.text(`Booking ID: ${bookingId}`);
+//     doc.text(`Total: ₹${billingDetails.calculatedBase}`);
+
+//     doc.end();
+
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: error.message
+//     });
+//   }
+// };
 
 
 //best one

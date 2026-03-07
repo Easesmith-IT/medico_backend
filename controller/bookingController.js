@@ -1269,283 +1269,382 @@ exports.createBooking = async (req, res) => {
 // });
 
 //better one
-exports.getBookedServicesByPatientId = catchAsync(async (req, res, next) => {
-  const patientId = req.params.patientId;
-  const { 
-    details = "basic", 
-    dateFilterType, 
-    startDate, 
-    endDate, 
-    treatmentId: queryTreatmentId,
-    download  // ✅ NEW: ?download=BOOKING_ID
-  } = req.query;
+// exports.getBookedServicesByPatientId = catchAsync(async (req, res, next) => {
+//   const patientId = req.params.patientId;
+//   const { 
+//     details = "basic", 
+//     dateFilterType, 
+//     startDate, 
+//     endDate, 
+//     treatmentId: queryTreatmentId,
+//     download  // ✅ NEW: ?download=BOOKING_ID
+//   } = req.query;
 
-  // ✅ DIRECT DOWNLOAD - Only 12 lines added!
-  if (download && mongoose.Types.ObjectId.isValid(download)) {
-    let browser;
-    try {
-      let invoice = await Invoice.findOne({ bookingId: download });
-      if (!invoice) {
-        const booking = await Booking.findById(download);
-        invoice = await Invoice.create({
-          invoiceNumber: `INV-${Date.now()}`,
-          bookingId: download,
-          patientId: booking.patientId,
-          totals: { grandTotal: booking.pricing?.totalAmount || 500 }
-        });
-      }
+//   // ✅ DIRECT DOWNLOAD - Only 12 lines added!
+//   if (download && mongoose.Types.ObjectId.isValid(download)) {
+//     let browser;
+//     try {
+//       let invoice = await Invoice.findOne({ bookingId: download });
+//       if (!invoice) {
+//         const booking = await Booking.findById(download);
+//         invoice = await Invoice.create({
+//           invoiceNumber: `INV-${Date.now()}`,
+//           bookingId: download,
+//           patientId: booking.patientId,
+//           totals: { grandTotal: booking.pricing?.totalAmount || 500 }
+//         });
+//       }
       
-      const html = await ejs.renderFile(path.join(__dirname, "..", "views", "invoice-template.ejs"), { invoice });
-      browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-      const page = await browser.newPage();
-      await page.setContent(html);
-      const pdf = await page.pdf({ format: "A4", printBackground: true });
+//       const html = await ejs.renderFile(path.join(__dirname, "..", "views", "invoice-template.ejs"), { invoice });
+//       browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+//       const page = await browser.newPage();
+//       await page.setContent(html);
+//       const pdf = await page.pdf({ format: "A4", printBackground: true });
       
-      res.set({
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="invoice-${download}.pdf"`,
-        "Content-Length": pdf.length
-      });
-      res.send(pdf);
-      return;
-    } catch (error) {
-      console.error('PDF Error:', error);
-      return res.status(500).json({ success: false, message: error.message });
-    } finally {
-      if (browser) await browser.close();
-    }
-  }
+//       res.set({
+//         "Content-Type": "application/pdf",
+//         "Content-Disposition": `attachment; filename="invoice-${download}.pdf"`,
+//         "Content-Length": pdf.length
+//       });
+//       res.send(pdf);
+//       return;
+//     } catch (error) {
+//       console.error('PDF Error:', error);
+//       return res.status(500).json({ success: false, message: error.message });
+//     } finally {
+//       if (browser) await browser.close();
+//     }
+//   }
 
-  // [YOUR EXACT SAME CODE BELOW - NOTHING CHANGED]
-  if (!mongoose.Types.ObjectId.isValid(patientId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid patient ID format",
-    });
-  }
+//   // [YOUR EXACT SAME CODE BELOW - NOTHING CHANGED]
+//   if (!mongoose.Types.ObjectId.isValid(patientId)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Invalid patient ID format",
+//     });
+//   }
 
-  const patient = await Patient.findById(patientId) || await User.findById(patientId);
-  if (!patient) {
-    return res.status(404).json({
-      success: false,
-      message: "Patient not found",
-    });
-  }
+//   const patient = await Patient.findById(patientId) || await User.findById(patientId);
+//   if (!patient) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Patient not found",
+//     });
+//   }
 
-  let query = { patientId };
-  if (queryTreatmentId && mongoose.Types.ObjectId.isValid(queryTreatmentId)) {
-    query.treatmentId = queryTreatmentId;
-  }
+//   let query = { patientId };
+//   if (queryTreatmentId && mongoose.Types.ObjectId.isValid(queryTreatmentId)) {
+//     query.treatmentId = queryTreatmentId;
+//   }
 
-  if (dateFilterType === "today") {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-    query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
-  } else if (dateFilterType === "week") {
-    const now = new Date();
-    const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-    firstDayOfWeek.setHours(0, 0, 0, 0);
-    const lastDayOfWeek = new Date(firstDayOfWeek);
-    lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
-    lastDayOfWeek.setHours(23, 59, 59, 999);
-    query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
-  } else if (dateFilterType === "month") {
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    firstDayOfMonth.setHours(0, 0, 0, 0);
-    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    lastDayOfMonth.setHours(23, 59, 59, 999);
-    query.appointmentDate = { $gte: firstDayOfMonth, $lte: lastDayOfMonth };
-  } else if (dateFilterType === "custom" && startDate && endDate) {
-    query.appointmentDate = {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate),
-    };
-  }
+//   if (dateFilterType === "today") {
+//     const todayStart = new Date();
+//     todayStart.setHours(0, 0, 0, 0);
+//     const todayEnd = new Date();
+//     todayEnd.setHours(23, 59, 59, 999);
+//     query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
+//   } else if (dateFilterType === "week") {
+//     const now = new Date();
+//     const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+//     firstDayOfWeek.setHours(0, 0, 0, 0);
+//     const lastDayOfWeek = new Date(firstDayOfWeek);
+//     lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+//     lastDayOfWeek.setHours(23, 59, 59, 999);
+//     query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
+//   } else if (dateFilterType === "month") {
+//     const now = new Date();
+//     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+//     firstDayOfMonth.setHours(0, 0, 0, 0);
+//     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+//     lastDayOfMonth.setHours(23, 59, 59, 999);
+//     query.appointmentDate = { $gte: firstDayOfMonth, $lte: lastDayOfMonth };
+//   } else if (dateFilterType === "custom" && startDate && endDate) {
+//     query.appointmentDate = {
+//       $gte: new Date(startDate),
+//       $lte: new Date(endDate),
+//     };
+//   }
 
-  const bookings = await Booking.find(query)
-    .populate("serviceId", "name category modes price")
-    .populate("servicePartnerId", "name email phone firstName")
-    .populate("treatmentId", "status validTill")
-    .sort({ appointmentDate: -1 });
+//   const bookings = await Booking.find(query)
+//     .populate("serviceId", "name category modes price")
+//     .populate("servicePartnerId", "name email phone firstName")
+//     .populate("treatmentId", "status validTill")
+//     .sort({ appointmentDate: -1 });
 
-  const totalBookings = bookings.length;
-  const completedBookings = bookings.filter((b) =>
-    ["Completed", "TreatmentCompleted"].includes(b.status)
-  ).length;
-  const progressPercentage =
-    totalBookings > 0
-      ? Math.round((completedBookings / totalBookings) * 100)
-      : 0;
+//   const totalBookings = bookings.length;
+//   const completedBookings = bookings.filter((b) =>
+//     ["Completed", "TreatmentCompleted"].includes(b.status)
+//   ).length;
+//   const progressPercentage =
+//     totalBookings > 0
+//       ? Math.round((completedBookings / totalBookings) * 100)
+//       : 0;
 
-  const stats = {
-    totalSessions: totalBookings,
-    completedSessions: completedBookings,
-    pendingSessions: bookings.filter((b) => b.status === "Pending").length,
-    inProgressSessions: bookings.filter((b) => b.status === "In-Progress").length,
-    progressPercentage,
-  };
+//   const stats = {
+//     totalSessions: totalBookings,
+//     completedSessions: completedBookings,
+//     pendingSessions: bookings.filter((b) => b.status === "Pending").length,
+//     inProgressSessions: bookings.filter((b) => b.status === "In-Progress").length,
+//     progressPercentage,
+//   };
 
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
+//   const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-  const bookingsWithInvoiceStatus = bookings.map(booking => {
-    const isInvoiceGenerated = Boolean(
-      booking.isInvoiceGenerated === true || 
-      booking.isInvoiceGenerated === 'true' || 
-      booking.get('isInvoiceGenerated')
-    );
+//   const bookingsWithInvoiceStatus = bookings.map(booking => {
+//     const isInvoiceGenerated = Boolean(
+//       booking.isInvoiceGenerated === true || 
+//       booking.isInvoiceGenerated === 'true' || 
+//       booking.get('isInvoiceGenerated')
+//     );
     
-    const isTreatmentCompleted = ["Completed", "TreatmentCompleted"].includes(booking.status);
+//     const isTreatmentCompleted = ["Completed", "TreatmentCompleted"].includes(booking.status);
 
-    return {
-      ...booking.toObject(),
-      isInvoiceGenerated,
-      invoiceStatus: isInvoiceGenerated ? 'generated' : 'pending',
-      invoiceAction: `${baseUrl}/api/v1/patient/${patientId}/bookings?download=${booking._id}`, // ✅ SINGLE LINK!
-          // invoiceAction: `${baseUrl}/api/v1/invoice/${booking._id}/download`,
-      generateAction: !isInvoiceGenerated ? booking._id : null,
-      showInvoiceButton: isTreatmentCompleted,
-      buttonText: isInvoiceGenerated ? '📥 Download Invoice' : '➕ Generate Invoice',
-      buttonType: isInvoiceGenerated ? 'download' : 'generate',
-      buttonVariant: isInvoiceGenerated ? 'success' : 'warning',
-      isTreatmentCompleted,
-    };
-  });
+//     return {
+//       ...booking.toObject(),
+//       isInvoiceGenerated,
+//       invoiceStatus: isInvoiceGenerated ? 'generated' : 'pending',
+//       invoiceAction: `${baseUrl}/api/v1/patient/${patientId}/bookings?download=${booking._id}`, // ✅ SINGLE LINK!
+//           // invoiceAction: `${baseUrl}/api/v1/invoice/${booking._id}/download`,
+//       generateAction: !isInvoiceGenerated ? booking._id : null,
+//       showInvoiceButton: isTreatmentCompleted,
+//       buttonText: isInvoiceGenerated ? '📥 Download Invoice' : '➕ Generate Invoice',
+//       buttonType: isInvoiceGenerated ? 'download' : 'generate',
+//       buttonVariant: isInvoiceGenerated ? 'success' : 'warning',
+//       isTreatmentCompleted,
+//     };
+//   });
 
-  const response = {
-    success: true,
-    count: bookings.length,
-    stats,
-    data: bookingsWithInvoiceStatus,
-  };
+//   const response = {
+//     success: true,
+//     count: bookings.length,
+//     stats,
+//     data: bookingsWithInvoiceStatus,
+//   };
 
-  if (details === "full") {
-    const invoices = await Invoice.find({
-      bookingId: { $in: bookings.map((b) => b._id) },
-    })
-      .populate("patientId", "name email phone")
-      .populate("doctorId", "name email phone");
+//   if (details === "full") {
+//     const invoices = await Invoice.find({
+//       bookingId: { $in: bookings.map((b) => b._id) },
+//     })
+//       .populate("patientId", "name email phone")
+//       .populate("doctorId", "name email phone");
 
-    response.invoices = invoices.map(inv => ({
-      ...inv.toObject(),
-      downloadUrl: `${baseUrl}/api/v1/patient/${patientId}/bookings?download=${inv.bookingId}`,
-    }));
+//     response.invoices = invoices.map(inv => ({
+//       ...inv.toObject(),
+//       downloadUrl: `${baseUrl}/api/v1/patient/${patientId}/bookings?download=${inv.bookingId}`,
+//     }));
 
-    response.invoiceSummary = {
-      totalInvoices: invoices.length,
-      hasInvoices: invoices.length > 0,
-    };
-  }
+//     response.invoiceSummary = {
+//       totalInvoices: invoices.length,
+//       hasInvoices: invoices.length > 0,
+//     };
+//   }
 
-  res.status(200).json(response);
-});
-async function handlePdfDownload(req, res, bookingId, uploadsDir) {
-  let browser;
+//   res.status(200).json(response);
+// });
+// async function handlePdfDownload(req, res, bookingId, uploadsDir) {
+//   let browser;
   
-  try {
-    let invoice = await Invoice.findOne({ bookingId })
-      .populate("patientId", "firstName phone address email")
-      .populate("doctorId", "firstName specialization medicalRegistrationNumber phone address");
+//   try {
+//     let invoice = await Invoice.findOne({ bookingId })
+//       .populate("patientId", "firstName phone address email")
+//       .populate("doctorId", "firstName specialization medicalRegistrationNumber phone address");
 
-    if (!invoice) {
-      const booking = await Booking.findById(bookingId)
-        .populate('serviceId', 'name category')
-        .populate('servicePartnerId', 'firstName phone specialization');
+//     if (!invoice) {
+//       const booking = await Booking.findById(bookingId)
+//         .populate('serviceId', 'name category')
+//         .populate('servicePartnerId', 'firstName phone specialization');
       
-      if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+//       if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
 
-      invoice = await Invoice.create({
-        invoiceNumber: `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
-        bookingId,
-        patientId: booking.patientId,
-        doctorId: booking.servicePartnerId?._id || null,
-        billingDetails: {
-          serviceName: booking.serviceId?.name || 'Service',
-          durationMinutes: booking.duration || 30,
-          calculatedBase: booking.pricing?.totalAmount || 500,
-        },
-        totals: {
-          subtotal: booking.pricing?.totalAmount || 500,
-          grandTotal: booking.pricing?.totalAmount || 500
-        }
+//       invoice = await Invoice.create({
+//         invoiceNumber: `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
+//         bookingId,
+//         patientId: booking.patientId,
+//         doctorId: booking.servicePartnerId?._id || null,
+//         billingDetails: {
+//           serviceName: booking.serviceId?.name || 'Service',
+//           durationMinutes: booking.duration || 30,
+//           calculatedBase: booking.pricing?.totalAmount || 500,
+//         },
+//         totals: {
+//           subtotal: booking.pricing?.totalAmount || 500,
+//           grandTotal: booking.pricing?.totalAmount || 500
+//         }
+//       });
+
+//       invoice = await Invoice.findById(invoice._id)
+//         .populate("patientId", "firstName phone address email")
+//         .populate("doctorId", "firstName specialization medicalRegistrationNumber phone address");
+//     }
+
+//     const filename = `INV-${invoice.invoiceNumber}.pdf`;
+//     const localPath = path.join(uploadsDir, filename);
+
+//     // 🔥 BASE URL FOR PDF LINKS
+//     const baseUrl = process.env.NODE_ENV === 'production'
+//       ? 'https://api.rehabmedico.in'  // ✅ LIVE (no /api for static files)
+//       : `${req.protocol}://${req.get('host')}`;
+
+//     // ⚡ CACHE FIRST (INSTANT!)
+//     try {
+//       await fs.access(localPath);
+//       console.log(`✅ Serving cached: ${filename}`);
+//       return res.download(localPath, filename);
+//     } catch {}
+
+//     // Generate PDF
+//     const html = await ejs.renderFile(
+//       path.join(__dirname, "..", "views", "invoice-template.ejs"), 
+//       { 
+//         invoice: { 
+//           ...invoice.toObject(), 
+//           hasAttachment: !!req.file,
+//           baseUrl  // Pass baseUrl to template
+//         } 
+//       }
+//     );
+
+//     browser = await puppeteer.launch({ 
+//       headless: true, 
+//       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+//     });
+    
+//     const page = await browser.newPage();
+//     await page.setContent(html, { waitUntil: 'networkidle0' });
+//     const pdf = await page.pdf({ 
+//       format: "A4", 
+//       printBackground: true,
+//       margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' }
+//     });
+
+//     // 💾 SAVE PDF + UPDATE DATABASE
+//     await fs.writeFile(localPath, pdf);
+    
+//     // 🔥 SAVE PDF URL TO INVOICE
+//     const publicPdfUrl = `${baseUrl}/invoices/${filename}`;
+//     await Invoice.findByIdAndUpdate(invoice._id, { 
+//       invoicePdfUrl: publicPdfUrl 
+//     });
+    
+//     console.log(`✅ PDF Generated: ${publicPdfUrl}`);
+
+//     if (req.file?.path) require('fs').unlinkSync(req.file.path);
+
+//     res.set({
+//       "Content-Type": "application/pdf",
+//       "Content-Disposition": `attachment; filename="${filename}"`,
+//       "Content-Length": pdf.length,
+//       "Cache-Control": "no-store"
+//     });
+//     res.send(pdf);
+
+//   } catch (error) {
+//     console.error('PDF Error:', error);
+//     if (req.file?.path) require('fs').unlinkSync(req.file.path);
+//     return res.status(500).json({ success: false, message: error.message });
+//   } finally {
+//     if (browser) await browser.close();
+//   }
+// }
+
+exports.getBookedServicesByPatientId = async (req, res) => {
+  try {
+    const patientId = req.user && req.user.id ? req.user.id : req.params.patientId;
+
+    if (!patientId) {
+      return res.status(400).json({
+        success: false,
+        message: "Patient ID is required",
       });
-
-      invoice = await Invoice.findById(invoice._id)
-        .populate("patientId", "firstName phone address email")
-        .populate("doctorId", "firstName specialization medicalRegistrationNumber phone address");
     }
 
-    const filename = `INV-${invoice.invoiceNumber}.pdf`;
-    const localPath = path.join(uploadsDir, filename);
+    console.log("🔍 DEBUG - Patient ID:", patientId); // Add this
+    console.log("🔍 DEBUG - Query params:", req.query); // Add this
 
-    // 🔥 BASE URL FOR PDF LINKS
-    const baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://api.rehabmedico.in'  // ✅ LIVE (no /api for static files)
-      : `${req.protocol}://${req.get('host')}`;
+    const { status, dateFilterType, startDate, endDate } = req.query;
 
-    // ⚡ CACHE FIRST (INSTANT!)
-    try {
-      await fs.access(localPath);
-      console.log(`✅ Serving cached: ${filename}`);
-      return res.download(localPath, filename);
-    } catch {}
+    let query = { patientId };
 
-    // Generate PDF
-    const html = await ejs.renderFile(
-      path.join(__dirname, "..", "views", "invoice-template.ejs"), 
-      { 
-        invoice: { 
-          ...invoice.toObject(), 
-          hasAttachment: !!req.file,
-          baseUrl  // Pass baseUrl to template
-        } 
-      }
+    if (status) {
+      query.status = status;
+    }
+
+    // Date filters
+    if (dateFilterType === "today") {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
+      console.log("🔍 DEBUG - Today filter:", { todayStart, todayEnd }); // Add this
+    } else if (dateFilterType === "week") {
+      const now = new Date();
+      const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+      firstDayOfWeek.setHours(0, 0, 0, 0);
+      const lastDayOfWeek = new Date(firstDayOfWeek);
+      lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+      lastDayOfWeek.setHours(23, 59, 59, 999);
+      query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
+      console.log("🔍 DEBUG - Week filter:", { firstDayOfWeek, lastDayOfWeek }); // Add this
+    } else if (dateFilterType === "custom" && startDate && endDate) {
+      query.appointmentDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+      console.log("🔍 DEBUG - Custom filter:", { startDate, endDate }); // Add this
+    }
+
+    console.log("🔍 DEBUG - Final MongoDB query:", JSON.stringify(query, null, 2)); // Add this
+
+    const bookings = await Booking.find(query)
+      .populate("serviceId", "name category modes")
+      .populate("servicePartnerId", "name email phone")
+      .populate("treatmentId", "status validTill")
+      .populate("invoiceId")
+      .sort({ appointmentDate: 1 });
+
+    console.log("🔍 DEBUG - Raw bookings found:", bookings.length); // Add this
+    console.log("🔍 DEBUG - Sample booking:", bookings[0]); // Add this
+
+    // Add invoice fields to each booking
+    const bookingsWithInvoiceData = await Promise.all(
+      bookings.map(async (booking) => {
+        let invoiceUrl = null;
+        let isInvoiceGenerated = false;
+
+        if (booking.treatmentId?.status === "completed" && booking.invoiceId) {
+          isInvoiceGenerated = true;
+          invoiceUrl = booking.invoiceId.invoiceUrl || null;
+        }
+
+        return {
+          ...booking.toObject(),
+          invoiceUrl,
+          isInvoiceGenerated,
+        };
+      })
     );
 
-    browser = await puppeteer.launch({ 
-      headless: true, 
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    res.status(200).json({
+      success: true,
+      count: bookingsWithInvoiceData.length,
+      data: bookingsWithInvoiceData,
+      debug: {
+        patientId,
+        queryParams: req.query,
+        mongoQuery: query,
+        rawCount: bookings.length,
+      },
     });
-    
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdf = await page.pdf({ 
-      format: "A4", 
-      printBackground: true,
-      margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' }
-    });
-
-    // 💾 SAVE PDF + UPDATE DATABASE
-    await fs.writeFile(localPath, pdf);
-    
-    // 🔥 SAVE PDF URL TO INVOICE
-    const publicPdfUrl = `${baseUrl}/invoices/${filename}`;
-    await Invoice.findByIdAndUpdate(invoice._id, { 
-      invoicePdfUrl: publicPdfUrl 
-    });
-    
-    console.log(`✅ PDF Generated: ${publicPdfUrl}`);
-
-    if (req.file?.path) require('fs').unlinkSync(req.file.path);
-
-    res.set({
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Content-Length": pdf.length,
-      "Cache-Control": "no-store"
-    });
-    res.send(pdf);
-
   } catch (error) {
-    console.error('PDF Error:', error);
-    if (req.file?.path) require('fs').unlinkSync(req.file.path);
-    return res.status(500).json({ success: false, message: error.message });
-  } finally {
-    if (browser) await browser.close();
+    console.error("Get booked services error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching booked services",
+      error: error.message,
+    });
   }
-}
+};
 
 
 // exports.getBookedServicesByPatientId = [
