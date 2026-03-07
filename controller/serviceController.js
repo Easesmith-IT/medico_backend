@@ -1,4 +1,4 @@
-s
+
 const mongoose = require('mongoose');
 const Service = require('../models/serviceModel');
 const City = require('../models/availableCities');
