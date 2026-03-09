@@ -470,7 +470,7 @@ const serviceProviderSchema = new mongoose.Schema({
       message: 'Invalid email format'
     }
   },
- password: { type: String, required: true, select: false },
+ password: { type: String, required: false, select: false },
 
   // Address Details
   currentAddress: {
