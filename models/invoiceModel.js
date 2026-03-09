@@ -103,7 +103,8 @@ const invoiceSchema = new mongoose.Schema({
     quantity: { type: Number, default: 1 },
     pricePerUnit: { type: Number, default: 0 },
     gstPercentage: { type: Number, default: 12 },
-    total: { type: Number, default: 0 }
+    total: { type: Number, default: 0 },
+      addedDate: { type: Date, default: Date.now }
   }],
   additionalEquipment: [{
     name: String,
@@ -115,7 +116,8 @@ const invoiceSchema = new mongoose.Schema({
     quantity: { type: Number, default: 1 },
     rate: { type: Number, default: 0 },
     gstPercentage: { type: Number, default: 18 },
-    total: { type: Number, default: 0 }
+    total: { type: Number, default: 0 },
+     addedDate: { type: Date, default: Date.now } 
   }],
 //   invoicePdfUrl: {
 //   type: String,

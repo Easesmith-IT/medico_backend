@@ -18,6 +18,9 @@ const os = require('os');
 const fs = require('fs');
 const generateInvoicePdf = require("../utils/generateInvoicePdf");
 // const puppeteer = require('puppeteer-core');
+
+
+
 // const chromium = require('@sparticuz/chromium-min');
 
 
@@ -119,17 +122,109 @@ const generateInvoicePdf = require("../utils/generateInvoicePdf");
 //     res.status(500).json({ success: false, message: error.message });
 //   }
 // };
+// exports.generateInvoice = async (req, res) => {
+//   try {
+
+//     const {
+//       bookingId,
+//       patientId,
+//       doctorId,
+//       billingDetails,
+//       medicines,
+//       additionalEquipment
+//     } = req.body;
+
+//     const invoiceNumber = `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+
+//     const newInvoice = new Invoice({
+//       invoiceNumber,
+//       bookingId,
+//       patientId,
+//       doctorId,
+//       billingDetails,
+//       medicines,
+//       additionalEquipment
+//     });
+
+//     const savedInvoice = await newInvoice.save();
+
+//     // ---------- GENERATE PDF ----------
+//     const pdfBuffer = await generateInvoicePdf(savedInvoice);
+
+//     const file = {
+//       originalname: `${invoiceNumber}.pdf`,
+//       buffer: pdfBuffer
+//     };
+
+//     const pdfUrl = await uploadFile(file);
+
+//     savedInvoice.invoiceUrl = pdfUrl;
+//     savedInvoice.isInvoiceGenerated = true;
+
+//     await savedInvoice.save();
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Invoice generated successfully",
+//       data: savedInvoice
+//     });
+
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: error.message
+//     });
+//   }
+// }; //best obne
+
+
+
 exports.generateInvoice = async (req, res) => {
   try {
-
     const {
       bookingId,
       patientId,
       doctorId,
+      serviceId,
       billingDetails,
       medicines,
       additionalEquipment
     } = req.body;
+
+    // Calculate total for each medicine + preserve addedDate
+    const medicinesWithTotal = (medicines || []).map(med => {
+      const base = med.quantity * med.pricePerUnit;
+      const gst  = (base * med.gstPercentage) / 100;
+      return {
+        ...med,
+        total:     parseFloat((base + gst).toFixed(2)),
+        addedDate: med.addedDate ? new Date(med.addedDate) : new Date()
+      };
+    });
+
+    // Calculate total for each equipment
+    const equipmentWithTotal = (additionalEquipment || []).map(eq => {
+      const base = eq.quantity * eq.rate;
+      const gst  = (base * eq.gstPercentage) / 100;
+      return {
+        ...eq,
+        total: parseFloat((base + gst).toFixed(2))
+      };
+    });
+
+    // Calculate invoice totals
+    const medSubtotal = medicinesWithTotal.reduce((sum, m) => sum + (m.quantity * m.pricePerUnit), 0);
+    const eqSubtotal  = equipmentWithTotal.reduce((sum, e) => sum + (e.quantity * e.rate), 0);
+    const subtotal    = parseFloat((medSubtotal + eqSubtotal).toFixed(2));
+
+    const gstAmount = parseFloat((
+      medicinesWithTotal.reduce((sum, m) => sum + ((m.quantity * m.pricePerUnit * m.gstPercentage) / 100), 0) +
+      equipmentWithTotal.reduce((sum, e) => sum + ((e.quantity * e.rate * e.gstPercentage) / 100), 0)
+    ).toFixed(2));
+
+    const cgst       = parseFloat((gstAmount / 2).toFixed(2));
+    const sgst       = parseFloat((gstAmount / 2).toFixed(2));
+    const grandTotal = parseFloat((subtotal + gstAmount).toFixed(2));
 
     const invoiceNumber = `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
 
@@ -138,15 +233,23 @@ exports.generateInvoice = async (req, res) => {
       bookingId,
       patientId,
       doctorId,
+      serviceId,
       billingDetails,
-      medicines,
-      additionalEquipment
+      medicines:           medicinesWithTotal,
+      additionalEquipment: equipmentWithTotal,
+      totals: { subtotal, gstAmount, cgst, sgst, grandTotal }
     });
 
     const savedInvoice = await newInvoice.save();
 
-    // ---------- GENERATE PDF ----------
-    const pdfBuffer = await generateInvoicePdf(savedInvoice);
+    // ✅ Populate patient & doctor — this also brings back addedDate from saved medicines
+    const populatedInvoice = await Invoice.findById(savedInvoice._id)
+      .populate('patientId', 'firstName phone address')
+      .populate('doctorId',  'firstName phone specialization medicalRegistrationNumber address')
+      .lean(); // .lean() converts to plain JS object so addedDate is a real Date
+console.log('medicines with dates:', JSON.stringify(populatedInvoice.medicines, null, 2));
+    // ---------- GENERATE PDF with populated data ----------
+    const pdfBuffer = await generateInvoicePdf(populatedInvoice);
 
     const file = {
       originalname: `${invoiceNumber}.pdf`,
@@ -155,15 +258,14 @@ exports.generateInvoice = async (req, res) => {
 
     const pdfUrl = await uploadFile(file);
 
-    savedInvoice.invoiceUrl = pdfUrl;
+    savedInvoice.invoiceUrl         = pdfUrl;
     savedInvoice.isInvoiceGenerated = true;
-
     await savedInvoice.save();
 
     res.status(201).json({
       success: true,
       message: "Invoice generated successfully",
-      data: savedInvoice
+      data:    savedInvoice
     });
 
   } catch (error) {
@@ -173,6 +275,8 @@ exports.generateInvoice = async (req, res) => {
     });
   }
 };
+
+
 // exports.generateInvoice = async (req, res) => {
 //   try {
 
