@@ -22,7 +22,7 @@ const { Storage } = require("@google-cloud/storage");
 const path = require("path");
 
 const storage = new Storage({
-  // credentials: JSON.parse(process.env.GCP_SERVICE_ACCOUNT),
+  credentials: JSON.parse(process.env.GCP_SERVICE_ACCOUNT),
   // keyFilename: path.join(__dirname, "gcpbucket.json"),
   projectId: process.env.GCP_PROJECT_ID,
 });
