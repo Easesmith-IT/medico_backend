@@ -717,6 +717,133 @@ exports.createBooking = async (req, res) => {
 //   res.status(200).json(response);
 // });
 
+//flexible
+// exports.getBookedServicesByPatientId = async (req, res) => {
+//   try {
+//     const patientId = req.user && req.user.id ? req.user.id : req.params.patientId;
+
+//     if (!patientId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Patient ID is required",
+//       });
+//     }
+
+//     const { status, dateFilterType, startDate, endDate, generateInvoice } = req.query;
+
+//     let query = { patientId };
+//     if (status) query.status = status;
+
+//     // Date filters logic
+//     if (dateFilterType === "today") {
+//       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+//       const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+//       query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
+//     } else if (dateFilterType === "week") {
+//       const now = new Date();
+//       const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+//       firstDayOfWeek.setHours(0, 0, 0, 0);
+//       const lastDayOfWeek = new Date(firstDayOfWeek);
+//       lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+//       lastDayOfWeek.setHours(23, 59, 59, 999);
+//       query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
+//     } else if (dateFilterType === "custom" && startDate && endDate) {
+//       query.appointmentDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
+//     }
+
+//     // 1. Initial Data Fetch
+//     let bookings = await Booking.find(query)
+//       .populate("serviceId", "name category modes")
+//       .populate("servicePartnerId", "name email phone")
+//       .populate("treatmentId", "status validTill")
+//       .populate("patientId", "firstName phone")
+//       .lean(); // Use lean for faster processing and easier object manipulation
+
+//     let invoicesGeneratedCount = 0;
+
+//     // 2. 🔥 Auto-Generate Invoices if requested
+//     if (generateInvoice === 'true') {
+//       const completedWithoutInvoice = bookings.filter(b => 
+//         b.treatmentStatus === 'Completed' && !b.invoiceUrl
+//       );
+
+//       for (const booking of completedWithoutInvoice) {
+//         try {
+//           const invoiceNumber = `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+
+//           // Generate PDF Buffer
+//           const pdfBuffer = await new Promise((resolve, reject) => {
+//             const doc = new PDFDocument({ margin: 40 });
+//             let buffers = [];
+//             doc.on('data', buffers.push.bind(buffers));
+//             doc.on('end', () => resolve(Buffer.concat(buffers)));
+//             doc.on('error', reject);
+
+//             doc.fontSize(20).text("MEDICO PLATFORM", { align: "center" }).moveDown();
+//             doc.fontSize(12).text(`Invoice Number: ${invoiceNumber}`);
+//             doc.text(`Patient: ${booking.patientId?.firstName || 'N/A'}`);
+//             doc.text(`Service: ${booking.serviceId?.name || 'N/A'}`);
+//             doc.text(`Date: ${new Date().toLocaleDateString()}`);
+//             doc.moveDown();
+//             doc.fontSize(14).text(`Total Amount: ₹${booking.pricing?.totalAmount || 0}`, { bold: true });
+//             doc.end();
+//           });
+
+//           // Upload to Storage
+//           const file = { originalname: `${invoiceNumber}.pdf`, buffer: pdfBuffer };
+//           const pdfUrl = await uploadFile(file);
+
+//           // Update Database
+//           await Booking.findByIdAndUpdate(booking._id, {
+//             invoiceUrl: pdfUrl,
+//             isInvoiceGenerated: true
+//           });
+
+//           const newInvoice = new Invoice({
+//             invoiceNumber,
+//             bookingId: booking._id,
+//             patientId: booking.patientId?._id || booking.patientId,
+//             doctorId: booking.servicePartnerId?._id,
+//             billingDetails: booking.pricing,
+//             invoiceUrl: pdfUrl,
+//             isInvoiceGenerated: true
+//           });
+//           await newInvoice.save();
+
+//           invoicesGeneratedCount++;
+//         } catch (err) {
+//           console.error(`Error generating invoice for ${booking._id}:`, err.message);
+//         }
+//       }
+
+//       // 3. RE-FETCH to get updated URLs in response
+//       bookings = await Booking.find(query)
+//         .populate("serviceId", "name category modes")
+//         .populate("servicePartnerId", "name email phone")
+//         .populate("treatmentId", "status validTill")
+//         .populate("patientId", "firstName phone")
+//         .lean()
+//         .sort({ appointmentDate: 1 });
+//     }
+
+//     // 4. Final Response
+//     res.status(200).json({
+//       success: true,
+//       count: bookings.length,
+//       data: bookings,
+//       invoicesGenerated: invoicesGeneratedCount,
+//       generateInvoiceUsed: generateInvoice === 'true'
+//     });
+
+//   } catch (error) {
+//     console.error("Get booked services error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching booked services",
+//       error: error.message,
+//     });
+//   }
+// };
 
 exports.getBookedServicesByPatientId = async (req, res) => {
   try {
@@ -757,7 +884,7 @@ exports.getBookedServicesByPatientId = async (req, res) => {
       .populate("servicePartnerId", "name email phone")
       .populate("treatmentId", "status validTill")
       .populate("patientId", "firstName phone")
-      .lean(); // Use lean for faster processing and easier object manipulation
+      .lean();
 
     let invoicesGeneratedCount = 0;
 
@@ -844,8 +971,6 @@ exports.getBookedServicesByPatientId = async (req, res) => {
     });
   }
 };
-
-
 exports.getServiceSummaryByServiceId = async (req, res) => {
   try {
     const { serviceId } = req.params;
