@@ -183,74 +183,160 @@ const shouldRenewRefreshToken = (decoded) => {
 
 //wprking one
 
+// const protect = (...allowedRoles) => {
+//   const normalizedAllowedRoles = allowedRoles.flat().filter(r => typeof r === "string").map(r => r.toLowerCase());
+
+//   return async (req, res, next) => {
+//     try {
+//       let { accessToken, refreshToken } = req.cookies;
+
+//       // Header Fallback
+//       if (!accessToken && req.headers.authorization?.startsWith("Bearer")) {
+//         accessToken = req.headers.authorization.split(" ")[1]?.trim().replace(/^["'](.+)["']$/, '$1');
+//       }
+
+//       // ---------------------------------------------------------
+//       // 1) TRY ACCESS TOKEN
+//       // ---------------------------------------------------------
+//       if (accessToken && accessToken !== "undefined" && accessToken !== "null") {
+//         try {
+//           const decoded = verifyToken(accessToken, "access");
+//           const user = await loadUserByRole(decoded.role, decoded.id, true);
+
+//           if (user) {
+//             // FIX: Attach email and firstName for the Service Schema validation
+//             req.user = { 
+//               ...decoded, 
+//               isActive: user.isActive,
+//               email: user.email,
+//               firstName: user.firstName 
+//             }; 
+//             return authorizeAndContinue(req, decoded?.role, normalizedAllowedRoles, next);
+//           }
+//         } catch (err) {
+//           // Just log the error; don't use 'refreshDecoded' here as it doesn't exist yet
+//           console.log("Access token invalid, moving to refresh check...");
+//         }
+//       }
+
+//       // ---------------------------------------------------------
+//       // 2) TRY REFRESH TOKEN
+//       // ---------------------------------------------------------
+//       if (refreshToken && refreshToken !== "undefined" && refreshToken !== "null") {
+//         try {
+//           const refreshDecoded = verifyToken(refreshToken, "refresh");
+//           let user = await loadUserByRole(refreshDecoded.role, refreshDecoded.id, true);
+
+//           if (!user) {
+//             clearAuthCookies(res);
+//             return next(new AppError("Session expired. Please login again.", 401));
+//           }
+
+//           // Generate new access token
+//           const newAccessToken = generateAccessToken(user._id, refreshDecoded.role, user.tokenVersion);
+
+//           res.cookie("accessToken", newAccessToken, {
+//             httpOnly: true, secure: true, sameSite: "none", maxAge: 24 * 60 * 60 * 1000,
+//           });
+
+//           // FIX: Attach email and firstName here for refreshed sessions
+//           req.user = { 
+//             ...refreshDecoded, 
+//             isActive: user.isActive,
+//             email: user.email,
+//             firstName: user.firstName
+//           };
+
+//           // return authorizeAndContinue(req, refreshDecoded?.role, normalizedAllowedRoles, next);
+//           req.user.role = decoded.role.toLowerCase();
+// return authorizeAndContinue(req, req.user.role, normalizedAllowedRoles, next);
+
+//         } catch (err) {
+//           clearAuthCookies(res);
+//           return next(new AppError("Session expired. Please login again.", 401));
+//         }
+//       }
+
+//       return next(new AppError("Authentication required", 401));
+//     } catch (err) {
+//       next(err);
+//     }
+//   };
+// };
+
 const protect = (...allowedRoles) => {
-  const normalizedAllowedRoles = allowedRoles.flat().filter(r => typeof r === "string").map(r => r.toLowerCase());
+  const normalizedAllowedRoles = allowedRoles
+    .flat()
+    .filter(r => typeof r === "string")
+    .map(r => r.toLowerCase());
 
   return async (req, res, next) => {
     try {
       let { accessToken, refreshToken } = req.cookies;
 
-      // Header Fallback
+      // Header fallback
       if (!accessToken && req.headers.authorization?.startsWith("Bearer")) {
         accessToken = req.headers.authorization.split(" ")[1]?.trim().replace(/^["'](.+)["']$/, '$1');
       }
 
-      // ---------------------------------------------------------
-      // 1) TRY ACCESS TOKEN
-      // ---------------------------------------------------------
+      // 1) Try access token
       if (accessToken && accessToken !== "undefined" && accessToken !== "null") {
         try {
           const decoded = verifyToken(accessToken, "access");
           const user = await loadUserByRole(decoded.role, decoded.id, true);
 
           if (user) {
-            // FIX: Attach email and firstName for the Service Schema validation
-            req.user = { 
-              ...decoded, 
+            req.user = {
+              ...decoded,
               isActive: user.isActive,
               email: user.email,
-              firstName: user.firstName 
-            }; 
-            return authorizeAndContinue(req, decoded?.role, normalizedAllowedRoles, next);
+              firstName: user.firstName,
+            };
+            return authorizeAndContinue(req, decoded.role, normalizedAllowedRoles, next);
           }
         } catch (err) {
-          // Just log the error; don't use 'refreshDecoded' here as it doesn't exist yet
           console.log("Access token invalid, moving to refresh check...");
         }
       }
 
-      // ---------------------------------------------------------
-      // 2) TRY REFRESH TOKEN
-      // ---------------------------------------------------------
+      // 2) Try refresh token
       if (refreshToken && refreshToken !== "undefined" && refreshToken !== "null") {
         try {
           const refreshDecoded = verifyToken(refreshToken, "refresh");
-          let user = await loadUserByRole(refreshDecoded.role, refreshDecoded.id, true);
+          const user = await loadUserByRole(refreshDecoded.role, refreshDecoded.id, true);
 
           if (!user) {
             clearAuthCookies(res);
             return next(new AppError("Session expired. Please login again.", 401));
           }
 
-          // Generate new access token
-          const newAccessToken = generateAccessToken(user._id, refreshDecoded.role, user.tokenVersion);
+          // Safety: ensure tokenVersion
+          if (user.tokenVersion == null) {
+            user.tokenVersion = 0;
+            await user.save({ validateBeforeSave: false });
+          }
+
+          const newAccessToken = generateAccessToken(
+            user._id,
+            refreshDecoded.role,
+            user.tokenVersion
+          );
 
           res.cookie("accessToken", newAccessToken, {
-            httpOnly: true, secure: true, sameSite: "none", maxAge: 24 * 60 * 60 * 1000,
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+            maxAge: 24 * 60 * 60 * 1000,
           });
 
-          // FIX: Attach email and firstName here for refreshed sessions
-          req.user = { 
-            ...refreshDecoded, 
+          req.user = {
+            ...refreshDecoded,
             isActive: user.isActive,
             email: user.email,
-            firstName: user.firstName
+            firstName: user.firstName,
           };
 
-          // return authorizeAndContinue(req, refreshDecoded?.role, normalizedAllowedRoles, next);
-          req.user.role = decoded.role.toLowerCase();
-return authorizeAndContinue(req, req.user.role, normalizedAllowedRoles, next);
-
+          return authorizeAndContinue(req, req.user.role, normalizedAllowedRoles, next);
         } catch (err) {
           clearAuthCookies(res);
           return next(new AppError("Session expired. Please login again.", 401));
@@ -263,8 +349,6 @@ return authorizeAndContinue(req, req.user.role, normalizedAllowedRoles, next);
     }
   };
 };
-
-
 
 
 // const protect = (...allowedRoles) => {

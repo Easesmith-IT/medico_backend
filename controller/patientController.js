@@ -491,69 +491,183 @@ exports.resendSignupOtp = catchAsync(async (req, res, next) => {
 });
 
 
+// exports.patientLogin = catchAsync(async (req, res, next) => {
+//   const { email, phone } = req.body;
+
+//   console.log('\n');
+//   console.log('PATIENT LOGIN - OTP Request');
+//   console.log('='.repeat(60));
+
+//   if (!email && !phone) {
+//     return next(new AppError('Please provide email or phone number', 400));
+//   }
+
+//   // Find patient
+//   const patient = await Patient.findOne({
+//     $or: [{ email }, { phone }]
+//   });
+
+//   if (!patient) {
+//     console.log('❌ Patient not found');
+//     return next(new AppError('Patient not found with provided credentials', 404));
+//   }
+
+//   console.log('Patient found:', patient.firstName);
+//   console.log('isVerified:', patient.isVerified);
+//   console.log('isActive:', patient.isActive);
+
+//   // ✅ CHECK IF VERIFIED
+//   if (!patient.isVerified) {
+//     console.log('❌ Patient not verified');
+//     return next(new AppError('Please complete signup verification first', 403));
+//   }
+
+//   // ✅ CHECK IF ACTIVE
+//   if (!patient.isActive) {
+//     console.log('❌ Patient not active');
+//     return next(new AppError('Your account has been deactivated. Please contact support.', 403));
+//   }
+
+//   console.log('✅ Patient verified and active → Sending OTP');
+
+//   // Send OTP
+//   const smsSent = await otpUtils.sendOtp(patient.phone);
+
+//   if (!smsSent) {
+//     return next(new AppError('Failed to send OTP. Please try again.', 500));
+//   }
+
+//   const otpToken = generateOtpToken(patient.phone, 'patient');
+
+//   console.log('✅ Login OTP sent');
+//   console.log('='.repeat(60));
+//   console.log('\n');
+
+//   res.status(200).json({
+//     success: true,
+//     message: 'OTP sent to your phone number',
+//     data: {
+//       otpToken,
+//       expiresIn: 600,
+//       phone: patient.phone.slice(-4)
+//     }
+//   });
+// });
 exports.patientLogin = catchAsync(async (req, res, next) => {
+  console.log("\n🔥 PATIENT LOGIN - FULL DEBUG");
+  console.log("=".repeat(70));
+  console.log("REQUEST BODY:", req.body);
+  console.log("PATH:", req.path);
+  console.log("Patient model loaded:", !!Patient);
+
   const { email, phone } = req.body;
 
-  console.log('\n');
-  console.log('PATIENT LOGIN - OTP Request');
-  console.log('='.repeat(60));
-
   if (!email && !phone) {
-    return next(new AppError('Please provide email or phone number', 400));
+    console.log("❌ Missing email/phone");
+    return next(new AppError("Please provide email or phone number", 400));
   }
 
-  // Find patient
-  const patient = await Patient.findOne({
-    $or: [{ email }, { phone }]
-  });
+  // 🔥 STEP 1: Database health check
+  try {
+    const totalPatients = await Patient.countDocuments();
+    console.log("Total patients in DB:", totalPatients);
+
+    const samplePatients = await Patient.find({}).limit(2).select("phone email _id");
+    console.log("Sample patients:", samplePatients);
+
+    const phoneSamples = await Patient.find({ phone: { $exists: true } })
+      .select("phone")
+      .limit(3);
+    console.log("Phone field samples:", phoneSamples.map(p => p.phone));
+  } catch (dbErr) {
+    console.log("🚨 DATABASE ERROR:", dbErr.message);
+    return next(new AppError("Database error", 500));
+  }
+
+  // 🔥 STEP 2: Normalize input
+  const phoneStr = phone ? phone.toString().trim() : undefined;
+  console.log("Normalized phone:", phoneStr);
+
+  // 🔥 STEP 3: Try multiple query variations
+  const queries = [
+    { phone: phoneStr },                    // Exact phone
+    { "phone": phoneStr },                  // String field
+    { mobile: phoneStr },                   // Maybe mobile field
+    { phoneNumber: phoneStr },              // Maybe phoneNumber field
+    { phone: { $regex: phoneStr.slice(-10), $options: "i" } }  // Partial match
+  ];
+
+  let patient = null;
+  for (let i = 0; i < queries.length; i++) {
+    patient = await Patient.findOne(queries[i]).select(
+      "_id phone email firstName isDeleted isActive isVerified tokenVersion"
+    );
+    if (patient) {
+      console.log(`✅ FOUND with query ${i + 1}:`, queries[i]);
+      break;
+    }
+  }
+
+  console.log("FINAL PATIENT:", patient ? "FOUND" : "NULL");
+  if (patient) {
+    console.log("Patient details:", {
+      id: patient._id,
+      phone: patient.phone,
+      email: patient.email,
+      isActive: patient.isActive,
+      isVerified: patient.isVerified
+    });
+  }
 
   if (!patient) {
-    console.log('❌ Patient not found');
-    return next(new AppError('Patient not found with provided credentials', 404));
+    console.log("❌ NO PATIENT FOUND - Check field names in schema");
+    return next(new AppError("Patient not found with provided credentials", 404));
   }
 
-  console.log('Patient found:', patient.firstName);
-  console.log('isVerified:', patient.isVerified);
-  console.log('isActive:', patient.isActive);
-
-  // ✅ CHECK IF VERIFIED
+  // ✅ VALIDATION CHECKS
   if (!patient.isVerified) {
-    console.log('❌ Patient not verified');
-    return next(new AppError('Please complete signup verification first', 403));
+    console.log("❌ Not verified");
+    return next(new AppError("Please complete signup verification first", 403));
   }
 
-  // ✅ CHECK IF ACTIVE
   if (!patient.isActive) {
-    console.log('❌ Patient not active');
-    return next(new AppError('Your account has been deactivated. Please contact support.', 403));
+    console.log("❌ Not active");
+    return next(new AppError("Your account has been deactivated. Please contact support.", 403));
   }
 
-  console.log('✅ Patient verified and active → Sending OTP');
+  console.log("✅ Patient validated → Sending OTP");
 
-  // Send OTP
-  const smsSent = await otpUtils.sendOtp(patient.phone);
+  // 🔥 SEND OTP
+  try {
+    const smsSent = await otpUtils.sendOtp(patient.phone);
+    console.log("SMS sent:", smsSent);
 
-  if (!smsSent) {
-    return next(new AppError('Failed to send OTP. Please try again.', 500));
+    if (!smsSent) {
+      return next(new AppError("Failed to send OTP. Please try again.", 500));
+    }
+  } catch (smsErr) {
+    console.log("SMS Error:", smsErr.message);
+    return next(new AppError("OTP service unavailable", 500));
   }
 
-  const otpToken = generateOtpToken(patient.phone, 'patient');
+  // 🔥 GENERATE OTP TOKEN
+  const otpToken = generateOtpToken(patient.phone, "patient");
+  console.log("OTP Token generated");
 
-  console.log('✅ Login OTP sent');
-  console.log('='.repeat(60));
-  console.log('\n');
+  console.log("✅ LOGIN SUCCESS");
+  console.log("=".repeat(70));
 
   res.status(200).json({
     success: true,
-    message: 'OTP sent to your phone number',
+    message: "OTP sent to your phone number",
     data: {
       otpToken,
-      expiresIn: 600,
-      phone: patient.phone.slice(-4)
+      expiresIn: 600, // 10 minutes
+      phone: patient.phone.slice(-4),
+      patientId: patient._id
     }
   });
 });
-
 
 exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
   const { phone, otp } = req.body;
