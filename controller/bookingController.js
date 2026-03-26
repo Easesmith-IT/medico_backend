@@ -1151,9 +1151,21 @@ exports.getServiceSummaryByServiceId = async (req, res) => {
 //     });
 //   }
 // };
+
+
 exports.rescheduleBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
+
+    // ✅ Safe: check req.body first
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Request body is missing. Please send appointmentDate, startTime and endTime.",
+      });
+    }
+
     const {
       appointmentDate,
       startTime,
@@ -1166,17 +1178,18 @@ exports.rescheduleBooking = async (req, res) => {
     if (!bookingId || !appointmentDate || !startTime || !endTime) {
       return res.status(400).json({
         success: false,
-        message: "Booking ID, appointmentDate, startTime, and endTime are required for rescheduling",
+        message:
+          "Booking ID, appointmentDate, startTime, and endTime are required",
+        received: Object.keys(req.body || {}),
       });
     }
 
-    // 🔥 FIX 1: Fetch with treatmentId populated
-    const booking = await Booking.findById(bookingId)
-      .populate("serviceId treatmentId")  // ✅ Get existing treatmentId
-      .lean();
-
+    const booking = await Booking.findById(bookingId).populate("serviceId");
     if (!booking) {
-      return res.status(404).json({ success: false, message: "Booking not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
     }
 
     if (["Cancelled", "Rejected"].includes(booking.status)) {
@@ -1188,7 +1201,7 @@ exports.rescheduleBooking = async (req, res) => {
 
     const service = booking.serviceId;
 
-    // Check for conflicting booking in new slot
+    // Check conflicting slot
     const dateObj = new Date(appointmentDate);
     const dayStart = new Date(dateObj.setHours(0, 0, 0, 0));
     const dayEnd = new Date(dateObj.setHours(23, 59, 59, 999));
@@ -1214,7 +1227,7 @@ exports.rescheduleBooking = async (req, res) => {
       });
     }
 
-    // Calculate duration if not provided
+    // Calculate duration
     let bookingDuration = duration;
     if (!bookingDuration) {
       const [sh, sm] = startTime.split(":").map(Number);
@@ -1223,14 +1236,13 @@ exports.rescheduleBooking = async (req, res) => {
       if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
     }
 
-    // Recalculate pricing
     const pricing = service.calculateTotalPrice(
       bookingDuration,
       false,
       shiftType || booking.shiftType || null
     );
 
-    // 🔥 FIX 2: Update booking document (treatmentId preserved automatically)
+    // Update booking (⚠️ treatmentId NOT changed = same for next booking)
     const updatedBooking = await Booking.findByIdAndUpdate(
       bookingId,
       {
@@ -1239,15 +1251,15 @@ exports.rescheduleBooking = async (req, res) => {
         duration: bookingDuration,
         shiftType: shiftType || booking.shiftType || null,
         servicePartnerId: servicePartnerId || booking.servicePartnerId || null,
-        pricing: pricing,
+        pricing,
         status: "Rescheduled",
-        // ✅ treatmentId field NOT TOUCHED = remains same for next booking
+        // ✅ treatmentId field not touched here
       },
       { new: true, runValidators: true }
     )
       .populate("serviceId", "name category modes")
       .populate("servicePartnerId", "name email phone")
-      .populate("treatmentId", "status validTill")  // ✅ Populated here
+      .populate("treatmentId", "status validTill")  // ✅ shows in response
       .populate("patientId", "firstName phone")
       .lean();
 
@@ -1260,7 +1272,6 @@ exports.rescheduleBooking = async (req, res) => {
         serviceCategory: service.category,
       },
     });
-
   } catch (error) {
     console.error("Reschedule booking error:", error);
     res.status(500).json({
@@ -1270,8 +1281,6 @@ exports.rescheduleBooking = async (req, res) => {
     });
   }
 };
-
-
 
 exports.cancelBooking = async (req, res) => {
   try {
