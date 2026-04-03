@@ -181,6 +181,9 @@ const  uploadFile  = require('../utils/uploadFile')
 //     session.endSession();
 //   }
 // };
+
+
+//flex without payament
 exports.createBooking = async (req, res) => {
   const session = await mongoose.startSession();
   
@@ -253,7 +256,24 @@ exports.createBooking = async (req, res) => {
     }
 
     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
+const totalAmount = Number(pricing?.totalAmount || 0);
+const payNow = req.body.payNow === true || req.body.payNow === "true";
+const advanceAmount = payNow ? Number(req.body.advanceAmount || 0) : 0;
 
+if (advanceAmount < 0 || advanceAmount > totalAmount) {
+  await session.abortTransaction();
+  return res.status(400).json({
+    success: false,
+    message: "Invalid advance amount",
+  });
+}
+
+const paidAmount = advanceAmount;
+const dueAmount = totalAmount - paidAmount;
+
+let paymentStatus = "Unpaid";
+if (paidAmount > 0 && dueAmount > 0) paymentStatus = "Partially Paid";
+if (dueAmount === 0 && totalAmount > 0) paymentStatus = "Paid";
     // -------------------------------
     // ✅ CREATE BOOKING FIRST
     // -------------------------------
@@ -274,7 +294,28 @@ exports.createBooking = async (req, res) => {
       city: bookingCity._id,
       createdBy: { userId: patientId, userModel: "Patient" },
       treatmentStatus: 'Active',
-      invoiceGenerated: false
+      invoiceGenerated: false,
+
+
+  advanceAmount,
+  paidAmount,
+  dueAmount,
+  paymentStatus,
+  paymentMethod: paidAmount > 0 ? "Online" : "None",
+  paymentRequiredAt: "TreatmentCompletion",
+  isFinalPaymentDone: dueAmount === 0,
+  paymentHistory:
+    paidAmount > 0
+      ? [
+          {
+            amount: paidAmount,
+            method: "Online",
+            stage: "Booking",
+            note: "Advance payment at booking time",
+          },
+        ]
+      : [],
+
     });
 
     await newBooking.save({ session });
@@ -331,6 +372,11 @@ exports.createBooking = async (req, res) => {
     session.endSession();
   }
 };
+
+
+
+
+
 // exports.getBookedServicesByPatientId = async (req, res) => {
 //   try {
 //     const patientId =
@@ -2200,12 +2246,115 @@ exports.getByIdBooking = async (req, res) => {
     });
   }
 };
+//flex
+// exports.updateServiceStatus = async (req, res) => { //todo after completeion of booking need to add details about medicine,equipment,billing date   
+//                                                     //get api for all the details of booking and invoice and treatment and show in frontend
+//   try {
+//     const { bookingId } = req.params;
+//     const { status } = req.body;
+//     const providerId = req.user?.id;
 
-exports.updateServiceStatus = async (req, res) => { //todo after completeion of booking need to add details about medicine,equipment,billing date   
-                                                    //get api for all the details of booking and invoice and treatment and show in frontend
+//     if (!providerId) {
+//       return res.status(401).json({ success: false, message: "Service provider required" });
+//     }
+
+//     const booking = await Booking.findById(bookingId)
+//       .populate('serviceId', 'name category basePrice equipmentCharges taxPercentage');
+
+//     if (!booking || booking.status === 'Cancelled') {
+//       return res.status(404).json({ success: false, message: "Booking cancelled" });
+//     }
+
+//     if (booking.servicePartnerId?.toString() !== providerId.toString()) {
+//       return res.status(403).json({ success: false, message: "Unauthorized provider" });
+//     }
+
+//     // Regular booking statuses (NO INVOICE)
+//     const bookingStatuses = ["Pending", "Approved", "Rejected", "Rescheduled", "Cancelled", "In-Progress", "Completed"];
+//     if (bookingStatuses.includes(status)) {
+//       booking.status = status;
+//       if (status === 'In-Progress') booking.serviceStartedAt = new Date();
+//       if (status === 'Completed') booking.serviceEndedAt = new Date();
+//       booking.treatmentStatus = booking.treatmentStatus || 'Active';
+      
+//       await booking.save();
+      
+//       return res.status(200).json({
+//         success: true,
+//         message: `Booking status updated to "${status}"`,
+//         data: {
+//           bookingStatus: status,
+//           treatmentStatus: booking.treatmentStatus,
+//           invoiceGenerated: false
+//         }
+//       });
+//     }
+
+//     // TreatmentCompleted → Generate Invoice + Complete Treatment
+//     if (status.toLowerCase() === 'treatmentcompleted') {
+//       if (booking.treatmentStatus !== 'Active') {
+//         return res.status(400).json({ success: false, message: "Treatment must be Active" });
+//       }
+//       if (booking.invoiceGenerated) {
+//         return res.status(400).json({ success: false, message: "Invoice already generated" });
+//       }
+
+//       // ✅ DIRECT INVOICE CREATION
+//       const Invoice = require('../models/invoiceModel');
+//       const crypto = require('crypto');
+      
+//       const invoicePayload = {
+//         invoiceNumber: `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
+//         bookingId: booking._id,
+//         patientId: booking.patientId,
+//         doctorId: providerId,
+//         billingDetails: {
+//           serviceName: booking.serviceId.name,
+//           category: booking.serviceId.category,
+//           durationMinutes: booking.duration,
+//           basePrice: booking.pricing.basePrice,
+//           equipmentCharges: booking.pricing.equipmentCharges || 0,
+//           taxPercentage: booking.serviceId.taxPercentage || 18
+//         }
+//       };
+
+//       const newInvoice = new Invoice(invoicePayload);
+//       const savedInvoice = await newInvoice.save();
+
+//       booking.status = 'Completed';
+//       booking.treatmentStatus = 'Completed';
+//       booking.serviceEndedAt = new Date();
+//       booking.invoiceId = savedInvoice._id;
+//       booking.invoiceGenerated = true;
+//       await booking.save();
+
+//       return res.status(200).json({
+//         success: true,
+//         message: "Treatment completed & Invoice generated",
+//         data: {
+//           bookingStatus: 'Completed',
+//           treatmentStatus: 'Completed',
+//           invoiceGenerated: true,
+//           invoiceId: savedInvoice._id,
+//           invoiceNumber: savedInvoice.invoiceNumber
+//         }
+//       });
+//     }
+
+//     return res.status(400).json({ 
+//       success: false, 
+//       message: 'Valid: "In-Progress", "Completed", "TreatmentCompleted"' 
+//     });
+
+//   } catch (error) {
+//     console.error("Error:", error);
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+exports.updateServiceStatus = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { status } = req.body;
+    const { status, equipment } = req.body;  // equipment for extra charges
     const providerId = req.user?.id;
 
     if (!providerId) {
@@ -2223,13 +2372,19 @@ exports.updateServiceStatus = async (req, res) => { //todo after completeion of 
       return res.status(403).json({ success: false, message: "Unauthorized provider" });
     }
 
-    // Regular booking statuses (NO INVOICE)
-    const bookingStatuses = ["Pending", "Approved", "Rejected", "Rescheduled", "Cancelled", "In-Progress", "Completed"];
+    // Regular booking statuses (NO INVOICE, NO PAYMENT CHECK)
+    const bookingStatuses = ["Pending", "Approved", "Rejected", "Rescheduled", "Cancelled", "In-Progress"];
     if (bookingStatuses.includes(status)) {
       booking.status = status;
       if (status === 'In-Progress') booking.serviceStartedAt = new Date();
-      if (status === 'Completed') booking.serviceEndedAt = new Date();
-      booking.treatmentStatus = booking.treatmentStatus || 'Active';
+      
+      // Initialize payment fields if first time
+      if (!booking.paidAmount) booking.paidAmount = 0;
+      if (!booking.dueAmount) {
+        const totalAmount = Number(booking.pricing?.totalAmount || 0);
+        booking.dueAmount = totalAmount;
+        booking.paymentStatus = totalAmount > 0 ? "Unpaid" : "Paid";
+      }
       
       await booking.save();
       
@@ -2238,22 +2393,59 @@ exports.updateServiceStatus = async (req, res) => { //todo after completeion of 
         message: `Booking status updated to "${status}"`,
         data: {
           bookingStatus: status,
-          treatmentStatus: booking.treatmentStatus,
+          treatmentStatus: booking.treatmentStatus || 'Active',
+          paymentStatus: booking.paymentStatus,
+          dueAmount: booking.dueAmount,
           invoiceGenerated: false
         }
       });
     }
 
-    // TreatmentCompleted → Generate Invoice + Complete Treatment
+    // ✅ TREATMENT COMPLETION - PAYMENT MANDATORY POINT
     if (status.toLowerCase() === 'treatmentcompleted') {
       if (booking.treatmentStatus !== 'Active') {
         return res.status(400).json({ success: false, message: "Treatment must be Active" });
       }
-      if (booking.invoiceGenerated) {
-        return res.status(400).json({ success: false, message: "Invoice already generated" });
+
+      // 1. MARK TREATMENT COMPLETE
+      booking.status = 'Completed';
+      booking.treatmentStatus = 'Completed';
+      booking.serviceEndedAt = new Date();
+
+      // 2. HANDLE EQUIPMENT CHARGES (if provided)
+      if (equipment && Array.isArray(equipment)) {
+        let extraCharge = 0;
+        booking.additionalEquipment = equipment.map(item => {
+          const charge = Number(item.charge || 0);
+          extraCharge += charge;
+          return { name: item.name, charge };
+        });
+
+        // Update final pricing
+        const baseAmount = Number(booking.pricing?.basePrice || 0);
+        const taxAmount = Number(booking.pricing?.taxAmount || 0);
+        booking.pricing.equipmentCharges = extraCharge;
+        booking.pricing.totalAmount = baseAmount + extraCharge + taxAmount;
       }
 
-      // ✅ DIRECT INVOICE CREATION
+      // 3. CALCULATE FINAL PAYMENT STATUS
+      const totalAmount = Number(booking.pricing?.totalAmount || 0);
+      const alreadyPaid = Number(booking.paidAmount || 0);
+      
+      booking.dueAmount = Math.max(0, totalAmount - alreadyPaid);
+      
+      if (booking.dueAmount === 0) {
+        booking.paymentStatus = "Paid";
+        booking.isFinalPaymentDone = true;
+      } else if (alreadyPaid > 0) {
+        booking.paymentStatus = "Partially Paid";
+        booking.isFinalPaymentDone = false;
+      } else {
+        booking.paymentStatus = "Unpaid";
+        booking.isFinalPaymentDone = false;
+      }
+
+      // 4. GENERATE INVOICE (even if payment pending)
       const Invoice = require('../models/invoiceModel');
       const crypto = require('crypto');
       
@@ -2268,36 +2460,44 @@ exports.updateServiceStatus = async (req, res) => { //todo after completeion of 
           durationMinutes: booking.duration,
           basePrice: booking.pricing.basePrice,
           equipmentCharges: booking.pricing.equipmentCharges || 0,
-          taxPercentage: booking.serviceId.taxPercentage || 18
+          subtotal: booking.pricing.subtotal || 0,
+          taxPercentage: booking.serviceId.taxPercentage || 18,
+          totalAmount: totalAmount,
+          paidAmount: alreadyPaid,
+          dueAmount: booking.dueAmount,
+          paymentStatus: booking.paymentStatus  // ✅ Key addition
         }
       };
 
       const newInvoice = new Invoice(invoicePayload);
       const savedInvoice = await newInvoice.save();
 
-      booking.status = 'Completed';
-      booking.treatmentStatus = 'Completed';
-      booking.serviceEndedAt = new Date();
       booking.invoiceId = savedInvoice._id;
       booking.invoiceGenerated = true;
       await booking.save();
 
       return res.status(200).json({
         success: true,
-        message: "Treatment completed & Invoice generated",
+        message: `Treatment completed. ${booking.dueAmount > 0 ? 'Payment pending: ₹' + booking.dueAmount : 'Payment cleared'}`,
         data: {
           bookingStatus: 'Completed',
           treatmentStatus: 'Completed',
           invoiceGenerated: true,
           invoiceId: savedInvoice._id,
-          invoiceNumber: savedInvoice.invoiceNumber
+          invoiceNumber: savedInvoice.invoiceNumber,
+          paymentStatus: booking.paymentStatus,
+          totalAmount: totalAmount,
+          paidAmount: alreadyPaid,
+          dueAmount: booking.dueAmount,
+          paymentRequired: booking.dueAmount > 0,
+          needsPayment: booking.dueAmount > 0
         }
       });
     }
 
     return res.status(400).json({ 
       success: false, 
-      message: 'Valid: "In-Progress", "Completed", "TreatmentCompleted"' 
+      message: 'Valid: "In-Progress", "TreatmentCompleted"' 
     });
 
   } catch (error) {
@@ -2305,7 +2505,6 @@ exports.updateServiceStatus = async (req, res) => { //todo after completeion of 
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 exports.getTreatmentById = catchAsync(async (req, res, next) => {
   const { treatmentId } = req.params;
   const { details = 'basic' } = req.query;

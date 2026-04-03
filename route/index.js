@@ -50,7 +50,10 @@ const geoRoutes = require('../route/geoRoutes');
 const crashReportRoutes = require("../route/crashReportRoutes");
 const itemRoute = require('../route/itemRoute');
 const uploadsRoute = require('../route/uploadRoute');
+const paymentRoute = require('../route/paymentRoute');
+
 const router = express.Router();
+
 
 // Mount routes
 router.use('/doctor', doctorRoute);
@@ -67,4 +70,5 @@ router.use('/geo', geoRoutes);
 router.use("/crash-report", crashReportRoutes);
 router.use('/items',itemRoute);
 router.use('/uploadfile',uploadsRoute) // File upload route
+router.use('/payments', paymentRoute);
 module.exports = router;

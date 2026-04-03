@@ -34,7 +34,8 @@
     "multer": "^2.1.1",
     "otp-generator": "^4.0.1",
     "pdfkit": "^0.17.2",
-    "pdfkit-table": "^0.1.77"
+    "pdfkit-table": "^0.1.77",
+    "razorpay": "^2.9.6"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

@@ -9,7 +9,7 @@ dotenv.config();
 const routes = require("./route");
 const AppError = require("./utils/appError");
 const errorMiddleware = require("./middleware/errorMiddleware");
-
+const razorpay = require("./config/razorpay");
 const app = express();
 
 app.set("trust proxy", 1);
@@ -64,6 +64,9 @@ app.get("/health", (req, res) => {
   });
 });
 
+razorpay.orders.create({ amount: 100, currency: "INR", receipt: "test" })
+  .then(() => console.log("✅ Razorpay connected successfully"))
+  .catch((err) => console.error("❌ Razorpay connection failed:", err.message));
 app.get("/api/test-cookies", (req, res) => {
   console.log("🍪 COOKIES:", req.cookies);
   res.json({ cookies: req.cookies });
