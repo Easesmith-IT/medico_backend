@@ -2213,30 +2213,70 @@ exports.getAllBookings = async (req, res) => {
 //     res.status(500).json({ success: false, message: error.message });
 //   }
 // };
+
 exports.getByIdBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
+
     if (!bookingId) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Booking ID is required" });
+      return res.status(400).json({
+        success: false,
+        message: "Booking ID is required",
+      });
     }
 
     const booking = await Booking.findById(bookingId)
       .populate("patientId", "firstName email phone")
       .populate("serviceId", "name category modes")
-      .populate("servicePartnerId", "name email phone")
-      .populate("treatmentId", "status validTill");  
+      .populate({
+        path: "servicePartnerId",
+        select: "firstName lastName email mobile serviceCities",
+        populate: {
+          path: "serviceCities",
+          select: "name"
+        }
+      })
+      .populate("city", "name")
+      .populate("treatmentId", "status validTill");
+
     if (!booking) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Booking not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    // Format provider response
+    let provider = null;
+    if (booking.servicePartnerId) {
+      provider = {
+        id: booking.servicePartnerId._id,
+        name:
+          booking.servicePartnerId.firstName +
+          " " +
+          booking.servicePartnerId.lastName,
+        email: booking.servicePartnerId.email,
+        phone: booking.servicePartnerId.mobile,
+        city: booking.servicePartnerId.serviceCities.map(c => c.name),
+      };
     }
 
     res.status(200).json({
       success: true,
-      data: booking,
+      data: {
+        bookingId: booking._id,
+        patient: booking.patientId,
+        service: booking.serviceId,
+        provider: provider,
+        bookingCity: booking.city?.name,
+        appointmentDate: booking.appointmentDate,
+        slotTime: booking.slotTime,
+        status: booking.status,
+        pricing: booking.pricing,
+        treatment: booking.treatmentId
+      },
     });
+
   } catch (error) {
     console.error("Get booking by ID error:", error);
     res.status(500).json({
@@ -2246,6 +2286,40 @@ exports.getByIdBooking = async (req, res) => {
     });
   }
 };
+//flex
+// exports.getByIdBooking = async (req, res) => {
+//   try {
+//     const { bookingId } = req.params;
+//     if (!bookingId) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Booking ID is required" });
+//     }
+
+//     const booking = await Booking.findById(bookingId)
+//       .populate("patientId", "firstName email phone")
+//       .populate("serviceId", "name category modes")
+//       .populate("servicePartnerId", "name email phone")
+//       .populate("treatmentId", "status validTill");  
+//     if (!booking) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Booking not found" });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       data: booking,
+//     });
+//   } catch (error) {
+//     console.error("Get booking by ID error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching booking",
+//       error: error.message,
+//     });
+//   }
+// };
 //flex
 // exports.updateServiceStatus = async (req, res) => { //todo after completeion of booking need to add details about medicine,equipment,billing date   
 //                                                     //get api for all the details of booking and invoice and treatment and show in frontend
