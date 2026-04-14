@@ -153,19 +153,56 @@ exports.createServiceProvider = async (req, res) => {
     /* ---------------------------
        1️⃣ Validate Cities
     ----------------------------*/
-    if (data.serviceCities?.length) {
-      const validCities = await City.find({
-        _id: { $in: data.serviceCities },
-        isActive: true,
-      });
+    // if (data.serviceCities?.length) {
+    //   const validCities = await City.find({
+    //     _id: { $in: data.serviceCities },
+    //     isActive: true,
+    //   });
 
-      if (validCities.length !== data.serviceCities.length) {
-        return res.status(400).json({
-          success: false,
-          message: "One or more selected cities are invalid or inactive",
-        });
-      }
-    }
+    //   if (validCities.length !== data.serviceCities.length) {
+    //     return res.status(400).json({
+    //       success: false,
+    //       message: "One or more selected cities are invalid or inactive",
+    //     });
+    //   }
+    // }
+
+
+    /* 1️⃣ Validate Cities - FIXED VERSION */
+if (data.serviceCities?.length) {
+  // Convert to ObjectIds and filter invalid
+  const cityIds = data.serviceCities
+    .map(id => String(id).trim())
+    .filter(id => mongoose.Types.ObjectId.isValid(id))
+    .map(id => new mongoose.Types.ObjectId(id));
+
+  if (cityIds.length !== data.serviceCities.length) {
+    return res.status(400).json({
+      success: false,
+      message: "Some city IDs are invalid",
+      received: data.serviceCities,
+      validCount: cityIds.length
+    });
+  }
+
+  const validCities = await City.find({
+    _id: { $in: cityIds },
+    isActive: true
+  }).select('_id name isActive');
+
+  if (validCities.length !== cityIds.length) {
+    return res.status(400).json({
+      success: false,
+      message: "One or more selected cities are invalid or inactive",
+      expected: cityIds.length,
+      found: validCities.length,
+      foundCities: validCities.map(c => ({id: c._id, name: c.name}))
+    });
+  }
+
+  //  All good - use converted ObjectIds
+  data.serviceCities = cityIds;
+}
 
     /* ---------------------------
        2️⃣ Admin Auto Approval

@@ -19,7 +19,7 @@ const fs = require('fs');
 // const Invoice = require('../models/Invoice'); // Your Invoice model path
 const { generateInvoicePdf } = require('../utils/generateInvoicePdf'); // Your PDF generator path
 const  uploadFile  = require('../utils/uploadFile')
-
+const razorpayInstance = require("../config/razorpay");
 //original one
 // exports.createBooking = async (req, res) => {
 //   const session = await mongoose.startSession();
@@ -184,194 +184,194 @@ const  uploadFile  = require('../utils/uploadFile')
 
 
 //flex without payament
-exports.createBooking = async (req, res) => {
-  const session = await mongoose.startSession();
+// exports.createBooking = async (req, res) => {
+//   const session = await mongoose.startSession();
   
-  try {
-    const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
-    const { serviceId, appointmentDate, startTime, endTime, duration, shiftType, servicePartnerId, notes, category, modes, cityId } = req.body;
+//   try {
+//     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
+//     const { serviceId, appointmentDate, startTime, endTime, duration, shiftType, servicePartnerId, notes, category, modes, cityId } = req.body;
 
-    if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
-      await session.abortTransaction();
-      return res.status(400).json({
-        success: false,
-        message: "patientId, serviceId, appointmentDate, startTime, and endTime are required",
-      });
-    }
+//     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+//       await session.abortTransaction();
+//       return res.status(400).json({
+//         success: false,
+//         message: "patientId, serviceId, appointmentDate, startTime, and endTime are required",
+//       });
+//     }
 
-    await session.startTransaction();
+//     await session.startTransaction();
 
-    // 1) Validate service
-    const service = await Service.findById(serviceId).session(session);
-    if (!service || !service.isActive || service.isDeleted) {
-      await session.abortTransaction();
-      return res.status(404).json({ success: false, message: "Service not found or inactive" });
-    }
+//     // 1) Validate service
+//     const service = await Service.findById(serviceId).session(session);
+//     if (!service || !service.isActive || service.isDeleted) {
+//       await session.abortTransaction();
+//       return res.status(404).json({ success: false, message: "Service not found or inactive" });
+//     }
 
-    // 2) Load patient and ensure patient has a city
-    const patient = await Patient.findById(patientId).select("address.cityId").session(session);
-    if (!patient || !patient.address?.cityId) {
-      await session.abortTransaction();
-      return res.status(400).json({ success: false, message: "Patient city not set" });
-    }
+//     // 2) Load patient and ensure patient has a city
+//     const patient = await Patient.findById(patientId).select("address.cityId").session(session);
+//     if (!patient || !patient.address?.cityId) {
+//       await session.abortTransaction();
+//       return res.status(400).json({ success: false, message: "Patient city not set" });
+//     }
 
-    // 3) Determine booking city
-    let bookingCity = cityId ? await City.findById(cityId).session(session) : 
-                       await City.findById(patient.address.cityId).session(session);
-    if (!bookingCity) {
-      await session.abortTransaction();
-      return res.status(400).json({ success: false, message: "Invalid city" });
-    }
+//     // 3) Determine booking city
+//     let bookingCity = cityId ? await City.findById(cityId).session(session) : 
+//                        await City.findById(patient.address.cityId).session(session);
+//     if (!bookingCity) {
+//       await session.abortTransaction();
+//       return res.status(400).json({ success: false, message: "Invalid city" });
+//     }
 
-    // 4) Check slot conflicts
-    const dayStart = new Date(appointmentDate); dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(appointmentDate); dayEnd.setHours(23, 59, 59, 999);
+//     // 4) Check slot conflicts
+//     const dayStart = new Date(appointmentDate); dayStart.setHours(0, 0, 0, 0);
+//     const dayEnd = new Date(appointmentDate); dayEnd.setHours(23, 59, 59, 999);
 
-    const conflictQuery = {
-      serviceId,
-      appointmentDate: { $gte: dayStart, $lte: dayEnd },
-      status: { $nin: ["Cancelled", "Rejected"] },
-      "slotTime.startTime": startTime,
-      "slotTime.endTime": endTime
-    };
+//     const conflictQuery = {
+//       serviceId,
+//       appointmentDate: { $gte: dayStart, $lte: dayEnd },
+//       status: { $nin: ["Cancelled", "Rejected"] },
+//       "slotTime.startTime": startTime,
+//       "slotTime.endTime": endTime
+//     };
 
-    if (servicePartnerId) conflictQuery.servicePartnerId = servicePartnerId;
+//     if (servicePartnerId) conflictQuery.servicePartnerId = servicePartnerId;
 
-    const existingBooking = await Booking.findOne(conflictQuery).session(session);
-    if (existingBooking) {
-      await session.abortTransaction();
-      return res.status(409).json({ success: false, message: "Slot already booked" });
-    }
+//     const existingBooking = await Booking.findOne(conflictQuery).session(session);
+//     if (existingBooking) {
+//       await session.abortTransaction();
+//       return res.status(409).json({ success: false, message: "Slot already booked" });
+//     }
 
-    // 5) Calculate duration & pricing
-    let bookingDuration = duration;
+//     // 5) Calculate duration & pricing
+//     let bookingDuration = duration;
 
-    if (!bookingDuration) {
-      const [sh, sm] = startTime.split(":").map(Number);
-      const [eh, em] = endTime.split(":").map(Number);
+//     if (!bookingDuration) {
+//       const [sh, sm] = startTime.split(":").map(Number);
+//       const [eh, em] = endTime.split(":").map(Number);
 
-      bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+//       bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
 
-      if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
-    }
+//       if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+//     }
 
-    const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
-const totalAmount = Number(pricing?.totalAmount || 0);
-const payNow = req.body.payNow === true || req.body.payNow === "true";
-const advanceAmount = payNow ? Number(req.body.advanceAmount || 0) : 0;
+//     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
+// const totalAmount = Number(pricing?.totalAmount || 0);
+// const payNow = req.body.payNow === true || req.body.payNow === "true";
+// const advanceAmount = payNow ? Number(req.body.advanceAmount || 0) : 0;
 
-if (advanceAmount < 0 || advanceAmount > totalAmount) {
-  await session.abortTransaction();
-  return res.status(400).json({
-    success: false,
-    message: "Invalid advance amount",
-  });
-}
+// if (advanceAmount < 0 || advanceAmount > totalAmount) {
+//   await session.abortTransaction();
+//   return res.status(400).json({
+//     success: false,
+//     message: "Invalid advance amount",
+//   });
+// }
 
-const paidAmount = advanceAmount;
-const dueAmount = totalAmount - paidAmount;
+// const paidAmount = advanceAmount;
+// const dueAmount = totalAmount - paidAmount;
 
-let paymentStatus = "Unpaid";
-if (paidAmount > 0 && dueAmount > 0) paymentStatus = "Partially Paid";
-if (dueAmount === 0 && totalAmount > 0) paymentStatus = "Paid";
-    // -------------------------------
-    // ✅ CREATE BOOKING FIRST
-    // -------------------------------
+// let paymentStatus = "Unpaid";
+// if (paidAmount > 0 && dueAmount > 0) paymentStatus = "Partially Paid";
+// if (dueAmount === 0 && totalAmount > 0) paymentStatus = "Paid";
+//     // -------------------------------
+//     // ✅ CREATE BOOKING FIRST
+//     // -------------------------------
 
-    const newBooking = new Booking({
-      patientId,
-      serviceId,
-      category: category || service.category,
-      modes: Array.isArray(modes) && modes.length ? modes : service.modes,
-      servicePartnerId: servicePartnerId || null,
-      appointmentDate: new Date(appointmentDate),
-      slotTime: { startTime, endTime },
-      duration: bookingDuration,
-      shiftType: shiftType || null,
-      status: "Pending",
-      pricing,
-      notes: notes || "",
-      city: bookingCity._id,
-      createdBy: { userId: patientId, userModel: "Patient" },
-      treatmentStatus: 'Active',
-      invoiceGenerated: false,
+//     const newBooking = new Booking({
+//       patientId,
+//       serviceId,
+//       category: category || service.category,
+//       modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+//       servicePartnerId: servicePartnerId || null,
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime: { startTime, endTime },
+//       duration: bookingDuration,
+//       shiftType: shiftType || null,
+//       status: "Pending",
+//       pricing,
+//       notes: notes || "",
+//       city: bookingCity._id,
+//       createdBy: { userId: patientId, userModel: "Patient" },
+//       treatmentStatus: 'Active',
+//       invoiceGenerated: false,
 
 
-  advanceAmount,
-  paidAmount,
-  dueAmount,
-  paymentStatus,
-  paymentMethod: paidAmount > 0 ? "Online" : "None",
-  paymentRequiredAt: "TreatmentCompletion",
-  isFinalPaymentDone: dueAmount === 0,
-  paymentHistory:
-    paidAmount > 0
-      ? [
-          {
-            amount: paidAmount,
-            method: "Online",
-            stage: "Booking",
-            note: "Advance payment at booking time",
-          },
-        ]
-      : [],
+//   advanceAmount,
+//   paidAmount,
+//   dueAmount,
+//   paymentStatus,
+//   paymentMethod: paidAmount > 0 ? "Online" : "None",
+//   paymentRequiredAt: "TreatmentCompletion",
+//   isFinalPaymentDone: dueAmount === 0,
+//   paymentHistory:
+//     paidAmount > 0
+//       ? [
+//           {
+//             amount: paidAmount,
+//             method: "Online",
+//             stage: "Booking",
+//             note: "Advance payment at booking time",
+//           },
+//         ]
+//       : [],
 
-    });
+//     });
 
-    await newBooking.save({ session });
+//     await newBooking.save({ session });
 
-    // -------------------------------
-    // ✅ CREATE TREATMENT WITH bookingId
-    // -------------------------------
+//     // -------------------------------
+//     // ✅ CREATE TREATMENT WITH bookingId
+//     // -------------------------------
 
-    const treatment = new Treatment({
-      bookingId: newBooking._id,
-      patientId,
-      serviceId,
-      servicePartnerId: servicePartnerId || null,
-      appointmentDate: new Date(appointmentDate),
-      slotTime: { startTime, endTime },
-      status: 'Active'
-    });
+//     const treatment = new Treatment({
+//       bookingId: newBooking._id,
+//       patientId,
+//       serviceId,
+//       servicePartnerId: servicePartnerId || null,
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime: { startTime, endTime },
+//       status: 'Active'
+//     });
 
-    await treatment.save({ session });
+//     await treatment.save({ session });
 
-    // -------------------------------
-    // ✅ LINK BOOKING → TREATMENT
-    // -------------------------------
+//     // -------------------------------
+//     // ✅ LINK BOOKING → TREATMENT
+//     // -------------------------------
 
-    newBooking.treatmentId = treatment._id;
-    await newBooking.save({ session });
+//     newBooking.treatmentId = treatment._id;
+//     await newBooking.save({ session });
 
-    await session.commitTransaction();
+//     await session.commitTransaction();
 
-    const populatedBooking = await Booking.findById(newBooking._id)
-      .populate('city', 'name latitude longitude')
-      .populate('treatmentId', 'status validTill');
+//     const populatedBooking = await Booking.findById(newBooking._id)
+//       .populate('city', 'name latitude longitude')
+//       .populate('treatmentId', 'status validTill');
 
-    res.status(201).json({
-      success: true,
-      message: "Booking & Treatment created successfully",
-      data: {
-        booking: populatedBooking,
-        treatmentId: treatment._id
-      }
-    });
+//     res.status(201).json({
+//       success: true,
+//       message: "Booking & Treatment created successfully",
+//       data: {
+//         booking: populatedBooking,
+//         treatmentId: treatment._id
+//       }
+//     });
 
-  } catch (error) {
-    await session.abortTransaction();
-    console.error("Error creating booking:", error);
+//   } catch (error) {
+//     await session.abortTransaction();
+//     console.error("Error creating booking:", error);
 
-    res.status(500).json({
-      success: false,
-      message: "Error creating booking",
-      error: error.message
-    });
+//     res.status(500).json({
+//       success: false,
+//       message: "Error creating booking",
+//       error: error.message
+//     });
 
-  } finally {
-    session.endSession();
-  }
-};
+//   } finally {
+//     session.endSession();
+//   }
+// };
 
 
 
@@ -890,6 +890,270 @@ if (dueAmount === 0 && totalAmount > 0) paymentStatus = "Paid";
 //     });
 //   }
 // };
+
+
+
+exports.createBooking = async (req, res) => {
+  const session = await mongoose.startSession();
+  
+  try {
+    const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
+    const {
+      serviceId,
+      appointmentDate,
+      startTime,
+      endTime,
+      duration,
+      shiftType,
+      servicePartnerId,
+      notes,
+      category,
+      modes,
+      cityId
+    } = req.body;
+
+    if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "patientId, serviceId, appointmentDate, startTime, and endTime are required",
+      });
+    }
+
+    await session.startTransaction();
+
+    // 1) Validate service
+    const service = await Service.findById(serviceId).session(session);
+    if (!service || !service.isActive || service.isDeleted) {
+      await session.abortTransaction();
+      return res.status(404).json({ success: false, message: "Service not found or inactive" });
+    }
+
+    // 2) Load patient and ensure patient has a city
+    const patient = await Patient.findById(patientId).select("address.cityId").session(session);
+    if (!patient || !patient.address?.cityId) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Patient city not set" });
+    }
+
+    // 3) Determine booking city
+    let bookingCity = cityId
+      ? await City.findById(cityId).session(session)
+      : await City.findById(patient.address.cityId).session(session);
+
+    if (!bookingCity) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Invalid city" });
+    }
+
+    // 4) Check slot conflicts
+    const dayStart = new Date(appointmentDate);
+    dayStart.setHours(0, 0, 0, 0);
+
+    const dayEnd = new Date(appointmentDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const conflictQuery = {
+      serviceId,
+      appointmentDate: { $gte: dayStart, $lte: dayEnd },
+      status: { $nin: ["Cancelled", "Rejected"] },
+      "slotTime.startTime": startTime,
+      "slotTime.endTime": endTime
+    };
+
+    if (servicePartnerId) conflictQuery.servicePartnerId = servicePartnerId;
+
+    const existingBooking = await Booking.findOne(conflictQuery).session(session);
+    if (existingBooking) {
+      await session.abortTransaction();
+      return res.status(409).json({ success: false, message: "Slot already booked" });
+    }
+
+    // 5) Calculate duration & pricing
+    let bookingDuration = duration;
+
+    if (!bookingDuration) {
+      const [sh, sm] = startTime.split(":").map(Number);
+      const [eh, em] = endTime.split(":").map(Number);
+
+      bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+
+      if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+    }
+
+    const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
+    const totalAmount = Number(pricing?.totalAmount || 0);
+
+    // ✅ Optional payment at booking time
+    const payNow = req.body.payNow === true || req.body.payNow === "true";
+    const advanceAmount = payNow ? Number(req.body.advanceAmount || 0) : 0;
+
+    if (advanceAmount < 0 || advanceAmount > totalAmount) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "Invalid advance amount",
+      });
+    }
+
+    const paidAmount = advanceAmount;
+    const dueAmount = totalAmount - paidAmount;
+
+    let paymentStatus = "Unpaid";
+    if (paidAmount > 0 && dueAmount > 0) paymentStatus = "Partially Paid";
+    if (dueAmount === 0 && totalAmount > 0) paymentStatus = "Paid";
+
+    // -------------------------------
+    // ✅ CREATE BOOKING FIRST
+    // -------------------------------
+    const newBooking = new Booking({
+      patientId,
+      serviceId,
+      category: category || service.category,
+      modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+      servicePartnerId: servicePartnerId || null,
+      appointmentDate: new Date(appointmentDate),
+      slotTime: { startTime, endTime },
+      duration: bookingDuration,
+      shiftType: shiftType || null,
+      status: "Pending",
+      pricing,
+      notes: notes || "",
+      city: bookingCity._id,
+      createdBy: { userId: patientId, userModel: "Patient" },
+      treatmentStatus: "Active",
+      invoiceGenerated: false,
+
+      // ✅ Payment option integrated
+      payNow: false, // booking create ke time mandatory payment nahi
+      advanceAmount,
+      paidAmount,
+      dueAmount,
+      paymentStatus,
+      paymentMethod: paidAmount > 0 ? "Online" : "None",
+      paymentRequiredAt: "TreatmentCompletion",
+      isAdvancePaid: paidAmount > 0,
+      isFinalPaymentDone: dueAmount === 0,
+      paymentHistory:
+        paidAmount > 0
+          ? [
+              {
+                amount: paidAmount,
+                method: "Online",
+                stage: "Booking",
+                note: "Advance payment at booking time",
+              },
+            ]
+          : [],
+    });
+
+    await newBooking.save({ session });
+
+let razorpayOrder = null;
+
+if (payNow && advanceAmount > 0) {
+  razorpayOrder = await razorpayInstance.orders.create({
+    amount: Math.round(advanceAmount * 100), // in paise
+    currency: "INR",
+    receipt: `booking_${newBooking._id}`,
+    notes: {
+      bookingId: String(newBooking._id),
+      patientId: String(patientId),
+      serviceId: String(serviceId),
+    },
+  });
+
+  newBooking.lastRazorpayOrderId = razorpayOrder.id;
+  await newBooking.save({ session });
+}
+
+// res.status(201).json({
+//   success: true,
+//   message: "Booking & Treatment created successfully",
+//   data: {
+//     booking: populatedBooking,
+//     treatmentId: treatment._id,
+//     razorpay: razorpayOrder
+//       ? {
+//           orderId: razorpayOrder.id,
+//           amount: razorpayOrder.amount,
+//           currency: razorpayOrder.currency,
+//           key: process.env.RAZORPAY_API_KEY,
+//         }
+//       : null,
+//   }
+// });
+
+
+    // -------------------------------
+    // ✅ CREATE TREATMENT WITH bookingId
+    // -------------------------------
+    const treatment = new Treatment({
+      bookingId: newBooking._id,
+      patientId,
+      serviceId,
+      servicePartnerId: servicePartnerId || null,
+      appointmentDate: new Date(appointmentDate),
+      slotTime: { startTime, endTime },
+      status: "Active"
+    });
+
+    await treatment.save({ session });
+
+    // -------------------------------
+    // ✅ LINK BOOKING → TREATMENT
+    // -------------------------------
+    newBooking.treatmentId = treatment._id;
+    await newBooking.save({ session });
+
+    await session.commitTransaction();
+
+    const populatedBooking = await Booking.findById(newBooking._id)
+      .populate("city", "name latitude longitude")
+      .populate("treatmentId", "status validTill");
+
+    // res.status(201).json({
+    //   success: true,
+    //   message: "Booking & Treatment created successfully",
+    //   data: {
+    //     booking: populatedBooking,
+    //     treatmentId: treatment._id
+    //   }
+    // });
+return res.status(201).json({
+  success: true,
+  message: "Booking & Treatment created successfully",
+  data: {
+    booking: populatedBooking,
+    treatmentId: treatment._id,
+    razorpay: razorpayOrder
+      ? {
+          orderId: razorpayOrder.id,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency,
+          key: process.env.RAZORPAY_API_KEY,
+        }
+      : null,
+  }
+});
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Error creating booking:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Error creating booking",
+      error: error.message
+    });
+
+  } finally {
+    session.endSession();
+  }
+};
+
+
+
+
 exports.getBookedServicesByPatientId = async (req, res) => {
   try {
     const patientId = req.user && req.user.id ? req.user.id : req.params.patientId;
@@ -2476,99 +2740,173 @@ exports.updateServiceStatus = async (req, res) => {
     }
 
     // ✅ TREATMENT COMPLETION - PAYMENT MANDATORY POINT
-    if (status.toLowerCase() === 'treatmentcompleted') {
-      if (booking.treatmentStatus !== 'Active') {
-        return res.status(400).json({ success: false, message: "Treatment must be Active" });
-      }
+    // if (status.toLowerCase() === 'treatmentcompleted') {
+    //   if (booking.treatmentStatus !== 'Active') {
+    //     return res.status(400).json({ success: false, message: "Treatment must be Active" });
+    //   }
 
-      // 1. MARK TREATMENT COMPLETE
-      booking.status = 'Completed';
-      booking.treatmentStatus = 'Completed';
-      booking.serviceEndedAt = new Date();
+    //   // 1. MARK TREATMENT COMPLETE
+    //   booking.status = 'Completed';
+    //   booking.treatmentStatus = 'Completed';
+    //   booking.serviceEndedAt = new Date();
 
-      // 2. HANDLE EQUIPMENT CHARGES (if provided)
-      if (equipment && Array.isArray(equipment)) {
-        let extraCharge = 0;
-        booking.additionalEquipment = equipment.map(item => {
-          const charge = Number(item.charge || 0);
-          extraCharge += charge;
-          return { name: item.name, charge };
-        });
+    //   // 2. HANDLE EQUIPMENT CHARGES (if provided)
+    //   if (equipment && Array.isArray(equipment)) {
+    //     let extraCharge = 0;
+    //     booking.additionalEquipment = equipment.map(item => {
+    //       const charge = Number(item.charge || 0);
+    //       extraCharge += charge;
+    //       return { name: item.name, charge };
+    //     });
 
-        // Update final pricing
-        const baseAmount = Number(booking.pricing?.basePrice || 0);
-        const taxAmount = Number(booking.pricing?.taxAmount || 0);
-        booking.pricing.equipmentCharges = extraCharge;
-        booking.pricing.totalAmount = baseAmount + extraCharge + taxAmount;
-      }
+    //     // Update final pricing
+    //     const baseAmount = Number(booking.pricing?.basePrice || 0);
+    //     const taxAmount = Number(booking.pricing?.taxAmount || 0);
+    //     booking.pricing.equipmentCharges = extraCharge;
+    //     booking.pricing.totalAmount = baseAmount + extraCharge + taxAmount;
+    //   }
 
-      // 3. CALCULATE FINAL PAYMENT STATUS
-      const totalAmount = Number(booking.pricing?.totalAmount || 0);
-      const alreadyPaid = Number(booking.paidAmount || 0);
+    //   // 3. CALCULATE FINAL PAYMENT STATUS
+    //   const totalAmount = Number(booking.pricing?.totalAmount || 0);
+    //   const alreadyPaid = Number(booking.paidAmount || 0);
       
-      booking.dueAmount = Math.max(0, totalAmount - alreadyPaid);
+    //   booking.dueAmount = Math.max(0, totalAmount - alreadyPaid);
       
-      if (booking.dueAmount === 0) {
-        booking.paymentStatus = "Paid";
-        booking.isFinalPaymentDone = true;
-      } else if (alreadyPaid > 0) {
-        booking.paymentStatus = "Partially Paid";
-        booking.isFinalPaymentDone = false;
-      } else {
-        booking.paymentStatus = "Unpaid";
-        booking.isFinalPaymentDone = false;
-      }
+    //   if (booking.dueAmount === 0) {
+    //     booking.paymentStatus = "Paid";
+    //     booking.isFinalPaymentDone = true;
+    //   } else if (alreadyPaid > 0) {
+    //     booking.paymentStatus = "Partially Paid";
+    //     booking.isFinalPaymentDone = false;
+    //   } else {
+    //     booking.paymentStatus = "Unpaid";
+    //     booking.isFinalPaymentDone = false;
+    //   }
 
-      // 4. GENERATE INVOICE (even if payment pending)
-      const Invoice = require('../models/invoiceModel');
-      const crypto = require('crypto');
+    //   // 4. GENERATE INVOICE (even if payment pending)
+    //   const Invoice = require('../models/invoiceModel');
+    //   const crypto = require('crypto');
       
-      const invoicePayload = {
-        invoiceNumber: `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
-        bookingId: booking._id,
-        patientId: booking.patientId,
-        doctorId: providerId,
-        billingDetails: {
-          serviceName: booking.serviceId.name,
-          category: booking.serviceId.category,
-          durationMinutes: booking.duration,
-          basePrice: booking.pricing.basePrice,
-          equipmentCharges: booking.pricing.equipmentCharges || 0,
-          subtotal: booking.pricing.subtotal || 0,
-          taxPercentage: booking.serviceId.taxPercentage || 18,
-          totalAmount: totalAmount,
-          paidAmount: alreadyPaid,
-          dueAmount: booking.dueAmount,
-          paymentStatus: booking.paymentStatus  // ✅ Key addition
-        }
-      };
+    //   const invoicePayload = {
+    //     invoiceNumber: `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
+    //     bookingId: booking._id,
+    //     patientId: booking.patientId,
+    //     doctorId: providerId,
+    //     billingDetails: {
+    //       serviceName: booking.serviceId.name,
+    //       category: booking.serviceId.category,
+    //       durationMinutes: booking.duration,
+    //       basePrice: booking.pricing.basePrice,
+    //       equipmentCharges: booking.pricing.equipmentCharges || 0,
+    //       subtotal: booking.pricing.subtotal || 0,
+    //       taxPercentage: booking.serviceId.taxPercentage || 18,
+    //       totalAmount: totalAmount,
+    //       paidAmount: alreadyPaid,
+    //       dueAmount: booking.dueAmount,
+    //       paymentStatus: booking.paymentStatus  // ✅ Key addition
+    //     }
+    //   };
 
-      const newInvoice = new Invoice(invoicePayload);
-      const savedInvoice = await newInvoice.save();
+    //   const newInvoice = new Invoice(invoicePayload);
+    //   const savedInvoice = await newInvoice.save();
 
-      booking.invoiceId = savedInvoice._id;
-      booking.invoiceGenerated = true;
-      await booking.save();
+    //   booking.invoiceId = savedInvoice._id;
+    //   booking.invoiceGenerated = true;
+    //   await booking.save();
 
-      return res.status(200).json({
-        success: true,
-        message: `Treatment completed. ${booking.dueAmount > 0 ? 'Payment pending: ₹' + booking.dueAmount : 'Payment cleared'}`,
-        data: {
-          bookingStatus: 'Completed',
-          treatmentStatus: 'Completed',
-          invoiceGenerated: true,
-          invoiceId: savedInvoice._id,
-          invoiceNumber: savedInvoice.invoiceNumber,
-          paymentStatus: booking.paymentStatus,
-          totalAmount: totalAmount,
-          paidAmount: alreadyPaid,
-          dueAmount: booking.dueAmount,
-          paymentRequired: booking.dueAmount > 0,
-          needsPayment: booking.dueAmount > 0
-        }
-      });
+    //   return res.status(200).json({
+    //     success: true,
+    //     message: `Treatment completed. ${booking.dueAmount > 0 ? 'Payment pending: ₹' + booking.dueAmount : 'Payment cleared'}`,
+    //     data: {
+    //       bookingStatus: 'Completed',
+    //       treatmentStatus: 'Completed',
+    //       invoiceGenerated: true,
+    //       invoiceId: savedInvoice._id,
+    //       invoiceNumber: savedInvoice.invoiceNumber,
+    //       paymentStatus: booking.paymentStatus,
+    //       totalAmount: totalAmount,
+    //       paidAmount: alreadyPaid,
+    //       dueAmount: booking.dueAmount,
+    //       paymentRequired: booking.dueAmount > 0,
+    //       needsPayment: booking.dueAmount > 0
+    //     }
+    //   });
+    // }
+// ✅ TREATMENT COMPLETION - ADVANCE RESET + FINAL PAYMENT READY
+if (status.toLowerCase() === 'treatmentcompleted') {
+  if (booking.treatmentStatus !== 'Active') {
+    return res.status(400).json({ success: false, message: "Treatment must be Active" });
+  }
+
+  // 🔥 1. RESET ADVANCE PAYMENT (tumhari main requirement)
+  booking.advanceAmount = 0;           // ✅ Advance clear
+  booking.paidAmount = 0;              // ✅ Paid amount clear  
+  booking.isAdvancePaid = false;       // ✅ Flag reset
+  booking.paymentHistory = [];         // ✅ History clear
+
+  // 2. Recalculate FULL amount as due (no advance deduction)
+  const totalAmount = Number(booking.pricing?.totalAmount || 0);
+  booking.dueAmount = totalAmount;     // ✅ Full amount due now
+  booking.paymentStatus = "Unpaid";    // ✅ Reset to Unpaid
+  booking.isFinalPaymentDone = false;  // ✅ Final payment pending
+  booking.payNow = true;               // ✅ Enable final payment
+
+  // 3. Mark treatment complete
+  booking.status = 'Completed';
+  booking.treatmentStatus = 'Completed';
+  booking.serviceEndedAt = new Date();
+
+  // 4. Handle equipment charges (if any)
+  if (equipment && Array.isArray(equipment)) {
+    let extraCharge = 0;
+    booking.additionalEquipment = equipment.map(item => {
+      const charge = Number(item.charge || 0);
+      extraCharge += charge;
+      return { name: item.name, charge };
+    });
+    booking.pricing.equipmentCharges = extraCharge;
+    booking.pricing.totalAmount += extraCharge;  // Update total
+    booking.dueAmount = booking.pricing.totalAmount;  // Full updated amount due
+  }
+
+  // 5. Generate invoice with CLEAN payment status
+  const invoicePayload = {
+    invoiceNumber: `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
+    bookingId: booking._id,
+    patientId: booking.patientId,
+    doctorId: providerId,
+    billingDetails: {
+      serviceName: booking.serviceId.name,
+      category: booking.serviceId.category,
+      totalAmount: booking.pricing.totalAmount,
+      paidAmount: 0,        // ✅ Zero after advance reset
+      dueAmount: booking.dueAmount,  // ✅ Full amount
+      paymentStatus: "Unpaid"         // ✅ Fresh start
     }
+  };
 
+  const newInvoice = new Invoice(invoicePayload);
+  const savedInvoice = await newInvoice.save();
+  
+  booking.invoiceId = savedInvoice._id;
+  booking.invoiceGenerated = true;
+  await booking.save();
+
+  return res.status(200).json({
+    success: true,
+    message: `Treatment completed. Full payment now due: ₹${booking.dueAmount}`,
+    data: {
+      bookingStatus: 'Completed',
+      treatmentStatus: 'Completed',
+      advanceReset: true,           // ✅ Confirmation
+      paymentStatus: 'Unpaid',      // ✅ Fresh
+      totalAmount: booking.pricing.totalAmount,
+      dueAmount: booking.dueAmount,
+      payNow: true,                 // ✅ Ready for final payment
+      invoiceGenerated: true
+    }
+  });
+}
     return res.status(400).json({ 
       success: false, 
       message: 'Valid: "In-Progress", "TreatmentCompleted"' 
