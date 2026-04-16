@@ -92,7 +92,7 @@ const paymentSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       // intentionally mirrors invoiceModel.paymentStatus values + extras
-      enum: ["Unpaid", "Partially Paid", "Paid", "Refunded", "PartialRefund"],
+      enum: ["Unpaid", "Partially Paid", "Paid", "Refunded", "PartialRefund","PendingPayment",],
       default: "Unpaid",
       index: true,
     },

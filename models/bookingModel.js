@@ -51,7 +51,7 @@ const bookingSchema = new mongoose.Schema(
     },
     treatmentStatus: {
       type: String,
-      enum: ["Active", "Completed", "Cancelled"],
+      enum: ["Active", "Completed", "Cancelled","Pending"],
       default: "Active",
     },
 
@@ -114,6 +114,8 @@ const bookingSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
+            "Temporary", 
+                "PendingPayment",
         "Pending",
         "Approved",
         "Rejected",

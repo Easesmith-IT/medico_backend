@@ -1,16 +1,16 @@
 const express = require("express");
 const router = express.Router();
-const paymentController = require("../controllers/paymentController");
+const paymentController = require("../controller/payController");
 const { protect } = require("../middleware/auth");
 
 router.post(
   "/booking/:bookingId/advance/order",
   protect(["patient"]),
-  paymentController.createBookingAdvanceOrder
+  paymentController.createBookingAdvanceOrder  
 );
 
 router.post(
-  "/booking/:bookingId/advance/verify",
+  "/booking/:bookingId/advance/verify", 
   protect(["patient"]),
   paymentController.verifyBookingAdvancePayment
 );
