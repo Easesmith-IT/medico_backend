@@ -241,12 +241,10 @@ exports.createBookingAdvanceOrder = async (req, res) => {
 };
 
 
-
-
 exports.verifyBookingAdvancePayment = async (req, res) => {
   try {
+    const { bookingId } = req.params;
     const {
-      bookingId,
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
@@ -267,7 +265,7 @@ exports.verifyBookingAdvancePayment = async (req, res) => {
       });
     }
 
-    if (booking.razorpayOrderId !== razorpay_order_id) {
+    if (booking.lastRazorpayOrderId !== razorpay_order_id) {
       return res.status(400).json({
         success: false,
         message: "Invalid order id for this booking",
@@ -276,7 +274,7 @@ exports.verifyBookingAdvancePayment = async (req, res) => {
 
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
-      .update(`${booking.razorpayOrderId}|${razorpay_payment_id}`)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
@@ -286,8 +284,8 @@ exports.verifyBookingAdvancePayment = async (req, res) => {
       });
     }
 
-    const paidAmount = normalizeAmount(booking.advanceAmount || 0);
-    const totalAmount = normalizeAmount(booking.pricing?.totalAmount || 0);
+    const paidAmount = Number(booking.advanceAmount || 0);
+    const totalAmount = Number(booking.pricing?.totalAmount || 0);
     const dueAmount = Math.max(totalAmount - paidAmount, 0);
 
     booking.status = "Confirmed";
@@ -297,6 +295,7 @@ exports.verifyBookingAdvancePayment = async (req, res) => {
     booking.paymentMethod = "Online";
     booking.isAdvancePaid = true;
     booking.isFinalPaymentDone = dueAmount === 0;
+    booking.lastRazorpayPaymentId = razorpay_payment_id;
     booking.paymentHistory = [
       ...(booking.paymentHistory || []),
       {
@@ -331,6 +330,95 @@ exports.verifyBookingAdvancePayment = async (req, res) => {
     });
   }
 };
+
+// exports.verifyBookingAdvancePayment = async (req, res) => {
+//   try {
+//     const {
+//       bookingId,
+//       razorpay_order_id,
+//       razorpay_payment_id,
+//       razorpay_signature,
+//     } = req.body;
+
+//     if (!bookingId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "bookingId, razorpay_order_id, razorpay_payment_id and razorpay_signature are required",
+//       });
+//     }
+
+//     const booking = await Booking.findById(bookingId);
+//     if (!booking) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Booking not found",
+//       });
+//     }
+
+//     if (booking.razorpayOrderId !== razorpay_order_id) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid order id for this booking",
+//       });
+//     }
+
+//     const expectedSignature = crypto
+//       .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
+//       .update(`${booking.razorpayOrderId}|${razorpay_payment_id}`)
+//       .digest("hex");
+
+//     if (expectedSignature !== razorpay_signature) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Payment verification failed",
+//       });
+//     }
+
+//     const paidAmount = normalizeAmount(booking.advanceAmount || 0);
+//     const totalAmount = normalizeAmount(booking.pricing?.totalAmount || 0);
+//     const dueAmount = Math.max(totalAmount - paidAmount, 0);
+
+//     booking.status = "Confirmed";
+//     booking.paidAmount = paidAmount;
+//     booking.dueAmount = dueAmount;
+//     booking.paymentStatus = dueAmount === 0 ? "Paid" : "Partially Paid";
+//     booking.paymentMethod = "Online";
+//     booking.isAdvancePaid = true;
+//     booking.isFinalPaymentDone = dueAmount === 0;
+//     booking.paymentHistory = [
+//       ...(booking.paymentHistory || []),
+//       {
+//         amount: paidAmount,
+//         method: "Online",
+//         stage: "Booking",
+//         razorpayOrderId: razorpay_order_id,
+//         razorpayPaymentId: razorpay_payment_id,
+//         note: "Advance payment completed successfully",
+//         paidAt: new Date(),
+//       },
+//     ];
+
+//     await booking.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Booking confirmed after successful advance payment",
+//       data: {
+//         bookingId: booking._id,
+//         bookingStatus: booking.status,
+//         paymentStatus: booking.paymentStatus,
+//         paidAmount: booking.paidAmount,
+//         dueAmount: booking.dueAmount,
+//       },
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to verify booking advance payment",
+//       error: error.message,
+//     });
+//   }
+// };
 
 
 
