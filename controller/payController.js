@@ -265,12 +265,16 @@ exports.verifyBookingAdvancePayment = async (req, res) => {
       });
     }
 
-    if (booking.lastRazorpayOrderId !== razorpay_order_id) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid order id for this booking",
-      });
-    }
+    console.log("booking-log", booking);
+    console.log("razorpay_order_id", razorpay_order_id);
+    
+
+    // if (booking.lastRazorpayOrderId !== razorpay_order_id) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Invalid order id for this booking",
+    //   });
+    // }
 
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
