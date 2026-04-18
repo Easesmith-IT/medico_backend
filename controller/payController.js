@@ -180,7 +180,104 @@ exports.getTreatmentPaymentLedger = async (req, res) => {
     });
   }
 };
+const buildRazorpayReceipt = (prefix, entityId) => {
+  const safePrefix = String(prefix || "pay").slice(0, 8);
+  const shortId = String(entityId || "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(-12);
+  const stamp = Date.now().toString().slice(-10);
 
+  return `${safePrefix}_${shortId}_${stamp}`.slice(0, 40);
+};
+
+// exports.createTreatmentOnlineOrder = async (req, res) => {
+//   try {
+//     const { treatmentId } = req.params;
+//     const { amount } = req.body;
+
+//     const treatment = await getTreatmentOr404(treatmentId);
+//     if (!treatment) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Treatment not found",
+//       });
+//     }
+
+//     if (!canAccessTreatment(req, treatment) || getRole(req) !== "patient") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only the treatment owner can create an online payment order",
+//       });
+//     }
+
+//     const payment = await getOrCreatePaymentLedger(treatment);
+//     const requestedAmount = normalizeAmount(amount);
+
+//     if (requestedAmount <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "A valid amount is required",
+//       });
+//     }
+
+//     if (requestedAmount > Number(payment.remainingBalance || 0)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Amount exceeds the remaining treatment balance",
+//       });
+//     }
+
+//     const stage = inferStage(payment, requestedAmount);
+//     const order = await razorpay.orders.create({
+//       amount: Math.round(requestedAmount * 100),
+//       currency: payment.currency || "INR",
+//       receipt: buildRazorpayReceipt("treatpay", treatment._id),
+//       notes: {
+//         treatmentId: String(treatment._id),
+//         paymentStage: stage,
+//       },
+//      razorpayOrderId: order.id,
+//       razorpayPaymentId: null,
+//       razorpaySignature: null,    });
+
+//     payment.transactions.push({
+//       type: "Charge",
+//       stage,
+//       method: "Online",
+//       amountPaid: requestedAmount,
+//       currency: payment.currency || "INR",
+//       status: "Pending",
+ 
+//       note: `Pending ${stage.toLowerCase()} payment`,
+//       collectedBy: null,
+//     });
+
+//     recalculateLedger(payment);
+//     await payment.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Online payment order created successfully",
+//       data: {
+//         paymentId: payment._id,
+//         treatmentId: treatment._id,
+//         orderId: order.id,
+//         amount: order.amount,
+//         currency: order.currency,
+//         stage,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("CREATE ORDER ERROR:", error);
+//     console.error("STACK:", error.stack);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to create online payment order",
+//       error: error.message,
+//     });
+//   }
+// };
 exports.createTreatmentOnlineOrder = async (req, res) => {
   try {
     const { treatmentId } = req.params;
@@ -219,10 +316,11 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
     }
 
     const stage = inferStage(payment, requestedAmount);
+
     const order = await razorpay.orders.create({
       amount: Math.round(requestedAmount * 100),
       currency: payment.currency || "INR",
-      receipt: `treatment_${treatment._id}_${Date.now()}`,
+      receipt: buildRazorpayReceipt("treatpay", treatment._id),
       notes: {
         treatmentId: String(treatment._id),
         paymentStage: stage,
@@ -236,11 +334,11 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
       amountPaid: requestedAmount,
       currency: payment.currency || "INR",
       status: "Pending",
+      note: `Pending ${stage.toLowerCase()} payment`,
+      collectedBy: null,
       razorpayOrderId: order.id,
       razorpayPaymentId: null,
       razorpaySignature: null,
-      note: `Pending ${stage.toLowerCase()} payment`,
-      collectedBy: null,
     });
 
     recalculateLedger(payment);
@@ -259,6 +357,9 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("CREATE ORDER ERROR:", error);
+    console.error("STACK:", error.stack);
+
     return res.status(500).json({
       success: false,
       message: "Failed to create online payment order",
@@ -266,7 +367,6 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
     });
   }
 };
-
 exports.verifyTreatmentOnlinePayment = async (req, res) => {
   try {
     const { treatmentId } = req.params;
