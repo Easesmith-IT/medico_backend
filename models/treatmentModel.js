@@ -1,15 +1,23 @@
 const mongoose = require('mongoose');
 const treatmentSchema = new mongoose.Schema({
-  bookingId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Booking',
-    required: true,
-    unique: true  // Ek booking = ek treatment
-  },
+  // bookingId: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: 'Booking',
+  //   required: true,
+  //   unique: true  // Ek booking = ek treatment
+  // },
   patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
   serviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
   servicePartnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceProvider' },
-  
+   startDate: {
+      type: Date,
+      default: null,
+    },
+
+    endDate: {
+      type: Date,
+      default: null,
+    },
   // Valid for 5 days (prescription logic)
   validTill: { type: Date, default: () => new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) },
   status: { 
@@ -17,15 +25,22 @@ const treatmentSchema = new mongoose.Schema({
     enum: ['Active', 'InProgress', 'Completed', 'Expired', 'Cancelled'], 
     default: 'Active' 
   },
-  
-  appointmentDate: { type: Date, required: true },
-  slotTime: {
-    startTime: String,
-    endTime: String
-  },
-  
+   currentBookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+      default: null,
+    },
+
+    lastBookingAt: {
+      type: Date,
+      default: null,
+    },
   invoiceGenerated: { type: Boolean, default: false },
   invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
+  isActive: {
+      type: Boolean,
+      default: true,
+    },
   
 }, { timestamps: true 
 });

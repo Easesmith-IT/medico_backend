@@ -1,280 +1,322 @@
-// controllers/bookingPaymentController.js
 const crypto = require("crypto");
 const Booking = require("../models/bookingModel");
+const Payment = require("../models/paymentModel");
+const Treatment = require("../models/treatmentModel");
 const razorpay = require("../config/razorpay");
-const { normalizeAmount, derivePaymentStatus } = require("../utils/bookingPayment");
 
-// exports.createBookingAdvanceOrder = async (req, res) => {
-//   try {
-//     const { bookingId, amount } = req.body;
+const ADMIN_ROLES = new Set(["admin", "superadmin", "subadmin"]);
+const PROVIDER_ROLES = new Set(["serviceprovider"]);
 
-//     if (!bookingId || amount === undefined) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "bookingId and amount are required",
-//       });
-//     }
+const normalizeAmount = (value) => {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) && amount > 0 ? Number(amount.toFixed(2)) : 0;
+};
 
-//     const booking = await Booking.findById(bookingId);
-//     if (!booking) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Booking not found",
-//       });
-//     }
+const getRole = (req) => (req.user?.role || "").toString().toLowerCase();
 
-//     const requestedAmount = normalizeAmount(amount);
-//     const totalAmount = normalizeAmount(booking.pricing?.totalAmount || 0);
+const isObjectIdEqual = (a, b) => String(a || "") === String(b || "");
 
-//     if (requestedAmount <= 0 || requestedAmount > totalAmount) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Invalid booking advance amount",
-//       });
-//     }
+const canAccessTreatment = (req, treatment) => {
+  const role = getRole(req);
 
-//     const order = await razorpay.orders.create({
-//       amount: Math.round(requestedAmount * 100),
-//       currency: "INR",
-//       receipt: `booking_advance_${booking._id}`,
-//       notes: {
-//         bookingId: String(booking._id),
-//         paymentStage: "Booking",
-//       },
-//     });
+  if (ADMIN_ROLES.has(role)) {
+    return true;
+  }
 
-//     booking.razorpayOrderId = order.id;
-//     await booking.save();
+  if (role === "patient") {
+    return isObjectIdEqual(treatment.patientId, req.user?.id);
+  }
 
-//     return res.status(200).json({
-//       success: true,
-//       message: "Advance payment order created successfully",
-//       data: {
-//         key: process.env.RAZORPAY_API_KEY,
-//         orderId: order.id,
-//         amount: requestedAmount,
-//         currency: order.currency,
-//         bookingId: booking._id,
-//       },
-//     });
-//   } catch (error) {
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to create booking advance payment order",
-//       error: error.message,
-//     });
-//   }
-// };
+  if (PROVIDER_ROLES.has(role)) {
+    return isObjectIdEqual(treatment.servicePartnerId, req.user?.id);
+  }
 
-// exports.verifyBookingAdvancePayment = async (req, res) => {
-//   try {
-//     const {
-//       bookingId,
-//       amount,
-//       paymentMethod = "Online",
-//       razorpay_order_id,
-//       razorpay_payment_id,
-//       razorpay_signature,
-//     } = req.body;
+  return false;
+};
 
-//     if (
-//       !bookingId ||
-//       !amount ||
-//       !razorpay_order_id ||
-//       !razorpay_payment_id ||
-//       !razorpay_signature
-//     ) {
-//       return res.status(400).json({
-//         success: false,
-//         message:
-//           "bookingId, amount, razorpay_order_id, razorpay_payment_id and razorpay_signature are required",
-//       });
-//     }
+const canManageManualLedgerActions = (req) => ADMIN_ROLES.has(getRole(req));
 
-//     const generatedSignature = crypto
-//       .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
-//       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-//       .digest("hex");
+const getTreatmentOr404 = async (treatmentId) => Treatment.findById(treatmentId);
 
-//     if (generatedSignature !== razorpay_signature) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Payment verification failed",
-//       });
-//     }
+const recalculateLedger = (payment) => {
+  const totalPaid = (payment.transactions || [])
+    .filter((item) => item.status === "Paid")
+    .reduce((sum, item) => sum + Number(item.amountPaid || 0), 0);
 
-//     const booking = await Booking.findById(bookingId);
-//     if (!booking) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Booking not found",
-//       });
-//     }
+  const totalRefunded = (payment.refunds || [])
+    .filter((item) => item.status === "Processed")
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
-//     const incomingAmount = normalizeAmount(amount);
-//     const totalAmount = normalizeAmount(booking.pricing?.totalAmount || 0);
-//     const updatedPaidAmount = normalizeAmount(
-//       Number(booking.paidAmount || 0) + incomingAmount
-//     );
+  payment.totalPaid = Number(totalPaid.toFixed(2));
+  payment.totalRefunded = Number(totalRefunded.toFixed(2));
+  payment.remainingBalance = Number(
+    Math.max(Number(payment.totalBillAmount || 0) - payment.totalPaid + payment.totalRefunded, 0).toFixed(2)
+  );
+};
 
-//     if (updatedPaidAmount > totalAmount) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Paid amount cannot exceed total booking amount",
-//       });
-//     }
+const syncPaymentLedger = async (payment, treatment) => {
+  const bookings = await Booking.find({ treatmentId: treatment._id }).select(
+    "_id pricing.totalAmount servicePartnerId"
+  );
 
-//     const paymentSummary = derivePaymentStatus({
-//       totalAmount,
-//       paidAmount: updatedPaidAmount,
-//     });
+  const totalBillAmount = bookings.reduce(
+    (sum, booking) => sum + Number(booking.pricing?.totalAmount || 0),
+    0
+  );
 
-//     booking.razorpayOrderId = razorpay_order_id;
-//     booking.razorpayPaymentId = razorpay_payment_id;
-//     booking.razorpaySignature = razorpay_signature;
-//     booking.paymentMethod = paymentMethod;
-//     booking.advanceAmount = normalizeAmount(
-//       Number(booking.advanceAmount || 0) + incomingAmount
-//     );
-//     booking.paidAmount = paymentSummary.paidAmount;
-//     booking.dueAmount = paymentSummary.dueAmount;
-//     booking.paymentStatus = paymentSummary.paymentStatus;
-//     booking.isAdvancePaid = paymentSummary.isAdvancePaid;
-//     booking.isFinalPaymentDone = paymentSummary.isFinalPaymentDone;
+  payment.patientId = treatment.patientId;
+  payment.servicePartnerId = treatment.servicePartnerId || null;
+  payment.bookingIds = bookings.map((booking) => booking._id);
+  payment.totalBillAmount = Number(totalBillAmount.toFixed(2));
+  payment.billBreakdown = {
+    ...(payment.billBreakdown || {}),
+    subtotal: payment.totalBillAmount,
+    gstAmount: Number(payment.billBreakdown?.gstAmount || 0),
+    cgst: Number(payment.billBreakdown?.cgst || 0),
+    sgst: Number(payment.billBreakdown?.sgst || 0),
+    grandTotal: payment.totalBillAmount,
+  };
 
-//     booking.paymentHistory.push({
-//       amount: incomingAmount,
-//       method: paymentMethod,
-//       stage: "Booking",
-//       razorpayOrderId: razorpay_order_id,
-//       razorpayPaymentId: razorpay_payment_id,
-//       note: "Advance payment verified",
-//     });
+  recalculateLedger(payment);
+  return payment;
+};
 
-//     await booking.save();
+const getOrCreatePaymentLedger = async (treatment) => {
+  let payment = await Payment.findOne({ treatmentId: treatment._id });
 
-//     return res.status(200).json({
-//       success: true,
-//       message: "Advance payment verified successfully",
-//       data: booking,
-//     });
-//   } catch (error) {
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to verify booking advance payment",
-//       error: error.message,
-//     });
-//   }
-// };
+  if (!payment) {
+    payment = new Payment({
+      treatmentId: treatment._id,
+      patientId: treatment.patientId,
+      servicePartnerId: treatment.servicePartnerId || null,
+      bookingIds: [],
+      totalBillAmount: 0,
+      totalPaid: 0,
+      totalRefunded: 0,
+      remainingBalance: 0,
+      billBreakdown: {
+        subtotal: 0,
+        gstAmount: 0,
+        cgst: 0,
+        sgst: 0,
+        grandTotal: 0,
+      },
+      paymentStatus: "Unpaid",
+      transactions: [],
+      refunds: [],
+    });
+  }
 
-exports.createBookingAdvanceOrder = async (req, res) => {
+  await syncPaymentLedger(payment, treatment);
+  await payment.save();
+  return payment;
+};
+
+const inferStage = (payment, incomingAmount) => {
+  const amount = normalizeAmount(incomingAmount);
+  const paidSoFar = Number(payment.totalPaid || 0);
+  const remainingBefore = Number(payment.remainingBalance || 0);
+
+  if (paidSoFar <= 0) {
+    return "Advance";
+  }
+
+  if (amount >= remainingBefore) {
+    return "Final";
+  }
+
+  return "Partial";
+};
+
+const buildLedgerResponse = (payment) => ({
+  paymentId: payment._id,
+  treatmentId: payment.treatmentId,
+  patientId: payment.patientId,
+  servicePartnerId: payment.servicePartnerId,
+  bookingIds: payment.bookingIds,
+  invoiceId: payment.invoiceId,
+  currency: payment.currency,
+  totalBillAmount: payment.totalBillAmount,
+  totalPaid: payment.totalPaid,
+  totalRefunded: payment.totalRefunded,
+  remainingBalance: payment.remainingBalance,
+  paymentStatus: payment.paymentStatus,
+  transactions: payment.transactions,
+  refunds: payment.refunds,
+  updatedAt: payment.updatedAt,
+});
+
+exports.getTreatmentPaymentLedger = async (req, res) => {
   try {
-    const { bookingId, amount } = req.body;
+    const { treatmentId } = req.params;
+    const treatment = await getTreatmentOr404(treatmentId);
 
-    if (!bookingId || amount === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: "bookingId and amount are required",
-      });
-    }
-
-    const booking = await Booking.findById(bookingId);
-    if (!booking) {
+    if (!treatment) {
       return res.status(404).json({
         success: false,
-        message: "Booking not found",
+        message: "Treatment not found",
       });
     }
 
-    // only temporary/pending bookings should be allowed
-    if (!["Temporary", "PendingPayment"].includes(booking.status)) {
-      return res.status(400).json({
+    if (!canAccessTreatment(req, treatment)) {
+      return res.status(403).json({
         success: false,
-        message: "Booking is not eligible for advance payment",
+        message: "You are not allowed to access this payment ledger",
       });
     }
 
-    const requestedAmount = normalizeAmount(amount);
-    const totalAmount = normalizeAmount(booking.pricing?.totalAmount || 0);
-
-    if (requestedAmount <= 0 || requestedAmount > totalAmount) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid booking advance amount",
-      });
-    }
-
-    const order = await razorpay.orders.create({
-      amount: Math.round(requestedAmount * 100),
-      currency: "INR",
-      receipt: `booking_advance_${booking._id}`,
-      notes: {
-        bookingId: String(booking._id),
-        paymentStage: "Booking",
-      },
-    });
-
-    booking.razorpayOrderId = order.id;
-    booking.advanceAmount = requestedAmount;
-    booking.status = "PendingPayment"; // temporary booking moved to payment pending
-    booking.paymentStatus = "Unpaid";
-    await booking.save();
+    const payment = await getOrCreatePaymentLedger(treatment);
 
     return res.status(200).json({
       success: true,
-      message: "Advance payment order created successfully",
-      data: {
-        orderId: order.id,
-        amount: order.amount,
-        currency: order.currency,
-        bookingId: booking._id,
-        bookingStatus: booking.status,
-      },
+      message: "Payment ledger fetched successfully",
+      data: buildLedgerResponse(payment),
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Failed to create booking advance payment order",
+      message: "Failed to fetch payment ledger",
       error: error.message,
     });
   }
 };
 
-
-exports.verifyBookingAdvancePayment = async (req, res) => {
+exports.createTreatmentOnlineOrder = async (req, res) => {
   try {
-    const { bookingId } = req.params;
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-    } = req.body;
+    const { treatmentId } = req.params;
+    const { amount } = req.body;
 
-    if (!bookingId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({
-        success: false,
-        message: "bookingId, razorpay_order_id, razorpay_payment_id and razorpay_signature are required",
-      });
-    }
-
-    const booking = await Booking.findById(bookingId);
-    if (!booking) {
+    const treatment = await getTreatmentOr404(treatmentId);
+    if (!treatment) {
       return res.status(404).json({
         success: false,
-        message: "Booking not found",
+        message: "Treatment not found",
       });
     }
 
-    console.log("booking-log", booking);
-    console.log("razorpay_order_id", razorpay_order_id);
-    
+    if (!canAccessTreatment(req, treatment) || getRole(req) !== "patient") {
+      return res.status(403).json({
+        success: false,
+        message: "Only the treatment owner can create an online payment order",
+      });
+    }
 
-    // if (booking.lastRazorpayOrderId !== razorpay_order_id) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Invalid order id for this booking",
-    //   });
-    // }
+    const payment = await getOrCreatePaymentLedger(treatment);
+    const requestedAmount = normalizeAmount(amount);
+
+    if (requestedAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid amount is required",
+      });
+    }
+
+    if (requestedAmount > Number(payment.remainingBalance || 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount exceeds the remaining treatment balance",
+      });
+    }
+
+    const stage = inferStage(payment, requestedAmount);
+    const order = await razorpay.orders.create({
+      amount: Math.round(requestedAmount * 100),
+      currency: payment.currency || "INR",
+      receipt: `treatment_${treatment._id}_${Date.now()}`,
+      notes: {
+        treatmentId: String(treatment._id),
+        paymentStage: stage,
+      },
+    });
+
+    payment.transactions.push({
+      type: "Charge",
+      stage,
+      method: "Online",
+      amountPaid: requestedAmount,
+      currency: payment.currency || "INR",
+      status: "Pending",
+      razorpayOrderId: order.id,
+      razorpayPaymentId: null,
+      razorpaySignature: null,
+      note: `Pending ${stage.toLowerCase()} payment`,
+      collectedBy: null,
+    });
+
+    recalculateLedger(payment);
+    await payment.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Online payment order created successfully",
+      data: {
+        paymentId: payment._id,
+        treatmentId: treatment._id,
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        stage,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create online payment order",
+      error: error.message,
+    });
+  }
+};
+
+exports.verifyTreatmentOnlinePayment = async (req, res) => {
+  try {
+    const { treatmentId } = req.params;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: "razorpay_order_id, razorpay_payment_id and razorpay_signature are required",
+      });
+    }
+
+    const treatment = await getTreatmentOr404(treatmentId);
+    if (!treatment) {
+      return res.status(404).json({
+        success: false,
+        message: "Treatment not found",
+      });
+    }
+
+    if (!canAccessTreatment(req, treatment) || getRole(req) !== "patient") {
+      return res.status(403).json({
+        success: false,
+        message: "Only the treatment owner can verify an online payment",
+      });
+    }
+
+    const payment = await Payment.findOne({ treatmentId });
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment ledger not found for this treatment",
+      });
+    }
+
+    const transaction = [...(payment.transactions || [])]
+      .reverse()
+      .find(
+        (item) =>
+          item.razorpayOrderId === razorpay_order_id &&
+          item.method === "Online" &&
+          item.status === "Pending"
+      );
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Pending online transaction not found for this order",
+      });
+    }
 
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
@@ -282,398 +324,210 @@ exports.verifyBookingAdvancePayment = async (req, res) => {
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
+      transaction.status = "Failed";
+      transaction.failureReason = "Signature verification failed";
+      await payment.save();
+
       return res.status(400).json({
         success: false,
         message: "Payment verification failed",
       });
     }
 
-    const paidAmount = Number(booking.advanceAmount || 0);
-    const totalAmount = Number(booking.pricing?.totalAmount || 0);
-    const dueAmount = Math.max(totalAmount - paidAmount, 0);
+    transaction.status = "Paid";
+    transaction.razorpayPaymentId = razorpay_payment_id;
+    transaction.razorpaySignature = razorpay_signature;
+    transaction.paidAt = new Date();
+    transaction.failureReason = null;
 
-    booking.status = "Confirmed";
-    booking.paidAmount = paidAmount;
-    booking.dueAmount = dueAmount;
-    booking.paymentStatus = dueAmount === 0 ? "Paid" : "Partially Paid";
-    booking.paymentMethod = "Online";
-    booking.isAdvancePaid = true;
-    booking.isFinalPaymentDone = dueAmount === 0;
-    booking.lastRazorpayPaymentId = razorpay_payment_id;
-    booking.paymentHistory = [
-      ...(booking.paymentHistory || []),
-      {
-        amount: paidAmount,
-        method: "Online",
-        stage: "Booking",
-        razorpayOrderId: razorpay_order_id,
-        razorpayPaymentId: razorpay_payment_id,
-        note: "Advance payment completed successfully",
-        paidAt: new Date(),
-      },
-    ];
-
-    await booking.save();
+    recalculateLedger(payment);
+    await payment.save();
 
     return res.status(200).json({
       success: true,
-      message: "Booking confirmed after successful advance payment",
-      data: {
-        bookingId: booking._id,
-        bookingStatus: booking.status,
-        paymentStatus: booking.paymentStatus,
-        paidAmount: booking.paidAmount,
-        dueAmount: booking.dueAmount,
-      },
+      message: "Online payment verified successfully",
+      data: buildLedgerResponse(payment),
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Failed to verify booking advance payment",
+      message: "Failed to verify online payment",
       error: error.message,
     });
   }
 };
 
-// exports.verifyBookingAdvancePayment = async (req, res) => {
-//   try {
-//     const {
-//       bookingId,
-//       razorpay_order_id,
-//       razorpay_payment_id,
-//       razorpay_signature,
-//     } = req.body;
-
-//     if (!bookingId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "bookingId, razorpay_order_id, razorpay_payment_id and razorpay_signature are required",
-//       });
-//     }
-
-//     const booking = await Booking.findById(bookingId);
-//     if (!booking) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Booking not found",
-//       });
-//     }
-
-//     if (booking.razorpayOrderId !== razorpay_order_id) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Invalid order id for this booking",
-//       });
-//     }
-
-//     const expectedSignature = crypto
-//       .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
-//       .update(`${booking.razorpayOrderId}|${razorpay_payment_id}`)
-//       .digest("hex");
-
-//     if (expectedSignature !== razorpay_signature) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Payment verification failed",
-//       });
-//     }
-
-//     const paidAmount = normalizeAmount(booking.advanceAmount || 0);
-//     const totalAmount = normalizeAmount(booking.pricing?.totalAmount || 0);
-//     const dueAmount = Math.max(totalAmount - paidAmount, 0);
-
-//     booking.status = "Confirmed";
-//     booking.paidAmount = paidAmount;
-//     booking.dueAmount = dueAmount;
-//     booking.paymentStatus = dueAmount === 0 ? "Paid" : "Partially Paid";
-//     booking.paymentMethod = "Online";
-//     booking.isAdvancePaid = true;
-//     booking.isFinalPaymentDone = dueAmount === 0;
-//     booking.paymentHistory = [
-//       ...(booking.paymentHistory || []),
-//       {
-//         amount: paidAmount,
-//         method: "Online",
-//         stage: "Booking",
-//         razorpayOrderId: razorpay_order_id,
-//         razorpayPaymentId: razorpay_payment_id,
-//         note: "Advance payment completed successfully",
-//         paidAt: new Date(),
-//       },
-//     ];
-
-//     await booking.save();
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Booking confirmed after successful advance payment",
-//       data: {
-//         bookingId: booking._id,
-//         bookingStatus: booking.status,
-//         paymentStatus: booking.paymentStatus,
-//         paidAmount: booking.paidAmount,
-//         dueAmount: booking.dueAmount,
-//       },
-//     });
-//   } catch (error) {
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to verify booking advance payment",
-//       error: error.message,
-//     });
-//   }
-// };
-
-
-
-
-
-
-
-
-// exports.verifyBookingAdvancePayment = async (req, res) => {
-//   try {
-//     const {
-//       bookingId,
-//       razorpay_order_id,
-//       razorpay_payment_id,
-//       razorpay_signature,
-//     } = req.body;
-
-//     const booking = await Booking.findById(bookingId);
-//     if (!booking) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Booking not found",
-//       });
-//     }
-
-//     const body = razorpay_order_id + "|" + razorpay_payment_id;
-//     const expectedSignature = crypto
-//      .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
-//       .update(body.toString())
-//       .digest("hex");
-
-//     if (expectedSignature !== razorpay_signature) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Invalid payment signature",
-//       });
-//     }
-
-//     booking.lastRazorpayOrderId = razorpay_order_id;
-//     booking.lastRazorpayPaymentId = razorpay_payment_id;
-//     booking.paymentMethod = "Online";
-//     booking.isAdvancePaid = booking.paidAmount > 0;
-
-//     if (booking.paymentHistory?.length > 0) {
-//       booking.paymentHistory[0].razorpayOrderId = razorpay_order_id;
-//       booking.paymentHistory[0].razorpayPaymentId = razorpay_payment_id;
-//       booking.paymentHistory[0].note = "Advance payment verified successfully";
-//     } else {
-//       booking.paymentHistory = [
-//         {
-//           amount: booking.paidAmount,
-//           method: "Online",
-//           stage: "Booking",
-//           razorpayOrderId: razorpay_order_id,
-//           razorpayPaymentId: razorpay_payment_id,
-//           note: "Advance payment verified successfully",
-//           paidAt: new Date(),
-//         },
-//       ];
-//     }
-
-//     await booking.save();
-
-//     const updatedBooking = await Booking.findById(bookingId)
-//       .populate("city", "name latitude longitude")
-//       .populate("treatmentId", "status validTill");
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Advance payment verified successfully",
-//       data: {
-//         booking: updatedBooking,
-//       },
-//     });
-//   } catch (error) {
-//     return res.status(500).json({
-//       success: false,
-//       message: "Payment verification failed",
-//       error: error.message,
-//     });
-//   }
-// };
-exports.createCompletionDueOrder = async (req, res) => {
+exports.recordManualPayment = async (req, res) => {
   try {
-    const { bookingId } = req.body;
+    const { treatmentId } = req.params;
+    const { amount, method, stage, note = "", referenceNumber = null } = req.body;
 
-    if (!bookingId) {
-      return res.status(400).json({
+    if (!canManageManualLedgerActions(req)) {
+      return res.status(403).json({
         success: false,
-        message: "bookingId is required",
+        message: "Only admins can record manual payments",
       });
     }
 
-    const booking = await Booking.findById(bookingId);
-    if (!booking) {
+    const treatment = await getTreatmentOr404(treatmentId);
+    if (!treatment) {
       return res.status(404).json({
         success: false,
-        message: "Booking not found",
+        message: "Treatment not found",
       });
     }
 
-    if (booking.status !== "Completed") {
+    const payment = await getOrCreatePaymentLedger(treatment);
+    const receivedAmount = normalizeAmount(amount);
+    const allowedMethods = new Set(["Cash", "UPI", "Card", "BankTransfer"]);
+
+    if (receivedAmount <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Remaining payment can be collected only after booking completion",
+        message: "A valid amount is required",
       });
     }
 
-    const dueAmount = normalizeAmount(booking.dueAmount);
-    if (dueAmount <= 0) {
+    if (!allowedMethods.has(method)) {
       return res.status(400).json({
         success: false,
-        message: "No due amount remaining",
+        message: "Manual payment method must be Cash, UPI, Card, or BankTransfer",
       });
     }
 
-    const order = await razorpay.orders.create({
-      amount: Math.round(dueAmount * 100),
-      currency: "INR",
-      receipt: `booking_final_${booking._id}`,
-      notes: {
-        bookingId: String(booking._id),
-        paymentStage: "TreatmentCompletion",
-      },
+    if (receivedAmount > Number(payment.remainingBalance || 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount exceeds the remaining treatment balance",
+      });
+    }
+
+    const resolvedStage = ["Advance", "Partial", "Final"].includes(stage)
+      ? stage
+      : inferStage(payment, receivedAmount);
+
+    payment.transactions.push({
+      type: "Charge",
+      stage: resolvedStage,
+      method,
+      amountPaid: receivedAmount,
+      currency: payment.currency || "INR",
+      status: "Paid",
+      razorpayOrderId: null,
+      razorpayPaymentId: referenceNumber,
+      razorpaySignature: null,
+      note,
+      collectedBy: req.user?.id || null,
+      paidAt: new Date(),
     });
 
-    booking.razorpayOrderId = order.id;
-    await booking.save();
+    payment.lastWebhookEvent = "MANUAL_COLLECTION";
+    payment.lastWebhookProcessedAt = new Date();
+    recalculateLedger(payment);
+    await payment.save();
 
     return res.status(200).json({
       success: true,
-      message: "Final payment order created successfully",
-      data: {
-        key: process.env.RAZORPAY_API_KEY,
-        orderId: order.id,
-        amount: dueAmount,
-        currency: order.currency,
-        bookingId: booking._id,
-      },
+      message: "Manual payment recorded successfully",
+      data: buildLedgerResponse(payment),
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Failed to create final payment order",
+      message: "Failed to record manual payment",
       error: error.message,
     });
   }
 };
 
-exports.verifyCompletionDuePayment = async (req, res) => {
+exports.recordManualRefund = async (req, res) => {
   try {
+    const { treatmentId } = req.params;
     const {
-      bookingId,
-      paymentMethod = "Online",
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
+      amount,
+      reason,
+      mode,
+      refundType,
+      note = "",
+      referenceTransactionId = null,
     } = req.body;
 
-    if (
-      !bookingId ||
-      !razorpay_order_id ||
-      !razorpay_payment_id ||
-      !razorpay_signature
-    ) {
-      return res.status(400).json({
+    if (!canManageManualLedgerActions(req)) {
+      return res.status(403).json({
         success: false,
-        message:
-          "bookingId, razorpay_order_id, razorpay_payment_id and razorpay_signature are required",
+        message: "Only admins can process manual refunds",
       });
     }
 
-    const generatedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest("hex");
-
-    if (generatedSignature !== razorpay_signature) {
-      return res.status(400).json({
-        success: false,
-        message: "Payment verification failed",
-      });
-    }
-
-    const booking = await Booking.findById(bookingId);
-    if (!booking) {
+    const treatment = await getTreatmentOr404(treatmentId);
+    if (!treatment) {
       return res.status(404).json({
         success: false,
-        message: "Booking not found",
+        message: "Treatment not found",
       });
     }
 
-    if (booking.status !== "Completed") {
-      return res.status(400).json({
-        success: false,
-        message: "Final payment is allowed only after booking completion",
-      });
-    }
-
-    const finalDueAmount = normalizeAmount(booking.dueAmount);
-    if (finalDueAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Booking has no pending payment",
-      });
-    }
-
-    const totalAmount = normalizeAmount(booking.pricing?.totalAmount || 0);
-    const updatedPaidAmount = normalizeAmount(
-      Number(booking.paidAmount || 0) + finalDueAmount
+    const payment = await getOrCreatePaymentLedger(treatment);
+    const refundAmount = normalizeAmount(amount);
+    const refundableAmount = Math.max(
+      Number(payment.totalPaid || 0) - Number(payment.totalRefunded || 0),
+      0
     );
 
-    const paymentSummary = derivePaymentStatus({
-      totalAmount,
-      paidAmount: updatedPaidAmount,
+    if (refundAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid refund amount is required",
+      });
+    }
+
+    if (!reason || !mode) {
+      return res.status(400).json({
+        success: false,
+        message: "reason and mode are required for a manual refund",
+      });
+    }
+
+    if (refundAmount > refundableAmount) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund amount exceeds the refundable balance",
+      });
+    }
+
+    payment.refunds.push({
+      refundType:
+        refundType && ["Full", "Partial"].includes(refundType)
+          ? refundType
+          : refundAmount === refundableAmount
+            ? "Full"
+            : "Partial",
+      amount: refundAmount,
+      reason,
+      status: "Processed",
+      mode,
+      referenceTransactionId,
+      adminId: req.user?.id || null,
+      approvedBy: req.user?.id || null,
+      refundedAt: new Date(),
+      note,
     });
 
-    booking.razorpayOrderId = razorpay_order_id;
-    booking.razorpayPaymentId = razorpay_payment_id;
-    booking.razorpaySignature = razorpay_signature;
-    booking.paymentMethod = paymentMethod;
-    booking.paidAmount = paymentSummary.paidAmount;
-    booking.dueAmount = paymentSummary.dueAmount;
-    booking.paymentStatus = paymentSummary.paymentStatus;
-    booking.isAdvancePaid = paymentSummary.isAdvancePaid;
-    booking.isFinalPaymentDone = paymentSummary.isFinalPaymentDone;
-
-    booking.paymentHistory.push({
-      amount: finalDueAmount,
-      method: paymentMethod,
-      stage: "TreatmentCompletion",
-      razorpayOrderId: razorpay_order_id,
-      razorpayPaymentId: razorpay_payment_id,
-      note: "Final payment collected after treatment completion",
-    });
-
-    await booking.save();
+    payment.lastWebhookEvent = "MANUAL_REFUND";
+    payment.lastWebhookProcessedAt = new Date();
+    recalculateLedger(payment);
+    await payment.save();
 
     return res.status(200).json({
       success: true,
-      message: "Final payment verified successfully",
-      data: booking,
+      message: "Manual refund recorded successfully",
+      data: buildLedgerResponse(payment),
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Failed to verify final payment",
+      message: "Failed to record manual refund",
       error: error.message,
     });
   }
 };
-
-
-

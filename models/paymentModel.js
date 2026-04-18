@@ -1,48 +1,149 @@
 const mongoose = require("mongoose");
 
-// Every time patient makes a payment (partial or full), one entry here
 const transactionSchema = new mongoose.Schema(
   {
-    razorpayOrderId:   { type: String, required: true },
-    razorpayPaymentId: { type: String, default: null },
-    razorpaySignature: { type: String, default: null },
-
-    amountPaid:    { type: Number, required: true }, // ₹ — NOT paise
+    type: {
+      type: String,
+      enum: ["Charge", "RefundAdjustment"],
+      default: "Charge",
+    },
+    stage: {
+      type: String,
+      enum: ["Advance", "Partial", "Final"],
+      required: true,
+    },
+    method: {
+      type: String,
+      enum: ["Online", "Cash", "UPI", "Card", "BankTransfer"],
+      required: true,
+    },
+    razorpayOrderId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    razorpayPaymentId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    razorpaySignature: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    amountPaid: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    currency: {
+      type: String,
+      default: "INR",
+      uppercase: true,
+      trim: true,
+    },
     status: {
       type: String,
       enum: ["Pending", "Paid", "Failed"],
       default: "Pending",
     },
-    failureReason: { type: String, default: null },
-    paidAt:        { type: Date,   default: null },
+    failureReason: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    paidAt: {
+      type: Date,
+      default: null,
+    },
+    note: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: "",
+    },
+    collectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
   },
-  { _id: true }
+  { _id: true, timestamps: true }
 );
 
-// Every refund against a specific transaction
 const refundSchema = new mongoose.Schema(
   {
-    razorpayRefundId:  { type: String, required: true },
-    razorpayPaymentId: { type: String, required: true }, // which txn was refunded
-    refundAmount:      { type: Number, required: true },
-    reason:            { type: String, default: "Patient request" },
+    refundType: {
+      type: String,
+      enum: ["Full", "Partial"],
+      required: true,
+    },
+    razorpayRefundId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    razorpayPaymentId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    reason: {
+      type: String,
+      default: "Patient request",
+      trim: true,
+    },
     status: {
       type: String,
-      enum: ["Pending", "Processed"],
+      enum: ["Pending", "Processed", "Initiated", "Approved", "Rejected"],
       default: "Pending",
     },
-    refundedAt: { type: Date, default: null },
+    mode: {
+      type: String,
+      enum: ["Cash", "BankTransfer", "UPI", "Adjustment"],
+      required: true,
+    },
+    referenceTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    refundedAt: {
+      type: Date,
+      default: null,
+    },
+    adminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      required: true,
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+    note: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: "",
+    },
   },
-  { _id: true }
+  { _id: true, timestamps: true }
 );
 
 const paymentSchema = new mongoose.Schema(
   {
-    // ── References (match your exact model names) ──────────────────────────
     treatmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Treatment",
       required: true,
+      unique: true,
       index: true,
     },
     patientId: {
@@ -53,85 +154,109 @@ const paymentSchema = new mongoose.Schema(
     },
     servicePartnerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "ServiceProvider",   // matches your bookingModel ref
+      ref: "ServiceProvider",
       default: null,
     },
-
-    // All booking IDs under this treatment that form this bill
-    // (matches bookingModel's treatmentId field — inverse lookup)
     bookingIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Booking",
       },
     ],
-
-    // Linked invoice (your invoiceModel has invoiceNumber, totals.grandTotal etc.)
     invoiceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Invoice",
       default: null,
     },
-
-    // ── Bill amounts (pulled from invoiceModel.totals on bill generation) ──
-    totalBillAmount:  { type: Number, required: true }, // = invoice.totals.grandTotal
-    totalPaid:        { type: Number, default: 0 },     // running sum of paid txns
-    totalRefunded:    { type: Number, default: 0 },     // running sum of refunds
-    remainingBalance: { type: Number, default: 0 },     // auto-computed in pre-save
-
-    // ── Bill breakdown (mirrors invoiceModel.totals exactly) ───────────────
-    billBreakdown: {
-      subtotal:    { type: Number, default: 0 },  // invoice.totals.subtotal
-      gstAmount:   { type: Number, default: 0 },  // invoice.totals.gstAmount
-      cgst:        { type: Number, default: 0 },  // invoice.totals.cgst
-      sgst:        { type: Number, default: 0 },  // invoice.totals.sgst
-      grandTotal:  { type: Number, default: 0 },  // invoice.totals.grandTotal
+    currency: {
+      type: String,
+      default: "INR",
+      uppercase: true,
+      trim: true,
     },
-
-    // ── Payment status (auto-computed in pre-save) ─────────────────────────
+    totalBillAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    totalPaid: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    totalRefunded: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    remainingBalance: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    billBreakdown: {
+      subtotal: { type: Number, default: 0 },
+      gstAmount: { type: Number, default: 0 },
+      cgst: { type: Number, default: 0 },
+      sgst: { type: Number, default: 0 },
+      grandTotal: { type: Number, default: 0 },
+    },
     paymentStatus: {
       type: String,
-      // intentionally mirrors invoiceModel.paymentStatus values + extras
-      enum: ["Unpaid", "Partially Paid", "Paid", "Refunded", "PartialRefund","PendingPayment",],
+      enum: ["Unpaid", "Partially Paid", "Paid", "Refunded", "PartialRefund"],
       default: "Unpaid",
       index: true,
     },
-
-    // ── Transaction log (each partial/full payment attempt) ────────────────
-    transactions: [transactionSchema],
-
-    // ── Refund log ─────────────────────────────────────────────────────────
-    refunds: [refundSchema],
-
-    // ── Webhook audit ──────────────────────────────────────────────────────
-    lastWebhookEvent:       { type: String, default: null },
-    lastWebhookProcessedAt: { type: Date,   default: null },
+    transactions: {
+      type: [transactionSchema],
+      default: [],
+    },
+    refunds: {
+      type: [refundSchema],
+      default: [],
+    },
+    lastWebhookEvent: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    lastWebhookProcessedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
-    toJSON:   { virtuals: true },
+    toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
 );
 
-// ── Pre-save: auto-compute remainingBalance + paymentStatus ────────────────
 paymentSchema.pre("save", function (next) {
-  // remaining = what patient still owes
-  this.remainingBalance = +(
-    this.totalBillAmount - this.totalPaid + this.totalRefunded
-  ).toFixed(2);
+  const totalPaid = (this.transactions || [])
+    .filter((item) => item.status === "Paid")
+    .reduce((sum, item) => sum + Number(item.amountPaid || 0), 0);
 
-  // Derive status
-  if (this.totalPaid <= 0) {
+  const totalRefunded = (this.refunds || [])
+    .filter((item) => item.status === "Processed")
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  this.totalPaid = Number(totalPaid.toFixed(2));
+  this.totalRefunded = Number(totalRefunded.toFixed(2));
+  this.remainingBalance = Number(
+    Math.max(Number(this.totalBillAmount || 0) - this.totalPaid + this.totalRefunded, 0).toFixed(2)
+  );
+
+  if (this.totalPaid <= 0 && this.totalRefunded <= 0) {
     this.paymentStatus = "Unpaid";
-  } else if (this.totalRefunded >= this.totalBillAmount) {
+  } else if (this.totalRefunded > 0 && this.totalPaid - this.totalRefunded <= 0) {
     this.paymentStatus = "Refunded";
-  } else if (this.totalRefunded > 0 && this.totalRefunded < this.totalPaid) {
+  } else if (this.totalRefunded > 0) {
     this.paymentStatus = "PartialRefund";
-  } else if (this.totalPaid >= this.totalBillAmount) {
+  } else if (this.remainingBalance === 0) {
     this.paymentStatus = "Paid";
   } else {
-    this.paymentStatus = "Partially Paid"; // matches invoiceModel enum value
+    this.paymentStatus = "Partially Paid";
   }
 
   next();
