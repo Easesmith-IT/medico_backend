@@ -3,31 +3,34 @@ const router = express.Router();
 const paymentController = require("../controller/payController");
 const { protect } = require("../middleware/auth");
 
-router.post(
-  "/booking/:bookingId/advance/order",
-  protect(["patient"]),
-  paymentController.createBookingAdvanceOrder  
+router.get(
+  "/treatments/:treatmentId/ledger",
+  protect("patient", "serviceprovider", "admin", "superadmin", "subadmin"),
+  paymentController.getTreatmentPaymentLedger
 );
 
 router.post(
-  "/booking/:bookingId/advance/verify", 
-  protect(["patient"]),
-  paymentController.verifyBookingAdvancePayment
+  "/treatments/:treatmentId/online/order",
+  protect("patient"),
+  paymentController.createTreatmentOnlineOrder
 );
 
 router.post(
-  "/booking/:bookingId/final/order",
-  protect(["patient"]),
-  paymentController.createCompletionDueOrder
+  "/treatments/:treatmentId/online/verify",
+  protect("patient"),
+  paymentController.verifyTreatmentOnlinePayment
 );
 
 router.post(
-  "/booking/:bookingId/final/verify",
-  protect(["patient"]),
-  paymentController.verifyCompletionDuePayment
+  "/treatments/:treatmentId/manual-collection",
+  protect("admin", "superadmin", "subadmin"),
+  paymentController.recordManualPayment
+);
+
+router.post(
+  "/treatments/:treatmentId/refunds/manual",
+  protect("admin", "superadmin", "subadmin"),
+  paymentController.recordManualRefund
 );
 
 module.exports = router;
-
-
-

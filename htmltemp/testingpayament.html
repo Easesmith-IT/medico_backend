@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Gateway Test</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+      :root {
+        --bg: #f5efe6;
+        --panel: #fffaf4;
+        --ink: #1e1b18;
+        --muted: #6a6258;
+        --line: #d7cab7;
+        --accent: #b85c38;
+        --accent-dark: #8f4324;
+        --ok: #1f7a4c;
+        --err: #b42318;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        background:
+          radial-gradient(circle at top right, rgba(184, 92, 56, 0.16), transparent 28%),
+          linear-gradient(180deg, #fbf6ef 0%, var(--bg) 100%);
+        color: var(--ink);
+      }
+
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+
+      .hero {
+        margin-bottom: 24px;
+        padding: 28px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: linear-gradient(135deg, rgba(184, 92, 56, 0.12), rgba(255, 250, 244, 0.95));
+      }
+
+      h1, h2 {
+        margin: 0 0 8px;
+        font-weight: 600;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(62, 43, 25, 0.06);
+      }
+
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 11px 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+      }
+
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 16px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+        transition: transform 120ms ease, background 120ms ease;
+      }
+
+      button:hover {
+        background: var(--accent-dark);
+        transform: translateY(-1px);
+      }
+
+      button.secondary {
+        background: #efe3d3;
+        color: var(--ink);
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .status {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.65);
+        color: var(--muted);
+      }
+
+      .status.ok {
+        border-color: rgba(31, 122, 76, 0.25);
+        color: var(--ok);
+      }
+
+      .status.err {
+        border-color: rgba(180, 35, 24, 0.25);
+        color: var(--err);
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .help {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          padding: 20px 14px 40px;
+        }
+
+        .hero,
+        .card {
+          border-radius: 18px;
+          padding: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <section class="hero">
+        <h1>Treatment Payment Test Console</h1>
+        <p>
+          Use this page to test ledger fetch, Razorpay checkout, manual collection, and manual refunds
+          against the new treatment-based payment APIs.
+        </p>
+      </section>
+
+      <div class="grid">
+        <section class="card stack">
+          <h2>Connection</h2>
+          <label>
+            API Base URL
+            <input id="baseUrl" value="" />
+          </label>
+          <label>
+            Treatment ID
+            <input id="treatmentId" placeholder="Paste treatment id" />
+          </label>
+          <label>
+            Patient Token
+            <textarea id="patientToken" placeholder="Bearer token for patient"></textarea>
+          </label>
+          <label>
+            Admin Token
+            <textarea id="adminToken" placeholder="Bearer token for admin"></textarea>
+          </label>
+          <div class="actions">
+            <button id="fetchLedgerBtn" type="button">Fetch Ledger</button>
+            <button class="secondary" id="clearOutputBtn" type="button">Clear Output</button>
+          </div>
+          <div class="help">
+            The page calls <code>/api/v1/payments/treatments/:treatmentId/*</code> on the same backend by default.
+          </div>
+        </section>
+
+        <section class="card stack">
+          <h2>Online Payment</h2>
+          <label>
+            Amount (INR)
+            <input id="onlineAmount" type="number" min="1" step="0.01" value="200" />
+          </label>
+          <div class="actions">
+            <button id="createOrderBtn" type="button">Create Order</button>
+            <button class="secondary" id="payNowBtn" type="button">Pay With Razorpay</button>
+          </div>
+          <div class="help">
+            Create order stores a pending transaction in the ledger. Pay With Razorpay opens checkout and calls
+            the verify API automatically on success.
+          </div>
+        </section>
+
+        <section class="card stack">
+          <h2>Manual Collection</h2>
+          <label>
+            Amount (INR)
+            <input id="manualAmount" type="number" min="1" step="0.01" value="300" />
+          </label>
+          <label>
+            Method
+            <select id="manualMethod">
+              <option>Cash</option>
+              <option>UPI</option>
+              <option>Card</option>
+              <option>BankTransfer</option>
+            </select>
+          </label>
+          <label>
+            Stage
+            <select id="manualStage">
+              <option>Advance</option>
+              <option>Partial</option>
+              <option>Final</option>
+            </select>
+          </label>
+          <label>
+            Reference Number
+            <input id="manualRef" value="manual-ref-001" />
+          </label>
+          <label>
+            Note
+            <input id="manualNote" value="Manual collection for testing" />
+          </label>
+          <button id="manualCollectionBtn" type="button">Record Manual Collection</button>
+        </section>
+
+        <section class="card stack">
+          <h2>Manual Refund</h2>
+          <label>
+            Amount (INR)
+            <input id="refundAmount" type="number" min="1" step="0.01" value="50" />
+          </label>
+          <label>
+            Refund Type
+            <select id="refundType">
+              <option>Partial</option>
+              <option>Full</option>
+            </select>
+          </label>
+          <label>
+            Mode
+            <select id="refundMode">
+              <option>Cash</option>
+              <option>UPI</option>
+              <option>BankTransfer</option>
+              <option>Adjustment</option>
+            </select>
+          </label>
+          <label>
+            Reason
+            <input id="refundReason" value="Payment adjustment for testing" />
+          </label>
+          <label>
+            Note
+            <input id="refundNote" value="Manual refund test" />
+          </label>
+          <button id="manualRefundBtn" type="button">Record Manual Refund</button>
+        </section>
+      </div>
+
+      <section class="card" style="margin-top: 18px;">
+        <h2>Output</h2>
+        <div id="statusBox" class="status">Ready.</div>
+        <pre id="outputBox" style="margin-top: 12px;"></pre>
+      </section>
+    </div>
+
+    <script>
+      const state = {
+        lastOrder: null,
+      };
+
+      const el = (id) => document.getElementById(id);
+      const statusBox = el("statusBox");
+      const outputBox = el("outputBox");
+
+      const defaultBaseUrl = `${window.location.origin}/api/v1`;
+      el("baseUrl").value = defaultBaseUrl;
+
+      const getBase = () => el("baseUrl").value.trim().replace(/\/+$/, "");
+      const getTreatmentId = () => el("treatmentId").value.trim();
+
+      const setStatus = (message, kind = "") => {
+        statusBox.className = `status ${kind}`.trim();
+        statusBox.textContent = message;
+      };
+
+      const setOutput = (payload) => {
+        outputBox.textContent =
+          typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+      };
+
+      const requireValue = (value, label) => {
+        if (!value) {
+          throw new Error(`${label} is required`);
+        }
+        return value;
+      };
+
+      const api = async ({ path, method = "GET", token, body }) => {
+        const response = await fetch(`${getBase()}${path}`, {
+          method,
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(body ? { "Content-Type": "application/json" } : {}),
+          },
+          ...(body ? { body: JSON.stringify(body) } : {}),
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          const message = data?.message || `Request failed with status ${response.status}`;
+          throw new Error(message);
+        }
+
+        return data;
+      };
+
+      const withUi = (fn) => async () => {
+        try {
+          setStatus("Working...");
+          await fn();
+        } catch (error) {
+          setStatus(error.message || "Request failed", "err");
+          setOutput({
+            error: error.message,
+          });
+        }
+      };
+
+      const fetchLedger = async () => {
+        const treatmentId = requireValue(getTreatmentId(), "Treatment ID");
+        const token = requireValue(el("patientToken").value.trim(), "Patient token");
+        const data = await api({
+          path: `/payments/treatments/${treatmentId}/ledger`,
+          token,
+        });
+        setStatus("Ledger fetched successfully", "ok");
+        setOutput(data);
+      };
+
+      const createOrder = async () => {
+        const treatmentId = requireValue(getTreatmentId(), "Treatment ID");
+        const token = requireValue(el("patientToken").value.trim(), "Patient token");
+        const amount = Number(el("onlineAmount").value);
+
+        const data = await api({
+          path: `/payments/treatments/${treatmentId}/online/order`,
+          method: "POST",
+          token,
+          body: { amount },
+        });
+
+        state.lastOrder = data.data;
+        setStatus("Online order created successfully", "ok");
+        setOutput(data);
+      };
+
+      const openRazorpay = async () => {
+        if (!state.lastOrder) {
+          await createOrder();
+        }
+
+        const token = requireValue(el("patientToken").value.trim(), "Patient token");
+        const treatmentId = requireValue(getTreatmentId(), "Treatment ID");
+        const order = state.lastOrder;
+
+        if (!order?.key || !order?.orderId) {
+          throw new Error("Order data is incomplete. Create a new order first.");
+        }
+
+        const options = {
+          key: order.key,
+          amount: order.amount,
+          currency: order.currency,
+          order_id: order.orderId,
+          name: "Medico Payment Test",
+          description: `Treatment ${treatmentId}`,
+          handler: async function (response) {
+            try {
+              const verifyData = await api({
+                path: `/payments/treatments/${treatmentId}/online/verify`,
+                method: "POST",
+                token,
+                body: {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                },
+              });
+              setStatus("Online payment verified successfully", "ok");
+              setOutput(verifyData);
+            } catch (error) {
+              setStatus(error.message || "Verification failed", "err");
+              setOutput({
+                verifyError: error.message,
+                razorpayResponse: response,
+              });
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setStatus("Checkout closed", "");
+            },
+          },
+          theme: {
+            color: "#b85c38",
+          },
+        };
+
+        const razorpay = new Razorpay(options);
+        razorpay.open();
+      };
+
+      const recordManualCollection = async () => {
+        const treatmentId = requireValue(getTreatmentId(), "Treatment ID");
+        const token = requireValue(el("adminToken").value.trim(), "Admin token");
+        const data = await api({
+          path: `/payments/treatments/${treatmentId}/manual-collection`,
+          method: "POST",
+          token,
+          body: {
+            amount: Number(el("manualAmount").value),
+            method: el("manualMethod").value,
+            stage: el("manualStage").value,
+            note: el("manualNote").value.trim(),
+            referenceNumber: el("manualRef").value.trim() || null,
+          },
+        });
+        setStatus("Manual collection recorded successfully", "ok");
+        setOutput(data);
+      };
+
+      const recordManualRefund = async () => {
+        const treatmentId = requireValue(getTreatmentId(), "Treatment ID");
+        const token = requireValue(el("adminToken").value.trim(), "Admin token");
+        const data = await api({
+          path: `/payments/treatments/${treatmentId}/refunds/manual`,
+          method: "POST",
+          token,
+          body: {
+            amount: Number(el("refundAmount").value),
+            reason: el("refundReason").value.trim(),
+            mode: el("refundMode").value,
+            refundType: el("refundType").value,
+            note: el("refundNote").value.trim(),
+            referenceTransactionId: null,
+          },
+        });
+        setStatus("Manual refund recorded successfully", "ok");
+        setOutput(data);
+      };
+
+      el("fetchLedgerBtn").addEventListener("click", withUi(fetchLedger));
+      el("createOrderBtn").addEventListener("click", withUi(createOrder));
+      el("payNowBtn").addEventListener("click", withUi(openRazorpay));
+      el("manualCollectionBtn").addEventListener("click", withUi(recordManualCollection));
+      el("manualRefundBtn").addEventListener("click", withUi(recordManualRefund));
+      el("clearOutputBtn").addEventListener("click", () => {
+        setStatus("Ready.");
+        setOutput("");
+      });
+    </script>
+  </body>
+</html>
