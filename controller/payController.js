@@ -38,6 +38,13 @@ const canManageManualLedgerActions = (req) => ADMIN_ROLES.has(getRole(req));
 
 const getTreatmentOr404 = async (treatmentId) => Treatment.findById(treatmentId);
 
+const buildRazorpayReceipt = (prefix, entityId) => {
+  const safePrefix = String(prefix || "pay").slice(0, 8);
+  const shortId = String(entityId || "").replace(/[^a-zA-Z0-9]/g, "").slice(-12);
+  const stamp = Date.now().toString().slice(-10);
+  return `${safePrefix}_${shortId}_${stamp}`.slice(0, 40);
+};
+
 const recalculateLedger = (payment) => {
   const totalPaid = (payment.transactions || [])
     .filter((item) => item.status === "Paid")
@@ -350,6 +357,7 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
       data: {
         paymentId: payment._id,
         treatmentId: treatment._id,
+        key: process.env.RAZORPAY_API_KEY,
         orderId: order.id,
         amount: order.amount,
         currency: order.currency,
