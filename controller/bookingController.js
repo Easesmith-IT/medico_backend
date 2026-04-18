@@ -12,6 +12,7 @@ const Patient = require("../models/patientModel");
 const {User}= require("../models/bookingModel");
 const ItemCategory = require('../models/itemCategoryModel');
 const Treatment = require("../models/treatmentModel");
+const Payment = require("../models/paymentModel");
 const crypto = require('crypto');   
 const Invoice = require("../models/invoiceModel");
 // const upload = require("../middleware/multerConfig");
@@ -1153,7 +1154,7 @@ const razorpayInstance = require("../config/razorpay");
 
 exports.createBooking = async (req, res) => {
   const session = await mongoose.startSession();
-  
+
   try {
     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
     const {
@@ -1167,11 +1168,10 @@ exports.createBooking = async (req, res) => {
       notes,
       category,
       modes,
-      cityId
+      cityId,
     } = req.body;
 
     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
-      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "patientId, serviceId, appointmentDate, startTime, and endTime are required",
@@ -1180,29 +1180,36 @@ exports.createBooking = async (req, res) => {
 
     await session.startTransaction();
 
-    // 1-4) All validations remain same (service, patient, city, slot conflicts)
     const service = await Service.findById(serviceId).session(session);
     if (!service || !service.isActive || service.isDeleted) {
       await session.abortTransaction();
-      return res.status(404).json({ success: false, message: "Service not found or inactive" });
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or inactive",
+      });
     }
 
     const patient = await Patient.findById(patientId).select("address.cityId").session(session);
     if (!patient || !patient.address?.cityId) {
       await session.abortTransaction();
-      return res.status(400).json({ success: false, message: "Patient city not set" });
+      return res.status(400).json({
+        success: false,
+        message: "Patient city not set",
+      });
     }
 
-    let bookingCity = cityId
+    const bookingCity = cityId
       ? await City.findById(cityId).session(session)
       : await City.findById(patient.address.cityId).session(session);
 
     if (!bookingCity) {
       await session.abortTransaction();
-      return res.status(400).json({ success: false, message: "Invalid city" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid city",
+      });
     }
 
-    // Slot conflict check (same as before)
     const dayStart = new Date(appointmentDate);
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(appointmentDate);
@@ -1211,126 +1218,123 @@ exports.createBooking = async (req, res) => {
     const conflictQuery = {
       serviceId,
       appointmentDate: { $gte: dayStart, $lte: dayEnd },
-      status: { $nin: ["Cancelled", "Rejected", "Confirmed"] }, // Allow temp bookings
       "slotTime.startTime": startTime,
-      "slotTime.endTime": endTime
+      "slotTime.endTime": endTime,
+      status: { $nin: ["Cancelled", "Rejected"] },
     };
 
-    if (servicePartnerId) conflictQuery.servicePartnerId = servicePartnerId;
-
-    const existingConfirmedBooking = await Booking.findOne({
-      ...conflictQuery,
-      status: "Confirmed" // Only block confirmed bookings
-    }).session(session);
-    
-    if (existingConfirmedBooking) {
-      await session.abortTransaction();
-      return res.status(409).json({ success: false, message: "Slot already confirmed by someone else" });
+    if (servicePartnerId) {
+      conflictQuery.servicePartnerId = servicePartnerId;
     }
 
-    // 5) Calculate pricing
+    const existingActiveBooking = await Booking.findOne(conflictQuery).session(session);
+    if (existingActiveBooking) {
+      await session.abortTransaction();
+      return res.status(409).json({
+        success: false,
+        message: "Slot is already reserved for this service",
+      });
+    }
+
     let bookingDuration = duration;
     if (!bookingDuration) {
       const [sh, sm] = startTime.split(":").map(Number);
       const [eh, em] = endTime.split(":").map(Number);
       bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
-      if (bookingDuration <= 0) bookingDuration = service.defaultDuration || 30;
+      if (bookingDuration <= 0) {
+        bookingDuration = service.defaultDuration || 30;
+      }
     }
 
     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
     const totalAmount = Number(pricing?.totalAmount || 0);
 
-    // -------------------------------
-    // ✅ CREATE TEMPORARY BOOKING
-    // -------------------------------
-    // const newBooking = new Booking({
-    //   patientId,
-    //   serviceId,
-    //   category: category || service.category,
-    //   modes: Array.isArray(modes) && modes.length ? modes : service.modes,
-    //   servicePartnerId: servicePartnerId || null,
-    //   appointmentDate: new Date(appointmentDate),
-    //   slotTime: { startTime, endTime },
-    //   duration: bookingDuration,
-    //   shiftType: shiftType || null,
-    //   status: "Temporary", // ✅ Temporary status
-    //   pricing,
-    //   notes: notes || "",
-    //   city: bookingCity._id,
-    //   createdBy: { userId: patientId, userModel: "Patient" },
-    //   treatmentStatus: "Pending",
-    //   invoiceGenerated: false,
+    const treatment = new Treatment({
+      patientId,
+      serviceId,
+      servicePartnerId: servicePartnerId || null,
+      startDate: new Date(appointmentDate),
+      status: "Active",
+      currentBookingId: null,
+      lastBookingAt: new Date(appointmentDate),
+      invoiceGenerated: false,
+      isActive: true,
+    });
 
-    //   // ✅ Payment fields for later
-    //   advanceAmount: totalAmount, // Full amount required for confirmation
-    //   paidAmount: 0,
-    //   dueAmount: totalAmount,
-    //   paymentStatus: "Unpaid",
-    //   paymentMethod: "None",
-    //   paymentRequiredAt: "BookingConfirmation",
-    //   isAdvancePaid: false,
-    //   isFinalPaymentDone: false,
-    //   paymentHistory: [],
-    //   expiresAt: new Date(Date.now() + 30 * 60 * 1000) // 30 min expiry
-    // });
-
-
+    await treatment.save({ session });
 
     const newBooking = new Booking({
-  patientId,
-  serviceId,
-  category: category || service.category,
-  modes: Array.isArray(modes) && modes.length ? modes : service.modes,
-  servicePartnerId: servicePartnerId || null,
-  appointmentDate: new Date(appointmentDate),
-  slotTime: { startTime, endTime },
-  duration: bookingDuration,
-  shiftType: shiftType || null,
-  status: "Temporary",           // ✅ Temp booking state
-  pricing,
-  notes: notes || "",
-  city: bookingCity._id,
-  createdBy: { userId: patientId, userModel: "Patient" },
-  treatmentStatus: "Active",      // ✅ Active until provider changes
-  isInvoiceGenerated: false,     // ✅ Fixed field name to match schema
-  advanceAmount: totalAmount,
-  paidAmount: 0,
-  dueAmount: totalAmount,
-  paymentStatus: "Unpaid",
-  paymentMethod: "None",
-  paymentRequiredAt: "BookingConfirmation",
-  isAdvancePaid: false,
-  isFinalPaymentDone: false,
-  paymentHistory: [],
-  expiresAt: new Date(Date.now() + 30 * 60 * 1000)
-});
+      treatmentId: treatment._id,
+      patientId,
+      serviceId,
+      category: category || service.category,
+      modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+      servicePartnerId: servicePartnerId || null,
+      sessionNumber: 1,
+      appointmentDate: new Date(appointmentDate),
+      slotTime: { startTime, endTime },
+      duration: bookingDuration,
+      shiftType: shiftType || null,
+      status: "Pending",
+      pricing,
+      notes: notes || "",
+      city: bookingCity._id,
+      createdBy: { userId: patientId, userModel: "Patient" },
+      invoiceUrl: null,
+    });
 
     await newBooking.save({ session });
 
-    // -------------------------------
-    // ✅ NO TREATMENT CREATED YET
-    // -------------------------------
+    treatment.currentBookingId = newBooking._id;
+    await treatment.save({ session });
+
+    const payment = new Payment({
+      treatmentId: treatment._id,
+      patientId,
+      servicePartnerId: servicePartnerId || null,
+      bookingIds: [newBooking._id],
+      totalBillAmount: totalAmount,
+      totalPaid: 0,
+      totalRefunded: 0,
+      remainingBalance: totalAmount,
+      billBreakdown: {
+        subtotal: Number(pricing?.subtotal || 0),
+        gstAmount: Number(pricing?.taxAmount || 0),
+        cgst: 0,
+        sgst: 0,
+        grandTotal: totalAmount,
+      },
+      paymentStatus: "Unpaid",
+      transactions: [],
+      refunds: [],
+    });
+
+    await payment.save({ session });
     await session.commitTransaction();
 
     const populatedBooking = await Booking.findById(newBooking._id)
-      .populate("city", "name latitude longitude");
+      .populate("city", "name latitude longitude")
+      .populate("treatmentId", "status startDate validTill");
 
     return res.status(201).json({
       success: true,
-      message: "Temporary booking created. Complete advance payment to confirm.",
+      message: "Booking, treatment, and payment ledger created successfully.",
       data: {
+        treatmentId: treatment._id,
+        paymentId: payment._id,
         booking: populatedBooking,
-        nextStep: "Use createBookingAdvanceOrder to generate payment link"
-      }
+        nextStep: "Use /api/v1/payments/treatments/:treatmentId/online/order or /manual-collection to collect payment",
+      },
     });
-
   } catch (error) {
-    await session.abortTransaction();
-    console.error("Error creating temporary booking:", error);
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    console.error("Error creating booking/treatment/payment:", error);
     res.status(500).json({
       success: false,
-      message: "Error creating temporary booking",
-      error: error.message
+      message: "Error creating booking",
+      error: error.message,
     });
   } finally {
     session.endSession();
