@@ -1157,81 +1157,81 @@ const razorpayInstance = require("../config/razorpay");
 // const Treatment = require("../models/treatmentModel");
 const paymentController = require("../controller/payController");
 
-exports.createBooking = async (req, res) => {
-  try {
-    const {
-      treatmentId,
-      patientId,
-      servicePartnerId,
-      pricing,
-      bookingDate,
-      slot,
-      paymentOption,
-      amount,
-      ...rest
-    } = req.body;
+// exports.createBooking = async (req, res) => {
+//   try {
+//     const {
+//       treatmentId,
+//       patientId,
+//       servicePartnerId,
+//       pricing,
+//       bookingDate,
+//       slot,
+//       paymentOption,
+//       amount,
+//       ...rest
+//     } = req.body;
 
-    let resolvedTreatmentId = treatmentId;
+//     let resolvedTreatmentId = treatmentId;
 
-    if (!resolvedTreatmentId) {
-      const treatment = await Treatment.create({
-        patientId,
-        servicePartnerId,
-        createdBy: req.user?.id || patientId,
-        status: "Active",
-      });
-      resolvedTreatmentId = treatment._id;
-    }
+//     if (!resolvedTreatmentId) {
+//       const treatment = await Treatment.create({
+//         patientId,
+//         servicePartnerId,
+//         createdBy: req.user?.id || patientId,
+//         status: "Active",
+//       });
+//       resolvedTreatmentId = treatment._id;
+//     }
 
-    const booking = await Booking.create({
-      ...rest,
-      treatmentId: resolvedTreatmentId,
-      patientId,
-      servicePartnerId,
-      bookingDate,
-      slot,
-      pricing: {
-        totalAmount: Number(pricing?.totalAmount || 0),
-        ...pricing,
-      },
-      paymentOption: paymentOption || "PayLater",
-      createdBy: req.user?.id || patientId,
-    });
+//     const booking = await Booking.create({
+//       ...rest,
+//       treatmentId: resolvedTreatmentId,
+//       patientId,
+//       servicePartnerId,
+//       bookingDate,
+//       slot,
+//       pricing: {
+//         totalAmount: Number(pricing?.totalAmount || 0),
+//         ...pricing,
+//       },
+//       paymentOption: paymentOption || "PayLater",
+//       createdBy: req.user?.id || patientId,
+//     });
 
-    const paymentLedger = await paymentController.ensurePaymentLedgerForBooking({
-      treatmentId: resolvedTreatmentId,
-    });
+//     const paymentLedger = await paymentController.ensurePaymentLedgerForBooking({
+//       treatmentId: resolvedTreatmentId,
+//     });
 
-    if (paymentOption === "PayNow") {
-      req.params.treatmentId = String(resolvedTreatmentId);
-      req.body.amount = amount || paymentLedger.remainingBalance;
-      return paymentController.createTreatmentOnlineOrder(req, res);
-    }
+//     if (paymentOption === "PayNow") {
+//       req.params.treatmentId = String(resolvedTreatmentId);
+//       req.body.amount = amount || paymentLedger.remainingBalance;
+//       return paymentController.createTreatmentOnlineOrder(req, res);
+//     }
 
-    return res.status(201).json({
-      success: true,
-      message: "Booking created successfully",
-      data: {
-        booking,
-        payment: {
-          paymentId: paymentLedger._id,
-          treatmentId: paymentLedger.treatmentId,
-          totalBillAmount: paymentLedger.totalBillAmount,
-          totalPaid: paymentLedger.totalPaid,
-          totalRefunded: paymentLedger.totalRefunded,
-          remainingBalance: paymentLedger.remainingBalance,
-          paymentStatus: paymentLedger.paymentStatus,
-        },
-      },
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to create booking",
-      error: error.message,
-    });
-  }
-};
+//     return res.status(201).json({
+//       success: true,
+//       message: "Booking created successfully",
+//       data: {
+//         booking,
+//         payment: {
+//           paymentId: paymentLedger._id,
+//           treatmentId: paymentLedger.treatmentId,
+//           totalBillAmount: paymentLedger.totalBillAmount,
+//           totalPaid: paymentLedger.totalPaid,
+//           totalRefunded: paymentLedger.totalRefunded,
+//           remainingBalance: paymentLedger.remainingBalance,
+//           paymentStatus: paymentLedger.paymentStatus,
+//         },
+//       },
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to create booking",
+//       error: error.message,
+//     });
+//   }
+// };
 //latest
 // exports.createBooking = async (req, res) => {
 //   const session = await mongoose.startSession();
@@ -1553,6 +1553,137 @@ exports.createBooking = async (req, res) => {
 //     });
 //   }
 // };
+
+
+exports.createBooking = async (req, res) => {
+  try {
+    const {
+      treatmentId,
+      serviceId,
+      servicePartnerId,
+      pricing,
+      bookingDate,
+      slot,
+      paymentOption,
+      amount,
+      ...rest
+    } = req.body;
+
+    // ✅ Take patientId from token
+    const patientId = req.user?.id;
+
+    if (!patientId) {
+      return res.status(400).json({
+        success: false,
+        message: "Patient ID not found in token",
+      });
+    }
+
+    let resolvedTreatmentId = treatmentId;
+
+    // ✅ Create Treatment if not provided
+    if (!resolvedTreatmentId) {
+      const treatment = await Treatment.create({
+        patientId,
+        servicePartnerId,
+        serviceId, // ✅ important
+        createdBy: patientId,
+        status: "Active",
+      });
+
+      resolvedTreatmentId = treatment._id;
+    }
+
+    // ✅ Create Booking
+    const booking = await Booking.create({
+      ...rest,
+      treatmentId: resolvedTreatmentId,
+      patientId,
+      serviceId,
+      servicePartnerId,
+      bookingDate,
+      slot,
+      pricing: {
+        totalAmount: Number(pricing?.totalAmount || 0),
+        ...pricing,
+      },
+      paymentOption: paymentOption || "PayLater",
+      createdBy: patientId,
+    });
+
+    // ✅ Ensure Payment Ledger
+    const paymentLedger =
+      await paymentController.ensurePaymentLedgerForBooking({
+        treatmentId: resolvedTreatmentId,
+      });
+
+    // ✅ If Pay Now → redirect to payment flow
+    if (paymentOption === "PayNow") {
+      req.params.treatmentId = String(resolvedTreatmentId);
+      req.body.amount = amount || paymentLedger.remainingBalance;
+
+      return paymentController.createTreatmentOnlineOrder(req, res);
+    }
+
+    // ✅ Calculate payment values
+    const totalAmount =
+      Number(paymentLedger?.totalBillAmount) ||
+      Number(booking?.pricing?.totalAmount) ||
+      0;
+
+    const paidAmount = Number(paymentLedger?.totalPaid || 0);
+    const refundedAmount = Number(paymentLedger?.totalRefunded || 0);
+
+    const dueAmount = Number(
+      paymentLedger?.remainingBalance ??
+        Math.max(totalAmount - paidAmount + refundedAmount, 0)
+    );
+
+    const paymentStatusRaw = paymentLedger?.paymentStatus || "Unpaid";
+    const paymentStatus = paymentStatusRaw.toLowerCase();
+
+    // ✅ SAME LOGIC AS GET API
+    const isPaymentPending =
+      paymentStatus === "pending" ||
+      paymentStatus === "partially paid" ||
+      paymentStatus === "unpaid" ||
+      dueAmount > 0;
+
+    // ✅ Final Response
+    return res.status(201).json({
+      success: true,
+      message: "Booking created successfully",
+      data: {
+        booking,
+
+        payment: {
+          paymentId: paymentLedger._id,
+          treatmentId: paymentLedger.treatmentId,
+          totalBillAmount: totalAmount,
+          totalPaid: paidAmount,
+          totalRefunded: refundedAmount,
+          remainingBalance: dueAmount,
+          paymentStatus: paymentStatusRaw,
+
+          // ✅ NEW FIELD
+          isPaymentPending,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Create Booking Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create booking",
+      error: error.message,
+    });
+  }
+};
+
+
+
+
 exports.getBookedServicesByPatientId = async (req, res) => {
   try {
     const patientId = req.user?.id || req.params.patientId;
