@@ -1152,200 +1152,410 @@ const razorpayInstance = require("../config/razorpay");
 //   }
 // };
 
-exports.createBooking = async (req, res) => {
-  const session = await mongoose.startSession();
 
+
+// const Treatment = require("../models/treatmentModel");
+const paymentController = require("../controller/payController");
+
+exports.createBooking = async (req, res) => {
   try {
-    const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
     const {
-      serviceId,
-      appointmentDate,
-      startTime,
-      endTime,
-      duration,
-      shiftType,
+      treatmentId,
+      patientId,
       servicePartnerId,
-      notes,
-      category,
-      modes,
-      cityId,
+      pricing,
+      bookingDate,
+      slot,
+      paymentOption,
+      amount,
+      ...rest
     } = req.body;
 
-    if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
-      return res.status(400).json({
-        success: false,
-        message: "patientId, serviceId, appointmentDate, startTime, and endTime are required",
+    let resolvedTreatmentId = treatmentId;
+
+    if (!resolvedTreatmentId) {
+      const treatment = await Treatment.create({
+        patientId,
+        servicePartnerId,
+        createdBy: req.user?.id || patientId,
+        status: "Active",
       });
+      resolvedTreatmentId = treatment._id;
     }
 
-    await session.startTransaction();
-
-    const service = await Service.findById(serviceId).session(session);
-    if (!service || !service.isActive || service.isDeleted) {
-      await session.abortTransaction();
-      return res.status(404).json({
-        success: false,
-        message: "Service not found or inactive",
-      });
-    }
-
-    const patient = await Patient.findById(patientId).select("address.cityId").session(session);
-    if (!patient || !patient.address?.cityId) {
-      await session.abortTransaction();
-      return res.status(400).json({
-        success: false,
-        message: "Patient city not set",
-      });
-    }
-
-    const bookingCity = cityId
-      ? await City.findById(cityId).session(session)
-      : await City.findById(patient.address.cityId).session(session);
-
-    if (!bookingCity) {
-      await session.abortTransaction();
-      return res.status(400).json({
-        success: false,
-        message: "Invalid city",
-      });
-    }
-
-    const dayStart = new Date(appointmentDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(appointmentDate);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    const conflictQuery = {
-      serviceId,
-      appointmentDate: { $gte: dayStart, $lte: dayEnd },
-      "slotTime.startTime": startTime,
-      "slotTime.endTime": endTime,
-      status: { $nin: ["Cancelled", "Rejected"] },
-    };
-
-    if (servicePartnerId) {
-      conflictQuery.servicePartnerId = servicePartnerId;
-    }
-
-    const existingActiveBooking = await Booking.findOne(conflictQuery).session(session);
-    if (existingActiveBooking) {
-      await session.abortTransaction();
-      return res.status(409).json({
-        success: false,
-        message: "Slot is already reserved for this service",
-      });
-    }
-
-    let bookingDuration = duration;
-    if (!bookingDuration) {
-      const [sh, sm] = startTime.split(":").map(Number);
-      const [eh, em] = endTime.split(":").map(Number);
-      bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
-      if (bookingDuration <= 0) {
-        bookingDuration = service.defaultDuration || 30;
-      }
-    }
-
-    const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
-    const totalAmount = Number(pricing?.totalAmount || 0);
-
-    const treatment = new Treatment({
+    const booking = await Booking.create({
+      ...rest,
+      treatmentId: resolvedTreatmentId,
       patientId,
-      serviceId,
-      servicePartnerId: servicePartnerId || null,
-      startDate: new Date(appointmentDate),
-      status: "Active",
-      currentBookingId: null,
-      lastBookingAt: new Date(appointmentDate),
-      invoiceGenerated: false,
-      isActive: true,
-    });
-
-    await treatment.save({ session });
-
-    const newBooking = new Booking({
-      treatmentId: treatment._id,
-      patientId,
-      serviceId,
-      category: category || service.category,
-      modes: Array.isArray(modes) && modes.length ? modes : service.modes,
-      servicePartnerId: servicePartnerId || null,
-      sessionNumber: 1,
-      appointmentDate: new Date(appointmentDate),
-      slotTime: { startTime, endTime },
-      duration: bookingDuration,
-      shiftType: shiftType || null,
-      status: "Pending",
-      pricing,
-      notes: notes || "",
-      city: bookingCity._id,
-      createdBy: { userId: patientId, userModel: "Patient" },
-      invoiceUrl: null,
-    });
-
-    await newBooking.save({ session });
-
-    treatment.currentBookingId = newBooking._id;
-    await treatment.save({ session });
-
-    const payment = new Payment({
-      treatmentId: treatment._id,
-      patientId,
-      servicePartnerId: servicePartnerId || null,
-      bookingIds: [newBooking._id],
-      totalBillAmount: totalAmount,
-      totalPaid: 0,
-      totalRefunded: 0,
-      remainingBalance: totalAmount,
-      billBreakdown: {
-        subtotal: Number(pricing?.subtotal || 0),
-        gstAmount: Number(pricing?.taxAmount || 0),
-        cgst: 0,
-        sgst: 0,
-        grandTotal: totalAmount,
+      servicePartnerId,
+      bookingDate,
+      slot,
+      pricing: {
+        totalAmount: Number(pricing?.totalAmount || 0),
+        ...pricing,
       },
-      paymentStatus: "Unpaid",
-      transactions: [],
-      refunds: [],
+      paymentOption: paymentOption || "PayLater",
+      createdBy: req.user?.id || patientId,
     });
 
-    await payment.save({ session });
-    await session.commitTransaction();
+    const paymentLedger = await paymentController.ensurePaymentLedgerForBooking({
+      treatmentId: resolvedTreatmentId,
+    });
 
-    const populatedBooking = await Booking.findById(newBooking._id)
-      .populate("city", "name latitude longitude")
-      .populate("treatmentId", "status startDate validTill");
+    if (paymentOption === "PayNow") {
+      req.params.treatmentId = String(resolvedTreatmentId);
+      req.body.amount = amount || paymentLedger.remainingBalance;
+      return paymentController.createTreatmentOnlineOrder(req, res);
+    }
 
     return res.status(201).json({
       success: true,
-      message: "Booking, treatment, and payment ledger created successfully.",
+      message: "Booking created successfully",
       data: {
-        treatmentId: treatment._id,
-        paymentId: payment._id,
-        booking: populatedBooking,
-        nextStep: "Use /api/v1/payments/treatments/:treatmentId/online/order or /manual-collection to collect payment",
+        booking,
+        payment: {
+          paymentId: paymentLedger._id,
+          treatmentId: paymentLedger.treatmentId,
+          totalBillAmount: paymentLedger.totalBillAmount,
+          totalPaid: paymentLedger.totalPaid,
+          totalRefunded: paymentLedger.totalRefunded,
+          remainingBalance: paymentLedger.remainingBalance,
+          paymentStatus: paymentLedger.paymentStatus,
+        },
       },
     });
   } catch (error) {
-    if (session.inTransaction()) {
-      await session.abortTransaction();
-    }
-    console.error("Error creating booking/treatment/payment:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Error creating booking",
+      message: "Failed to create booking",
       error: error.message,
     });
-  } finally {
-    session.endSession();
   }
 };
+//latest
+// exports.createBooking = async (req, res) => {
+//   const session = await mongoose.startSession();
+
+//   try {
+//     const patientId = req.user && req.user.id ? req.user.id : req.body.patientId;
+//     const {
+//       serviceId,
+//       appointmentDate,
+//       startTime,
+//       endTime,
+//       duration,
+//       shiftType,
+//       servicePartnerId,
+//       notes,
+//       category,
+//       modes,
+//       cityId,
+//     } = req.body;
+
+//     if (!patientId || !serviceId || !appointmentDate || !startTime || !endTime) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "patientId, serviceId, appointmentDate, startTime, and endTime are required",
+//       });
+//     }
+
+//     await session.startTransaction();
+
+//     const service = await Service.findById(serviceId).session(session);
+//     if (!service || !service.isActive || service.isDeleted) {
+//       await session.abortTransaction();
+//       return res.status(404).json({
+//         success: false,
+//         message: "Service not found or inactive",
+//       });
+//     }
+
+//     const patient = await Patient.findById(patientId).select("address.cityId").session(session);
+//     if (!patient || !patient.address?.cityId) {
+//       await session.abortTransaction();
+//       return res.status(400).json({
+//         success: false,
+//         message: "Patient city not set",
+//       });
+//     }
+
+//     const bookingCity = cityId
+//       ? await City.findById(cityId).session(session)
+//       : await City.findById(patient.address.cityId).session(session);
+
+//     if (!bookingCity) {
+//       await session.abortTransaction();
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid city",
+//       });
+//     }
+
+//     const dayStart = new Date(appointmentDate);
+//     dayStart.setHours(0, 0, 0, 0);
+//     const dayEnd = new Date(appointmentDate);
+//     dayEnd.setHours(23, 59, 59, 999);
+
+//     const conflictQuery = {
+//       serviceId,
+//       appointmentDate: { $gte: dayStart, $lte: dayEnd },
+//       "slotTime.startTime": startTime,
+//       "slotTime.endTime": endTime,
+//       status: { $nin: ["Cancelled", "Rejected"] },
+//     };
+
+//     if (servicePartnerId) {
+//       conflictQuery.servicePartnerId = servicePartnerId;
+//     }
+
+//     const existingActiveBooking = await Booking.findOne(conflictQuery).session(session);
+//     if (existingActiveBooking) {
+//       await session.abortTransaction();
+//       return res.status(409).json({
+//         success: false,
+//         message: "Slot is already reserved for this service",
+//       });
+//     }
+
+//     let bookingDuration = duration;
+//     if (!bookingDuration) {
+//       const [sh, sm] = startTime.split(":").map(Number);
+//       const [eh, em] = endTime.split(":").map(Number);
+//       bookingDuration = (eh * 60 + em) - (sh * 60 + sm);
+//       if (bookingDuration <= 0) {
+//         bookingDuration = service.defaultDuration || 30;
+//       }
+//     }
+
+//     const pricing = service.calculateTotalPrice(bookingDuration, false, shiftType || null);
+//     const totalAmount = Number(pricing?.totalAmount || 0);
+
+//     const treatment = new Treatment({
+//       patientId,
+//       serviceId,
+//       servicePartnerId: servicePartnerId || null,
+//       startDate: new Date(appointmentDate),
+//       status: "Active",
+//       currentBookingId: null,
+//       lastBookingAt: new Date(appointmentDate),
+//       invoiceGenerated: false,
+//       isActive: true,
+//     });
+
+//     await treatment.save({ session });
+
+//     const newBooking = new Booking({
+//       treatmentId: treatment._id,
+//       patientId,
+//       serviceId,
+//       category: category || service.category,
+//       modes: Array.isArray(modes) && modes.length ? modes : service.modes,
+//       servicePartnerId: servicePartnerId || null,
+//       sessionNumber: 1,
+//       appointmentDate: new Date(appointmentDate),
+//       slotTime: { startTime, endTime },
+//       duration: bookingDuration,
+//       shiftType: shiftType || null,
+//       status: "Pending",
+//       pricing,
+//       notes: notes || "",
+//       city: bookingCity._id,
+//       createdBy: { userId: patientId, userModel: "Patient" },
+//       invoiceUrl: null,
+//     });
+
+//     await newBooking.save({ session });
+
+//     treatment.currentBookingId = newBooking._id;
+//     await treatment.save({ session });
+
+//     const payment = new Payment({
+//       treatmentId: treatment._id,
+//       patientId,
+//       servicePartnerId: servicePartnerId || null,
+//       bookingIds: [newBooking._id],
+//       totalBillAmount: totalAmount,
+//       totalPaid: 0,
+//       totalRefunded: 0,
+//       remainingBalance: totalAmount,
+//       billBreakdown: {
+//         subtotal: Number(pricing?.subtotal || 0),
+//         gstAmount: Number(pricing?.taxAmount || 0),
+//         cgst: 0,
+//         sgst: 0,
+//         grandTotal: totalAmount,
+//       },
+//       paymentStatus: "Unpaid",
+//       transactions: [],
+//       refunds: [],
+//     });
+
+//     await payment.save({ session });
+//     await session.commitTransaction();
+
+//     const populatedBooking = await Booking.findById(newBooking._id)
+//       .populate("city", "name latitude longitude")
+//       .populate("treatmentId", "status startDate validTill");
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Booking, treatment, and payment ledger created successfully.",
+//       data: {
+//         treatmentId: treatment._id,
+//         paymentId: payment._id,
+//         booking: populatedBooking,
+//         nextStep: "Use /api/v1/payments/treatments/:treatmentId/online/order or /manual-collection to collect payment",
+//       },
+//     });
+//   } catch (error) {
+//     if (session.inTransaction()) {
+//       await session.abortTransaction();
+//     }
+//     console.error("Error creating booking/treatment/payment:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error creating booking",
+//       error: error.message,
+//     });
+//   } finally {
+//     session.endSession();
+//   }
+// };
 
 
+//without due amount 
+// exports.getBookedServicesByPatientId = async (req, res) => {
+//   try {
+//     const patientId = req.user && req.user.id ? req.user.id : req.params.patientId;
 
+//     if (!patientId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Patient ID is required",
+//       });
+//     }
+
+//     const { status, dateFilterType, startDate, endDate, generateInvoice } = req.query;
+
+//     let query = { patientId };
+//     if (status) query.status = status;
+
+//     // Date filters logic
+//     if (dateFilterType === "today") {
+//       const todayStart = new Date();
+//       todayStart.setHours(0, 0, 0, 0);
+//       const todayEnd = new Date();
+//       todayEnd.setHours(23, 59, 59, 999);
+//       query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
+//     } else if (dateFilterType === "week") {
+//       const now = new Date();
+//       const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+//       firstDayOfWeek.setHours(0, 0, 0, 0);
+//       const lastDayOfWeek = new Date(firstDayOfWeek);
+//       lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+//       lastDayOfWeek.setHours(23, 59, 59, 999);
+//       query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
+//     } else if (dateFilterType === "custom" && startDate && endDate) {
+//       query.appointmentDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
+//     }
+
+//     // 1. Initial Data Fetch
+//     let bookings = await Booking.find(query)
+//       .populate("serviceId", "name category modes")
+//       .populate("servicePartnerId", "name email phone")
+//       .populate("treatmentId", "status validTill")  // ✅ treatmentId populated
+//       .populate("patientId", "firstName phone")
+//       .lean();
+
+//     let invoicesGeneratedCount = 0;
+
+//     // 2. Auto‑Generate Invoices if requested
+//     if (generateInvoice === "true") {
+//       const completedWithoutInvoice = bookings.filter(
+//         (b) => b.treatmentStatus === "Completed" && !b.invoiceUrl
+//       );
+
+//       for (const booking of completedWithoutInvoice) {
+//         try {
+//           const invoiceNumber = `INV-${Date.now()}-${crypto
+//             .randomBytes(2)
+//             .toString("hex")
+//             .toUpperCase()}`;
+
+//           const pdfBuffer = await new Promise((resolve, reject) => {
+//             const doc = new PDFDocument({ margin: 40 });
+//             let buffers = [];
+//             doc.on("data", buffers.push.bind(buffers));
+//             doc.on("end", () => resolve(Buffer.concat(buffers)));
+//             doc.on("error", reject);
+
+//             doc.fontSize(20).text("MEDICO PLATFORM", { align: "center" }).moveDown();
+//             doc.fontSize(12).text(`Invoice Number: ${invoiceNumber}`);
+//             doc.text(`Patient: ${booking.patientId?.firstName || "N/A"}`);
+//             doc.text(`Service: ${booking.serviceId?.name || "N/A"}`);
+//             doc.text(`Date: ${new Date().toLocaleDateString()}`);
+//             doc.moveDown();
+//             doc.fontSize(14).text(
+//               `Total Amount: ₹${booking.pricing?.totalAmount || 0}`,
+//               { bold: true }
+//             );
+//             doc.end();
+//           });
+
+//           const file = { originalname: `${invoiceNumber}.pdf`, buffer: pdfBuffer };
+//           const pdfUrl = await uploadFile(file);
+
+//           await Booking.findByIdAndUpdate(booking._id, {
+//             invoiceUrl: pdfUrl,
+//             isInvoiceGenerated: true,
+//           });
+
+//           const newInvoice = new Invoice({
+//             invoiceNumber,
+//             bookingId: booking._id,
+//             patientId: booking.patientId?._id || booking.patientId,
+//             doctorId: booking.servicePartnerId?._id,
+//             billingDetails: booking.pricing,
+//             invoiceUrl: pdfUrl,
+//             isInvoiceGenerated: true,
+//           });
+//           await newInvoice.save();
+
+//           invoicesGeneratedCount++;
+//         } catch (err) {
+//           console.error(`Error generating invoice for ${booking._id}:`, err.message);
+//         }
+//       }
+
+//       // 3. Re‑fetch to get updated URLs
+//       bookings = await Booking.find(query)
+//         .populate("serviceId", "name category modes")
+//         .populate("servicePartnerId", "name email phone")
+//         .populate("treatmentId", "status validTill")
+//         .populate("patientId", "firstName phone")
+//         .lean()
+//         .sort({ appointmentDate: 1 });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       count: bookings.length,
+//       data: bookings,
+//       invoicesGenerated: invoicesGeneratedCount,
+//       generateInvoiceUsed: generateInvoice === "true",
+//     });
+//   } catch (error) {
+//     console.error("Get booked services error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching booked services",
+//       error: error.message,
+//     });
+//   }
+// };
 exports.getBookedServicesByPatientId = async (req, res) => {
   try {
-    const patientId = req.user && req.user.id ? req.user.id : req.params.patientId;
+    const patientId = req.user?.id || req.params.patientId;
 
     if (!patientId) {
       return res.status(400).json({
@@ -1357,38 +1567,50 @@ exports.getBookedServicesByPatientId = async (req, res) => {
     const { status, dateFilterType, startDate, endDate, generateInvoice } = req.query;
 
     let query = { patientId };
-    if (status) query.status = status;
 
-    // Date filters logic
+    if (status) {
+      query.status = status;
+    }
+
+    // Date filters
     if (dateFilterType === "today") {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
+
       const todayEnd = new Date();
       todayEnd.setHours(23, 59, 59, 999);
+
       query.appointmentDate = { $gte: todayStart, $lte: todayEnd };
     } else if (dateFilterType === "week") {
       const now = new Date();
-      const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+      const firstDayOfWeek = new Date(now);
+      firstDayOfWeek.setDate(now.getDate() - now.getDay());
       firstDayOfWeek.setHours(0, 0, 0, 0);
+
       const lastDayOfWeek = new Date(firstDayOfWeek);
       lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
       lastDayOfWeek.setHours(23, 59, 59, 999);
+
       query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
     } else if (dateFilterType === "custom" && startDate && endDate) {
-      query.appointmentDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
+      query.appointmentDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
     }
 
-    // 1. Initial Data Fetch
+    // 1. Initial booking fetch
     let bookings = await Booking.find(query)
       .populate("serviceId", "name category modes")
       .populate("servicePartnerId", "name email phone")
-      .populate("treatmentId", "status validTill")  // ✅ treatmentId populated
+      .populate("treatmentId", "status validTill")
       .populate("patientId", "firstName phone")
+      .sort({ appointmentDate: 1 })
       .lean();
 
     let invoicesGeneratedCount = 0;
 
-    // 2. Auto‑Generate Invoices if requested
+    // 2. Auto-generate invoices if requested
     if (generateInvoice === "true") {
       const completedWithoutInvoice = bookings.filter(
         (b) => b.treatmentStatus === "Completed" && !b.invoiceUrl
@@ -1403,8 +1625,9 @@ exports.getBookedServicesByPatientId = async (req, res) => {
 
           const pdfBuffer = await new Promise((resolve, reject) => {
             const doc = new PDFDocument({ margin: 40 });
-            let buffers = [];
-            doc.on("data", buffers.push.bind(buffers));
+            const buffers = [];
+
+            doc.on("data", (chunk) => buffers.push(chunk));
             doc.on("end", () => resolve(Buffer.concat(buffers)));
             doc.on("error", reject);
 
@@ -1415,13 +1638,16 @@ exports.getBookedServicesByPatientId = async (req, res) => {
             doc.text(`Date: ${new Date().toLocaleDateString()}`);
             doc.moveDown();
             doc.fontSize(14).text(
-              `Total Amount: ₹${booking.pricing?.totalAmount || 0}`,
-              { bold: true }
+              `Total Amount: ₹${booking.pricing?.totalAmount || 0}`
             );
             doc.end();
           });
 
-          const file = { originalname: `${invoiceNumber}.pdf`, buffer: pdfBuffer };
+          const file = {
+            originalname: `${invoiceNumber}.pdf`,
+            buffer: pdfBuffer,
+          };
+
           const pdfUrl = await uploadFile(file);
 
           await Booking.findByIdAndUpdate(booking._id, {
@@ -1438,41 +1664,89 @@ exports.getBookedServicesByPatientId = async (req, res) => {
             invoiceUrl: pdfUrl,
             isInvoiceGenerated: true,
           });
-          await newInvoice.save();
 
+          await newInvoice.save();
           invoicesGeneratedCount++;
         } catch (err) {
           console.error(`Error generating invoice for ${booking._id}:`, err.message);
         }
       }
 
-      // 3. Re‑fetch to get updated URLs
+      // Re-fetch updated bookings
       bookings = await Booking.find(query)
         .populate("serviceId", "name category modes")
         .populate("servicePartnerId", "name email phone")
         .populate("treatmentId", "status validTill")
         .populate("patientId", "firstName phone")
-        .lean()
-        .sort({ appointmentDate: 1 });
+        .sort({ appointmentDate: 1 })
+        .lean();
     }
 
-    res.status(200).json({
+    // 3. Fetch payment docs linked with these bookings
+    const bookingIds = bookings.map((booking) => booking._id);
+
+    let payments = [];
+    if (bookingIds.length > 0) {
+      payments = await Payment.find({
+        bookingIds: { $in: bookingIds },
+        patientId,
+      }).lean();
+    }
+
+    // 4. Map each bookingId -> payment document
+    const paymentMap = new Map();
+
+    for (const payment of payments) {
+      for (const linkedBookingId of payment.bookingIds || []) {
+        paymentMap.set(String(linkedBookingId), payment);
+      }
+    }
+
+    // 5. Attach payment/transaction details into booking response
+    const enrichedBookings = bookings.map((booking) => {
+      const payment = paymentMap.get(String(booking._id));
+
+      const totalAmount =
+        Number(payment?.totalBillAmount) ||
+        Number(payment?.billBreakdown?.grandTotal) ||
+        Number(booking?.pricing?.totalAmount) ||
+        0;
+
+      const paidAmount = Number(payment?.totalPaid || 0);
+      const refundedAmount = Number(payment?.totalRefunded || 0);
+      const dueAmount =
+        Number(payment?.remainingBalance ?? Math.max(totalAmount - paidAmount + refundedAmount, 0));
+
+      return {
+        ...booking,
+        transactions: payment?.transactions || [],
+        refunds: payment?.refunds || [],
+        paidAmount,
+        refundedAmount,
+        dueAmount,
+        totalAmount,
+        paymentStatus: payment?.paymentStatus || "Unpaid",
+        paymentId: payment?._id || null,
+        currency: payment?.currency || "INR",
+      };
+    });
+
+    return res.status(200).json({
       success: true,
-      count: bookings.length,
-      data: bookings,
+      count: enrichedBookings.length,
+      data: enrichedBookings,
       invoicesGenerated: invoicesGeneratedCount,
       generateInvoiceUsed: generateInvoice === "true",
     });
   } catch (error) {
     console.error("Get booked services error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Error fetching booked services",
       error: error.message,
     });
   }
 };
-
 // exports.getBookedServicesByPatientId = async (req, res) => {
 //   try {
 //     const patientId = req.user && req.user.id ? req.user.id : req.params.patientId;
