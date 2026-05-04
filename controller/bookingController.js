@@ -1564,18 +1564,35 @@ exports.createBooking = async (req, res) => {
       pricing,
       bookingDate,
       slot,
+      startTime,
+      endTime,
+      sessionNumber, // ✅ REQUIRED
       paymentOption,
       amount,
       ...rest
     } = req.body;
 
-    // ✅ Take patientId from token
     const patientId = req.user?.id;
 
     if (!patientId) {
       return res.status(400).json({
         success: false,
         message: "Patient ID not found in token",
+      });
+    }
+
+    // ❌ Validate required fields early (better error)
+    if (!startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: "startTime and endTime are required",
+      });
+    }
+
+    if (!sessionNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "sessionNumber is required",
       });
     }
 
@@ -1586,7 +1603,7 @@ exports.createBooking = async (req, res) => {
       const treatment = await Treatment.create({
         patientId,
         servicePartnerId,
-        serviceId, // ✅ important
+        serviceId,
         createdBy: patientId,
         status: "Active",
       });
@@ -1594,7 +1611,7 @@ exports.createBooking = async (req, res) => {
       resolvedTreatmentId = treatment._id;
     }
 
-    // ✅ Create Booking
+    // ✅ Create Booking (FIXED STRUCTURE)
     const booking = await Booking.create({
       ...rest,
       treatmentId: resolvedTreatmentId,
@@ -1603,21 +1620,31 @@ exports.createBooking = async (req, res) => {
       servicePartnerId,
       bookingDate,
       slot,
+
+      // ✅ FIXED: match schema
+      slotTime: {
+        startTime,
+        endTime,
+      },
+
+      sessionNumber, // ✅ REQUIRED FIELD
+
       pricing: {
         totalAmount: Number(pricing?.totalAmount || 0),
         ...pricing,
       },
+
       paymentOption: paymentOption || "PayLater",
       createdBy: patientId,
     });
 
-    // ✅ Ensure Payment Ledger
+    // ✅ Payment Ledger
     const paymentLedger =
       await paymentController.ensurePaymentLedgerForBooking({
         treatmentId: resolvedTreatmentId,
       });
 
-    // ✅ If Pay Now → redirect to payment flow
+    // ✅ Pay Now flow
     if (paymentOption === "PayNow") {
       req.params.treatmentId = String(resolvedTreatmentId);
       req.body.amount = amount || paymentLedger.remainingBalance;
@@ -1625,7 +1652,7 @@ exports.createBooking = async (req, res) => {
       return paymentController.createTreatmentOnlineOrder(req, res);
     }
 
-    // ✅ Calculate payment values
+    // ✅ Payment calculations
     const totalAmount =
       Number(paymentLedger?.totalBillAmount) ||
       Number(booking?.pricing?.totalAmount) ||
@@ -1642,20 +1669,17 @@ exports.createBooking = async (req, res) => {
     const paymentStatusRaw = paymentLedger?.paymentStatus || "Unpaid";
     const paymentStatus = paymentStatusRaw.toLowerCase();
 
-    // ✅ SAME LOGIC AS GET API
     const isPaymentPending =
       paymentStatus === "pending" ||
       paymentStatus === "partially paid" ||
       paymentStatus === "unpaid" ||
       dueAmount > 0;
 
-    // ✅ Final Response
     return res.status(201).json({
       success: true,
       message: "Booking created successfully",
       data: {
         booking,
-
         payment: {
           paymentId: paymentLedger._id,
           treatmentId: paymentLedger.treatmentId,
@@ -1664,8 +1688,6 @@ exports.createBooking = async (req, res) => {
           totalRefunded: refundedAmount,
           remainingBalance: dueAmount,
           paymentStatus: paymentStatusRaw,
-
-          // ✅ NEW FIELD
           isPaymentPending,
         },
       },
