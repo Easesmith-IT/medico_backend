@@ -942,39 +942,50 @@ exports.updateService = async (req, res) => {
       }
     }
 
+    const updatePayload = {};
     if (cities) {
       try {
         await validateCities(cities);
-        service.cities = cities;
+        updatePayload.cities = cities;
       } catch (error) {
         return res.status(400).json({ success: false, message: error.message });
       }
     }
-    if (name) service.name = name;
-    if (description) service.description = description;
-    if (basePrice !== undefined) service.basePrice = basePrice;
+    if (name) updatePayload.name = name;
+    if (description) updatePayload.description = description;
+    if (basePrice !== undefined) updatePayload.basePrice = basePrice;
     if (equipmentCharges !== undefined)
-      service.equipmentCharges = equipmentCharges;
-    if (taxPercentage !== undefined) service.taxPercentage = taxPercentage;
-    if (modes) service.modes = modes;
+      updatePayload.equipmentCharges = equipmentCharges;
+    if (taxPercentage !== undefined) updatePayload.taxPercentage = taxPercentage;
+    if (modes) updatePayload.modes = modes;
     if (defaultDuration !== undefined)
-      service.defaultDuration = defaultDuration;
-    if (durationOptions) service.durationOptions = durationOptions;
-    if (paymentMode) service.paymentMode = paymentMode;
-    if (timeFormat) service.timeFormat = timeFormat;
-    if (icon !== undefined) service.icon = icon;
-    if (image !== undefined) service.image = image;
-    if (isActive !== undefined) service.isActive = isActive;
+      updatePayload.defaultDuration = defaultDuration;
+    if (durationOptions) updatePayload.durationOptions = durationOptions;
+    if (paymentMode) updatePayload.paymentMode = paymentMode;
+    if (timeFormat) updatePayload.timeFormat = timeFormat;
+    if (icon !== undefined) updatePayload.icon = icon;
+    if (image !== undefined) updatePayload.image = image;
+    if (isActive !== undefined) updatePayload.isActive = isActive;
     if (slotConfig)
-      service.slotConfig = { ...service.slotConfig, ...slotConfig };
+      updatePayload.slotConfig = { ...(service.slotConfig || {}), ...slotConfig };
 
-    await service.save();
-    await service.populate("cities", "name latitude longitude");
+    if (Object.keys(updatePayload).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid fields provided to update",
+      });
+    }
+
+    const updatedService = await Service.findByIdAndUpdate(
+      id,
+      { $set: updatePayload },
+      { new: true, runValidators: true }
+    ).populate("cities", "name latitude longitude");
 
     res.status(200).json({
       success: true,
       message: "Service updated successfully",
-      data: service,
+      data: updatedService,
     });
   } catch (error) {
     console.error("Update service error:", error);
@@ -1041,12 +1052,18 @@ exports.deleteService = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Service not found' });
     }
 
-    // Soft delete
-    service.isDeleted = true;
-    service.deletedAt = new Date();
-    service.deletedBy = { userId: req.user.id, userModel: 'Admin' };
-    service.isActive = false;
-    await service.save();
+    // Soft delete using partial update to avoid legacy-document full validation failures
+    await Service.updateOne(
+      { _id: id },
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: { userId: req.user.id, userModel: 'Admin' },
+          isActive: false,
+        },
+      }
+    );
 
     return res.status(200).json({ success: true, message: 'Service deleted successfully' });
   } catch (error) {

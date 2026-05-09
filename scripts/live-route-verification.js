@@ -18,6 +18,7 @@ const Invoice = require("../models/invoiceModel");
 const ItemCategory = require("../models/itemCategoryModel");
 const CrashReport = require("../models/CrashReport");
 const SocialPost = require("../models/socialPostModel");
+const Article = require("../models/articleModel");
 
 const ROOT = process.cwd();
 const ROUTE_DIR = path.join(ROOT, "route");
@@ -168,6 +169,12 @@ function randomEmail(prefix) {
   const ts = Date.now();
   const rand = Math.floor(Math.random() * 1_000_000);
   return `${prefix}.${ts}.${rand}@example.com`;
+}
+
+function dateOnly(daysAhead = 1) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  return d.toISOString().slice(0, 10);
 }
 
 async function fetchOtp(phone) {
@@ -413,7 +420,10 @@ async function loginServiceProvider(session, refs) {
     );
     const envCookie = extractCookieHeader(envLogin.headers["set-cookie"]);
     if (envLogin.status === 200 && envCookie) {
-      session.serviceProvider = { cookie: envCookie, identity: { email: envEmail } };
+      session.serviceProvider = {
+        cookie: envCookie,
+        identity: { email: envEmail, id: envLogin?.data?.data?.id || null },
+      };
       return { ok: true, mode: "existing-provider-login" };
     }
   }
@@ -509,6 +519,7 @@ async function loginServiceProvider(session, refs) {
       cookie,
       identity: { email, mobile, createStatus: createRes.status },
     };
+    session.serviceProvider.identity.id = loginRes?.data?.data?.id || null;
     return { ok: true, mode: "created-and-login", createStatus: createRes.status };
   }
 
@@ -523,33 +534,70 @@ async function loginServiceProvider(session, refs) {
 }
 
 async function buildEntityRefs(session) {
-  const [city, service, booking, treatment, invoice, itemCategory, crash, social] =
+  const patientId = session.patient?.identity?.id || null;
+  const doctorId = session.doctor?.identity?.id || null;
+
+  const [city, service, treatmentByPatient, treatmentAny, bookingByPatient, bookingAny, invoice, itemCategory, crash, social, article, provider, doctorDoc, patientDoc] =
     await Promise.all([
       City.findOne({ isActive: true }).lean(),
-      Service.findOne({}).lean(),
-      Booking.findOne({}).lean(),
-      Treatment.findOne({}).lean(),
-      Invoice.findOne({}).lean(),
-      ItemCategory.findOne({}).lean(),
-      CrashReport.findOne({}).lean(),
-      SocialPost.findOne({}).lean(),
+      Service.findOne({ isDeleted: { $ne: true } }).lean(),
+      patientId ? Treatment.findOne({ patientId }).sort({ createdAt: -1 }).lean() : null,
+      Treatment.findOne({}).sort({ createdAt: -1 }).lean(),
+      patientId
+        ? Booking.findOne({ patientId, appointmentDate: { $gte: new Date(Date.now() - 24 * 3600 * 1000) } })
+            .sort({ appointmentDate: 1 })
+            .lean()
+        : null,
+      Booking.findOne({}).sort({ createdAt: -1 }).lean(),
+      Invoice.findOne({}).sort({ createdAt: -1 }).lean(),
+      ItemCategory.findOne({ isDeleted: { $ne: true } }).lean(),
+      CrashReport.findOne({}).sort({ createdAt: -1 }).lean(),
+      SocialPost.findOne({}).sort({ createdAt: -1 }).lean(),
+      Article.findOne({}).sort({ createdAt: -1 }).lean(),
+      session.serviceProvider?.identity?.id
+        ? ServiceProvider.findById(session.serviceProvider.identity.id).lean()
+        : ServiceProvider.findOne({ isDeleted: { $ne: true } }).sort({ createdAt: -1 }).lean(),
+      doctorId ? Doctor.findById(doctorId).lean() : null,
+      patientId ? Patient.findById(patientId).lean() : null,
     ]);
+
+  const treatment = treatmentByPatient || treatmentAny;
+  const booking = bookingByPatient || bookingAny;
+  const clinicId = doctorDoc?.clinics?.[0]?._id ? String(doctorDoc.clinics[0]._id) : "507f1f77bcf86cd799439016";
+  const historyId = patientDoc?.medicalHistory?.[0]?._id
+    ? String(patientDoc.medicalHistory[0]._id)
+    : "507f1f77bcf86cd799439017";
 
   return {
     cityId: city ? String(city._id) : "507f1f77bcf86cd799439014",
     serviceId: service ? String(service._id) : "507f1f77bcf86cd799439013",
     bookingId: booking ? String(booking._id) : "507f1f77bcf86cd799439012",
+    bookingSessionNumber: booking?.sessionNumber || 1,
     treatmentId: treatment ? String(treatment._id) : "507f1f77bcf86cd799439018",
     invoiceId: invoice ? String(invoice._id) : "507f1f77bcf86cd799439015",
     itemCategoryId: itemCategory ? String(itemCategory._id) : "507f1f77bcf86cd79943901a",
     crashId: crash ? String(crash._id) : "507f1f77bcf86cd799439019",
     socialId: social ? String(social._id) : "507f1f77bcf86cd79943901a",
+    articleId: article ? String(article._id) : "507f1f77bcf86cd79943901b",
+    providerId: provider ? String(provider._id) : "507f1f77bcf86cd79943901c",
+    clinicId,
+    historyId,
     patientId: session.patient?.identity?.id || "507f191e810c19729de860ea",
     doctorId: session.doctor?.identity?.id || "507f1f77bcf86cd799439011",
   };
 }
 
 function fillRoutePath(routePath, refs) {
+  let genericId = refs.itemCategoryId;
+  if (routePath.startsWith("/api/v1/article/")) genericId = refs.articleId;
+  else if (routePath.startsWith("/api/v1/socialPost/")) genericId = refs.socialId;
+  else if (routePath.startsWith("/api/v1/service/service/")) genericId = refs.serviceId;
+  else if (routePath.startsWith("/api/v1/service/services/")) genericId = refs.serviceId;
+  else if (routePath.startsWith("/api/v1/serviceProvider/service-provider/")) genericId = refs.providerId;
+  else if (routePath.startsWith("/api/v1/admin/doctors/")) genericId = refs.doctorId;
+  else if (routePath.startsWith("/api/v1/admin/patients/")) genericId = refs.patientId;
+  else if (routePath.startsWith("/api/v1/patient/updateProfile/")) genericId = refs.patientId;
+
   return routePath
     .replace(/:patientId\b/g, refs.patientId)
     .replace(/:doctorId\b/g, refs.doctorId)
@@ -559,25 +607,34 @@ function fillRoutePath(routePath, refs) {
     .replace(/:invoiceId\b/g, refs.invoiceId)
     .replace(/:treatmentId\b/g, refs.treatmentId)
     .replace(/:crashId\b/g, refs.crashId)
-    .replace(/:providerId\b/g, refs.doctorId)
-    .replace(/:clinicId\b/g, "507f1f77bcf86cd799439016")
-    .replace(/:historyId\b/g, "507f1f77bcf86cd799439017")
+    .replace(/:providerId\b/g, refs.providerId)
+    .replace(/:clinicId\b/g, refs.clinicId)
+    .replace(/:historyId\b/g, refs.historyId)
     .replace(/:specialization\b/g, "general")
     .replace(/:cityName\b/g, "Lucknow")
     .replace(/:category\b/g, "general")
     .replace(/:nursingType\b/g, "icu")
-    .replace(/:id\b/g, refs.itemCategoryId)
+    .replace(/:id\b/g, genericId)
     .replace(/:postId\b/g, refs.socialId);
 }
 
 function withQuery(p) {
-  if (p.endsWith("/search")) return `${p}?query=test`;
+  if (p.includes("/socialPost/search")) return `${p}?q=health&type=posts&page=1&limit=5`;
+  if (p.includes("/service/search")) return `${p}?q=care`;
+  if (p.endsWith("/search")) return `${p}?q=test`;
   if (p.includes("/slots/")) return `${p}?date=2026-05-09`;
+  if (p.includes("/city/find/by-location")) return `${p}?latitude=26.8467&longitude=80.9462`;
+  if (p.includes("/admin/patient/") && p.endsWith("/medications")) return `${p}?medication=Paracetamol`;
+  if (p.includes("/article/articles")) return `${p}?page=1&limit=5`;
+  if (p.includes("/article/getallarticle")) return `${p}?page=1&limit=5`;
+  if (p.includes("/booking/getAllBookings")) return `${p}?page=1&limit=5`;
   return p;
 }
 
-function payloadFor(pathname, sessions, refs) {
+function payloadFor(pathname, method, sessions, refs) {
   const now = Date.now();
+  const apptDate = dateOnly(2);
+  const slotDate = dateOnly(1);
   if (pathname.endsWith("/patient/login")) {
     return sessions.patient?.identity?.phone
       ? { phone: sessions.patient.identity.phone }
@@ -637,7 +694,312 @@ function payloadFor(pathname, sessions, refs) {
       password: "RouteTest@123",
     };
   }
-  if (pathname.includes("/uploadfile/upload")) return {};
+  if (pathname.includes("/doctor/availability")) {
+    return {
+      days: ["Monday", "Tuesday"],
+      timeSlots: [{ start: "09:00", end: "11:00" }],
+      slotDuration: 30,
+      startDate: slotDate,
+      endDate: dateOnly(2),
+      serviceAvailability: { consultation: true },
+      serviceCoverage: { mode: "Home Service", areas: ["Central Zone"], maxDistance: 10 },
+    };
+  }
+  if (pathname.includes("/doctor/break-time")) {
+    if (method === "DELETE") return { date: slotDate, startTime: "10:00" };
+    return { date: slotDate, startTime: "10:00", endTime: "10:30", reason: "Route verification break" };
+  }
+  if (pathname.includes("/doctor/toggle-slot")) {
+    return { date: slotDate, startTime: "09:00", isSlotAvailable: false };
+  }
+  if (pathname.includes("/doctor/service-availability")) {
+    return {
+      serviceType: "Consultation",
+      isOffering: true,
+      modes: ["Home Service"],
+      pricing: { basePrice: 300 },
+      slotDuration: 30,
+      maxBookingsPerDay: 15,
+    };
+  }
+  if (pathname.includes("/doctor/service-coverage")) {
+    return { areas: ["Lucknow"], maxDistance: 15, homeServiceCharges: 100 };
+  }
+  if (pathname.endsWith("/doctor/clinic")) {
+    return { clinicfirstName: "Route Clinic", address: "A1, Main Road", phone: randomPhone() };
+  }
+  if (pathname.includes("/doctor/clinic/")) {
+    return { clinicfirstName: "Route Clinic Updated", address: "B2, Updated Road" };
+  }
+  if (pathname.endsWith("/doctor/verification-documents")) {
+    return {
+      identityProof: { type: "Aadhaar", number: "123412341234", url: "https://example.com/id-proof.pdf" },
+      degreesCertificates: [{ title: "MBBS", url: "https://example.com/mbbs.pdf" }],
+      medicalCouncilRegistration: { council: "MCI", regNo: `REG-${now}` },
+    };
+  }
+  if (pathname.includes("/booking/create") || pathname.includes("/booking/providerBookings")) {
+    return {
+      patientId: refs.patientId,
+      serviceId: refs.serviceId,
+      treatmentId: refs.treatmentId,
+      appointmentDate: apptDate,
+      startTime: "10:00",
+      endTime: "10:30",
+      duration: 30,
+      category: "general",
+      modes: ["Home Service"],
+      cityId: refs.cityId,
+      servicePartnerId: refs.providerId,
+      notes: "Route verification booking",
+    };
+  }
+  if (pathname.includes("/booking/completed-details/")) {
+    return { notes: "Completed by route verifier", completionRemark: "all good" };
+  }
+  if (pathname.includes("/booking/cancel/")) {
+    return { reason: "Patient requested cancellation due to schedule conflict" };
+  }
+  if (pathname.includes("/booking/reschedule/")) {
+    return {
+      appointmentDate: dateOnly(3),
+      startTime: "11:00",
+      endTime: "11:30",
+      duration: 30,
+      servicePartnerId: refs.providerId,
+      shiftType: "day",
+    };
+  }
+  if (pathname.includes("/booking/update-status/")) {
+    return { status: "Completed", notes: "Marked complete by verifier" };
+  }
+  if (pathname.includes("/admin/addEquipments")) {
+    return {
+      name: `Route Equipment ${now}`,
+      description: "Synthetic equipment for route verification",
+      basePrice: 250,
+      equipmentCharges: 50,
+      cities: [refs.cityId],
+      minDuration: 60,
+      maxDuration: 240,
+      image: "https://example.com/equipment.png",
+    };
+  }
+  if (pathname.includes("/admin/admin/doctor/add-cities")) {
+    return { doctorId: refs.doctorId, cityIds: [refs.cityId] };
+  }
+  if (pathname.includes("/admin/admin/doctor/remove-cities")) {
+    return { doctorId: refs.doctorId, cityIds: [refs.cityId] };
+  }
+  if (pathname.includes("/admin/admin/doctor/update-cities")) {
+    return { doctorId: refs.doctorId, cityIds: [refs.cityId] };
+  }
+  if (pathname.includes("/admin/bookings/create")) {
+    return {
+      patientId: refs.patientId,
+      serviceId: refs.serviceId,
+      appointmentDate: apptDate,
+      startTime: "09:30",
+      endTime: "10:00",
+      duration: 30,
+      cityId: refs.cityId,
+      notes: "Admin route booking create",
+    };
+  }
+  if (pathname.includes("/admin/bookings/") && pathname.includes("/status")) {
+    return { status: "Approved", reason: "Status updated by route verifier" };
+  }
+  if (pathname.includes("/admin/bookings/update/")) {
+    return {
+      patientId: refs.patientId,
+      appointmentDate: dateOnly(3),
+      startTime: "12:00",
+      endTime: "12:30",
+      duration: 30,
+      cityId: refs.cityId,
+      sessionNumber: refs.bookingSessionNumber || 1,
+      notes: "Admin update route verifier",
+    };
+  }
+  if (pathname.includes("/admin/admin/booking/approve-cancellation/")) {
+    return { action: "approve", adminReason: "Approved by automated route verification" };
+  }
+  if (pathname.includes("/admin/patient/") && pathname.includes("/medications")) {
+    if (method === "DELETE") return {};
+    return { medication: "Paracetamol" };
+  }
+  if (pathname.includes("/admin/doctors/create")) {
+    return {
+      firstName: "RouteDoc",
+      lastName: "Create",
+      email: randomEmail("route.admin.doc"),
+      phone: randomPhone(),
+      cityId: refs.cityId,
+      specialization: "General",
+      password: "RouteTest@123",
+    };
+  }
+  if (pathname.includes("/admin/patients/create")) {
+    return {
+      firstName: "RoutePatient",
+      lastName: "Create",
+      email: randomEmail("route.admin.patient"),
+      phone: randomPhone(),
+      password: "RouteTest@123",
+    };
+  }
+  if (pathname.includes("/admin/patients/") && pathname.includes("/block")) {
+    return { reason: "Synthetic block reason for route verification" };
+  }
+  if (pathname.includes("/admin/updateProfile")) {
+    return { firstName: "AdminRoute", lastName: "Verifier" };
+  }
+  if (pathname.includes("/items/create")) {
+    return {
+      name: `Route Category ${now}`,
+      description: "Created by route verifier",
+      type: "medical",
+      items: [{ name: "Disposable Gloves", unitPrice: 50 }],
+    };
+  }
+  if (pathname.includes("/items/update/")) {
+    return {
+      name: `Route Category Updated ${now}`,
+      description: "Updated by route verifier",
+      items: [{ name: "Disposable Mask", unitPrice: 20, isActive: true }],
+    };
+  }
+  if (pathname.includes("/patient/allergies")) {
+    if (method === "DELETE") return { allergy: "Dust" };
+    return { allergy: "Dust" };
+  }
+  if (pathname.includes("/patient/medications")) {
+    if (method === "DELETE") return { medication: "Paracetamol" };
+    return { medication: "Paracetamol" };
+  }
+  if (pathname.includes("/patient/medical-history")) {
+    if (method === "DELETE") return {};
+    return { condition: "Hypertension", diagnosedAt: "2023-01-01", notes: "Route verifier seed" };
+  }
+  if (pathname.includes("/patient/updateProfile/")) {
+    return { firstName: "PatientRoute", city: "Lucknow" };
+  }
+  if (pathname.includes("/patient/follow/") || pathname.includes("/patient/unfollow/")) {
+    return {};
+  }
+  if (pathname.includes("/payments/treatments/") && pathname.includes("/online/order")) {
+    return { amount: 100 };
+  }
+  if (pathname.includes("/payments/treatments/") && pathname.includes("/online/verify")) {
+    return {
+      razorpay_order_id: "order_route_test",
+      razorpay_payment_id: "pay_route_test",
+      razorpay_signature: "invalid_signature_for_test",
+    };
+  }
+  if (pathname.includes("/payments/treatments/") && pathname.includes("/manual-collection")) {
+    return { amount: 100, method: "Cash", stage: "Advance", note: "Route verifier manual payment" };
+  }
+  if (pathname.includes("/payments/treatments/") && pathname.includes("/refunds/manual")) {
+    return {
+      amount: 50,
+      reason: "Route verifier refund test",
+      mode: "Cash",
+      refundType: "Partial",
+      note: "Route verifier manual refund",
+    };
+  }
+  if (pathname.includes("/service/createService")) {
+    return {
+      name: `Route Service ${now}`,
+      description: "Service created by route verifier",
+      category: "general",
+      basePrice: 300,
+      modes: ["Home Service"],
+      cities: [refs.cityId],
+      defaultDuration: 30,
+    };
+  }
+  if (pathname.includes("/service/services/") || pathname.includes("/service/admin/bulk-update")) {
+    return { isActive: true, description: "Updated by route verifier" };
+  }
+  if (pathname.includes("/serviceProvider/createservice-provider")) {
+    return {
+      firstName: "Route",
+      lastName: "Provider",
+      ownerName: "Route Owner",
+      age: 30,
+      dateOfBirth: JSON.stringify("1995-01-01"),
+      gender: "Male",
+      mobile: randomPhone(),
+      email: randomEmail("route.provider.create"),
+      password: process.env.TEST_PROVIDER_PASSWORD || "RouteSP@123",
+      currentAddress: JSON.stringify({
+        street: "A-1",
+        locality: "Center",
+        city: "Lucknow",
+        state: "UP",
+        country: "India",
+        pincode: "226001",
+      }),
+      permanentAddress: JSON.stringify({
+        street: "A-1",
+        locality: "Center",
+        city: "Lucknow",
+        state: "UP",
+        country: "India",
+        pincode: "226001",
+        sameAsCurrent: true,
+      }),
+      services: JSON.stringify([
+        { serviceId: refs.serviceId, serviceName: "General", experienceYears: 3, specialization: "General" },
+      ]),
+      qualification: "BSc Nursing",
+      registrationNumber: `REG-${now}`,
+      registrationCouncil: "State Council",
+      yearsOfExperience: 5,
+      bankDetails: JSON.stringify({
+        accountHolderName: "Route Provider",
+        accountNumber: `${now}`.slice(-12),
+        ifscCode: "SBIN0001234",
+        bankName: "SBI",
+      }),
+      serviceCities: JSON.stringify([refs.cityId]),
+      languages: JSON.stringify(["Hindi", "English"]),
+    };
+  }
+  if (pathname.includes("/serviceProvider/service-provider/") && method === "PUT") {
+    return { firstName: "RouteProviderUpdated", yearsOfExperience: 6 };
+  }
+  if (pathname.includes("/socialPost/createPost")) {
+    return { type: "TEXT", content: "Route verification post content" };
+  }
+  if (pathname.includes("/socialPost/addComment/") || pathname.includes("/socialPost/commentPost/")) {
+    return { text: "Route verification comment" };
+  }
+  if (pathname.includes("/socialPost/followDoctor")) {
+    return { doctorId: refs.doctorId };
+  }
+  if (pathname.includes("/invoice/generate")) {
+    return {
+      bookingId: refs.bookingId,
+      patientId: refs.patientId,
+      doctorId: refs.providerId,
+      serviceId: refs.serviceId,
+      billingDetails: {
+        category: "consultation",
+        serviceName: "General Consultation",
+        shiftType: "hourly",
+        durationMinutes: 30,
+        basePrice: 150,
+        calculatedBase: 150,
+        taxPercentage: 0,
+      },
+      medicines: [{ name: "Pain Relief", quantity: 1, pricePerUnit: 50, gstPercentage: 0 }],
+      additionalEquipment: [],
+    };
+  }
+  if (pathname.includes("/uploadfile/upload")) return { file: null };
   return {};
 }
 
@@ -672,6 +1034,14 @@ function classify(status, preview, mounted) {
   return "ok";
 }
 
+async function refreshSessionForContext(ctxName, sessions, refs) {
+  if (ctxName === "patient") return loginPatient(sessions);
+  if (ctxName === "doctor") return loginDoctor(sessions);
+  if (ctxName === "admin") return loginAdmin(sessions);
+  if (ctxName === "serviceProvider") return loginServiceProvider(sessions, refs);
+  return { ok: false, reason: "No refresh handler" };
+}
+
 async function hitAllRoutes(routes, sessions, refs) {
   const attempts = [];
 
@@ -679,7 +1049,7 @@ async function hitAllRoutes(routes, sessions, refs) {
     const executablePath = withQuery(fillRoutePath(route.routePath, refs));
     const method = route.method.toLowerCase();
     const url = `${BASE_URL}${executablePath}`;
-    const body = payloadFor(executablePath, sessions, refs);
+    const body = payloadFor(executablePath, route.method, sessions, refs);
     const contexts = contextOrder(executablePath);
 
     const routeTries = [];
@@ -702,7 +1072,7 @@ async function hitAllRoutes(routes, sessions, refs) {
           method,
           url,
           headers,
-          data: ["get", "delete"].includes(method) ? undefined : body,
+          data: method === "get" ? undefined : body,
           timeout: 30000,
           validateStatus: () => true,
         });
@@ -710,6 +1080,30 @@ async function hitAllRoutes(routes, sessions, refs) {
         resData = res.data;
       } catch (e) {
         err = e.message;
+      }
+
+      if (resStatus === 401 && ctxName !== "public") {
+        const refreshed = await refreshSessionForContext(ctxName, sessions, refs);
+        if (refreshed?.ok) {
+          const retryHeaders = { ...headers };
+          const retryCookie = sessions[ctxName]?.cookie;
+          if (retryCookie) retryHeaders.Cookie = retryCookie;
+          try {
+            const retryRes = await axios({
+              method,
+              url,
+              headers: retryHeaders,
+              data: method === "get" ? undefined : body,
+              timeout: 30000,
+              validateStatus: () => true,
+            });
+            resStatus = retryRes.status;
+            resData = retryRes.data;
+            err = null;
+          } catch (retryErr) {
+            err = retryErr.message;
+          }
+        }
       }
 
       const tryItem = {
@@ -721,7 +1115,7 @@ async function hitAllRoutes(routes, sessions, refs) {
             hasCookie: Boolean(headers.Cookie),
             contentType: headers["Content-Type"],
           },
-          body: ["get", "delete"].includes(method) ? null : body,
+          body: method === "get" ? null : body,
         },
         response: {
           status: resStatus,

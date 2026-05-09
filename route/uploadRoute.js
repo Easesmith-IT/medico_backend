@@ -8,10 +8,17 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 router.post("/upload", upload.single("file"), async (req, res) => {
   try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({
+        success: false,
+        message: "File is required in form-data field 'file'",
+      });
+    }
 
     const url = await uploadFile(req.file);
 
     res.status(200).json({
+      success: true,
       message: "File uploaded successfully",
       url: url
     });

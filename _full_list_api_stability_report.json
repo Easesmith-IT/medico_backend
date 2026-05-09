@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-05-09T21:10:43.521Z",
+  "generatedAt": "2026-05-09T21:15:05.707Z",
   "baseUrl": "http://localhost:5005",
   "fixtures": {
-    "cityId": "69ff36c49f29739c4bf09300",
-    "cityName": "phasecity1778333380355",
+    "cityId": "69ff38779f29739c4bf095f9",
+    "cityName": "phasecity1778333814945",
     "serviceId": "6915d7cf9033f3ce1c0f322e",
     "patientId": "69099012606fc5a2ab07ae91",
     "doctorId": "69ff983f51558d56a410ccfa",
-    "providerId": "69ff98503dfe2cc4bfac7fd3"
+    "providerId": "69ffa3ab9fce833a9aabbaf3"
   },
   "summary": {
     "totalChecks": 13,
@@ -71,7 +71,7 @@
                 {
                   "start": "09:00",
                   "end": "11:00",
-                  "_id": "69ffa2d09fce833a9aabba66"
+                  "_id": "69ffa3d79fce833a9aabc0af"
                 }
               ],
               "serviceCoverage": {
@@ -90,7 +90,7 @@
                       "isBooked": false,
                       "isSlotAvailable": true,
                       "status": "available",
-                      "_id": "69ffa2d09fce833a9aabba68"
+                      "_id": "69ffa3d79fce833a9aabc0b1"
                     },
                     {
                       "startTime": "09:30",
@@ -99,7 +99,7 @@
                       "isBooked": false,
                       "isSlotAvailable": true,
                       "status": "available",
-                      "_id": "69ffa2d09fce833a9aabba69"
+                      "_id": "69ffa3d79fce833a9aabc0b2"
                     },
                     {
                       "startTime": "10:00",
@@ -108,7 +108,7 @@
                       "isBooked": false,
                       "isSlotAvailable": true,
                       "status": "available",
-                      "_id": "69ffa2d09fce833a9aabba6a"
+                      "_id": "69ffa3d79fce833a9aabc0b3"
                     },
                     {
                       "startTime": "10:30",
@@ -117,10 +117,10 @@
                       "isBooked": false,
                       "isSlotAvailable": true,
                       "status": "available",
-                      "_id": "69ffa2d09fce833a9aabba6b"
+                      "_id": "69ffa3d79fce833a9aabc0b4"
                     }
                   ],
-                  "_id": "69ffa2d09fce833a9aabba67",
+                  "_id": "69ffa3d79fce833a9aabc0b0",
                   "breakTimes": []
                 }
               ]
@@ -129,8 +129,8 @@
           }
         }
       },
-      "durationMs": 192,
-      "timestamp": "2026-05-09T21:10:40.865Z"
+      "durationMs": 130,
+      "timestamp": "2026-05-09T21:15:03.175Z"
     },
     {
       "area": "route-conflict-verification",
@@ -180,7 +180,7 @@
                   {
                     "start": "10:00",
                     "end": "12:00",
-                    "_id": "69ffa2d09fce833a9aabba6d"
+                    "_id": "69ffa3d79fce833a9aabc0b6"
                   }
                 ],
                 "serviceCoverage": [],
@@ -215,14 +215,14 @@
               "isActive": true,
               "clinics": [],
               "createdAt": "2026-05-09T20:25:35.021Z",
-              "updatedAt": "2026-05-09T21:10:40.817Z",
-              "__v": 1
+              "updatedAt": "2026-05-09T21:15:03.130Z",
+              "__v": 2
             }
           }
         }
       },
-      "durationMs": 49,
-      "timestamp": "2026-05-09T21:10:40.914Z"
+      "durationMs": 46,
+      "timestamp": "2026-05-09T21:15:03.221Z"
     },
     {
       "area": "article-geo-filter",
@@ -248,15 +248,69 @@
           "articles": []
         }
       },
-      "durationMs": 41,
-      "timestamp": "2026-05-09T21:10:40.955Z"
+      "durationMs": 40,
+      "timestamp": "2026-05-09T21:15:03.261Z"
     },
     {
       "area": "article-city-filter",
       "route": "GET /api/v1/article/articles?cityId",
       "request": {
         "method": "GET",
-        "url": "http://localhost:5005/api/v1/article/articles?cityId=69ff36c49f29739c4bf09300&page=1&limit=5",
+        "url": "http://localhost:5005/api/v1/article/articles?cityId=69ff38779f29739c4bf095f9&page=1&limit=5",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": null
+        },
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "count": 0,
+          "total": 0,
+          "totalPages": 0,
+          "currentPage": 1,
+          "articles": []
+        }
+      },
+      "durationMs": 157,
+      "timestamp": "2026-05-09T21:15:03.418Z"
+    },
+    {
+      "area": "article-city-filter-alias",
+      "route": "GET /api/v1/article/getallarticle?cityId",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5005/api/v1/article/getallarticle?cityId=69ff38779f29739c4bf095f9&page=1&limit=5",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": null
+        },
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "count": 0,
+          "total": 0,
+          "totalPages": 0,
+          "currentPage": 1,
+          "articles": []
+        }
+      },
+      "durationMs": 154,
+      "timestamp": "2026-05-09T21:15:03.572Z"
+    },
+    {
+      "area": "article-cityname-filter",
+      "route": "GET /api/v1/article/articles?cityName",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5005/api/v1/article/articles?cityName=phasecity1778333814945&page=1&limit=5",
         "headers": {
           "hasAuthorization": false,
           "hasCookie": false,
@@ -276,61 +330,7 @@
         }
       },
       "durationMs": 149,
-      "timestamp": "2026-05-09T21:10:41.104Z"
-    },
-    {
-      "area": "article-city-filter-alias",
-      "route": "GET /api/v1/article/getallarticle?cityId",
-      "request": {
-        "method": "GET",
-        "url": "http://localhost:5005/api/v1/article/getallarticle?cityId=69ff36c49f29739c4bf09300&page=1&limit=5",
-        "headers": {
-          "hasAuthorization": false,
-          "hasCookie": false,
-          "contentType": null
-        },
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "success": true,
-          "count": 0,
-          "total": 0,
-          "totalPages": 0,
-          "currentPage": 1,
-          "articles": []
-        }
-      },
-      "durationMs": 148,
-      "timestamp": "2026-05-09T21:10:41.252Z"
-    },
-    {
-      "area": "article-cityname-filter",
-      "route": "GET /api/v1/article/articles?cityName",
-      "request": {
-        "method": "GET",
-        "url": "http://localhost:5005/api/v1/article/articles?cityName=phasecity1778333380355&page=1&limit=5",
-        "headers": {
-          "hasAuthorization": false,
-          "hasCookie": false,
-          "contentType": null
-        },
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "success": true,
-          "count": 0,
-          "total": 0,
-          "totalPages": 0,
-          "currentPage": 1,
-          "articles": []
-        }
-      },
-      "durationMs": 151,
-      "timestamp": "2026-05-09T21:10:41.403Z"
+      "timestamp": "2026-05-09T21:15:03.721Z"
     },
     {
       "area": "social-search-regression",
@@ -399,8 +399,8 @@
           }
         }
       },
-      "durationMs": 80,
-      "timestamp": "2026-05-09T21:10:41.483Z"
+      "durationMs": 78,
+      "timestamp": "2026-05-09T21:15:03.799Z"
     },
     {
       "area": "provider-login-regression",
@@ -414,7 +414,7 @@
           "contentType": "application/json"
         },
         "body": {
-          "email": "phase.create.provider.1778358351955.372163@example.com",
+          "email": "route.provider.1778361259285.464135@example.com",
           "password": "Stability@123"
         }
       },
@@ -424,15 +424,15 @@
           "success": true,
           "message": "Login successful",
           "data": {
-            "id": "69ff98503dfe2cc4bfac7fd3",
+            "id": "69ffa3ab9fce833a9aabbaf3",
             "role": "serviceprovider",
-            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmY5ODUwM2RmZTJjYzRiZmFjN2ZkMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzgzNjEwNDEsImV4cCI6MTgwOTg5NzA0MX0.tkhYWlQE62TDJozbE88Buf1hpV7FbEjMDAJV-Zqqdxk",
-            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmY5ODUwM2RmZTJjYzRiZmFjN2ZkMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzc4MzYxMDQxLCJleHAiOjE3ODYxMzcwNDF9.movX3ZYkHMgYdG3QOHzVGS2ua_a5FfqKxiopGi3ztuQ"
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzgzNjEzMDQsImV4cCI6MTgwOTg5NzMwNH0.VtAUTGXakMrNRN_Ik5wfPeDMVeb69HnVayPQr4zezhI",
+            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzc4MzYxMzA0LCJleHAiOjE3ODYxMzczMDR9.KqK-vvwZC1qPzUjLBzF85_vd20pwojhqq_60akAHPhM"
           }
         }
       },
-      "durationMs": 344,
-      "timestamp": "2026-05-09T21:10:41.827Z"
+      "durationMs": 388,
+      "timestamp": "2026-05-09T21:15:04.187Z"
     },
     {
       "area": "provider-login-regression",
@@ -446,7 +446,7 @@
           "contentType": "application/json"
         },
         "body": {
-          "mobile": "9351955421",
+          "mobile": "9125928566",
           "password": "Stability@123"
         }
       },
@@ -456,15 +456,15 @@
           "success": true,
           "message": "Login successful",
           "data": {
-            "id": "69ff98503dfe2cc4bfac7fd3",
+            "id": "69ffa3ab9fce833a9aabbaf3",
             "role": "serviceprovider",
-            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmY5ODUwM2RmZTJjYzRiZmFjN2ZkMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzgzNjEwNDIsImV4cCI6MTgwOTg5NzA0Mn0.33EVi2Soc6FUpZlKCu5JWwHOBJB6ueoCXLFmmsW8aNY",
-            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmY5ODUwM2RmZTJjYzRiZmFjN2ZkMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzc4MzYxMDQyLCJleHAiOjE3ODYxMzcwNDJ9.tngUEB4k7LaYhnfnggqJQEaLcvSva63oMGHuBo8Y5LM"
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzgzNjEzMDQsImV4cCI6MTgwOTg5NzMwNH0.VtAUTGXakMrNRN_Ik5wfPeDMVeb69HnVayPQr4zezhI",
+            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzc4MzYxMzA0LCJleHAiOjE3ODYxMzczMDR9.KqK-vvwZC1qPzUjLBzF85_vd20pwojhqq_60akAHPhM"
           }
         }
       },
-      "durationMs": 317,
-      "timestamp": "2026-05-09T21:10:42.144Z"
+      "durationMs": 345,
+      "timestamp": "2026-05-09T21:15:04.532Z"
     },
     {
       "area": "provider-login-regression",
@@ -489,7 +489,7 @@
         }
       },
       "durationMs": 2,
-      "timestamp": "2026-05-09T21:10:42.146Z"
+      "timestamp": "2026-05-09T21:15:04.534Z"
     },
     {
       "area": "provider-login-regression",
@@ -503,7 +503,7 @@
           "contentType": "application/json"
         },
         "body": {
-          "email": "phase.create.provider.1778358351955.372163@example.com",
+          "email": "route.provider.1778361259285.464135@example.com",
           "password": "Stability@123_wrong"
         }
       },
@@ -514,8 +514,8 @@
           "message": "Invalid email/mobile or password"
         }
       },
-      "durationMs": 330,
-      "timestamp": "2026-05-09T21:10:42.476Z"
+      "durationMs": 389,
+      "timestamp": "2026-05-09T21:15:04.923Z"
     },
     {
       "area": "provider-login-regression",
@@ -529,7 +529,7 @@
           "contentType": "application/json"
         },
         "body": {
-          "email": "phase.create.provider.1778358351955.372163@example.com",
+          "email": "route.provider.1778361259285.464135@example.com",
           "password": "Stability@123"
         }
       },
@@ -540,8 +540,8 @@
           "message": "Your account is currently inactive"
         }
       },
-      "durationMs": 336,
-      "timestamp": "2026-05-09T21:10:42.853Z"
+      "durationMs": 322,
+      "timestamp": "2026-05-09T21:15:05.290Z"
     },
     {
       "area": "invoice-generate-resilience",
@@ -555,9 +555,9 @@
           "contentType": "application/json"
         },
         "body": {
-          "bookingId": "69ffa2d2444fff64c731ee9b",
+          "bookingId": "69ffa3d99c75101f5978f39a",
           "patientId": "69099012606fc5a2ab07ae91",
-          "doctorId": "69ff98503dfe2cc4bfac7fd3",
+          "doctorId": "69ffa3ab9fce833a9aabbaf3",
           "serviceId": "6915d7cf9033f3ce1c0f322e",
           "billingDetails": {
             "category": "consultation",
@@ -585,10 +585,10 @@
           "success": true,
           "message": "Invoice generated successfully",
           "data": {
-            "invoiceNumber": "INV-1778361042980-6709",
-            "bookingId": "69ffa2d2444fff64c731ee9b",
+            "invoiceNumber": "INV-1778361305418-0467",
+            "bookingId": "69ffa3d99c75101f5978f39a",
             "patientId": "69099012606fc5a2ab07ae91",
-            "doctorId": "69ff98503dfe2cc4bfac7fd3",
+            "doctorId": "69ffa3ab9fce833a9aabbaf3",
             "billingDetails": {
               "category": "consultation",
               "serviceName": "Attendant Care",
@@ -605,12 +605,12 @@
                 "pricePerUnit": 50,
                 "gstPercentage": 0,
                 "total": 50,
-                "addedDate": "2026-05-09T21:10:42.980Z",
-                "_id": "69ffa2d29fce833a9aabba85"
+                "addedDate": "2026-05-09T21:15:05.418Z",
+                "_id": "69ffa3d99fce833a9aabc0ce"
               }
             ],
             "additionalEquipment": [],
-            "invoiceUrl": "/uploads/1778361043477-INV-1778361042980-6709.pdf",
+            "invoiceUrl": "/uploads/1778361305664-INV-1778361305418-0467.pdf",
             "isInvoiceGenerated": true,
             "totals": {
               "subtotal": 200,
@@ -620,16 +620,16 @@
               "grandTotal": 200
             },
             "paymentStatus": "Unpaid",
-            "_id": "69ffa2d29fce833a9aabba84",
-            "issuedAt": "2026-05-09T21:10:42.982Z",
-            "createdAt": "2026-05-09T21:10:42.983Z",
-            "updatedAt": "2026-05-09T21:10:43.479Z",
+            "_id": "69ffa3d99fce833a9aabc0cd",
+            "issuedAt": "2026-05-09T21:15:05.420Z",
+            "createdAt": "2026-05-09T21:15:05.421Z",
+            "updatedAt": "2026-05-09T21:15:05.666Z",
             "__v": 0
           }
         }
       },
-      "durationMs": 543,
-      "timestamp": "2026-05-09T21:10:43.521Z"
+      "durationMs": 290,
+      "timestamp": "2026-05-09T21:15:05.707Z"
     }
   ]
 }

@@ -1202,17 +1202,37 @@ exports.uploadVerificationDocuments = catchAsync(async (req, res, next) => {
     return next(new AppError('Doctor not found', 404));
   }
 
+  const toStringOrNull = (value) => {
+    if (value == null) return null;
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "object") {
+      if (typeof value.url === "string" && value.url.trim()) return value.url.trim();
+      if (typeof value.number === "string" && value.number.trim()) return value.number.trim();
+      if (typeof value.regNo === "string" && value.regNo.trim()) return value.regNo.trim();
+      return JSON.stringify(value);
+    }
+    return String(value);
+  };
+
+  const toStringArray = (value) => {
+    if (value == null) return [];
+    if (!Array.isArray(value)) return [toStringOrNull(value)].filter(Boolean);
+    return value.map((entry) => toStringOrNull(entry)).filter(Boolean);
+  };
+
   if (identityProof) {
-    doctor.verificationDocuments.identityProof = identityProof;
+    doctor.verificationDocuments.identityProof = toStringOrNull(identityProof);
   }
 
   if (degreesCertificates) {
-    doctor.verificationDocuments.degreesCertificates = degreesCertificates;
+    doctor.verificationDocuments.degreesCertificates = toStringArray(
+      degreesCertificates
+    );
   }
 
   if (medicalCouncilRegistration) {
     doctor.verificationDocuments.medicalCouncilRegistration =
-      medicalCouncilRegistration;
+      toStringOrNull(medicalCouncilRegistration);
   }
 
   await doctor.save();

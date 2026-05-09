@@ -125,6 +125,7 @@ const bookingSchema = new mongoose.Schema(
         "Approved",
         "Rejected",
         "Rescheduled",
+        "Cancellation Requested",
         "Cancelled",
         "In-Progress",
         "Completed",

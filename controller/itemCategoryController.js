@@ -189,10 +189,32 @@ const Booking = require("../models/bookingModel"); // For checking category usag
 // });
 exports.createCategory = catchAsync(async (req, res) => {
   const { name, description, type, items = [] } = req.body;
+  const normalizedName = typeof name === "string" ? name.trim() : "";
+
+  if (!normalizedName) {
+    return res.status(400).json({
+      success: false,
+      message: "Category name is required",
+    });
+  }
+
+  const typeAliasMap = {
+    medical: "medicine",
+  };
+  const normalizedType = type
+    ? typeAliasMap[String(type).toLowerCase()] || String(type).toLowerCase()
+    : undefined;
+  const allowedTypes = ["medicine", "equipment", "consumables"];
+  if (normalizedType && !allowedTypes.includes(normalizedType)) {
+    return res.status(400).json({
+      success: false,
+      message: `Type must be one of: ${allowedTypes.join(", ")}`,
+    });
+  }
 
   // YOUR existing logic - unchanged
   const existingCategory = await ItemCategory.findOne({
-    name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
+    name: { $regex: new RegExp(`^${normalizedName}$`, "i") },
     isDeleted: false,
   });
 
@@ -213,13 +235,13 @@ exports.createCategory = catchAsync(async (req, res) => {
     .filter((item) => item.name && item.unitPrice > 0);
 
   const categoryData = {
-    name: name.trim(),
+    name: normalizedName,
     description,
     createdBy: req.user.id,
   };
 
   // Add type & items if provided
-  if (type) categoryData.type = type;
+  if (normalizedType) categoryData.type = normalizedType;
   if (validatedItems.length > 0) categoryData.items = validatedItems;
 
   const category = await ItemCategory.create(categoryData);

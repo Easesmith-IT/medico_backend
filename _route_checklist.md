@@ -1,9 +1,9 @@
 # Route Checklist
 
-- generatedAt: 2026-05-09T12:10:38.071Z
+- generatedAt: 2026-05-09T21:36:51.804Z
 - total: 186
-- mounted: 185
-- unmounted: 1
+- mounted: 186
+- unmounted: 0
 
 - [ ] POST /api/v1/admin/addEquipments -> controller/adminController.js#addEquipment | route/adminRoute.js | mounted=true
 - [ ] POST /api/v1/admin/admin/booking/approve-cancellation/:bookingId -> controller/adminController.js#approveCancellation | route/adminRoute.js | mounted=true
@@ -69,7 +69,7 @@
 - [ ] PUT /api/v1/booking/reschedule/:bookingId -> controller/bookingController.js#rescheduleBooking | route/bookingRoute.js | mounted=true
 - [ ] GET /api/v1/booking/service-summary/:serviceId -> controller/bookingController.js#getServiceSummaryByServiceId | route/bookingRoute.js | mounted=true
 - [ ] PUT /api/v1/booking/update-status/:bookingId -> controller/bookingController.js#updateServiceStatus | route/bookingRoute.js | mounted=true
-- [ ] GET /api/v1/check-status -> controller/authController.js#checkAuthStatus | route/authRoutes.js | mounted=false
+- [ ] GET /api/v1/check-status -> controller/authController.js#checkAuthStatus | route/authRoutes.js | mounted=true
 - [ ] PATCH /api/v1/city/:cityId/toggle -> controller/cityController.js#toggleCityStatus | route/cityRoute.js | mounted=true
 - [ ] POST /api/v1/city/admin/cities -> controller/cityController.js#addCity | route/cityRoute.js | mounted=true
 - [ ] DELETE /api/v1/city/admin/cities/:cityId -> controller/cityController.js#deleteCity | route/cityRoute.js | mounted=true
