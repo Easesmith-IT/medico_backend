@@ -8,6 +8,7 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const Doctor = require('../models/doctorModel');
 const Otp = require('../models/otpModel');
+const mongoose = require("mongoose");
 const { sendOtp } = require('../utils/otpUtils');
 const jwt = require('jsonwebtoken');
 const City = require('../models/availableCities'); 
@@ -1090,9 +1091,14 @@ exports.updateAvailability = catchAsync(async (req, res, next) => {
     return next(new AppError('Please provide days and timeSlots', 400));
   }
 
+  const normalizedTimeSlots = (timeSlots || []).map((slot) => ({
+    start: slot.start || slot.startTime,
+    end: slot.end || slot.endTime,
+  }));
+
   const updatedDoctor = await Doctor.findByIdAndUpdate(
     req.user?._id || req.user?.id,
-    { availability: { days, timeSlots } },
+    { availability: { days, timeSlots: normalizedTimeSlots } },
     { new: true, runValidators: true }
   ).select('-password -tokenVersion');
 
@@ -1815,7 +1821,26 @@ exports.getAvailableSlots = async (req, res) => {
       });
     }
 
-    const availableSlots = doctor.getAvailableSlotsByDateRange(startDate, endDate);
+    let availableSlots = [];
+    if (typeof doctor.getAvailableSlotsByDateRange === "function") {
+      availableSlots = doctor.getAvailableSlotsByDateRange(startDate, endDate);
+    } else {
+      const allDaily = Array.isArray(doctor.availability?.dailySlots) ? doctor.availability.dailySlots : [];
+      let filtered = allDaily;
+      if (startDate || endDate) {
+        const start = startDate ? new Date(startDate) : new Date("1970-01-01");
+        const end = endDate ? new Date(endDate) : new Date("2999-12-31");
+        filtered = allDaily.filter((d) => {
+          const slotDate = new Date(d.date);
+          return slotDate >= start && slotDate <= end;
+        });
+      }
+      availableSlots = filtered.map((d) => ({
+        date: d.date,
+        dayOfWeek: d.dayOfWeek,
+        slots: (d.slots || []).filter((s) => s.status === "available" && !s.isBooked && s.isSlotAvailable !== false),
+      }));
+    }
 
     res.status(200).json({
       success: true,
@@ -1852,7 +1877,30 @@ exports.toggleSlotAvailability = async (req, res) => {
       });
     }
 
-    const updatedSlot = doctor.toggleSlotAvailability(date, startTime, isSlotAvailable);
+    let updatedSlot = null;
+    if (typeof doctor.toggleSlotAvailability === "function") {
+      updatedSlot = doctor.toggleSlotAvailability(date, startTime, isSlotAvailable);
+    } else {
+      const dailySlot = doctor.availability.dailySlots.find(
+        (ds) => new Date(ds.date).toDateString() === new Date(date).toDateString()
+      );
+      if (!dailySlot) {
+        return res.status(404).json({
+          success: false,
+          message: "No slots found for this date",
+        });
+      }
+      const slot = dailySlot.slots.find((s) => s.startTime === startTime);
+      if (!slot) {
+        return res.status(404).json({
+          success: false,
+          message: "Slot not found",
+        });
+      }
+      slot.isSlotAvailable = Boolean(isSlotAvailable);
+      slot.status = slot.isSlotAvailable ? "available" : "blocked";
+      updatedSlot = slot;
+    }
     await doctor.save();
 
     res.status(200).json({
@@ -1874,6 +1922,12 @@ exports.addBreakTime = async (req, res) => {
   try {
     const doctorId = req.user.id;
     const { date, startTime, endTime, reason } = req.body;
+    if (!date || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: "date, startTime and endTime are required",
+      });
+    }
 
     const doctor = await Doctor.findById(doctorId);
     
@@ -1884,7 +1938,44 @@ exports.addBreakTime = async (req, res) => {
       });
     }
 
-    const updatedSlot = doctor.addBreakTime(date, startTime, endTime, reason);
+    let updatedSlot;
+    if (typeof doctor.addBreakTime === "function") {
+      updatedSlot = doctor.addBreakTime(date, startTime, endTime, reason);
+    } else {
+      const targetDate = new Date(date);
+      if (Number.isNaN(targetDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid date",
+        });
+      }
+      if (!doctor.availability || typeof doctor.availability !== "object") {
+        doctor.availability = {};
+      }
+      if (!Array.isArray(doctor.availability.dailySlots)) {
+        doctor.availability.dailySlots = [];
+      }
+      let dailySlot = doctor.availability.dailySlots.find(
+        (ds) => new Date(ds.date).toDateString() === targetDate.toDateString()
+      );
+      if (!dailySlot) {
+        dailySlot = { date: targetDate, slots: [], breakTimes: [] };
+        doctor.availability.dailySlots.push(dailySlot);
+      }
+      if (!Array.isArray(dailySlot.breakTimes)) {
+        dailySlot.breakTimes = [];
+      }
+      updatedSlot = { startTime, endTime, reason: reason || "Break", isRecurring: false };
+      dailySlot.breakTimes.push(updatedSlot);
+      if (Array.isArray(dailySlot.slots)) {
+        dailySlot.slots.forEach((slot) => {
+          if (slot.startTime >= startTime && slot.startTime < endTime && !slot.isBooked) {
+            slot.status = "blocked";
+            slot.isSlotAvailable = false;
+          }
+        });
+      }
+    }
     await doctor.save();
 
     res.status(200).json({
@@ -1979,6 +2070,13 @@ exports.updateServiceAvailability = catchAsync(async (req, res, next) => {
   
   if (!doctor) {
     return next(new AppError('Doctor not found', 404));
+  }
+
+  if (!doctor.availability || typeof doctor.availability !== "object") {
+    doctor.availability = {};
+  }
+  if (!Array.isArray(doctor.availability.serviceAvailability)) {
+    doctor.availability.serviceAvailability = [];
   }
 
   const serviceIndex = doctor.availability.serviceAvailability.findIndex(

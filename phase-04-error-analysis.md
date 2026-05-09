@@ -1,0 +1,220 @@
+# Phase 04 Error Analysis
+
+- totalRoutes: 18
+- generatedAt: 2026-05-09T12:52:49.162Z
+
+## 1. POST /api/v1/patient/follow/:doctorId
+- Controller: controller/patientController.js#followDoctor
+- Final HTTP Status: 403
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: ","stack":"Error: Access denied. Allowed roles: \n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+- Error (normalized): Access denied. Allowed roles:
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/follow/69083c7093634916321ed31d using context=admin
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 2. POST /api/v1/patient/login
+- Controller: controller/patientController.js#patientLogin
+- Final HTTP Status: 200
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"success":true,"message":"OTP sent to your phone number","data":{"otpToken":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwaG9uZSI6Ijk4NzY1NDMyMzMiLCJyb2xlIjoicGF0aWVudCIsInR5cGUiOiJvdHAiLCJpYXQiOjE3NzgzMzA5MzcsImV4cCI6MTc3ODMzMTUzN30.h1GJNN5OjE4Adf2tfCO0dhT_1vjoyij_vHo6QmbGvz0","expiresIn":600,"phone":"3233"}}
+- Error (normalized): OTP sent to your phone number
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/login using context=doctor
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 3. POST /api/v1/patient/logout
+- Controller: controller/patientController.js#logout
+- Final HTTP Status: 200
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"success":true,"message":"Logged out successfully"}
+- Error (normalized): Logged out successfully
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/logout using context=doctor
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 4. POST /api/v1/patient/logout-all
+- Controller: controller/patientController.js#patientLogoutAll
+- Final HTTP Status: 400
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Please provide phone number","stack":"Error: Please provide phone number\n    at E:\\easesmith\\medico\\medico_backend\\controller\\patientController.js:905:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:582:12)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:291:5)"}
+- Error (normalized): Please provide phone number
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/logout-all using context=doctor
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 5. POST /api/v1/patient/medical-history
+- Controller: controller/patientController.js#updateMedicalHistory
+- Final HTTP Status: 403
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: ","stack":"Error: Access denied. Allowed roles: \n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+- Error (normalized): Access denied. Allowed roles:
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/medical-history using context=admin
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 6. POST /api/v1/patient/medications
+- Controller: controller/patientController.js#addMedication
+- Final HTTP Status: 403
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: ","stack":"Error: Access denied. Allowed roles: \n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+- Error (normalized): Access denied. Allowed roles:
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/medications using context=admin
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 7. POST /api/v1/patient/resend-login-otp
+- Controller: controller/patientController.js#resendLoginOtp
+- Final HTTP Status: 400
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Please provide phone number","stack":"Error: Please provide phone number\n    at E:\\easesmith\\medico\\medico_backend\\controller\\patientController.js:752:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:582:12)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:291:5)"}
+- Error (normalized): Please provide phone number
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/resend-login-otp using context=doctor
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 8. POST /api/v1/patient/resend-signup-otp
+- Controller: controller/patientController.js#resendSignupOtp
+- Final HTTP Status: 400
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Please provide phone number","stack":"Error: Please provide phone number\n    at E:\\easesmith\\medico\\medico_backend\\controller\\patientController.js:457:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:582:12)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:291:5)"}
+- Error (normalized): Please provide phone number
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/resend-signup-otp using context=doctor
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 9. POST /api/v1/patient/signup
+- Controller: controller/patientController.js#patientSignup
+- Final HTTP Status: 400
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Address with cityId is required","stack":"Error: Address with cityId is required\n    at E:\\easesmith\\medico\\medico_backend\\controller\\patientController.js:203:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:582:12)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:291:5)"}
+- Error (normalized): Address with cityId is required
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/signup using context=doctor
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 10. POST /api/v1/patient/verify-login-otp
+- Controller: controller/patientController.js#verifyLoginOtp
+- Final HTTP Status: 400
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Please provide phone and OTP","stack":"Error: Please provide phone and OTP\n    at E:\\easesmith\\medico\\medico_backend\\controller\\patientController.js:680:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:582:12)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:291:5)"}
+- Error (normalized): Please provide phone and OTP
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/verify-login-otp using context=doctor
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 11. POST /api/v1/patient/verify-signup-otp
+- Controller: controller/patientController.js#verifySignupOtp
+- Final HTTP Status: 400
+- Classification: Confirmed Backend Bug | Spillover from Phase 03 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Please provide phone and OTP","stack":"Error: Please provide phone and OTP\n    at E:\\easesmith\\medico\\medico_backend\\controller\\patientController.js:359:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:582:12)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:291:5)"}
+- Error (normalized): Please provide phone and OTP
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/patient/verify-signup-otp using context=doctor
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 12. GET /api/v1/booking/my-bookings/:providerId
+- Controller: controller/bookingController.js#getBookingsByServiceProvider
+- Final HTTP Status: 403
+- Classification: Auth/Role Restriction
+- Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: serviceprovider","stack":"Error: Access denied. Allowed roles: serviceprovider\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+- Error (normalized): Access denied. Allowed roles: serviceprovider
+- Root-cause hypothesis: Route is protected by role middleware and current role/session is not allowed.
+- Repro request shape: GET /api/v1/booking/my-bookings/69083c7093634916321ed31d using context=admin
+- Fix recommendation: Use an allowed role for this endpoint or adjust protect() role policy if contract is wrong.
+- Priority: P2
+- Confidence: High
+
+## 13. GET /api/v1/booking/patient/:treatmentId
+- Controller: controller/bookingController.js#getTreatmentById
+- Final HTTP Status: 403
+- Classification: Auth/Role Restriction
+- Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: patient","stack":"Error: Access denied. Allowed roles: patient\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+- Error (normalized): Access denied. Allowed roles: patient
+- Root-cause hypothesis: Route is protected by role middleware and current role/session is not allowed.
+- Repro request shape: GET /api/v1/booking/patient/69984a296152d24784923e03 using context=doctor
+- Fix recommendation: Use an allowed role for this endpoint or adjust protect() role policy if contract is wrong.
+- Priority: P2
+- Confidence: High
+
+## 14. POST /api/v1/booking/completed-details/:bookingId
+- Controller: controller/bookingController.js#bookingCompletedDetails
+- Final HTTP Status: 403
+- Classification: Auth/Role Restriction
+- Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: serviceprovider","stack":"Error: Access denied. Allowed roles: serviceprovider\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+- Error (normalized): Access denied. Allowed roles: serviceprovider
+- Root-cause hypothesis: Route is protected by role middleware and current role/session is not allowed.
+- Repro request shape: POST /api/v1/booking/completed-details/69c5282b8cf9e49defc29dd9 using context=admin
+- Fix recommendation: Use an allowed role for this endpoint or adjust protect() role policy if contract is wrong.
+- Priority: P2
+- Confidence: High
+
+## 15. POST /api/v1/booking/create
+- Controller: controller/bookingController.js#createBooking
+- Final HTTP Status: 400
+- Classification: Validation/Contract Failure
+- Error (raw): {"success":false,"message":"patientId, serviceId, appointmentDate, startTime, and endTime are required"}
+- Error (normalized): patientId, serviceId, appointmentDate, startTime, and endTime are required
+- Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+- Repro request shape: POST /api/v1/booking/create using context=patient
+- Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+- Priority: P3
+- Confidence: High
+
+## 16. POST /api/v1/booking/providerBookings
+- Controller: controller/bookingController.js#createProviderBooking
+- Final HTTP Status: 403
+- Classification: Auth/Role Restriction
+- Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: serviceprovider","stack":"Error: Access denied. Allowed roles: serviceprovider\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+- Error (normalized): Access denied. Allowed roles: serviceprovider
+- Root-cause hypothesis: Route is protected by role middleware and current role/session is not allowed.
+- Repro request shape: POST /api/v1/booking/providerBookings using context=admin
+- Fix recommendation: Use an allowed role for this endpoint or adjust protect() role policy if contract is wrong.
+- Priority: P2
+- Confidence: High
+
+## 17. PUT /api/v1/booking/cancel/:bookingId
+- Controller: controller/bookingController.js#cancelBooking
+- Final HTTP Status: 500
+- Classification: Confirmed Backend Bug
+- Error (raw): {"success":false,"message":"Error processing cancellation request","error":"Cannot access 'booking' before initialization"}
+- Error (normalized): Error processing cancellation request
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: PUT /api/v1/booking/cancel/69c5282b8cf9e49defc29dd9 using context=patient
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 18. PUT /api/v1/booking/reschedule/:bookingId
+- Controller: controller/bookingController.js#rescheduleBooking
+- Final HTTP Status: 400
+- Classification: Validation/Contract Failure
+- Error (raw): {"success":false,"message":"Booking ID, appointmentDate, startTime, and endTime are required","received":[]}
+- Error (normalized): Booking ID, appointmentDate, startTime, and endTime are required
+- Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+- Repro request shape: PUT /api/v1/booking/reschedule/69c5282b8cf9e49defc29dd9 using context=patient
+- Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+- Priority: P3
+- Confidence: High

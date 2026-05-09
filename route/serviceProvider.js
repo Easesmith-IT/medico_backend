@@ -45,6 +45,18 @@ router.get(
 
 // Get service provider by ID - can be public or protected as needed
 router.get(
+  "/service-provider/appointments",
+  protect(),
+  serviceProviderController.getServiceProviderAppointments,
+);
+
+router.get(
+  "/service-provider/appointments/:id",
+  protect(),
+  serviceProviderController.getSingleAppointment,
+);
+
+router.get(
   "/service-provider/:id",
   // optionally add protect() if you want to restrict access
   serviceProviderController.getServiceProviderById,
@@ -69,18 +81,6 @@ router.patch(
   "/:id/toggle-status",
   protect("superadmin", "subadmin"),
   serviceProviderController.toggleStatus,
-);
-
-router.get(
-  "/service-provider/appointments",
-  protect(),
-  serviceProviderController.getServiceProviderAppointments,
-);
-
-router.get(
-  "/service-provider/appointments/:id",
-  protect(),
-  serviceProviderController.getSingleAppointment,
 );
 
 // router.post('/providerBookings',

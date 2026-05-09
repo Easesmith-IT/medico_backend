@@ -1858,8 +1858,8 @@ exports.addComment = async (req, res, next) => {
 // Get Posts + Follows
 exports.getSocialFeed = async (req, res, next) => {
   try {
-    const socials = await Social.find()
-      .populate('doctor', 'name profilePhoto')
+    const socials = await Post.find()
+      .populate('doctor', 'firstName lastName profilePhoto')
       .sort({ createdAt: -1 })
       .limit(20);
     res.json({ success: true, data: socials });
@@ -2306,7 +2306,7 @@ exports.searchSocialPosts = async (req, res) => {
         hiddenAt: { $exists: false }
       };
 
-      if (q) postQuery.$text = { $search: q };
+      if (q) postQuery.content = { $regex: q, $options: 'i' };
       if (doctor && mongoose.Types.ObjectId.isValid(doctor)) {
         postQuery.doctor = mongoose.Types.ObjectId(doctor);
       }

@@ -1,0 +1,247 @@
+# Medico Backend Live API Verification
+
+Generated: 2026-05-09T11:43:10.041Z
+Base URL: http://localhost:5005
+
+## Phase 1: Direct Hit of All Active Routes
+- total: 189
+- success2xx: 32
+- unauthorized401: 109
+- forbidden403: 0
+- validation400: 23
+- notFound404: 18
+- server5xx: 7
+- unreachable: 0
+- unmountedInCodebase: 1
+
+## Phase 2: Authenticated Replay of 401 Routes
+- targetCount: 109
+- improvedFrom401: 108
+- still401: 1
+- finalStatus 200: 21
+- finalStatus 400: 20
+- finalStatus 401: 1
+- finalStatus 403: 32
+- finalStatus 404: 29
+- finalStatus 500: 6
+
+## Effective Final Status Across All Endpoints
+- total: 189
+- success2xx: 53
+- validation400: 43
+- unauthorized401: 1
+- forbidden403: 32
+- notFound404: 47
+- server5xx: 13
+
+## Remaining 401
+- POST /api/v1/serviceProvider/login (serviceProvider.js)
+
+## 5xx Endpoints
+- PUT /api/v1/booking/cancel/:bookingId -> 500 (bookingRoute.js)
+- POST /api/v1/crash-report/create -> 500 (crashReportRoutes.js)
+- GET /api/v1/doctor/doctor/my-cities/:doctorId -> 500 (doctorRoute.js)
+- GET /api/v1/doctor/doctor/cities/by-name/:doctorId/:cityName -> 500 (doctorRoute.js)
+- PUT /api/v1/doctor/toggle-slot -> 500 (doctorRoute.js)
+- POST /api/v1/doctor/break-time -> 500 (doctorRoute.js)
+- DELETE /api/v1/doctor/break-time -> 500 (doctorRoute.js)
+- PUT /api/v1/doctor/service-availability -> 500 (doctorRoute.js)
+- POST /api/v1/invoice/generate -> 500 (invoiceRoute.js)
+- POST /api/v1/items/create -> 500 (itemRoute.js)
+- GET /api/v1/serviceProvider/service-provider/appointments -> 500 (serviceProvider.js)
+- GET /api/v1/socialPost/feed -> 500 (socialPostRoute.js)
+- POST /api/v1/uploadfile/upload -> 500 (uploadRoute.js)
+
+## Unmounted Route
+- GET /api/v1/auth/check-status (authRoutes.js) -> 404
+
+## Full Effective Matrix
+- [400] POST /api/v1/admin/signup (adminRoute.js)
+- [400] POST /api/v1/admin/login (adminRoute.js)
+- [400] POST /api/v1/admin/verify-signup-otp (adminRoute.js)
+- [200] POST /api/v1/admin/check-auth (adminRoute.js)
+- [200] POST /api/v1/admin/logout (adminRoute.js)
+- [400] POST /api/v1/admin/logout-all-devices (adminRoute.js)
+- [200] GET /api/v1/admin/subadmins (adminRoute.js) via admin_bearer
+- [404] PATCH /api/v1/admin/subadmins/:id/toggle-status (adminRoute.js)
+- [200] GET /api/v1/admin/services/names (adminRoute.js)
+- [200] GET /api/v1/admin/patients/names (adminRoute.js)
+- [200] GET /api/v1/admin/service-providers/names (adminRoute.js)
+- [200] GET /api/v1/admin/me (adminRoute.js) via admin_bearer
+- [200] PUT /api/v1/admin/updateProfile (adminRoute.js) via admin_bearer
+- [400] POST /api/v1/admin/doctors/create (adminRoute.js) via admin_bearer
+- [200] GET /api/v1/admin/doctors (adminRoute.js) via admin_bearer
+- [404] GET /api/v1/admin/doctors/:id (adminRoute.js) via admin_bearer
+- [404] PUT /api/v1/admin/doctors/:id/approve (adminRoute.js) via admin_bearer
+- [404] PUT /api/v1/admin/doctors/:id/reject (adminRoute.js) via admin_bearer
+- [404] DELETE /api/v1/admin/doctors/:id (adminRoute.js) via admin_bearer
+- [400] POST /api/v1/admin/patients/create (adminRoute.js) via admin_bearer
+- [200] GET /api/v1/admin/patients/export (adminRoute.js) via admin_bearer
+- [200] GET /api/v1/admin/patients (adminRoute.js) via admin_bearer
+- [404] GET /api/v1/admin/patients/:id (adminRoute.js) via admin_bearer
+- [404] PUT /api/v1/admin/patients/:id/block (adminRoute.js) via admin_bearer
+- [404] DELETE /api/v1/admin/patients/:id (adminRoute.js) via admin_bearer
+- [200] GET /api/v1/admin/reports/dashboard (adminRoute.js) via admin_bearer
+- [200] GET /api/v1/admin/reports/doctors (adminRoute.js) via admin_bearer
+- [400] PATCH /api/v1/admin/bookings/:bookingId/status (adminRoute.js)
+- [200] GET /api/v1/admin/bookings/export (adminRoute.js) via admin_bearer
+- [400] POST /api/v1/admin/bookings/create (adminRoute.js) via admin_bearer
+- [404] PATCH /api/v1/admin/bookings/update/:bookingId (adminRoute.js) via admin_bearer
+- [400] POST /api/v1/admin/admin/doctor/add-cities (adminRoute.js) via admin_bearer
+- [400] POST /api/v1/admin/admin/doctor/remove-cities (adminRoute.js) via admin_bearer
+- [400] PUT /api/v1/admin/admin/doctor/update-cities (adminRoute.js) via admin_bearer
+- [404] GET /api/v1/admin/admin/doctor/:doctorId/cities (adminRoute.js) via admin_bearer
+- [400] GET /api/v1/admin/admin/city/:cityId/doctors (adminRoute.js) via admin_bearer
+- [404] PATCH /api/v1/admin/doctors/:id/toggle-status (adminRoute.js) via admin_bearer
+- [404] PATCH /api/v1/admin/patients/:id/toggle-status (adminRoute.js) via admin_bearer
+- [404] POST /api/v1/admin/admin/booking/approve-cancellation/:bookingId (adminRoute.js) via admin_bearer
+- [400] POST /api/v1/admin/patient/:patientId/medications (adminRoute.js) via admin_bearer
+- [400] DELETE /api/v1/admin/patient/:patientId/medications (adminRoute.js) via admin_bearer
+- [400] POST /api/v1/admin/addEquipments (adminRoute.js) via admin_bearer
+- [200] GET /api/v1/article/articles (articleRoute.js)
+- [200] GET /api/v1/article/doctors/:doctorId/articles (articleRoute.js)
+- [400] POST /api/v1/article/create (articleRoute.js) via doctor_bearer
+- [200] GET /api/v1/article/my-articles (articleRoute.js) via doctor_bearer
+- [404] PUT /api/v1/article/updateArticle/:id (articleRoute.js) via doctor_bearer
+- [404] DELETE /api/v1/article/:id (articleRoute.js) via doctor_bearer
+- [404] PATCH /api/v1/article/:id/publish (articleRoute.js) via doctor_bearer
+- [200] GET /api/v1/article/getallarticle (articleRoute.js)
+- [404] GET /api/v1/article/getArticleById/:id (articleRoute.js)
+- [404] GET /api/v1/auth/check-status (authRoutes.js)
+- [400] POST /api/v1/booking/create (bookingRoute.js) via patient_bearer
+- [200] GET /api/v1/booking/service-summary/:serviceId (bookingRoute.js)
+- [200] GET /api/v1/booking/patient/:patientId/bookings (bookingRoute.js) via patient_bearer
+- [200] GET /api/v1/booking/my-bookings (bookingRoute.js) via patient_bearer
+- [400] PUT /api/v1/booking/reschedule/:bookingId (bookingRoute.js) via patient_bearer
+- [200] GET /api/v1/booking/getAllBookings (bookingRoute.js)
+- [404] GET /api/v1/booking/bookings/:bookingId (bookingRoute.js)
+- [500] PUT /api/v1/booking/cancel/:bookingId (bookingRoute.js) via patient_bearer
+- [403] PUT /api/v1/booking/update-status/:bookingId (bookingRoute.js) via patient_bearer
+- [403] GET /api/v1/booking/my-bookings/:providerId (bookingRoute.js) via patient_bearer
+- [403] POST /api/v1/booking/completed-details/:bookingId (bookingRoute.js) via patient_bearer
+- [403] POST /api/v1/booking/providerBookings (bookingRoute.js) via patient_bearer
+- [404] GET /api/v1/booking/patient/:treatmentId (bookingRoute.js) via patient_bearer
+- [200] GET /api/v1/city/getAllCities (cityRoute.js)
+- [404] GET /api/v1/city/cities/:cityId (cityRoute.js)
+- [400] POST /api/v1/city/admin/cities (cityRoute.js) via admin_bearer
+- [404] PUT /api/v1/city/admin/cities/:cityId (cityRoute.js) via admin_bearer
+- [404] DELETE /api/v1/city/admin/cities/:cityId (cityRoute.js) via admin_bearer
+- [404] PATCH /api/v1/city/admin/cities/toggle/:cityId (cityRoute.js) via admin_bearer
+- [404] PATCH /api/v1/city/:cityId/toggle (cityRoute.js)
+- [400] GET /api/v1/city/find/by-location (cityRoute.js)
+- [500] POST /api/v1/crash-report/create (crashReportRoutes.js)
+- [200] GET /api/v1/crash-report/get (crashReportRoutes.js)
+- [404] GET /api/v1/crash-report/get/:crashId (crashReportRoutes.js)
+- [400] POST /api/v1/doctor/signup (doctorRoute.js)
+- [400] POST /api/v1/doctor/verify-signup-otp (doctorRoute.js)
+- [400] POST /api/v1/doctor/resend-signup-otp (doctorRoute.js)
+- [400] POST /api/v1/doctor/login (doctorRoute.js)
+- [400] POST /api/v1/doctor/verify-login-otp (doctorRoute.js)
+- [400] POST /api/v1/doctor/resend-login-otp (doctorRoute.js)
+- [200] POST /api/v1/doctor/check-auth (doctorRoute.js)
+- [200] GET /api/v1/doctor/getAllDoctors (doctorRoute.js)
+- [200] GET /api/v1/doctor/specialization/:specialization (doctorRoute.js)
+- [404] GET /api/v1/doctor/getDoctorById/:id (doctorRoute.js)
+- [200] POST /api/v1/doctor/logout (doctorRoute.js) via doctor_cookie
+- [400] POST /api/v1/doctor/logout-all-devices (doctorRoute.js)
+- [200] GET /api/v1/doctor/getMyProfile (doctorRoute.js) via doctor_cookie
+- [200] PUT /api/v1/doctor/updateProfile (doctorRoute.js) via doctor_cookie
+- [400] PUT /api/v1/doctor/availability (doctorRoute.js) via doctor_cookie
+- [400] POST /api/v1/doctor/clinic (doctorRoute.js) via doctor_cookie
+- [404] PUT /api/v1/doctor/clinic/:clinicId (doctorRoute.js) via doctor_cookie
+- [200] DELETE /api/v1/doctor/clinic/:clinicId (doctorRoute.js) via doctor_cookie
+- [200] POST /api/v1/doctor/verification-documents (doctorRoute.js) via doctor_cookie
+- [500] GET /api/v1/doctor/doctor/my-cities/:doctorId (doctorRoute.js)
+- [500] GET /api/v1/doctor/doctor/cities/by-name/:doctorId/:cityName (doctorRoute.js)
+- [200] GET /api/v1/doctor/doctors/city/:cityName (doctorRoute.js)
+- [404] GET /api/v1/doctor/slots/:doctorId (doctorRoute.js)
+- [200] POST /api/v1/doctor/availability (doctorRoute.js) via doctor_bearer
+- [404] GET /api/v1/doctor/:doctorId/service-availability (doctorRoute.js)
+- [500] PUT /api/v1/doctor/toggle-slot (doctorRoute.js) via doctor_bearer
+- [500] POST /api/v1/doctor/break-time (doctorRoute.js) via doctor_bearer
+- [500] DELETE /api/v1/doctor/break-time (doctorRoute.js) via doctor_bearer
+- [200] GET /api/v1/doctor/my-availability (doctorRoute.js) via doctor_bearer
+- [500] PUT /api/v1/doctor/service-availability (doctorRoute.js) via doctor_bearer
+- [200] PUT /api/v1/doctor/service-coverage (doctorRoute.js) via doctor_bearer
+- [404] PUT /api/v1/doctor/bulk-manage-slots (doctorRoute.js) via doctor_bearer
+- [400] POST /api/v1/geo/check-location (geoRoutes.js)
+- [500] POST /api/v1/invoice/generate (invoiceRoute.js)
+- [200] GET /api/v1/invoice/generateinv/:patientId (invoiceRoute.js)
+- [404] GET /api/v1/invoice/download/:invoiceId (invoiceRoute.js)
+- [404] GET /api/v1/invoice/:invoiceId (invoiceRoute.js)
+- [200] GET /api/v1/items/active (itemRoute.js)
+- [200] GET /api/v1/items/getAllCategories (itemRoute.js)
+- [500] POST /api/v1/items/create (itemRoute.js) via admin_bearer
+- [404] GET /api/v1/items/getItemCategoryById/:id (itemRoute.js)
+- [404] GET /api/v1/items/category/:id (itemRoute.js)
+- [404] PUT /api/v1/items/update/:id (itemRoute.js) via admin_bearer
+- [404] DELETE /api/v1/items/delete/:id (itemRoute.js) via admin_bearer
+- [404] PATCH /api/v1/items/toggle-status/:id (itemRoute.js) via admin_bearer
+- [400] POST /api/v1/patient/signup (patientRoute.js)
+- [400] POST /api/v1/patient/verify-signup-otp (patientRoute.js)
+- [400] POST /api/v1/patient/resend-signup-otp (patientRoute.js)
+- [400] POST /api/v1/patient/login (patientRoute.js)
+- [400] POST /api/v1/patient/verify-login-otp (patientRoute.js)
+- [400] POST /api/v1/patient/resend-login-otp (patientRoute.js)
+- [200] POST /api/v1/patient/check-auth (patientRoute.js)
+- [200] POST /api/v1/patient/logout (patientRoute.js)
+- [400] POST /api/v1/patient/logout-all (patientRoute.js)
+- [403] GET /api/v1/patient/profile (patientRoute.js) via patient_bearer
+- [404] PATCH /api/v1/patient/updateProfile/:id (patientRoute.js) via patient_bearer
+- [403] POST /api/v1/patient/medical-history (patientRoute.js) via patient_bearer
+- [403] DELETE /api/v1/patient/medical-history/:historyId (patientRoute.js) via patient_bearer
+- [403] POST /api/v1/patient/allergies (patientRoute.js) via patient_bearer
+- [403] DELETE /api/v1/patient/allergies (patientRoute.js) via patient_bearer
+- [403] POST /api/v1/patient/medications (patientRoute.js) via patient_bearer
+- [403] DELETE /api/v1/patient/medications (patientRoute.js) via patient_bearer
+- [403] POST /api/v1/patient/follow/:doctorId (patientRoute.js) via patient_bearer
+- [403] DELETE /api/v1/patient/unfollow/:doctorId (patientRoute.js) via patient_bearer
+- [404] GET /api/v1/patient/getById/:patientId (patientRoute.js)
+- [200] GET /api/v1/patient/myTreatmentHistory (patientRoute.js) via patient_bearer
+- [404] GET /api/v1/payments/treatments/:treatmentId/ledger (paymentRoute.js) via patient_bearer
+- [404] POST /api/v1/payments/treatments/:treatmentId/online/order (paymentRoute.js) via patient_bearer
+- [400] POST /api/v1/payments/treatments/:treatmentId/online/verify (paymentRoute.js) via patient_bearer
+- [403] POST /api/v1/payments/treatments/:treatmentId/manual-collection (paymentRoute.js) via patient_bearer
+- [403] POST /api/v1/payments/treatments/:treatmentId/refunds/manual (paymentRoute.js) via patient_bearer
+- [200] GET /api/v1/serviceProvider/service-providers/by-service/:serviceId (serviceProvider.js)
+- [403] POST /api/v1/serviceProvider/createservice-provider (serviceProvider.js) via serviceprovider_bearer
+- [401] POST /api/v1/serviceProvider/login (serviceProvider.js) via serviceprovider_cookie
+- [200] GET /api/v1/serviceProvider/getAllServiceProviders (serviceProvider.js)
+- [404] GET /api/v1/serviceProvider/service-provider/:id (serviceProvider.js)
+- [403] PUT /api/v1/serviceProvider/service-provider/:id (serviceProvider.js) via serviceprovider_bearer
+- [403] DELETE /api/v1/serviceProvider/service-provider/:id (serviceProvider.js) via serviceprovider_bearer
+- [403] PATCH /api/v1/serviceProvider/:id/toggle-status (serviceProvider.js) via serviceprovider_bearer
+- [500] GET /api/v1/serviceProvider/service-provider/appointments (serviceProvider.js)
+- [403] GET /api/v1/serviceProvider/service-provider/appointments/:id (serviceProvider.js) via serviceprovider_bearer
+- [200] GET /api/v1/service/getAllServices (serviceRoute.js)
+- [200] GET /api/v1/service/search (serviceRoute.js)
+- [200] GET /api/v1/service/category/:category (serviceRoute.js)
+- [400] GET /api/v1/service/nursing/:nursingType (serviceRoute.js)
+- [200] GET /api/v1/service/city/:cityId (serviceRoute.js)
+- [404] GET /api/v1/service/:id/price (serviceRoute.js)
+- [400] GET /api/v1/service/:serviceId/slots (serviceRoute.js)
+- [404] GET /api/v1/service/getServiceById/:id (serviceRoute.js)
+- [403] POST /api/v1/service/createService (serviceRoute.js) via admin_bearer
+- [403] GET /api/v1/service/admin/statistics (serviceRoute.js) via admin_cookie
+- [403] POST /api/v1/service/admin/bulk-update (serviceRoute.js) via admin_cookie
+- [403] PATCH /api/v1/service/services/:id (serviceRoute.js) via admin_bearer
+- [403] DELETE /api/v1/service/service/:id (serviceRoute.js) via admin_bearer
+- [403] POST /api/v1/service/:id/restore (serviceRoute.js) via admin_cookie
+- [403] PATCH /api/v1/service/:id/toggle-status (serviceRoute.js) via admin_bearer
+- [403] POST /api/v1/socialPost/createPost (socialPostRoute.js) via patient_bearer
+- [200] GET /api/v1/socialPost/getPosts (socialPostRoute.js)
+- [400] POST /api/v1/socialPost/commentPost/:id (socialPostRoute.js) via patient_bearer
+- [400] POST /api/v1/socialPost/followDoctor (socialPostRoute.js) via patient_bearer
+- [404] POST /api/v1/socialPost/likePost/:id/toggle (socialPostRoute.js) via patient_bearer
+- [500] GET /api/v1/socialPost/feed (socialPostRoute.js)
+- [404] GET /api/v1/socialPost/getPostById/:id (socialPostRoute.js) via patient_bearer
+- [400] POST /api/v1/socialPost/addComment/:id (socialPostRoute.js) via patient_bearer
+- [403] PATCH /api/v1/socialPost/posts/:id/hide (socialPostRoute.js) via patient_bearer
+- [403] DELETE /api/v1/socialPost/posts/:id (socialPostRoute.js) via patient_bearer
+- [403] GET /api/v1/socialPost/follow-stats/me (socialPostRoute.js) via patient_bearer
+- [403] GET /api/v1/socialPost/getPostByAdmin/:id (socialPostRoute.js) via patient_bearer
+- [200] GET /api/v1/socialPost/search (socialPostRoute.js)
+- [500] POST /api/v1/uploadfile/upload (uploadRoute.js)
+- [200] GET /health (server.js)
+- [200] GET / (server.js)
+- [200] GET /api/test-cookies (server.js)

@@ -56,6 +56,7 @@ const router = express.Router();
 
 
 // Mount routes
+router.use('/', authRoutes);
 router.use('/doctor', doctorRoute);
 router.use('/patient', patientRoute);
 router.use('/admin', adminRoute);

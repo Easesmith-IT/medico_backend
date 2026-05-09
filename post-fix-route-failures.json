@@ -1,0 +1,124 @@
+{
+  "generatedAt": "2026-05-09T17:32:08.596Z",
+  "totalUnresolvedRoutes": 6,
+  "unresolved": [
+    {
+      "phase": 1,
+      "method": "POST",
+      "path": "/api/v1/admin/bookings/create",
+      "controllerRef": "controller/adminController.js#createBookingByAdmin",
+      "status": 403,
+      "context": "admin",
+      "error": "Booking not allowed. Patient does not belong to the selected city.",
+      "category": "Auth/role restriction",
+      "requestUrl": "/api/v1/admin/bookings/create",
+      "requestBody": {
+        "patientId": "6927ec404619ff9ef06df478",
+        "serviceId": "69ff38769f29739c4bf095f4",
+        "appointmentDate": "2026-05-10",
+        "startTime": "09:30",
+        "endTime": "10:00",
+        "duration": 30,
+        "cityId": "691d9aebeaae59d1db945598"
+      }
+    },
+    {
+      "phase": 1,
+      "method": "PATCH",
+      "path": "/api/v1/admin/bookings/update/:bookingId",
+      "controllerRef": "controller/adminController.js#updateBookingByAdmin",
+      "status": 403,
+      "context": "admin",
+      "error": "Booking not allowed: patient does not belong to the selected city",
+      "category": "Auth/role restriction",
+      "requestUrl": "/api/v1/admin/bookings/update/69ff42989d7c3398cf4b5520",
+      "requestBody": {
+        "patientId": "6927ec404619ff9ef06df478",
+        "appointmentDate": "2026-05-10",
+        "startTime": "10:00",
+        "endTime": "10:30",
+        "duration": 30,
+        "status": "Approved",
+        "notes": "phase update",
+        "cityId": "691d9aebeaae59d1db945598"
+      }
+    },
+    {
+      "phase": 2,
+      "method": "GET",
+      "path": "/api/v1/doctor/doctor/cities/by-name/:doctorId/:cityName",
+      "controllerRef": "controller/doctorController.js#getDoctorCitiesByName",
+      "status": 404,
+      "context": "doctor",
+      "error": "Doctor is not available in city: chhatrapati sambhajinagar",
+      "category": "Data precondition missing",
+      "requestUrl": "/api/v1/doctor/doctor/cities/by-name/69104ae53f18864f8d196806/chhatrapati sambhajinagar",
+      "requestBody": null
+    },
+    {
+      "phase": 4,
+      "method": "PUT",
+      "path": "/api/v1/booking/reschedule/:bookingId",
+      "controllerRef": "controller/bookingController.js#rescheduleBooking",
+      "status": 400,
+      "context": "patient",
+      "error": "Cannot reschedule cancelled or rejected bookings",
+      "category": "Validation/contract mismatch",
+      "requestUrl": "/api/v1/booking/reschedule/69ff42989d7c3398cf4b5520",
+      "requestBody": {
+        "appointmentDate": "2026-05-10",
+        "startTime": "03:30",
+        "endTime": "04:00",
+        "reason": "phase reschedule",
+        "duration": 30
+      }
+    },
+    {
+      "phase": 5,
+      "method": "PUT",
+      "path": "/api/v1/booking/update-status/:bookingId",
+      "controllerRef": "controller/bookingController.js#updateServiceStatus",
+      "status": 403,
+      "context": "doctor",
+      "error": "Unauthorized provider",
+      "category": "Auth/role restriction",
+      "requestUrl": "/api/v1/booking/update-status/69ff6f6db9c84d5136e4c576",
+      "requestBody": {
+        "status": "In-Progress",
+        "notes": "phase status update"
+      }
+    },
+    {
+      "phase": 7,
+      "method": "POST",
+      "path": "/api/v1/geo/check-location",
+      "controllerRef": "controller/geoController.js#checkAddressInPolygon",
+      "status": 400,
+      "context": "public",
+      "error": "Location not found",
+      "category": "Validation/contract mismatch",
+      "requestUrl": "/api/v1/geo/check-location",
+      "requestBody": {
+        "address": "chhatrapati sambhajinagar, India",
+        "polygon": [
+          [
+            80.94,
+            26.84
+          ],
+          [
+            80.95,
+            26.84
+          ],
+          [
+            80.95,
+            26.85
+          ],
+          [
+            80.94,
+            26.85
+          ]
+        ]
+      }
+    }
+  ]
+}

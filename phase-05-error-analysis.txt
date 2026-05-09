@@ -1,0 +1,136 @@
+Phase 05 Error Analysis
+=======================
+totalRoutes: 11
+generatedAt: 2026-05-09T12:52:49.164Z
+
+1. PUT /api/v1/booking/update-status/:bookingId
+Controller: controller/bookingController.js#updateServiceStatus
+Final HTTP Status: 403
+Classification: Auth/Role Restriction | Spillover from Phase 04 for balance
+Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: doctor, serviceprovider","stack":"Error: Access denied. Allowed roles: doctor, serviceprovider\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Access denied. Allowed roles: doctor, serviceprovider
+Root-cause hypothesis: Route is protected by role middleware and current role/session is not allowed.
+Repro request shape: PUT /api/v1/booking/update-status/69c5282b8cf9e49defc29dd9 using context=admin
+Fix recommendation: Use an allowed role for this endpoint or adjust protect() role policy if contract is wrong.
+Priority: P2
+Confidence: High
+
+2. DELETE /api/v1/serviceProvider/service-provider/:id
+Controller: controller/providerController.js#deleteServiceProvider
+Final HTTP Status: 404
+Classification: Confirmed Backend Bug
+Error (raw): {"success":false,"message":"Service provider not found"}
+Error (normalized): Service provider not found
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: DELETE /api/v1/serviceProvider/service-provider/699da06d063f7bf10e8ab446 using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+3. GET /api/v1/serviceProvider/getAllServiceProviders
+Controller: controller/providerController.js#getAllServiceProviders
+Final HTTP Status: 200
+Classification: Confirmed Backend Bug
+Error (raw): {"success":true,"message":"Service providers fetched successfully","data":[{"currentAddress":{"street":"Main Road","locality":"Hazratganj","city":"Lucknow","state":"Uttar Pradesh","pincode":"226001","country":"India"},"permanentAddress":{"street":"Main Road","locality":"Hazratganj","city":"Lucknow","state":"Uttar Pradesh","pincode":"226001","sameAsCurrent":true,"country":"India"},"workAddress":{"country":"India"},"documents":{"identityProof":{"verified":false},"addressProof":{"verified":false},"registrationCertificate":{"verified":false},"policeVerification":{"verified":false},"educationalCertificates":[],"professionalCertificates":[],"experienceCertificates":[]},"bankDetails":{"accountHolderName":"Rahul Sharma","accountNumber":"123456789012","ifscCode":"HDFC0001234"},"availability":{"days":[],"available24x7":false,"timeSlots":[]},"rating":{"average":0,"totalReviews":0},"approvedBy":{"adminId":"6908572ba5d6f07ca60752a4","adminName":"admin@medico.com","approvedAt":"2025-12-31T05:45:10.214Z"},"_id":"6954b8661f9e10ca7a950d6a","firstName":"Rahul","lastName":"Sharma","age":32,"dateOfBirth":"1993-05-15T00:00:00.000Z","gender":"Male","mobile":"9876543241","email":"rahull.provider@example....
+Error (normalized): {"success":true,"message":"Service providers fetched successfully","data":[{"currentAddress":{"street":"Main Road","locality":"Hazratganj","city":"Lucknow","state":"Uttar Pradesh","pincode":"226001","country":"India"},"permanentAddress":{"street":"Main Road","locality":"Hazratganj","city":"Lucknow","state":"Uttar Pradesh","pincode":"226001","sameAsCurrent":true,"country":"India"},"workAddress":{"country":"India"},"documents":{"identityProof":{"verified":false},"addressProof":{"verified":false},"registrationCertificate":{"verified":false},"policeVerification":{"verified":false},"educationalCertificates":[],"professionalCertificates":[],"experienceCertificates":[]},"bankDetails":{"accountHolderName":"Rahul Sharma","accountNumber":"123456789012","ifscCode":"HDFC0001234"},"availability":{"days":[],"available24x7":false,"timeSlots":[]},"rating":{"average":0,"totalReviews":0},"approvedBy":{"adminId":"6908572ba5d6f07ca60752a4","adminName":"admin@medico.com","approvedAt":"2025-12-31T05:45:10.214Z"},"_id":"6954b8661f9e10ca7a950d6a","firstName":"Rahul","lastName":"Sharma","age":32,"dateOfBirth":"1993-05-15T00:00:00.000Z","gender":"Male","mobile":"9876543241","email":"rahull.provider@example....
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: GET /api/v1/serviceProvider/getAllServiceProviders using context=doctor
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+4. GET /api/v1/serviceProvider/service-provider/:id
+Controller: controller/providerController.js#getServiceProviderById
+Final HTTP Status: 404
+Classification: Confirmed Backend Bug
+Error (raw): {"success":false,"message":"Service provider not found"}
+Error (normalized): Service provider not found
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: GET /api/v1/serviceProvider/service-provider/699da06d063f7bf10e8ab446 using context=doctor
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+5. GET /api/v1/serviceProvider/service-provider/appointments
+Controller: controller/providerController.js#getServiceProviderAppointments
+Final HTTP Status: 500
+Classification: Confirmed Backend Bug
+Error (raw): {"success":false,"message":"Cast to ObjectId failed for value \"appointments\" (type string) at path \"_id\" for model \"ServiceProvider\""}
+Error (normalized): Cast to ObjectId failed for value "appointments" (type string) at path "_id" for model "ServiceProvider"
+Root-cause hypothesis: Route param/query is being parsed as ObjectId where literal/invalid value is passed.
+Repro request shape: GET /api/v1/serviceProvider/service-provider/appointments using context=doctor
+Fix recommendation: Validate/normalize route params before DB query and handle reserved paths explicitly.
+Priority: P2
+Confidence: High
+
+6. GET /api/v1/serviceProvider/service-provider/appointments/:id
+Controller: controller/providerController.js#getSingleAppointment
+Final HTTP Status: 403
+Classification: Confirmed Backend Bug
+Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: ","stack":"Error: Access denied. Allowed roles: \n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Access denied. Allowed roles:
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: GET /api/v1/serviceProvider/service-provider/appointments/699da06d063f7bf10e8ab446 using context=patient
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+7. GET /api/v1/serviceProvider/service-providers/by-service/:serviceId
+Controller: controller/providerController.js#getProvidersByServiceId
+Final HTTP Status: 200
+Classification: Confirmed Backend Bug
+Error (raw): {"success":true,"message":"Service providers fetched successfully","data":[{"currentAddress":{"street":"test","locality":"df d fd f","city":"d fdd","state":"d fdf","country":"India","pincode":"123456","landmark":"test"},"permanentAddress":{"street":"test","locality":"df d fd f","city":"d fdd","state":"d fdf","country":"India","pincode":"123456","landmark":"test","sameAsCurrent":true},"workAddress":{"clinicName":"","street":"","locality":"","city":"","state":"","country":"India","pincode":"","landmark":""},"documents":{"identityProof":{"type":"Aadhar","verified":false},"addressProof":{"type":"Utility Bill","verified":false},"registrationCertificate":{"verified":false},"policeVerification":{"verified":false},"educationalCertificates":[],"professionalCertificates":[],"experienceCertificates":[]},"bankDetails":{"accountHolderName":"test","accountNumber":"4564567890","ifscCode":"DFSD4656","bankName":"","branchName":"","upiId":""},"availability":{"days":[],"timeSlots":[{"startTime":"","endTime":"","_id":"694e37c317dbd053f092e5ff"}],"available24x7":false},"rating":{"average":0,"totalReviews":0},"approvedBy":{"adminId":{"_id":"6908572ba5d6f07ca60752a4","firstName":"Mansi","lastName":"Admin...
+Error (normalized): {"success":true,"message":"Service providers fetched successfully","data":[{"currentAddress":{"street":"test","locality":"df d fd f","city":"d fdd","state":"d fdf","country":"India","pincode":"123456","landmark":"test"},"permanentAddress":{"street":"test","locality":"df d fd f","city":"d fdd","state":"d fdf","country":"India","pincode":"123456","landmark":"test","sameAsCurrent":true},"workAddress":{"clinicName":"","street":"","locality":"","city":"","state":"","country":"India","pincode":"","landmark":""},"documents":{"identityProof":{"type":"Aadhar","verified":false},"addressProof":{"type":"Utility Bill","verified":false},"registrationCertificate":{"verified":false},"policeVerification":{"verified":false},"educationalCertificates":[],"professionalCertificates":[],"experienceCertificates":[]},"bankDetails":{"accountHolderName":"test","accountNumber":"4564567890","ifscCode":"DFSD4656","bankName":"","branchName":"","upiId":""},"availability":{"days":[],"timeSlots":[{"startTime":"","endTime":"","_id":"694e37c317dbd053f092e5ff"}],"available24x7":false},"rating":{"average":0,"totalReviews":0},"approvedBy":{"adminId":{"_id":"6908572ba5d6f07ca60752a4","firstName":"Mansi","lastName":"Admin...
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: GET /api/v1/serviceProvider/service-providers/by-service/6915d7cf9033f3ce1c0f322e using context=doctor
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+8. PATCH /api/v1/serviceProvider/:id/toggle-status
+Controller: controller/providerController.js#toggleStatus
+Final HTTP Status: 404
+Classification: Confirmed Backend Bug
+Error (raw): {"success":false,"message":"Service provider not found"}
+Error (normalized): Service provider not found
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: PATCH /api/v1/serviceProvider/699da06d063f7bf10e8ab446/toggle-status using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+9. POST /api/v1/serviceProvider/createservice-provider
+Controller: controller/providerController.js#createServiceProvider
+Final HTTP Status: 500
+Classification: Confirmed Backend Bug
+Error (raw): {"success":false,"message":"ServiceProvider validation failed: bankDetails.ifscCode: Path `bankDetails.ifscCode` is required., bankDetails.accountNumber: Path `bankDetails.accountNumber` is required., bankDetails.accountHolderName: Path `bankDetails.accountHolderName` is required., yearsOfExperience: Path `yearsOfExperience` is required., registrationCouncil: Path `registrationCouncil` is required., registrationNumber: Path `registrationNumber` is required., qualification: Path `qualification` is required., permanentAddress.pincode: Path `permanentAddress.pincode` is required., permanentAddress.state: Path `permanentAddress.state` is required., permanentAddress.city: Path `permanentAddress.city` is required., permanentAddress.locality: Path `permanentAddress.locality` is required., permanentAddress.street: Path `permanentAddress.street` is required., currentAddress.pincode: Path `currentAddress.pincode` is required., currentAddress.state: Path `currentAddress.state` is required., currentAddress.city: Path `currentAddress.city` is required., currentAddress.locality: Path `currentAddress.locality` is required., currentAddress.street: Path `currentAddress.street` is required., email: ...
+Error (normalized): {"success":false,"message":"ServiceProvider validation failed: bankDetails.ifscCode: Path `bankDetails.ifscCode` is required., bankDetails.accountNumber: Path `bankDetails.accountNumber` is required., bankDetails.accountHolderName: Path `bankDetails.accountHolderName` is required., yearsOfExperience: Path `yearsOfExperience` is required., registrationCouncil: Path `registrationCouncil` is required., registrationNumber: Path `registrationNumber` is required., qualification: Path `qualification` is required., permanentAddress.pincode: Path `permanentAddress.pincode` is required., permanentAddress.state: Path `permanentAddress.state` is required., permanentAddress.city: Path `permanentAddress.city` is required., permanentAddress.locality: Path `permanentAddress.locality` is required., permanentAddress.street: Path `permanentAddress.street` is required., currentAddress.pincode: Path `currentAddress.pincode` is required., currentAddress.state: Path `currentAddress.state` is required., currentAddress.city: Path `currentAddress.city` is required., currentAddress.locality: Path `currentAddress.locality` is required., currentAddress.street: Path `currentAddress.street` is required., email: ...
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: POST /api/v1/serviceProvider/createservice-provider using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+10. POST /api/v1/serviceProvider/login
+Controller: controller/providerController.js#loginServiceProvider
+Final HTTP Status: 401
+Classification: Confirmed Backend Bug
+Error (raw): {"success":false,"message":"Invalid email/mobile or password"}
+Error (normalized): Invalid email/mobile or password
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: POST /api/v1/serviceProvider/login using context=patient
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+11. PUT /api/v1/serviceProvider/service-provider/:id
+Controller: controller/providerController.js#updateServiceProvider
+Final HTTP Status: 404
+Classification: Confirmed Backend Bug
+Error (raw): {"success":false,"message":"Service provider not found"}
+Error (normalized): Service provider not found
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: PUT /api/v1/serviceProvider/service-provider/699da06d063f7bf10e8ab446 using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium

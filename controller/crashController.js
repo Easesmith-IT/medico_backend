@@ -1,4 +1,8 @@
 const CrashReport = require("../models/CrashReport");
+require("../models/patientModel");
+require("../models/doctorModel");
+require("../models/adminModel");
+require("../models/serviceProviderModel");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 const crypto = require("crypto");
@@ -56,6 +60,19 @@ exports.createCrashReport = catchAsync(async (req, res, next) => {
   //    .digest("hex");
 
   const errorId = `ERR_${Date.now()}`;
+  const normalizedUserType = (() => {
+    const raw = String(userType || "").trim().toLowerCase();
+    if (!raw) return "Patient";
+    if (raw === "patient") return "Patient";
+    if (raw === "doctor") return "Doctor";
+    if (raw === "admin") return "Admin";
+    if (raw === "serviceprovider" || raw === "service_provider")
+      return "ServiceProvider";
+    if (raw === "hospital") return "Hospital";
+    if (raw === "medicalstudent" || raw === "medical_student")
+      return "MedicalStudent";
+    return "Patient";
+  })();
 
 
   // ----------------------------
@@ -85,7 +102,7 @@ exports.createCrashReport = catchAsync(async (req, res, next) => {
 
     device,
     userId: userId || null,
-    userType,
+    userType: normalizedUserType,
   });
 
   console.log(`SUCCESS: Crash report saved (ID: ${crash._id})`);

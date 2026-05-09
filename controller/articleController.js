@@ -173,8 +173,16 @@ const createArticle = async (req, res, next) => {
       textContent
     } = req.body;
 
-    const createdBy = doctorId || req.user._id;
-    const creatorModel = req.userModel;
+    const createdBy = doctorId || req.user?._id || req.user?.id;
+    const authRole = String(req.user?.role || "").toLowerCase();
+    const creatorModel =
+      authRole === "doctor"
+        ? "Doctor"
+        : authRole === "hospital"
+        ? "Hospital"
+        : doctorId
+        ? "Doctor"
+        : null;
 
     // Validate required fields
     if (!cityName || !category || !title || !articleType) {
@@ -189,6 +197,10 @@ const createArticle = async (req, res, next) => {
 
     if (!tags || tags.length === 0) {
       return next(new AppError('At least one tag is required', 400));
+    }
+
+    if (!createdBy || !creatorModel) {
+      return next(new AppError("Unable to resolve authenticated creator details", 400));
     }
 
     const validTypes = ['article', 'video', 'image'];
@@ -447,7 +459,15 @@ const getAllArticles = async (req, res, next) => {
       articles
     });
 
-  } catch (error) {
+    } catch (error) {
+    // Handle corrupted article data gracefully (e.g., content stored as string)
+    if (error.message && error.message.includes('Cannot create property')) {
+      return res.status(500).json({
+        success: false,
+        message: 'Some articles have corrupted data. Please contact support.',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
     next(error);
   }
 };
@@ -474,7 +494,7 @@ const getArticleById = async (req, res, next) => {
 
 const getMyArticles = async (req, res, next) => {
   try {
-    const createdBy = req.user._id;
+    const createdBy = req.user?._id || req.user?.id;
     const creatorModel = req.userModel;
     const { status } = req.query;
 
@@ -496,7 +516,7 @@ const getMyArticles = async (req, res, next) => {
 const updateArticle = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const createdBy = req.user._id;
+    const createdBy = req.user?._id || req.user?.id;
 
     const article = await Article.findOne({ _id: id, createdBy });
 
@@ -527,7 +547,7 @@ const updateArticle = async (req, res, next) => {
 
 const deleteArticle = async (req, res, next) => {
   try {
-    const createdBy = req.user._id;
+    const createdBy = req.user?._id || req.user?.id;
     const article = await Article.findOne({ _id: req.params.id, createdBy });
 
     if (!article) {
@@ -558,7 +578,7 @@ const deleteArticle = async (req, res, next) => {
 
 const publishArticle = async (req, res, next) => {
   try {
-    const createdBy = req.user._id;
+    const createdBy = req.user?._id || req.user?.id;
     const article = await Article.findOneAndUpdate(
       { _id: req.params.id, createdBy },
       { status: 'published' },

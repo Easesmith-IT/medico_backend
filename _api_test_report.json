@@ -1,0 +1,16 @@
+﻿{
+    "testTimestamp":  "2026-05-09 23:42:21",
+    "apiBase":  "http://localhost:5005/api/v1",
+    "errors":  [
+
+               ],
+    "baseUrl":  "http://localhost:5005",
+    "summary":  {
+                    "totalRoutes":  -1,
+                    "failed":  0,
+                    "passed":  1
+                },
+    "results":  [
+
+                ]
+}

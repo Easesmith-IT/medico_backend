@@ -1,0 +1,40 @@
+# Phase 10 Error Analysis
+
+- totalRoutes: 3
+- generatedAt: 2026-05-09T12:52:49.166Z
+
+## 1. GET /api/v1/check-status
+- Controller: controller/authController.js#checkAuthStatus
+- Final HTTP Status: N/A
+- Classification: Unmounted Route
+- Error (raw): Route file exists but not mounted in route/index.js
+- Error (normalized): Route file exists but not mounted in route/index.js
+- Root-cause hypothesis: Route exists in route file but is not mounted in route/index.js.
+- Repro request shape: n/a
+- Fix recommendation: Mount route in route/index.js or remove dead route definition.
+- Priority: P1
+- Confidence: High
+
+## 2. GET /api/v1/crash-report/get
+- Controller: controller/crashController.js#getCrashReports
+- Final HTTP Status: 500
+- Classification: Confirmed Backend Bug
+- Error (raw): {"status":"error","error":{"statusCode":500,"status":"error"},"message":"Schema hasn't been registered for model \"patient\".\nUse mongoose.model(name, schema)","stack":"MissingSchemaError: Schema hasn't been registered for model \"patient\".\nUse mongoose.model(name, schema)\n    at NativeConnection.model (E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\connection.js:1497:13)\n    at _getModelFromConn (E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\helpers\\populate\\getModelsMapForPopulate.js:579:15)\n    at addModelNamesToMap (E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\helpers\\populate\\getModelsMapForPopulate.js:507:17)\n    at getModelsMapForPopulate (E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\helpers\\populate\\getModelsMapForPopulate.js:208:7)\n    at _populatePath (E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\model.js:4471:21)\n    at Function.populate (E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\model.js:4438:21)\n    at model.Query._find (E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\query.js:2452:23)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async model.Query.exec (E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\query.js:4627:63)\n    at async Promise.all (index 0)"}
+- Error (normalized): Schema hasn't been registered for model "patient". Use mongoose.model(name, schema)
+- Root-cause hypothesis: Referenced mongoose model is not imported/registered before use.
+- Repro request shape: GET /api/v1/crash-report/get using context=public
+- Fix recommendation: Require the missing model in bootstrap/controller before populate/find usage.
+- Priority: P1
+- Confidence: High
+
+## 3. POST /api/v1/uploadfile/upload
+- Controller: unknown
+- Final HTTP Status: 500
+- Classification: Confirmed Backend Bug
+- Error (raw): {"error":"Cannot read properties of undefined (reading 'originalname')"}
+- Error (normalized): {"error":"Cannot read properties of undefined (reading 'originalname')"}
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/uploadfile/upload using context=doctor
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium

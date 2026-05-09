@@ -497,7 +497,7 @@ const toggleCityStatus = async (req, res) => {
   try {
     const { cityId } = req.params;
 
-    const city = await City.findById(cityId);
+    const city = await City.findById(cityId).select("_id isActive");
 
     if (!city) {
       return res.status(404).json({
@@ -506,13 +506,16 @@ const toggleCityStatus = async (req, res) => {
       });
     }
 
-    city.isActive = !city.isActive;
-    await city.save();
+    const updatedCity = await City.findByIdAndUpdate(
+      cityId,
+      { $set: { isActive: !city.isActive } },
+      { new: true, runValidators: false }
+    );
 
     res.json({
       success: true,
-      message: `City is now ${city.isActive ? "active" : "inactive"}`,
-      data: city,
+      message: `City is now ${updatedCity.isActive ? "active" : "inactive"}`,
+      data: updatedCity,
     });
   } catch (error) {
     console.error("toggleCityStatus:", error);

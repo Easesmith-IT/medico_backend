@@ -1,0 +1,148 @@
+# Phase 07 Error Analysis
+
+- totalRoutes: 12
+- generatedAt: 2026-05-09T12:52:49.165Z
+
+## 1. POST /api/v1/items/create
+- Controller: controller/itemCategoryController.js#createCategory
+- Final HTTP Status: 500
+- Classification: Confirmed Backend Bug | Spillover from Phase 06 for balance
+- Error (raw): {"status":"error","error":{"statusCode":500,"status":"error"},"message":"Cannot read properties of undefined (reading 'trim')","stack":"TypeError: Cannot read properties of undefined (reading 'trim')\n    at E:\\easesmith\\medico\\medico_backend\\controller\\itemCategoryController.js:195:41\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:615:3)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+- Error (normalized): Cannot read properties of undefined (reading 'trim')
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/items/create using context=admin
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 2. POST /api/v1/service/:id/restore
+- Controller: controller/serviceController.js#restoreService
+- Final HTTP Status: 403
+- Classification: Confirmed Backend Bug | Spillover from Phase 06 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Admin privileges required.","stack":"Error: Access denied. Admin privileges required.\n    at verifyAdminRole (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:678:9)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at param (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:600:14)\n    at param (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:610:14)\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:664:3)"}
+- Error (normalized): Access denied. Admin privileges required.
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/service/699da06d063f7bf10e8ab446/restore using context=doctor
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 3. POST /api/v1/service/admin/bulk-update
+- Controller: controller/serviceController.js#bulkUpdateServices
+- Final HTTP Status: 403
+- Classification: Confirmed Backend Bug | Spillover from Phase 06 for balance
+- Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Admin privileges required.","stack":"Error: Access denied. Admin privileges required.\n    at verifyAdminRole (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:678:9)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:582:12)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:291:5)\n    at Function.handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:186:3)"}
+- Error (normalized): Access denied. Admin privileges required.
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/service/admin/bulk-update using context=patient
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 4. POST /api/v1/service/createService
+- Controller: controller/serviceController.js#createService
+- Final HTTP Status: 400
+- Classification: Confirmed Backend Bug | Spillover from Phase 06 for balance
+- Error (raw): {"success":false,"message":"Name, category, description, and base price are required."}
+- Error (normalized): Name, category, description, and base price are required.
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: POST /api/v1/service/createService using context=admin
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 5. PUT /api/v1/items/update/:id
+- Controller: controller/itemCategoryController.js#updateCategory
+- Final HTTP Status: 404
+- Classification: Confirmed Backend Bug | Spillover from Phase 06 for balance
+- Error (raw): {"success":false,"message":"Category not found"}
+- Error (normalized): Category not found
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: PUT /api/v1/items/update/699da06d063f7bf10e8ab446 using context=admin
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 6. GET /api/v1/city/cities/:cityId
+- Controller: controller/cityController.js#getCityById
+- Final HTTP Status: 404
+- Classification: Not Found/Data Missing
+- Error (raw): {"success":false,"message":"City not found"}
+- Error (normalized): City not found
+- Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+- Repro request shape: GET /api/v1/city/cities/6909ec0bb7dcc56ab86a9fa7 using context=public
+- Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+- Priority: P3
+- Confidence: High
+
+## 7. GET /api/v1/city/find/by-location
+- Controller: controller/cityController.js#findCityByLocation
+- Final HTTP Status: 400
+- Classification: Validation/Contract Failure
+- Error (raw): {"success":false,"message":"lat and lng are required"}
+- Error (normalized): lat and lng are required
+- Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+- Repro request shape: GET /api/v1/city/find/by-location using context=public
+- Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+- Priority: P3
+- Confidence: High
+
+## 8. PATCH /api/v1/city/:cityId/toggle
+- Controller: controller/cityController.js#toggleCityStatus
+- Final HTTP Status: 500
+- Classification: Confirmed Backend Bug
+- Error (raw): {"success":false,"message":"Error toggling status","error":"City validation failed: area.coordinates: Path `area.coordinates` is required."}
+- Error (normalized): Error toggling status
+- Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+- Repro request shape: PATCH /api/v1/city/6909ec0bb7dcc56ab86a9fa7/toggle using context=public
+- Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+- Priority: P1
+- Confidence: Medium
+
+## 9. PATCH /api/v1/city/admin/cities/toggle/:cityId
+- Controller: controller/cityController.js#toggleCityStatus
+- Final HTTP Status: 404
+- Classification: Not Found/Data Missing
+- Error (raw): {"success":false,"message":"City not found"}
+- Error (normalized): City not found
+- Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+- Repro request shape: PATCH /api/v1/city/admin/cities/toggle/6909ec0bb7dcc56ab86a9fa7 using context=admin
+- Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+- Priority: P3
+- Confidence: High
+
+## 10. POST /api/v1/city/admin/cities
+- Controller: controller/cityController.js#addCity
+- Final HTTP Status: 400
+- Classification: Validation/Contract Failure
+- Error (raw): {"success":false,"message":"Name and valid polygon are required"}
+- Error (normalized): Name and valid polygon are required
+- Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+- Repro request shape: POST /api/v1/city/admin/cities using context=admin
+- Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+- Priority: P3
+- Confidence: High
+
+## 11. POST /api/v1/geo/check-location
+- Controller: controller/geoController.js#checkAddressInPolygon
+- Final HTTP Status: 400
+- Classification: Validation/Contract Failure
+- Error (raw): {"success":false,"message":"Request failed with status code 400"}
+- Error (normalized): Request failed with status code 400
+- Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+- Repro request shape: POST /api/v1/geo/check-location using context=public
+- Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+- Priority: P3
+- Confidence: High
+
+## 12. PUT /api/v1/city/admin/cities/:cityId
+- Controller: controller/cityController.js#updateCity
+- Final HTTP Status: 404
+- Classification: Not Found/Data Missing
+- Error (raw): {"success":false,"message":"City not found"}
+- Error (normalized): City not found
+- Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+- Repro request shape: PUT /api/v1/city/admin/cities/6909ec0bb7dcc56ab86a9fa7 using context=admin
+- Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+- Priority: P3
+- Confidence: High

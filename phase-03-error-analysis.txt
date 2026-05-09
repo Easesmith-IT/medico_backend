@@ -1,0 +1,220 @@
+Phase 03 Error Analysis
+=======================
+totalRoutes: 18
+generatedAt: 2026-05-09T12:52:49.160Z
+
+1. POST /api/v1/doctor/signup
+Controller: controller/doctorController.js#doctorSignup
+Final HTTP Status: 400
+Classification: Validation/Contract Failure | Spillover from Phase 02 for balance
+Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Selected city does not exist in available cities","stack":"Error: Selected city does not exist in available cities\n    at E:\\easesmith\\medico\\medico_backend\\controller\\doctorController.js:342:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Selected city does not exist in available cities
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: POST /api/v1/doctor/signup using context=public
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+2. POST /api/v1/doctor/verify-login-otp
+Controller: controller/doctorController.js#verifyLoginOtp
+Final HTTP Status: 400
+Classification: Validation/Contract Failure | Spillover from Phase 02 for balance
+Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Phone number and OTP are required","stack":"Error: Phone number and OTP are required\n    at E:\\easesmith\\medico\\medico_backend\\controller\\doctorController.js:662:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:582:12)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:291:5)"}
+Error (normalized): Phone number and OTP are required
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: POST /api/v1/doctor/verify-login-otp using context=public
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+3. POST /api/v1/doctor/verify-signup-otp
+Controller: controller/doctorController.js#verifySignupOtp
+Final HTTP Status: 400
+Classification: Validation/Contract Failure | Spillover from Phase 02 for balance
+Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Phone number and OTP are required","stack":"Error: Phone number and OTP are required\n    at E:\\easesmith\\medico\\medico_backend\\controller\\doctorController.js:409:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:582:12)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:291:5)"}
+Error (normalized): Phone number and OTP are required
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: POST /api/v1/doctor/verify-signup-otp using context=public
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+4. PUT /api/v1/doctor/availability
+Controller: controller/doctorController.js#updateAvailability
+Final HTTP Status: 400
+Classification: Validation/Contract Failure | Spillover from Phase 02 for balance
+Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Please provide days and timeSlots","stack":"Error: Please provide days and timeSlots\n    at E:\\easesmith\\medico\\medico_backend\\controller\\doctorController.js:1090:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at verifyAccessToken (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:628:5)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)"}
+Error (normalized): Please provide days and timeSlots
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: PUT /api/v1/doctor/availability using context=doctor
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+5. PUT /api/v1/doctor/bulk-manage-slots
+Controller: controller/doctorController.js#bulkManageSlots
+Final HTTP Status: 404
+Classification: Not Found/Data Missing | Spillover from Phase 02 for balance
+Error (raw): {"status":"fail","error":{"statusCode":404,"status":"fail","isOperational":true},"message":"No slots found for this date","stack":"Error: No slots found for this date\n    at E:\\easesmith\\medico\\medico_backend\\controller\\doctorController.js:2061:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): No slots found for this date
+Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+Repro request shape: PUT /api/v1/doctor/bulk-manage-slots using context=doctor
+Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+Priority: P3
+Confidence: High
+
+6. PUT /api/v1/doctor/clinic/:clinicId
+Controller: controller/doctorController.js#updateClinic
+Final HTTP Status: 404
+Classification: Not Found/Data Missing | Spillover from Phase 02 for balance
+Error (raw): {"status":"fail","error":{"statusCode":404,"status":"fail","isOperational":true},"message":"Clinic not found","stack":"Error: Clinic not found\n    at E:\\easesmith\\medico\\medico_backend\\controller\\doctorController.js:1150:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Clinic not found
+Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+Repro request shape: PUT /api/v1/doctor/clinic/507f1f77bcf86cd799439016 using context=doctor
+Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+Priority: P3
+Confidence: High
+
+7. PUT /api/v1/doctor/service-availability
+Controller: controller/doctorController.js#updateServiceAvailability
+Final HTTP Status: 500
+Classification: Confirmed Backend Bug | Spillover from Phase 02 for balance
+Error (raw): {"status":"error","error":{"statusCode":500,"status":"error"},"message":"doctor.availability.serviceAvailability.findIndex is not a function","stack":"TypeError: doctor.availability.serviceAvailability.findIndex is not a function\n    at E:\\easesmith\\medico\\medico_backend\\controller\\doctorController.js:1984:64\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): doctor.availability.serviceAvailability.findIndex is not a function
+Root-cause hypothesis: Controller assumes object/method shape that does not exist in current schema/model instance.
+Repro request shape: PUT /api/v1/doctor/service-availability using context=doctor
+Fix recommendation: Align controller logic with current schema shape or add missing helper methods.
+Priority: P1
+Confidence: High
+
+8. PUT /api/v1/doctor/toggle-slot
+Controller: controller/doctorController.js#toggleSlotAvailability
+Final HTTP Status: 500
+Classification: Confirmed Backend Bug | Spillover from Phase 02 for balance
+Error (raw): {"success":false,"message":"doctor.toggleSlotAvailability is not a function","error":"doctor.toggleSlotAvailability is not a function"}
+Error (normalized): doctor.toggleSlotAvailability is not a function
+Root-cause hypothesis: Controller assumes object/method shape that does not exist in current schema/model instance.
+Repro request shape: PUT /api/v1/doctor/toggle-slot using context=doctor
+Fix recommendation: Align controller logic with current schema shape or add missing helper methods.
+Priority: P1
+Confidence: High
+
+9. DELETE /api/v1/patient/allergies
+Controller: controller/patientController.js#removeAllergy
+Final HTTP Status: 403
+Classification: Confirmed Backend Bug
+Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: ","stack":"Error: Access denied. Allowed roles: \n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Access denied. Allowed roles:
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: DELETE /api/v1/patient/allergies using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+10. DELETE /api/v1/patient/medical-history/:historyId
+Controller: controller/patientController.js#deleteMedicalHistory
+Final HTTP Status: 403
+Classification: Confirmed Backend Bug
+Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: ","stack":"Error: Access denied. Allowed roles: \n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Access denied. Allowed roles:
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: DELETE /api/v1/patient/medical-history/507f1f77bcf86cd799439017 using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+11. DELETE /api/v1/patient/medications
+Controller: controller/patientController.js#removeMedication
+Final HTTP Status: 403
+Classification: Confirmed Backend Bug
+Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: ","stack":"Error: Access denied. Allowed roles: \n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Access denied. Allowed roles:
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: DELETE /api/v1/patient/medications using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+12. DELETE /api/v1/patient/unfollow/:doctorId
+Controller: controller/patientController.js#unfollowDoctor
+Final HTTP Status: 403
+Classification: Confirmed Backend Bug
+Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: ","stack":"Error: Access denied. Allowed roles: \n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Access denied. Allowed roles:
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: DELETE /api/v1/patient/unfollow/69083c7093634916321ed31d using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+13. GET /api/v1/patient/getById/:patientId
+Controller: controller/patientController.js#getPatientById
+Final HTTP Status: 200
+Classification: Confirmed Backend Bug
+Error (raw): {"success":true,"message":"Patient retrieved successfully","data":{"address":{"street":"123 Main St","city":"Mumbai","state":"Maharashtra","country":"India","pincode":"400001"},"emergencyContact":{"name":"Jane Doe","phone":"9876543212","relation":"Sister"},"_id":"6909a373c21dc072f0dc1a87","firstName":"John test edited","email":"johntiim@example.com","phone":"9876543233","profilePhoto":"https://example.com/photo.jpg","dateOfBirth":"1990-05-16T00:00:00.000Z","gender":"male","bloodGroup":"O+","allergies":[],"currentMedications":["test","test 23"],"role":"patient","isVerified":true,"isActive":true,"following":[],"followingCount":0,"medicalHistory":[],"savedPosts":[],"createdAt":"2025-11-04T06:55:47.021Z","updatedAt":"2026-05-09T12:48:24.568Z","__v":2,"mediaFiles":[],"medicationHistory":[],"treatmentProgress":[]}}
+Error (normalized): Patient retrieved successfully
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: GET /api/v1/patient/getById/6909a373c21dc072f0dc1a87 using context=doctor
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+14. GET /api/v1/patient/myTreatmentHistory
+Controller: controller/patientController.js#getCompletePatientTreatmentHistory
+Final HTTP Status: 404
+Classification: Confirmed Backend Bug
+Error (raw): {"success":false,"message":"Patient not found with ID: 69083c7093634916321ed31d"}
+Error (normalized): Patient not found with ID: 69083c7093634916321ed31d
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: GET /api/v1/patient/myTreatmentHistory using context=doctor
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+15. GET /api/v1/patient/profile
+Controller: controller/patientController.js#getMyProfile
+Final HTTP Status: 403
+Classification: Confirmed Backend Bug
+Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: ","stack":"Error: Access denied. Allowed roles: \n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Access denied. Allowed roles:
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: GET /api/v1/patient/profile using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+16. PATCH /api/v1/patient/updateProfile/:id
+Controller: controller/patientController.js#updatePatient
+Final HTTP Status: 404
+Classification: Confirmed Backend Bug
+Error (raw): {"status":"fail","error":{"statusCode":404,"status":"fail","isOperational":true},"message":"The patient does not exist","stack":"Error: The patient does not exist\n    at E:\\easesmith\\medico\\medico_backend\\controller\\patientController.js:1283:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): The patient does not exist
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: PATCH /api/v1/patient/updateProfile/699da06d063f7bf10e8ab446 using context=patient
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+17. POST /api/v1/patient/allergies
+Controller: controller/patientController.js#addAllergy
+Final HTTP Status: 403
+Classification: Confirmed Backend Bug
+Error (raw): {"status":"fail","error":{"statusCode":403,"status":"fail","isOperational":true},"message":"Access denied. Allowed roles: ","stack":"Error: Access denied. Allowed roles: \n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:604:7)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Access denied. Allowed roles:
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: POST /api/v1/patient/allergies using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+18. POST /api/v1/patient/check-auth
+Controller: controller/patientController.js#checkAuthStatus
+Final HTTP Status: 200
+Classification: Confirmed Backend Bug
+Error (raw): {"success":false,"isAuthenticated":false,"message":"Authentication required","shouldLogout":true}
+Error (normalized): Authentication required
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: POST /api/v1/patient/check-auth using context=doctor
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium

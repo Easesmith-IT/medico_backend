@@ -191,6 +191,14 @@ exports.generateInvoice = async (req, res) => {
       additionalEquipment
     } = req.body;
 
+    // Validate required bookingId
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: 'bookingId is required' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({ success: false, message: 'Invalid bookingId format' });
+    }
+
     // Calculate total for each medicine + preserve addedDate
     const medicinesWithTotal = (medicines || []).map(med => {
       const base = med.quantity * med.pricePerUnit;
@@ -412,32 +420,8 @@ exports.downloadInvoice = async (req, res) => {
     }
 
     const doc = new PDFDocument();
-
-    let buffers = [];
-    doc.on("data", buffers.push.bind(buffers));
-
-    doc.on("end", async () => {
-
-      const pdfBuffer = Buffer.concat(buffers);
-
-      const file = {
-        originalname: `${invoice.invoiceNumber}.pdf`,
-        buffer: pdfBuffer
-      };
-
-      const pdfUrl = await uploadFile(file);
-
-      invoice.invoiceUrl = pdfUrl;
-      invoice.isInvoiceGenerated = true;
-
-      await invoice.save();
-
-      return res.json({
-        success: true,
-        downloadUrl: pdfUrl
-      });
-
-    });
+    const buffers = [];
+    doc.on("data", (chunk) => buffers.push(chunk));
 
     // ---------- PDF CONTENT ----------
     doc.fontSize(20).text("Invoice", { align: "center" });
@@ -469,7 +453,28 @@ exports.downloadInvoice = async (req, res) => {
 
     doc.text(`Total Amount: ₹${invoice.billingDetails?.totalAmount}`);
 
+    const done = new Promise((resolve, reject) => {
+      doc.once("end", resolve);
+      doc.once("error", reject);
+    });
     doc.end();
+    await done;
+
+    const pdfBuffer = Buffer.concat(buffers);
+    const file = {
+      originalname: `${invoice.invoiceNumber}.pdf`,
+      buffer: pdfBuffer,
+    };
+
+    const pdfUrl = await uploadFile(file);
+    invoice.invoiceUrl = pdfUrl;
+    invoice.isInvoiceGenerated = true;
+    await invoice.save();
+
+    return res.json({
+      success: true,
+      downloadUrl: pdfUrl,
+    });
 
   } catch (error) {
     res.status(500).json({

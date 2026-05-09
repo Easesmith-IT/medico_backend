@@ -1,0 +1,220 @@
+Phase 01 Error Analysis
+=======================
+totalRoutes: 18
+generatedAt: 2026-05-09T12:52:49.159Z
+
+1. DELETE /api/v1/admin/doctors/:id
+Controller: controller/adminController.js#deleteDoctor
+Final HTTP Status: 404
+Classification: Not Found/Data Missing
+Error (raw): {"status":"fail","error":{"statusCode":404,"status":"fail","isOperational":true},"message":"Doctor not found","stack":"Error: Doctor not found\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:1954:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Doctor not found
+Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+Repro request shape: DELETE /api/v1/admin/doctors/699da06d063f7bf10e8ab446 using context=admin
+Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+Priority: P3
+Confidence: High
+
+2. DELETE /api/v1/admin/patient/:patientId/medications
+Controller: controller/adminController.js#adminRemoveMedication
+Final HTTP Status: 400
+Classification: Validation/Contract Failure
+Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Please provide medication details to remove","stack":"Error: Please provide medication details to remove\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:4165:7\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:615:3)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Please provide medication details to remove
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: DELETE /api/v1/admin/patient/6909a373c21dc072f0dc1a87/medications using context=admin
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+3. DELETE /api/v1/admin/patients/:id
+Controller: controller/adminController.js#deletePatient
+Final HTTP Status: 404
+Classification: Not Found/Data Missing
+Error (raw): {"status":"fail","error":{"statusCode":404,"status":"fail","isOperational":true},"message":"Patient not found","stack":"Error: Patient not found\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:3410:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Patient not found
+Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+Repro request shape: DELETE /api/v1/admin/patients/699da06d063f7bf10e8ab446 using context=admin
+Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+Priority: P3
+Confidence: High
+
+4. GET /api/v1/admin/admin/city/:cityId/doctors
+Controller: controller/adminController.js#getDoctorsByCity
+Final HTTP Status: 400
+Classification: Validation/Contract Failure
+Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"City ID is required","stack":"Error: City ID is required\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:3779:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:615:3)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): City ID is required
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: GET /api/v1/admin/admin/city/6909ec0bb7dcc56ab86a9fa7/doctors using context=admin
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+5. GET /api/v1/admin/doctors/:id
+Controller: controller/adminController.js#getDoctorById
+Final HTTP Status: 404
+Classification: Not Found/Data Missing
+Error (raw): {"status":"fail","error":{"statusCode":404,"status":"fail","isOperational":true},"message":"Doctor not found","stack":"Error: Doctor not found\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:1903:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Doctor not found
+Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+Repro request shape: GET /api/v1/admin/doctors/699da06d063f7bf10e8ab446 using context=admin
+Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+Priority: P3
+Confidence: High
+
+6. GET /api/v1/admin/patients/:id
+Controller: controller/adminController.js#getPatientById
+Final HTTP Status: 404
+Classification: Not Found/Data Missing
+Error (raw): {"status":"fail","error":{"statusCode":404,"status":"fail","isOperational":true},"message":"Patient not found","stack":"Error: Patient not found\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:3379:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Patient not found
+Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+Repro request shape: GET /api/v1/admin/patients/699da06d063f7bf10e8ab446 using context=admin
+Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+Priority: P3
+Confidence: High
+
+7. PATCH /api/v1/admin/bookings/:bookingId/status
+Controller: controller/adminController.js#updateBookingStatus
+Final HTTP Status: 400
+Classification: Validation/Contract Failure
+Error (raw): {"success":false,"message":"Booking ID and new status are required"}
+Error (normalized): Booking ID and new status are required
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: PATCH /api/v1/admin/bookings/69c5282b8cf9e49defc29dd9/status using context=public
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+8. PATCH /api/v1/admin/bookings/update/:bookingId
+Controller: controller/adminController.js#updateBookingByAdmin
+Final HTTP Status: 500
+Classification: Confirmed Backend Bug
+Error (raw): {"success":false,"message":"Error updating booking","error":"Booking validation failed: sessionNumber: Path `sessionNumber` is required."}
+Error (normalized): Error updating booking
+Root-cause hypothesis: Unhandled backend runtime failure in controller/middleware path.
+Repro request shape: PATCH /api/v1/admin/bookings/update/69c5282b8cf9e49defc29dd9 using context=admin
+Fix recommendation: Add targeted logging/guards in controller branch and cover route with regression test.
+Priority: P1
+Confidence: Medium
+
+9. PATCH /api/v1/admin/doctors/:id/toggle-status
+Controller: controller/adminController.js#toggleDoctorStatus
+Final HTTP Status: 404
+Classification: Not Found/Data Missing
+Error (raw): {"status":"fail","error":{"statusCode":404,"status":"fail","isOperational":true},"message":"Doctor not found","stack":"Error: Doctor not found\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:4029:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Doctor not found
+Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+Repro request shape: PATCH /api/v1/admin/doctors/699da06d063f7bf10e8ab446/toggle-status using context=admin
+Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+Priority: P3
+Confidence: High
+
+10. PATCH /api/v1/admin/patients/:id/toggle-status
+Controller: controller/adminController.js#togglePatientStatus
+Final HTTP Status: 404
+Classification: Not Found/Data Missing
+Error (raw): {"status":"fail","error":{"statusCode":404,"status":"fail","isOperational":true},"message":"Patient not found","stack":"Error: Patient not found\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:4057:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Patient not found
+Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+Repro request shape: PATCH /api/v1/admin/patients/699da06d063f7bf10e8ab446/toggle-status using context=admin
+Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+Priority: P3
+Confidence: High
+
+11. PATCH /api/v1/admin/subadmins/:id/toggle-status
+Controller: controller/adminController.js#toggleSubAdminStatus
+Final HTTP Status: 404
+Classification: Not Found/Data Missing
+Error (raw): {"status":"fail","error":{"statusCode":404,"status":"fail","isOperational":true},"message":"Admin not found","stack":"Error: Admin not found\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:1596:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Admin not found
+Root-cause hypothesis: Requested entity/resource ID was not found in DB for this route.
+Repro request shape: PATCH /api/v1/admin/subadmins/699da06d063f7bf10e8ab446/toggle-status using context=public
+Fix recommendation: Use existing IDs from DB fixtures or improve not-found handling/test data seeding.
+Priority: P3
+Confidence: High
+
+12. POST /api/v1/admin/addEquipments
+Controller: controller/adminController.js#addEquipment
+Final HTTP Status: 400
+Classification: Validation/Contract Failure
+Error (raw): {"success":false,"message":"At least one city ID is required."}
+Error (normalized): At least one city ID is required.
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: POST /api/v1/admin/addEquipments using context=admin
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+13. POST /api/v1/admin/admin/booking/approve-cancellation/:bookingId
+Controller: controller/adminController.js#approveCancellation
+Final HTTP Status: 400
+Classification: Validation/Contract Failure
+Error (raw): {"success":false,"message":"No pending cancellation request found"}
+Error (normalized): No pending cancellation request found
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: POST /api/v1/admin/admin/booking/approve-cancellation/69c5282b8cf9e49defc29dd9 using context=admin
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+14. POST /api/v1/admin/admin/doctor/add-cities
+Controller: controller/adminController.js#addDoctorToCities
+Final HTTP Status: 400
+Classification: Validation/Contract Failure
+Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Doctor ID is required","stack":"Error: Doctor ID is required\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:3471:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:615:3)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Doctor ID is required
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: POST /api/v1/admin/admin/doctor/add-cities using context=admin
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+15. POST /api/v1/admin/admin/doctor/remove-cities
+Controller: controller/adminController.js#removeDoctorFromCities
+Final HTTP Status: 400
+Classification: Validation/Contract Failure
+Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Doctor ID is required","stack":"Error: Doctor ID is required\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:3600:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:615:3)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Doctor ID is required
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: POST /api/v1/admin/admin/doctor/remove-cities using context=admin
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+16. POST /api/v1/admin/bookings/create
+Controller: controller/adminController.js#createBookingByAdmin
+Final HTTP Status: 400
+Classification: Validation/Contract Failure
+Error (raw): {"success":false,"message":"patientId, serviceId, appointmentDate and startTime are required"}
+Error (normalized): patientId, serviceId, appointmentDate and startTime are required
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: POST /api/v1/admin/bookings/create using context=admin
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+17. POST /api/v1/admin/doctors/create
+Controller: controller/adminController.js#createDoctor
+Final HTTP Status: 400
+Classification: Validation/Contract Failure
+Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization","stack":"Error: Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:1797:7\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at authorizeAndContinue (E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:615:3)\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:295:20\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+Error (normalized): Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: POST /api/v1/admin/doctors/create using context=admin
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High
+
+18. POST /api/v1/admin/login
+Controller: controller/adminController.js#adminLogin
+Final HTTP Status: 400
+Classification: Validation/Contract Failure
+Error (raw): {"status":"fail","error":{"statusCode":400,"status":"fail","isOperational":true},"message":"Email and password required","stack":"Error: Email and password required\n    at E:\\easesmith\\medico\\medico_backend\\controller\\adminController.js:1414:17\n    at E:\\easesmith\\medico\\medico_backend\\utils\\catchAsync.js:3:5\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:582:12)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:291:5)"}
+Error (normalized): Email and password required
+Root-cause hypothesis: Controller input validation rejected missing/invalid request fields for this payload.
+Repro request shape: POST /api/v1/admin/login using context=public
+Fix recommendation: Document required fields clearly and send complete payload; relax validation only if API contract requires it.
+Priority: P3
+Confidence: High

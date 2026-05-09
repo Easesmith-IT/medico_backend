@@ -2,6 +2,8 @@
 
 const ServiceProvider = require("../models/serviceProviderModel");
 const City = require("../models/availableCities");
+const mongoose = require("mongoose");
+const Booking = require("../models/bookingModel");
 const bcrypt = require('bcryptjs');
 // const { generateAccessToken }=require('../utils/tokenUtils')
 const uploadFile = require("../utils/uploadFile");
@@ -343,11 +345,24 @@ exports.loginServiceProvider = async (req, res) => {
   try {
     const { email, mobile, password } = req.body;
 
+    // Build $or conditions dynamically to avoid undefined in query
+    const orConditions = [];
+    if (email) orConditions.push({ email });
+    if (mobile) orConditions.push({ mobile });
+
+    if (orConditions.length === 0) {
+      return res.status(400).json({ success: false, message: "Email or mobile is required" });
+    }
+
     // Fetch provider with password for comparison
     const provider = await ServiceProvider.findOne({
-      $or: [{ email: email }, { mobile: mobile }],
+      $or: orConditions,
       isDeleted: { $ne: true }
     }).select("+password isActive approvalStatus tokenVersion");
+
+    if (!password) {
+      return res.status(400).json({ success: false, message: "Password is required" });
+    }
 
     if (!provider || !(await provider.comparePassword(password))) {
       return res.status(401).json({ success: false, message: "Invalid email/mobile or password" });

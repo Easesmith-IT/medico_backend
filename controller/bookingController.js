@@ -1717,9 +1717,16 @@ exports.getBookedServicesByPatientId = async (req, res) => {
       });
     }
 
-    const { status, dateFilterType, startDate, endDate, generateInvoice } = req.query;
+    const {
+      status,
+      dateFilterType,
+      startDate,
+      endDate,
+      generateInvoice,
+      details = "basic",
+    } = req.query;
 
-    let query = { patientId };
+    const query = { patientId };
 
     if (status) {
       query.status = status;
@@ -1747,8 +1754,11 @@ exports.getBookedServicesByPatientId = async (req, res) => {
       query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
     } else if (dateFilterType === "custom" && startDate && endDate) {
       query.appointmentDate = {
+       
         $gte: new Date(startDate),
+       
         $lte: new Date(endDate),
+     ,
       };
     }
 
@@ -1761,12 +1771,133 @@ exports.getBookedServicesByPatientId = async (req, res) => {
       .sort({ appointmentDate: 1 })
       .lean();
 
+    const fetchBookings = async () =>
+      Booking.find(query)
+        .populate("serviceId", "name category modes")
+        .populate("servicePartnerId", "name email phone")
+        .populate("treatmentId", "status validTill")
+        .populate("patientId", "firstName phone")
+        .lean()
+        .sort({ appointmentDate: 1 });
+
+    const enrichBookingsWithPaymentDetails = async (bookingDocs) => {
+      if (details !== "full" || !bookingDocs.length) {
+        return bookingDocs;
+      }
+
+      const treatmentIds = [
+        ...new Set(
+          bookingDocs
+            .map((booking) =>
+              booking.treatmentId?._id
+                ? String(booking.treatmentId._id)
+                : booking.treatmentId
+                ? String(booking.treatmentId)
+                : null
+            )
+            .filter(Boolean)
+        ),
+      ];
+
+      const payments = treatmentIds.length
+        ? await Payment.find({ treatmentId: { $in: treatmentIds } }).lean()
+        : [];
+      const paymentMap = new Map(
+        payments.map((payment) => [String(payment.treatmentId), payment])
+      );
+
+      return bookingDocs.map((booking) => {
+        const treatmentId = booking.treatmentId?._id
+          ? String(booking.treatmentId._id)
+          : booking.treatmentId
+          ? String(booking.treatmentId)
+          : null;
+        const payment = treatmentId ? paymentMap.get(treatmentId) : null;
+        const transactions = Array.isArray(payment?.transactions)
+          ? payment.transactions
+          : [];
+        const paidTransactions = transactions.filter(
+          (transaction) => transaction.status === "Paid"
+        );
+        const advanceAmount = paidTransactions
+          .filter((transaction) => transaction.stage === "Advance")
+          .reduce(
+            (sum, transaction) =>
+              sum + Number(transaction.amountPaid ?? transaction.amount ?? 0),
+            0
+          );
+        const latestPaidTransaction = [...paidTransactions].sort(
+          (left, right) =>
+            new Date(right.paidAt || right.createdAt || 0) -
+            new Date(left.paidAt || left.createdAt || 0)
+        )[0];
+        const latestOnlineTransaction = [...paidTransactions]
+          .filter(
+            (transaction) =>
+              transaction.method === "Online" ||
+              transaction.gateway === "Razorpay"
+          )
+          .sort(
+            (left, right) =>
+              new Date(right.paidAt || right.createdAt || 0) -
+              new Date(left.paidAt || left.createdAt || 0)
+          )[0];
+        const paidAmount = Number(
+          payment?.totalPaid ?? payment?.totals?.totalPaid ?? 0
+        );
+        const totalRefunded = Number(
+          payment?.totalRefunded ?? payment?.totals?.totalRefunded ?? 0
+        );
+        const baseBillAmount = Number(
+          payment?.totalBillAmount ??
+            payment?.billableAmount ??
+            booking.pricing?.totalAmount ??
+            0
+        );
+        const dueAmount = Number(
+          payment?.remainingBalance ??
+            payment?.totals?.remainingBalance ??
+            Math.max(baseBillAmount - paidAmount + totalRefunded, 0)
+        );
+        const rawPaymentStatus = payment?.paymentStatus || "Unpaid";
+
+        return {
+          ...booking,
+          treatmentStatus: booking.treatmentId?.status || null,
+          paymentStatus:
+            rawPaymentStatus === "PartialRefund"
+              ? "Partial Refund"
+              : rawPaymentStatus,
+          paymentMethod: latestPaidTransaction?.method || "None",
+          advanceAmount,
+          paidAmount,
+          dueAmount,
+          isAdvancePaid: advanceAmount > 0,
+          isFinalPaymentDone: paidAmount > 0 && dueAmount === 0,
+          lastRazorpayOrderId: latestOnlineTransaction?.razorpayOrderId || null,
+          lastRazorpayPaymentId:
+            latestOnlineTransaction?.razorpayPaymentId || null,
+          paymentHistory: transactions.map((transaction) => ({
+            amount: Number(transaction.amountPaid ?? transaction.amount ?? 0),
+            method: transaction.method || "None",
+            stage: transaction.stage || null,
+            razorpayOrderId: transaction.razorpayOrderId || null,
+            razorpayPaymentId: transaction.razorpayPaymentId || null,
+            note: transaction.note || "",
+            paidAt: transaction.paidAt || null,
+            status: transaction.status || null,
+          })),
+        };
+      });
+    };
+
+    let bookings = await fetchBookings();
     let invoicesGeneratedCount = 0;
 
-    // 2. Auto-generate invoices if requested
     if (generateInvoice === "true") {
       const completedWithoutInvoice = bookings.filter(
-        (b) => b.treatmentStatus === "Completed" && !b.invoiceUrl
+        (booking) =>
+          booking.treatmentId?.status === "Completed" && !booking.invoiceUrl
       );
 
       for (const booking of completedWithoutInvoice) {
@@ -1779,8 +1910,7 @@ exports.getBookedServicesByPatientId = async (req, res) => {
           const pdfBuffer = await new Promise((resolve, reject) => {
             const doc = new PDFDocument({ margin: 40 });
             const buffers = [];
-
-            doc.on("data", (chunk) => buffers.push(chunk));
+            doc.on("data", buffers.push.bind(buffers));
             doc.on("end", () => resolve(Buffer.concat(buffers)));
             doc.on("error", reject);
 
@@ -1791,7 +1921,8 @@ exports.getBookedServicesByPatientId = async (req, res) => {
             doc.text(`Date: ${new Date().toLocaleDateString()}`);
             doc.moveDown();
             doc.fontSize(14).text(
-              `Total Amount: ₹${booking.pricing?.totalAmount || 0}`
+              `Total Amount: Rs.${booking.pricing?.totalAmount || 0}`,
+              { bold: true }
             );
             doc.end();
           });
@@ -1825,69 +1956,16 @@ exports.getBookedServicesByPatientId = async (req, res) => {
         }
       }
 
-      // Re-fetch updated bookings
-      bookings = await Booking.find(query)
-        .populate("serviceId", "name category modes")
-        .populate("servicePartnerId", "name email phone")
-        .populate("treatmentId", "status validTill")
-        .populate("patientId", "firstName phone")
-        .sort({ appointmentDate: 1 })
-        .lean();
+      bookings = await fetchBookings();
     }
 
-    // 3. Fetch payment docs linked with these bookings
-    const bookingIds = bookings.map((booking) => booking._id);
-
-    let payments = [];
-    if (bookingIds.length > 0) {
-      payments = await Payment.find({
-        bookingIds: { $in: bookingIds },
-        patientId,
-      }).lean();
-    }
-
-    // 4. Map each bookingId -> payment document
-    const paymentMap = new Map();
-
-    for (const payment of payments) {
-      for (const linkedBookingId of payment.bookingIds || []) {
-        paymentMap.set(String(linkedBookingId), payment);
-      }
-    }
-
-    // 5. Attach payment/transaction details into booking response
-    const enrichedBookings = bookings.map((booking) => {
-      const payment = paymentMap.get(String(booking._id));
-
-      const totalAmount =
-        Number(payment?.totalBillAmount) ||
-        Number(payment?.billBreakdown?.grandTotal) ||
-        Number(booking?.pricing?.totalAmount) ||
-        0;
-
-      const paidAmount = Number(payment?.totalPaid || 0);
-      const refundedAmount = Number(payment?.totalRefunded || 0);
-      const dueAmount =
-        Number(payment?.remainingBalance ?? Math.max(totalAmount - paidAmount + refundedAmount, 0));
-
-      return {
-        ...booking,
-        transactions: payment?.transactions || [],
-        refunds: payment?.refunds || [],
-        paidAmount,
-        refundedAmount,
-        dueAmount,
-        totalAmount,
-        paymentStatus: payment?.paymentStatus || "Unpaid",
-        paymentId: payment?._id || null,
-        currency: payment?.currency || "INR",
-      };
-    });
+    const responseData = await enrichBookingsWithPaymentDetails(bookings);
 
     return res.status(200).json({
       success: true,
-      count: enrichedBookings.length,
-      data: enrichedBookings,
+      count: responseData.length,
+      data: responseData,
+      detailsUsed: details,
       invoicesGenerated: invoicesGeneratedCount,
       generateInvoiceUsed: generateInvoice === "true",
     });
@@ -2351,18 +2429,18 @@ exports.cancelBooking = async (req, res) => {
       });
     }
 
-    if (booking.status === 'Cancelled') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Booking already cancelled' 
-      });
-    }
-
     const booking = await Booking.findById(bookingId);
     if (!booking) {
       return res.status(404).json({ 
         success: false, 
         message: 'Booking not found' 
+      });
+    }
+
+    if (booking.status === 'Cancelled') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Booking already cancelled' 
       });
     }
 
@@ -4664,7 +4742,10 @@ exports.createProviderBooking = async (req, res) => {
 
     // ✅ Ensure previous booking has valid treatment status
     const validTreatmentStatuses = ["Active", "InProgress", "Completed"];
-    if (!validTreatmentStatuses.includes(prevBooking.treatmentStatus)) {
+    if (
+      prevBooking.treatmentStatus &&
+      !validTreatmentStatuses.includes(prevBooking.treatmentStatus)
+    ) {
       throw new Error(
         `Previous booking treatmentStatus must be valid (current: "${prevBooking.treatmentStatus}")`
       );
@@ -4708,12 +4789,14 @@ exports.createProviderBooking = async (req, res) => {
     );
 
     // 9. ✅ NEXT BOOKING: reuse same treatmentId
+    const nextSessionNumber = Number(prevBooking.sessionNumber || 1) + 1;
     const newBooking = new Booking({
       patientId,
       serviceId,
       category: category || service.category,
       modes: Array.isArray(modes) && modes.length ? modes : service.modes,
       servicePartnerId,
+      sessionNumber: nextSessionNumber,
       appointmentDate: new Date(appointmentDate),
       slotTime: { startTime, endTime },
       duration: bookingDuration,

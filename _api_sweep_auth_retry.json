@@ -1,0 +1,2275 @@
+{
+  "generatedAt": "2026-05-09T11:42:59.068Z",
+  "baseUrl": "http://localhost:5005",
+  "targetCount": 109,
+  "dbUsersFound": {
+    "patient": true,
+    "doctor": true,
+    "admin": true,
+    "serviceprovider": true
+  },
+  "improved": 108,
+  "still401": 1,
+  "byFinalStatus": {
+    "200": 21,
+    "400": 20,
+    "401": 1,
+    "403": 32,
+    "404": 29,
+    "500": 6
+  },
+  "retried": [
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/subadmins",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"status\":\"success\",\"results\":6,\"pagination\":{\"total\":6,\"page\":1,\"limit\":20,\"pages\":1},\"data\":[{\"_id\":\"69fc2d27f6ceabb434f33146\",\"firstName\":\"errt\",\"lastName\":\"ffdef\",\"email\":\"vivekdev0e1@easesmith.com\",\"phone\":\"7374838190\",\"role\":\"subAdmin\",\"isActive\":true,\"permissions\":[],\"status\":\"active\",\"create"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"status\":\"success\",\"results\":6,\"pagination\":{\"total\":6,\"page\":1,\"limit\":20,\"pages\":1},\"data\":[{\"_id\":\"69fc2d27f6ceabb434f33146\",\"firstName\":\"errt\",\"lastName\":\"ffdef\",\"email\":\"vivekdev0e1@easesmith.com\",\"phone\":\"7374838190\",\"role\":\"subAdmin\",\"isActive\":true,\"permissions\":[],\"status\":\"active\",\"create"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/me",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"data\":{\"admin\":{\"_id\":\"69084c5c9248b76f43cc26d5\",\"firstName\":\"Vivek\",\"email\":\"vivekdev01@easesmith.com\",\"phone\":\"7378838190\",\"role\":\"subAdmin\",\"permissions\":[],\"isActive\":true,\"createdAt\":\"2025-11-03T06:31:56.045Z\",\"updatedAt\":\"2025-12-09T12:42:56.723Z\",\"__v\":0,\"lastName\":\"\",\"status"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"data\":{\"admin\":{\"_id\":\"69084c5c9248b76f43cc26d5\",\"firstName\":\"Vivek\",\"email\":\"vivekdev01@easesmith.com\",\"phone\":\"7378838190\",\"role\":\"subAdmin\",\"permissions\":[],\"isActive\":true,\"createdAt\":\"2025-11-03T06:31:56.045Z\",\"updatedAt\":\"2025-12-09T12:42:56.723Z\",\"__v\":0,\"lastName\":\"\",\"status"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/updateProfile",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"message\":\"Profile updated\",\"data\":{\"admin\":{\"_id\":\"69084c5c9248b76f43cc26d5\",\"firstName\":\"Vivek\",\"email\":\"vivekdev01@easesmith.com\",\"phone\":\"7378838190\",\"role\":\"subAdmin\",\"permissions\":[],\"isActive\":true,\"createdAt\":\"2025-11-03T06:31:56.045Z\",\"updatedAt\":\"2026-05-09T11:42:36.755Z\",\""
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"message\":\"Profile updated\",\"data\":{\"admin\":{\"_id\":\"69084c5c9248b76f43cc26d5\",\"firstName\":\"Vivek\",\"email\":\"vivekdev01@easesmith.com\",\"phone\":\"7378838190\",\"role\":\"subAdmin\",\"permissions\":[],\"isActive\":true,\"createdAt\":\"2025-11-03T06:31:56.045Z\",\"updatedAt\":\"2026-05-09T11:42:36.755Z\",\""
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/doctors/create",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization\",\"stack\":\"Error: Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalC"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalCouncil, specialization\",\"stack\":\"Error: Required fields: firstName, email, phone, medicalRegistrationNumber, issuingMedicalC"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/doctors",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"results\":6,\"totalPages\":1,\"currentPage\":1,\"data\":{\"doctors\":[{\"address\":{\"street\":\"STREET NO. 6, NEAR, RAILWAY STATION BYPASS ROAD, near SHAMLI\",\"city\":\"Shamli\",\"state\":\"Uttar Pradesh\",\"country\":\"India\",\"pincode\":\"247776\"},\"verificationDocuments\":{\"degreesCertificates\":[]},\"availabi"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"results\":6,\"totalPages\":1,\"currentPage\":1,\"data\":{\"doctors\":[{\"address\":{\"street\":\"STREET NO. 6, NEAR, RAILWAY STATION BYPASS ROAD, near SHAMLI\",\"city\":\"Shamli\",\"state\":\"Uttar Pradesh\",\"country\":\"India\",\"pincode\":\"247776\"},\"verificationDocuments\":{\"degreesCertificates\":[]},\"availabi"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/doctors/:id",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:1903:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:1903:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/doctors/:id/approve",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:1920:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:1920:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/doctors/:id/reject",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:1940:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:1940:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/doctors/:id",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:1954:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:1954:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/patients/create",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide all required fields: firstName, email, phone, password\",\"stack\":\"Error: Please provide all required fields: firstName, email, phone, password\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\cont"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide all required fields: firstName, email, phone, password\",\"stack\":\"Error: Please provide all required fields: firstName, email, phone, password\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\cont"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/patients/export",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "\"\\\"firstName\\\",\\\"email\\\",\\\"phone\\\",\\\"dateOfBirth\\\",\\\"gender\\\",\\\"bloodGroup\\\",\\\"city\\\",\\\"state\\\",\\\"country\\\",\\\"emergencyName\\\",\\\"emergencyPhone\\\",\\\"emergencyRelation\\\",\\\"isActive\\\",\\\"createdAt\\\"\\r\\n\\\"Riya\\\",\\\"riya.sharma@example.com\\\",\\\"9876543219\\\",\\\"12/5/1998\\\",\\\"female\\\",\\\"O+\\\",\\\"Lucknow\\\",\\\"Uttar"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "\"\\\"firstName\\\",\\\"email\\\",\\\"phone\\\",\\\"dateOfBirth\\\",\\\"gender\\\",\\\"bloodGroup\\\",\\\"city\\\",\\\"state\\\",\\\"country\\\",\\\"emergencyName\\\",\\\"emergencyPhone\\\",\\\"emergencyRelation\\\",\\\"isActive\\\",\\\"createdAt\\\"\\r\\n\\\"Riya\\\",\\\"riya.sharma@example.com\\\",\\\"9876543219\\\",\\\"12/5/1998\\\",\\\"female\\\",\\\"O+\\\",\\\"Lucknow\\\",\\\"Uttar"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/patients",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"results\":1,\"totalPages\":1,\"currentPage\":1,\"totalRecords\":1,\"filtersUsed\":{\"isActive\":false},\"data\":{\"patients\":[{\"address\":null,\"emergencyContact\":{\"name\":null,\"phone\":null,\"relation\":null},\"_id\":\"692b11ee8752a3500f1c98c9\",\"firstName\":\"Ajay katariya\",\"email\":\"aajay.katariya@gmail.co"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"results\":1,\"totalPages\":1,\"currentPage\":1,\"totalRecords\":1,\"filtersUsed\":{\"isActive\":false},\"data\":{\"patients\":[{\"address\":null,\"emergencyContact\":{\"name\":null,\"phone\":null,\"relation\":null},\"_id\":\"692b11ee8752a3500f1c98c9\",\"firstName\":\"Ajay katariya\",\"email\":\"aajay.katariya@gmail.co"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/patients/:id",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3379:17\\n    at process.processTicksAndRejections (node:internal/process/task"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3379:17\\n    at process.processTicksAndRejections (node:internal/process/task"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/patients/:id/block",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3396:17\\n    at process.processTicksAndRejections (node:internal/process/task"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3396:17\\n    at process.processTicksAndRejections (node:internal/process/task"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/patients/:id",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3410:17\\n    at process.processTicksAndRejections (node:internal/process/task"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3410:17\\n    at process.processTicksAndRejections (node:internal/process/task"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/reports/dashboard",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"data\":{\"totalDoctors\":6,\"totalPatients\":9,\"pendingDoctors\":2,\"approvedDoctors\":4}}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"data\":{\"totalDoctors\":6,\"totalPatients\":9,\"pendingDoctors\":2,\"approvedDoctors\":4}}"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/reports/doctors",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"data\":{\"active\":6,\"inactive\":0,\"pending\":2,\"approved\":4,\"rejected\":0}}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"data\":{\"active\":6,\"inactive\":0,\"pending\":2,\"approved\":4,\"rejected\":0}}"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/bookings/export",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "\"\\\"patientName\\\",\\\"patientPhone\\\",\\\"serviceName\\\",\\\"partnerName\\\",\\\"appointmentDate\\\",\\\"slot\\\",\\\"status\\\",\\\"totalAmount\\\",\\\"createdAt\\\"\\r\\n\\\"Sidd \\\",\\\"8707807701\\\",\\\"Doctor Visit\\\",\\\"Rahul Sharma\\\",\\\"26/3/2026\\\",\\\"12:30 - 13:00\\\",\\\"Completed\\\",590,\\\"26/3/2026, 6:05:55 pm\\\"\\r\\n\\\"Sidd \\\",\\\"8707807701\\"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "\"\\\"patientName\\\",\\\"patientPhone\\\",\\\"serviceName\\\",\\\"partnerName\\\",\\\"appointmentDate\\\",\\\"slot\\\",\\\"status\\\",\\\"totalAmount\\\",\\\"createdAt\\\"\\r\\n\\\"Sidd \\\",\\\"8707807701\\\",\\\"Doctor Visit\\\",\\\"Rahul Sharma\\\",\\\"26/3/2026\\\",\\\"12:30 - 13:00\\\",\\\"Completed\\\",590,\\\"26/3/2026, 6:05:55 pm\\\"\\r\\n\\\"Sidd \\\",\\\"8707807701\\"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/bookings/create",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"patientId, serviceId, appointmentDate and startTime are required\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"patientId, serviceId, appointmentDate and startTime are required\"}"
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/admin/bookings/update/:bookingId",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Booking not found\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Booking not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/admin/doctor/add-cities",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor ID is required\",\"stack\":\"Error: Doctor ID is required\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3471:17\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\utils\\\\catchAs"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor ID is required\",\"stack\":\"Error: Doctor ID is required\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3471:17\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\utils\\\\catchAs"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/admin/doctor/remove-cities",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor ID is required\",\"stack\":\"Error: Doctor ID is required\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3600:17\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\utils\\\\catchAs"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor ID is required\",\"stack\":\"Error: Doctor ID is required\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3600:17\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\utils\\\\catchAs"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/admin/doctor/update-cities",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor ID is required\",\"stack\":\"Error: Doctor ID is required\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3667:17\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\utils\\\\catchAs"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor ID is required\",\"stack\":\"Error: Doctor ID is required\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3667:17\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\utils\\\\catchAs"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/admin/doctor/:doctorId/cities",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3752:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3752:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/admin/city/:cityId/doctors",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"City ID is required\",\"stack\":\"Error: City ID is required\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3779:17\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\utils\\\\catchAsync."
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"City ID is required\",\"stack\":\"Error: City ID is required\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:3779:17\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\utils\\\\catchAsync."
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/admin/doctors/:id/toggle-status",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:4029:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:4029:17\\n    at process.processTicksAndRejections (node:internal/process/task_q"
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/admin/patients/:id/toggle-status",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:4057:17\\n    at process.processTicksAndRejections (node:internal/process/task"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:4057:17\\n    at process.processTicksAndRejections (node:internal/process/task"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/admin/booking/approve-cancellation/:bookingId",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Booking not found\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Booking not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/patient/:patientId/medications",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide medication details\",\"stack\":\"Error: Please provide medication details\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:4137:17\\n    at E:\\\\easesmith\\\\medico\\\\medico"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide medication details\",\"stack\":\"Error: Please provide medication details\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:4137:17\\n    at E:\\\\easesmith\\\\medico\\\\medico"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/patient/:patientId/medications",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide medication details to remove\",\"stack\":\"Error: Please provide medication details to remove\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:4165:7\\n    at E:\\\\easesm"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide medication details to remove\",\"stack\":\"Error: Please provide medication details to remove\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\adminController.js:4165:7\\n    at E:\\\\easesm"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/addEquipments",
+      "sourceFile": "adminRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"At least one city ID is required.\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"At least one city ID is required.\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/article/create",
+      "sourceFile": "articleRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"cityName, category, title, and articleType are required\",\"stack\":\"Error: cityName, category, title, and articleType are required\\n    at createArticle (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\artic"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"cityName, category, title, and articleType are required\",\"stack\":\"Error: cityName, category, title, and articleType are required\\n    at createArticle (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\artic"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/article/my-articles",
+      "sourceFile": "articleRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"count\":0,\"articles\":[]}"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"count\":0,\"articles\":[]}"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/article/updateArticle/:id",
+      "sourceFile": "articleRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Article not found or you do not have permission\",\"stack\":\"Error: Article not found or you do not have permission\\n    at updateArticle (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\articleController.js:"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Article not found or you do not have permission\",\"stack\":\"Error: Article not found or you do not have permission\\n    at updateArticle (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\articleController.js:"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/article/:id",
+      "sourceFile": "articleRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Article not found or you do not have permission\",\"stack\":\"Error: Article not found or you do not have permission\\n    at deleteArticle (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\articleController.js:"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Article not found or you do not have permission\",\"stack\":\"Error: Article not found or you do not have permission\\n    at deleteArticle (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\articleController.js:"
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/article/:id/publish",
+      "sourceFile": "articleRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Article not found or you do not have permission\",\"stack\":\"Error: Article not found or you do not have permission\\n    at publishArticle (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\articleController.js"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Article not found or you do not have permission\",\"stack\":\"Error: Article not found or you do not have permission\\n    at publishArticle (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\articleController.js"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/booking/create",
+      "sourceFile": "bookingRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"patientId, serviceId, appointmentDate, startTime, and endTime are required\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"patientId, serviceId, appointmentDate, startTime, and endTime are required\"}"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/booking/patient/:patientId/bookings",
+      "sourceFile": "bookingRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"count\":0,\"data\":[],\"detailsUsed\":\"basic\",\"invoicesGenerated\":0,\"generateInvoiceUsed\":false}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"count\":0,\"data\":[],\"detailsUsed\":\"basic\",\"invoicesGenerated\":0,\"generateInvoiceUsed\":false}"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/booking/my-bookings",
+      "sourceFile": "bookingRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"count\":0,\"data\":[],\"detailsUsed\":\"basic\",\"invoicesGenerated\":0,\"generateInvoiceUsed\":false}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"count\":0,\"data\":[],\"detailsUsed\":\"basic\",\"invoicesGenerated\":0,\"generateInvoiceUsed\":false}"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/booking/reschedule/:bookingId",
+      "sourceFile": "bookingRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Booking ID, appointmentDate, startTime, and endTime are required\",\"received\":[]}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Booking ID, appointmentDate, startTime, and endTime are required\",\"received\":[]}"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/booking/cancel/:bookingId",
+      "sourceFile": "bookingRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 500,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Error processing cancellation request\",\"error\":\"Cannot access 'booking' before initialization\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 500,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Error processing cancellation request\",\"error\":\"Cannot access 'booking' before initialization\"}"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/booking/update-status/:bookingId",
+      "sourceFile": "bookingRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, serviceprovider\",\"stack\":\"Error: Access denied. Allowed roles: doctor, serviceprovider\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\au"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, serviceprovider\",\"stack\":\"Error: Access denied. Allowed roles: doctor, serviceprovider\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\au"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/booking/my-bookings/:providerId",
+      "sourceFile": "bookingRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: serviceprovider\",\"stack\":\"Error: Access denied. Allowed roles: serviceprovider\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n  "
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: serviceprovider\",\"stack\":\"Error: Access denied. Allowed roles: serviceprovider\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n  "
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/booking/completed-details/:bookingId",
+      "sourceFile": "bookingRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: serviceprovider\",\"stack\":\"Error: Access denied. Allowed roles: serviceprovider\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n  "
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: serviceprovider\",\"stack\":\"Error: Access denied. Allowed roles: serviceprovider\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n  "
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/booking/providerBookings",
+      "sourceFile": "bookingRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: serviceprovider\",\"stack\":\"Error: Access denied. Allowed roles: serviceprovider\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n  "
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: serviceprovider\",\"stack\":\"Error: Access denied. Allowed roles: serviceprovider\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n  "
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/booking/patient/:treatmentId",
+      "sourceFile": "bookingRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Treatment not found\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Treatment not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/city/admin/cities",
+      "sourceFile": "cityRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Name and valid polygon are required\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Name and valid polygon are required\"}"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/city/admin/cities/:cityId",
+      "sourceFile": "cityRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"City not found\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"City not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/city/admin/cities/:cityId",
+      "sourceFile": "cityRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"City not found\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"City not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/city/admin/cities/toggle/:cityId",
+      "sourceFile": "cityRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"City not found\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"City not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/doctor/logout",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_cookie",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"message\":\"Logged out successfully\"}"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAccessToken (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:623:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\med"
+        },
+        {
+          "context": "doctor_cookie",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"message\":\"Logged out successfully\"}"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/doctor/getMyProfile",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_cookie",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"data\":{\"doctor\":{\"address\":\"123, ABC Street, City, Country\",\"verificationDocuments\":{\"degreesCertificates\":[]},\"availability\":{\"autoSlotGeneration\":{\"advanceBookingDays\":30,\"bufferBetweenSlots\":5,\"defaultDuration\":30,\"enabled\":false},\"days\":[\"Monday\",\"Tuesday\",\"Wednesday\"],\"timeSlot"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAccessToken (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:623:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\med"
+        },
+        {
+          "context": "doctor_cookie",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"data\":{\"doctor\":{\"address\":\"123, ABC Street, City, Country\",\"verificationDocuments\":{\"degreesCertificates\":[]},\"availability\":{\"autoSlotGeneration\":{\"advanceBookingDays\":30,\"bufferBetweenSlots\":5,\"defaultDuration\":30,\"enabled\":false},\"days\":[\"Monday\",\"Tuesday\",\"Wednesday\"],\"timeSlot"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/doctor/updateProfile",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_cookie",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"message\":\"Profile updated successfully\",\"data\":{\"doctor\":{\"address\":\"123, ABC Street, City, Country\",\"verificationDocuments\":{\"degreesCertificates\":[]},\"availability\":{\"autoSlotGeneration\":{\"advanceBookingDays\":30,\"bufferBetweenSlots\":5,\"defaultDuration\":30,\"enabled\":false},\"days\":["
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAccessToken (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:623:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\med"
+        },
+        {
+          "context": "doctor_cookie",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"message\":\"Profile updated successfully\",\"data\":{\"doctor\":{\"address\":\"123, ABC Street, City, Country\",\"verificationDocuments\":{\"degreesCertificates\":[]},\"availability\":{\"autoSlotGeneration\":{\"advanceBookingDays\":30,\"bufferBetweenSlots\":5,\"defaultDuration\":30,\"enabled\":false},\"days\":["
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/doctor/availability",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_cookie",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide days and timeSlots\",\"stack\":\"Error: Please provide days and timeSlots\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorController.js:1090:17\\n    at E:\\\\easesmith\\\\medico\\\\medic"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAccessToken (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:623:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\med"
+        },
+        {
+          "context": "doctor_cookie",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide days and timeSlots\",\"stack\":\"Error: Please provide days and timeSlots\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorController.js:1090:17\\n    at E:\\\\easesmith\\\\medico\\\\medic"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/doctor/clinic",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_cookie",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide clinic firstName and address\",\"stack\":\"Error: Please provide clinic firstName and address\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorController.js:1118:17\\n    at E:\\\\ease"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAccessToken (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:623:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\med"
+        },
+        {
+          "context": "doctor_cookie",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide clinic firstName and address\",\"stack\":\"Error: Please provide clinic firstName and address\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorController.js:1118:17\\n    at E:\\\\ease"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/doctor/clinic/:clinicId",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_cookie",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Clinic not found\",\"stack\":\"Error: Clinic not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorController.js:1150:17\\n    at process.processTicksAndRejections (node:internal/process/task_"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAccessToken (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:623:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\med"
+        },
+        {
+          "context": "doctor_cookie",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Clinic not found\",\"stack\":\"Error: Clinic not found\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorController.js:1150:17\\n    at process.processTicksAndRejections (node:internal/process/task_"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/doctor/clinic/:clinicId",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_cookie",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"message\":\"Clinic deleted successfully\",\"data\":null}"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAccessToken (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:623:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\med"
+        },
+        {
+          "context": "doctor_cookie",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"message\":\"Clinic deleted successfully\",\"data\":null}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/doctor/verification-documents",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_cookie",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"message\":\"Verification documents uploaded successfully\",\"data\":{\"verificationDocuments\":{\"degreesCertificates\":[]}}}"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAccessToken (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:623:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\med"
+        },
+        {
+          "context": "doctor_cookie",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"message\":\"Verification documents uploaded successfully\",\"data\":{\"verificationDocuments\":{\"degreesCertificates\":[]}}}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/doctor/availability",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"message\":\"Availability configured successfully\",\"data\":{\"availability\":{\"autoSlotGeneration\":{\"advanceBookingDays\":30,\"bufferBetweenSlots\":5,\"defaultDuration\":30,\"enabled\":false},\"days\":[\"Monday\",\"Tuesday\",\"Wednesday\"],\"timeSlots\":[{\"start\":\"09:00\",\"end\":\"12:00\",\"_id\":\"691ae719a45fc"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"message\":\"Availability configured successfully\",\"data\":{\"availability\":{\"autoSlotGeneration\":{\"advanceBookingDays\":30,\"bufferBetweenSlots\":5,\"defaultDuration\":30,\"enabled\":false},\"days\":[\"Monday\",\"Tuesday\",\"Wednesday\"],\"timeSlots\":[{\"start\":\"09:00\",\"end\":\"12:00\",\"_id\":\"691ae719a45fc"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/doctor/toggle-slot",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 500,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"doctor.toggleSlotAvailability is not a function\",\"error\":\"doctor.toggleSlotAvailability is not a function\"}"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 500,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"doctor.toggleSlotAvailability is not a function\",\"error\":\"doctor.toggleSlotAvailability is not a function\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/doctor/break-time",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 500,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"doctor.addBreakTime is not a function\",\"error\":\"doctor.addBreakTime is not a function\"}"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 500,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"doctor.addBreakTime is not a function\",\"error\":\"doctor.addBreakTime is not a function\"}"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/doctor/break-time",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 500,
+        "error": null,
+        "bodyPreview": "{\"status\":\"error\",\"error\":{\"statusCode\":500,\"status\":\"error\"},\"message\":\"Cannot destructure property 'date' of 'req.body' as it is undefined.\",\"stack\":\"TypeError: Cannot destructure property 'date' of 'req.body' as it is undefined.\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorCon"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 500,
+          "error": null,
+          "bodyPreview": "{\"status\":\"error\",\"error\":{\"statusCode\":500,\"status\":\"error\"},\"message\":\"Cannot destructure property 'date' of 'req.body' as it is undefined.\",\"stack\":\"TypeError: Cannot destructure property 'date' of 'req.body' as it is undefined.\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorCon"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/doctor/my-availability",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"data\":{\"autoSlotGeneration\":{\"advanceBookingDays\":30,\"bufferBetweenSlots\":5,\"defaultDuration\":30,\"enabled\":false},\"days\":[\"Monday\",\"Tuesday\",\"Wednesday\"],\"timeSlots\":[{\"start\":\"09:00\",\"end\":\"12:00\",\"_id\":\"691ae719a45fcae4a84a7fdc\"},{\"start\":\"14:00\",\"end\":\"18:00\",\"_id\":\"691ae719a45fc"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"data\":{\"autoSlotGeneration\":{\"advanceBookingDays\":30,\"bufferBetweenSlots\":5,\"defaultDuration\":30,\"enabled\":false},\"days\":[\"Monday\",\"Tuesday\",\"Wednesday\"],\"timeSlots\":[{\"start\":\"09:00\",\"end\":\"12:00\",\"_id\":\"691ae719a45fcae4a84a7fdc\"},{\"start\":\"14:00\",\"end\":\"18:00\",\"_id\":\"691ae719a45fc"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/doctor/service-availability",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 500,
+        "error": null,
+        "bodyPreview": "{\"status\":\"error\",\"error\":{\"statusCode\":500,\"status\":\"error\"},\"message\":\"doctor.availability.serviceAvailability.findIndex is not a function\",\"stack\":\"TypeError: doctor.availability.serviceAvailability.findIndex is not a function\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorContr"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 500,
+          "error": null,
+          "bodyPreview": "{\"status\":\"error\",\"error\":{\"statusCode\":500,\"status\":\"error\"},\"message\":\"doctor.availability.serviceAvailability.findIndex is not a function\",\"stack\":\"TypeError: doctor.availability.serviceAvailability.findIndex is not a function\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorContr"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/doctor/service-coverage",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"message\":\"Service coverage updated successfully\",\"data\":{}}"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"message\":\"Service coverage updated successfully\",\"data\":{}}"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/doctor/bulk-manage-slots",
+      "sourceFile": "doctorRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "doctor_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No slots found for this date\",\"stack\":\"Error: No slots found for this date\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorController.js:2061:17\\n    at process.processTicksAndRejections (nod"
+      },
+      "tries": [
+        {
+          "context": "doctor_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No slots found for this date\",\"stack\":\"Error: No slots found for this date\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\doctorController.js:2061:17\\n    at process.processTicksAndRejections (nod"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/items/create",
+      "sourceFile": "itemRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 500,
+        "error": null,
+        "bodyPreview": "{\"status\":\"error\",\"error\":{\"statusCode\":500,\"status\":\"error\"},\"message\":\"Cannot read properties of undefined (reading 'trim')\",\"stack\":\"TypeError: Cannot read properties of undefined (reading 'trim')\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\itemCategoryController.js:195:41\\n    at "
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 500,
+          "error": null,
+          "bodyPreview": "{\"status\":\"error\",\"error\":{\"statusCode\":500,\"status\":\"error\"},\"message\":\"Cannot read properties of undefined (reading 'trim')\",\"stack\":\"TypeError: Cannot read properties of undefined (reading 'trim')\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\itemCategoryController.js:195:41\\n    at "
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/items/update/:id",
+      "sourceFile": "itemRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Category not found\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Category not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/items/delete/:id",
+      "sourceFile": "itemRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Category not found\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Category not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/items/toggle-status/:id",
+      "sourceFile": "itemRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Category not found\"}"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Category not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/patient/profile",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/patient/updateProfile/:id",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"The patient does not exist\",\"stack\":\"Error: The patient does not exist\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\patientController.js:1283:17\\n    at process.processTicksAndRejections (node:i"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"The patient does not exist\",\"stack\":\"Error: The patient does not exist\\n    at E:\\\\easesmith\\\\medico\\\\medico_backend\\\\controller\\\\patientController.js:1283:17\\n    at process.processTicksAndRejections (node:i"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/patient/medical-history",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/patient/medical-history/:historyId",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/patient/allergies",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/patient/allergies",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/patient/medications",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/patient/medications",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/patient/follow/:doctorId",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/patient/unfollow/:doctorId",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/patient/myTreatmentHistory",
+      "sourceFile": "patientRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 200,
+        "error": null,
+        "bodyPreview": "{\"success\":true,\"data\":{\"patient\":{\"name\":\"Riya\",\"phone\":\"9876543219\",\"email\":\"riya.sharma@example.com\",\"address\":{\"city\":\"Lucknow\",\"state\":\"Uttar Pradesh\"}},\"timeline\":[],\"paginatedBookings\":[],\"pagination\":{\"currentPage\":1,\"totalBookings\":0,\"totalPages\":0,\"pageSize\":50},\"summary\":{\"totalBookings\":"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 200,
+          "error": null,
+          "bodyPreview": "{\"success\":true,\"data\":{\"patient\":{\"name\":\"Riya\",\"phone\":\"9876543219\",\"email\":\"riya.sharma@example.com\",\"address\":{\"city\":\"Lucknow\",\"state\":\"Uttar Pradesh\"}},\"timeline\":[],\"paginatedBookings\":[],\"pagination\":{\"currentPage\":1,\"totalBookings\":0,\"totalPages\":0,\"pageSize\":50},\"summary\":{\"totalBookings\":"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/payments/treatments/:treatmentId/ledger",
+      "sourceFile": "paymentRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Treatment not found\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Treatment not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/payments/treatments/:treatmentId/online/order",
+      "sourceFile": "paymentRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Treatment not found\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Treatment not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/payments/treatments/:treatmentId/online/verify",
+      "sourceFile": "paymentRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"razorpay_order_id, razorpay_payment_id and razorpay_signature are required\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"razorpay_order_id, razorpay_payment_id and razorpay_signature are required\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/payments/treatments/:treatmentId/manual-collection",
+      "sourceFile": "paymentRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middle"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middle"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/payments/treatments/:treatmentId/refunds/manual",
+      "sourceFile": "paymentRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middle"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middle"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/serviceProvider/createservice-provider",
+      "sourceFile": "serviceProvider.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "serviceprovider_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:"
+      },
+      "tries": [
+        {
+          "context": "serviceprovider_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/serviceProvider/login",
+      "sourceFile": "serviceProvider.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "serviceprovider_cookie",
+        "status": 401,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Invalid email/mobile or password\"}"
+      },
+      "tries": [
+        {
+          "context": "serviceprovider_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Invalid email/mobile or password\"}"
+        },
+        {
+          "context": "serviceprovider_cookie",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Invalid email/mobile or password\"}"
+        }
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/serviceProvider/service-provider/:id",
+      "sourceFile": "serviceProvider.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "serviceprovider_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:"
+      },
+      "tries": [
+        {
+          "context": "serviceprovider_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/serviceProvider/service-provider/:id",
+      "sourceFile": "serviceProvider.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "serviceprovider_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:"
+      },
+      "tries": [
+        {
+          "context": "serviceprovider_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:"
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/serviceProvider/:id/toggle-status",
+      "sourceFile": "serviceProvider.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "serviceprovider_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:"
+      },
+      "tries": [
+        {
+          "context": "serviceprovider_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/serviceProvider/service-provider/appointments/:id",
+      "sourceFile": "serviceProvider.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "serviceprovider_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+      },
+      "tries": [
+        {
+          "context": "serviceprovider_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: \",\"stack\":\"Error: Access denied. Allowed roles: \\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith\\\\medico\\\\me"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/service/createService",
+      "sourceFile": "serviceRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/service/admin/statistics",
+      "sourceFile": "serviceRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_cookie",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Admin privileges required.\",\"stack\":\"Error: Access denied. Admin privileges required.\\n    at verifyAdminRole (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:678:9)\\n    at Layer.ha"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAdminRole (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:671:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\medic"
+        },
+        {
+          "context": "admin_cookie",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Admin privileges required.\",\"stack\":\"Error: Access denied. Admin privileges required.\\n    at verifyAdminRole (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:678:9)\\n    at Layer.ha"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/service/admin/bulk-update",
+      "sourceFile": "serviceRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_cookie",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Admin privileges required.\",\"stack\":\"Error: Access denied. Admin privileges required.\\n    at verifyAdminRole (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:678:9)\\n    at Layer.ha"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAdminRole (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:671:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\medic"
+        },
+        {
+          "context": "admin_cookie",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Admin privileges required.\",\"stack\":\"Error: Access denied. Admin privileges required.\\n    at verifyAdminRole (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:678:9)\\n    at Layer.ha"
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/service/services/:id",
+      "sourceFile": "serviceRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/service/service/:id",
+      "sourceFile": "serviceRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/service/:id/restore",
+      "sourceFile": "serviceRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_cookie",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Admin privileges required.\",\"stack\":\"Error: Access denied. Admin privileges required.\\n    at verifyAdminRole (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:678:9)\\n    at Layer.ha"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 401,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":401,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No access token provided\",\"stack\":\"Error: No access token provided\\n    at verifyAdminRole (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:671:19)\\n    at Layer.handleRequest (E:\\\\easesmith\\\\medic"
+        },
+        {
+          "context": "admin_cookie",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Admin privileges required.\",\"stack\":\"Error: Access denied. Admin privileges required.\\n    at verifyAdminRole (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:678:9)\\n    at Layer.ha"
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/service/:id/toggle-status",
+      "sourceFile": "serviceRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "admin_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)"
+      },
+      "tries": [
+        {
+          "context": "admin_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/socialPost/createPost",
+      "sourceFile": "socialPostRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: doctor, admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: doctor, admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/socialPost/commentPost/:id",
+      "sourceFile": "socialPostRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Comment text required\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Comment text required\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/socialPost/followDoctor",
+      "sourceFile": "socialPostRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"targetDoctorId required\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"targetDoctorId required\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/socialPost/likePost/:id/toggle",
+      "sourceFile": "socialPostRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Post not found\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Post not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/socialPost/getPostById/:id",
+      "sourceFile": "socialPostRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 404,
+        "error": null,
+        "bodyPreview": "{\"message\":\"Post not found\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 404,
+          "error": null,
+          "bodyPreview": "{\"message\":\"Post not found\"}"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/socialPost/addComment/:id",
+      "sourceFile": "socialPostRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 400,
+        "error": null,
+        "bodyPreview": "{\"success\":false,\"message\":\"Comment text required\"}"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 400,
+          "error": null,
+          "bodyPreview": "{\"success\":false,\"message\":\"Comment text required\"}"
+        }
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/socialPost/posts/:id/hide",
+      "sourceFile": "socialPostRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middle"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middle"
+        }
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/socialPost/posts/:id",
+      "sourceFile": "socialPostRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: doctor, admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: doctor, admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/socialPost/follow-stats/me",
+      "sourceFile": "socialPostRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middleware\\\\auth.js:604:7)\\n    at E:\\\\easesmith"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/socialPost/getPostByAdmin/:id",
+      "sourceFile": "socialPostRoute.js",
+      "originalStatus": 401,
+      "final": {
+        "context": "patient_bearer",
+        "status": 403,
+        "error": null,
+        "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middle"
+      },
+      "tries": [
+        {
+          "context": "patient_bearer",
+          "status": 403,
+          "error": null,
+          "bodyPreview": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: admin, superadmin, subadmin\",\"stack\":\"Error: Access denied. Allowed roles: admin, superadmin, subadmin\\n    at authorizeAndContinue (E:\\\\easesmith\\\\medico\\\\medico_backend\\\\middle"
+        }
+      ]
+    }
+  ]
+}

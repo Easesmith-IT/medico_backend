@@ -1222,6 +1222,7 @@ const Booking = require("../models/bookingModel");
 const { Parser } = require("json2csv");
 const PDFDocument = require("pdfkit");
 const Service = require("../models/serviceModel");
+const Treatment = require("../models/treatmentModel");
 const ServiceProvider = require("../models/serviceProviderModel");
 const { formatDuration } = require("../utils/timeFormat");
 const mongoose = require("mongoose");
@@ -1355,7 +1356,7 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   }
 
   // Check if matches
-  if (otpDoc.otp !== parseInt(otp)) {
+  if (String(otpDoc.otp) !== String(otp)) {
     console.log("❌ Invalid OTP");
     return next(new AppError("Invalid OTP. Try again.", 400));
   }
@@ -3034,10 +3035,23 @@ exports.createBookingByAdmin = async (req, res) => {
       shiftType || null
     );
 
+    const treatment = await Treatment.findOne({ patientId, serviceId }).sort({ createdAt: -1 });
+    if (!treatment) {
+      return res.status(400).json({
+        success: false,
+        message: "No active treatment found for this patient and service",
+      });
+    }
+
+    const previousCount = await Booking.countDocuments({ treatmentId: treatment._id });
+    const nextSessionNumber = previousCount + 1;
+
     // ------------------------------------------------------------
     // Create booking
     // ------------------------------------------------------------
     const newBooking = new Booking({
+      treatmentId: treatment._id,
+      sessionNumber: nextSessionNumber,
       patientId,
       serviceId,
       category: bookingCategory,
@@ -3061,6 +3075,15 @@ exports.createBookingByAdmin = async (req, res) => {
     });
 
     await newBooking.save();
+    await Treatment.updateOne(
+      { _id: treatment._id },
+      {
+        $set: {
+          currentBookingId: newBooking._id,
+          lastBookingAt: new Date(),
+        },
+      }
+    );
 
     const populated = await newBooking.populate(
       "city",

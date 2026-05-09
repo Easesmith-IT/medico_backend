@@ -599,6 +599,14 @@ function authorizeAndContinue(req, role, allowedRoles, next) {
     r.toLowerCase().replace(/[_\s]/g, "")
   );
 
+  // If no roles are provided, this middleware acts as "authenticated user only".
+  if (normalizedAllowed.length === 0) {
+    if (req.user.isActive === false) {
+      return next(new AppError("Account disabled", 403));
+    }
+    return next();
+  }
+
   if (!normalizedAllowed.includes(userRole)) {
     return next(
       new AppError(
@@ -617,7 +625,12 @@ function authorizeAndContinue(req, role, allowedRoles, next) {
 
 const verifyAccessToken = (req, res, next) => {
   try {
-    const token = req.cookies?.accessToken;
+    let token = req.cookies?.accessToken;
+
+    // Authorization header fallback
+    if (!token && req.headers.authorization?.startsWith("Bearer")) {
+      token = req.headers.authorization.split(" ")[1]?.trim().replace(/^["'](.+)["']$/, '$1');
+    }
 
     if (!token) {
       return next(new AppError("No access token provided", 401));
@@ -665,7 +678,7 @@ const verifyOtpToken = (req, res, next) => {
 
 const verifyAdminRole = (req, res, next) => {
   try {
-    const token = req.cookies?.accessToken;
+    const token = req.cookies?.accessToken || req.cookies?.adminAccessToken;
 
     if (!token) {
       return next(new AppError("No access token provided", 401));
@@ -673,7 +686,8 @@ const verifyAdminRole = (req, res, next) => {
 
     const decoded = verifyToken(token, "access");
 
-    if (decoded.role !== "superAdmin" && decoded.role !== "subAdmin") {
+    const normalizedRole = String(decoded.role || "").toLowerCase();
+    if (normalizedRole !== "superadmin" && normalizedRole !== "subadmin") {
       return next(
         new AppError("Access denied. Admin privileges required.", 403)
       );
@@ -688,7 +702,7 @@ const verifyAdminRole = (req, res, next) => {
 
 const verifySuperAdminRole = (req, res, next) => {
   try {
-    const token = req.cookies?.accessToken;
+    const token = req.cookies?.accessToken || req.cookies?.adminAccessToken;
 
     if (!token) {
       return next(new AppError("No access token provided", 401));
