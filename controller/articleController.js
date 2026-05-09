@@ -325,16 +325,24 @@ const getAllArticles = async (req, res, next) => {
       const lat = parseFloat(latitude);
       const distance = parseInt(maxDistance);
 
-      const nearbyCities = await City.aggregate([
-        {
-          $geoNear: {
-            near: { type: 'Point', coordinates: [lng, lat] },
-            distanceField: 'distance',
-            maxDistance: distance,
-            spherical: true
+      let nearbyCities = [];
+      let geoNearFailed = false;
+
+      try {
+        nearbyCities = await City.aggregate([
+          {
+            $geoNear: {
+              near: { type: 'Point', coordinates: [lng, lat] },
+              key: "area",
+              distanceField: 'distance',
+              maxDistance: distance,
+              spherical: true
+            }
           }
-        }
-      ]);
+        ]);
+      } catch (geoError) {
+        geoNearFailed = true;
+      }
 
       if (nearbyCities.length > 0) {
         const cityIds = nearbyCities.map(city => city._id);
@@ -342,7 +350,7 @@ const getAllArticles = async (req, res, next) => {
         
         const Doctor = mongoose.model('Doctor');
         const doctorsInCity = await Doctor.find({ 
-          cityId: { $in: cityIds } 
+          cities: { $in: cityIds } 
         }).select('_id');
         const doctorIds = doctorsInCity.map(doc => doc._id);
 
@@ -352,7 +360,7 @@ const getAllArticles = async (req, res, next) => {
           { location: { $in: cityNames.map(name => new RegExp(name, 'i')) } },
           { createdBy: { $in: doctorIds }, creatorModel: 'Doctor' }
         ];
-      } else {
+      } else if (!geoNearFailed) {
         return res.status(200).json({
           success: true,
           count: 0,
@@ -361,6 +369,30 @@ const getAllArticles = async (req, res, next) => {
           currentPage: parseInt(page),
           articles: []
         });
+      } else if (cityId && mongoose.Types.ObjectId.isValid(cityId)) {
+        const city = await City.findById(cityId).lean();
+        if (city) {
+          const Doctor = mongoose.model('Doctor');
+          const doctorsInCity = await Doctor.find({ cities: city._id }).select('_id');
+          const doctorIds = doctorsInCity.map(doc => doc._id);
+          filter.$or = [
+            { cityId: city._id },
+            { location: new RegExp(city.name, 'i') },
+            { createdBy: { $in: doctorIds }, creatorModel: 'Doctor' }
+          ];
+        }
+      } else if (cityName) {
+        const cityByName = await City.findOne({ name: cityName.toLowerCase().trim() }).lean();
+        if (cityByName) {
+          const Doctor = mongoose.model('Doctor');
+          const doctorsInCity = await Doctor.find({ cities: cityByName._id }).select('_id');
+          const doctorIds = doctorsInCity.map(doc => doc._id);
+          filter.$or = [
+            { cityId: cityByName._id },
+            { location: new RegExp(cityName, 'i') },
+            { createdBy: { $in: doctorIds }, creatorModel: 'Doctor' }
+          ];
+        }
       }
 
       articles = await Article.find(filter)
@@ -388,7 +420,7 @@ const getAllArticles = async (req, res, next) => {
       }
 
       const Doctor = mongoose.model('Doctor');
-      const doctorsInCity = await Doctor.find({ cityId }).select('_id');
+      const doctorsInCity = await Doctor.find({ cities: city._id }).select('_id');
       const doctorIds = doctorsInCity.map(doc => doc._id);
 
       // Handle both old and new formats
@@ -419,7 +451,7 @@ const getAllArticles = async (req, res, next) => {
       }
 
       const Doctor = mongoose.model('Doctor');
-      const doctorsInCity = await Doctor.find({ cityId: city._id }).select('_id');
+      const doctorsInCity = await Doctor.find({ cities: city._id }).select('_id');
       const doctorIds = doctorsInCity.map(doc => doc._id);
 
       // THIS IS THE KEY FIX: Search both cityId AND location fields

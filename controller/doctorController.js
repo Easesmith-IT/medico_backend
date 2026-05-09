@@ -1553,6 +1553,30 @@ exports.configureAvailability = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Doctor not found' });
     }
 
+    if (!doctor.availability || typeof doctor.availability !== "object") {
+      doctor.availability = {};
+    }
+    if (!Array.isArray(doctor.availability.days)) {
+      doctor.availability.days = [];
+    }
+    if (!Array.isArray(doctor.availability.timeSlots)) {
+      doctor.availability.timeSlots = [];
+    }
+    if (!Array.isArray(doctor.availability.dailySlots)) {
+      doctor.availability.dailySlots = [];
+    }
+    if (
+      !doctor.availability.autoSlotGeneration ||
+      typeof doctor.availability.autoSlotGeneration !== "object"
+    ) {
+      doctor.availability.autoSlotGeneration = {
+        enabled: false,
+        defaultDuration: 30,
+        bufferBetweenSlots: 0,
+        advanceBookingDays: 30,
+      };
+    }
+
     // Validate days
     const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     if (days) {
@@ -1587,9 +1611,22 @@ exports.configureAvailability = async (req, res) => {
     // Auto-generate daily slots if date range + slot config provided
     let slotsGenerated = false;
     if (startDate && endDate && slotDuration) {
+      if (
+        !Array.isArray(doctor.availability.days) ||
+        doctor.availability.days.length === 0 ||
+        !Array.isArray(doctor.availability.timeSlots) ||
+        doctor.availability.timeSlots.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Configure availability.days and availability.timeSlots before auto slot generation",
+        });
+      }
+
       const slotConfig = {
         duration: slotDuration,
-        buffer: bufferTime || 0
+        buffer: bufferTime ?? 0
       };
 
       const generatedSlots = await doctor.generateSlots(

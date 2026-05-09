@@ -49,10 +49,19 @@ const uploadFile = async (file) => {
   if (!file || !file.buffer) {
     throw new Error("No file buffer provided");
   }
+  if (!bucket || typeof bucket.file !== "function") {
+    return writeLocalFallback(file);
+  }
   return new Promise((resolve, reject) => {
 
-    const fileName = Date.now() + "-" + file.originalname;
-    const blob = bucket.file(fileName);
+    const fileName = Date.now() + "-" + safeFileName(file.originalname || "file.bin");
+    let blob;
+    try {
+      blob = bucket.file(fileName);
+    } catch (err) {
+      writeLocalFallback(file).then(resolve).catch(() => reject(err));
+      return;
+    }
 
     const blobStream = blob.createWriteStream({
       resumable: false

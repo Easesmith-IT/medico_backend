@@ -1143,13 +1143,20 @@ doctorSchema.methods.comparePassword = async function(candidatePassword, userPas
 
 // Generate slots method
 doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConfig) {
-  if (!this.availability.timeSlots || this.availability.timeSlots.length === 0) {
+  const availability = this.availability || {};
+  const days = Array.isArray(availability.days) ? availability.days : [];
+  const timeSlots = Array.isArray(availability.timeSlots) ? availability.timeSlots : [];
+
+  if (timeSlots.length === 0) {
     throw new Error("Doctor's availability.timeSlots are not configured");
+  }
+  if (days.length === 0) {
+    throw new Error("Doctor's availability.days are not configured");
   }
 
   const slots = [];
   const currentDate = new Date(startDate);
-  const availableDaysLower = this.availability.days.map(d => d.toLowerCase());
+  const availableDaysLower = days.map(d => d.toLowerCase());
 
   while (currentDate <= endDate) {
     const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
@@ -1163,7 +1170,7 @@ doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConf
         slots: []
       };
 
-      this.availability.timeSlots.forEach(timeRange => {
+      timeSlots.forEach(timeRange => {
         if (!timeRange.start || !timeRange.end) {
           return;
         }
@@ -1177,8 +1184,18 @@ doctorSchema.methods.generateSlots = async function(startDate, endDate, slotConf
         const rangeEnd = new Date(currentDate);
         rangeEnd.setHours(endHour, endMin, 0, 0);
 
-        const duration = slotConfig?.duration || this.availability.autoSlotGeneration.defaultDuration;
-        const buffer = slotConfig?.buffer || this.availability.autoSlotGeneration.bufferBetweenSlots;
+        const durationValue = Number(
+          slotConfig?.duration ??
+            availability?.autoSlotGeneration?.defaultDuration ??
+            30
+        );
+        const bufferValue = Number(
+          slotConfig?.buffer ??
+            availability?.autoSlotGeneration?.bufferBetweenSlots ??
+            0
+        );
+        const duration = Number.isFinite(durationValue) && durationValue > 0 ? durationValue : 30;
+        const buffer = Number.isFinite(bufferValue) && bufferValue >= 0 ? bufferValue : 0;
 
         while (slotStart.getTime() + duration * 60000 <= rangeEnd.getTime()) {
           const slotEnd = new Date(slotStart.getTime() + duration * 60000);

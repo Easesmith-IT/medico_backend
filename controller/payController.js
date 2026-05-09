@@ -644,6 +644,7 @@
 
 
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 const Booking = require("../models/bookingModel");
 const Payment = require("../models/paymentModel");
 const Treatment = require("../models/treatmentModel");
@@ -828,6 +829,13 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
   try {
     const { treatmentId } = req.params;
     const { amount } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(treatmentId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid treatment ID format",
+      });
+    }
 
     const treatment = await getTreatmentOr404(treatmentId);
     if (!treatment) {

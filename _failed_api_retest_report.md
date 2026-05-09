@@ -1,80 +1,30 @@
 # Failed API Re-test Report
 
-- generatedAt: 2026-05-09T16:23:06.791Z
+- generatedAt: 2026-05-09T20:47:08.167Z
 - baseUrl: http://localhost:5005
-- inputFailedCount: 10
-- resolvedCount: 3
-- unresolvedCount: 7
+- inputFailedCount: 3
+- resolvedCount: 1
+- unresolvedCount: 2
 
-- [ ] POST /api/v1/admin/bookings/create (from /api/v1/admin/bookings/create)
-  - oldStatus: 403
-  - newStatus: 403
-  - authContextUsed: admin
-  - message: Booking not allowed. Patient does not belong to the selected city.
-  - requestBody: `{"patientId":"6927ec404619ff9ef06df478","serviceId":"6915d7cf9033f3ce1c0f322e","appointmentDate":"2026-05-12","startTime":"14:30","endTime":"15:00","duration":30,"cityId":"691d9aebeaae59d1db945598","servicePartnerId":"69ff44b90178c5e0c66c8b33"}`
-  - response: `{"success":false,"message":"Booking not allowed. Patient does not belong to the selected city."}`
-- [ ] PATCH /api/v1/admin/bookings/update/69ff42989d7c3398cf4b5520 (from /api/v1/admin/bookings/update/:bookingId)
-  - oldStatus: 403
-  - newStatus: 403
-  - authContextUsed: admin
-  - message: Booking not allowed: patient does not belong to the selected city
-  - requestBody: `{"patientId":"6927ec404619ff9ef06df478","appointmentDate":"2026-05-12","startTime":"16:30","endTime":"17:00","duration":30,"status":"Approved","notes":"retest update","cityId":"691d9aebeaae59d1db945598","servicePartnerId":"69ff44b90178c5e0c66c8b33"}`
-  - response: `{"success":false,"message":"Booking not allowed: patient does not belong to the selected city"}`
-- [x] POST /api/v1/booking/create (from /api/v1/booking/create)
-  - oldStatus: 409
+- [x] POST /api/v1/invoice/generate (from /api/v1/invoice/generate)
+  - oldStatus: 500
   - newStatus: 201
-  - authContextUsed: patient
-  - message: Booking, treatment, and payment ledger created successfully.
-  - requestBody: `{"patientId":"6927ec404619ff9ef06df478","serviceId":"6915d7cf9033f3ce1c0f322e","appointmentDate":"2026-05-13","startTime":"18:30","endTime":"19:00","duration":30,"cityId":"691d9aebeaae59d1db945598"}`
-  - response: `{"success":true,"message":"Booking, treatment, and payment ledger created successfully.","data":{"treatmentId":"69ff5f6883de5f8377dfa429","paymentId":"69ff5f6883de5f8377dfa42d","booking":{"slotTime":{"startTime":"18:30","endTime":"19:00"},"pricing":{"basePrice":1500,"equipmentCharges":0,"subtotal":1500,"taxPercentage":18,"taxAmount":270,"totalAmount":1770},"createdBy":{"userId":"6927ec404619ff9ef06df478","userModel":"Patient"},"_id":"69ff5f6883de5f8377dfa428","treatmentId":{"_id":"69ff5f6883de5f8377dfa429","startDate":"2026-05-13T00:00:00.000Z","status":"Active","validTill":"2026-05-14T16:23:04.872Z"},"patientId":"6927ec404619ff9ef06df478","serviceId":"6915d7cf9033f3ce1c0f322e","modes":["Home Service","Visit Provider Location"],"servicePartnerId":null,"sessionNumber":1,"appointmentDate":"2026-05-13T00:00:00.000Z","duration":30,"status":"Pending","notes":"","city":{"_id":"691d9aebeaae59d1db945598","name":"chhatrapati sambhajinagar","latitude":19.8758,"longitude":75.3393},"invoiceUrl":null,"cancelledBy":null,"cancelledAt":null,"cancellationReason":null,"adminApprovalRequired":false,"requestedCancellationAt":null,"originalStatus":null,"timeRemainingAtRequest":null,"previousBookingId":null,"createdAt":"2026-05-09T16:23:04.916Z","updatedAt":"2026-05-09T16:23:04.916Z","__v":0},"nextStep":"Use /api/v1/payments/treatments/:treatmentId/online/order or /manual-collection to collect payment"}}`
-  - notes: `[{"extracted":"patientCreatedBookingId","value":"69ff5f6883de5f8377dfa428"},{"extracted":"patientCreatedTreatmentId","value":"69ff5f6883de5f8377dfa429"}]`
-- [ ] POST /api/v1/booking/providerBookings (from /api/v1/booking/providerBookings)
-  - oldStatus: 400
-  - newStatus: 400
-  - authContextUsed: serviceProvider
-  - message: Booking validation failed: sessionNumber: Path `sessionNumber` is required.
-  - requestBody: `{"patientId":"6927ec404619ff9ef06df478","previousBookingId":"69ff5f68332a29406e2171d3","serviceId":"6915d7cf9033f3ce1c0f322e","appointmentDate":"2026-05-14","startTime":"20:30","endTime":"21:00","duration":30,"cityId":"691d9aebeaae59d1db945598"}`
-  - response: `{"success":false,"message":"Booking validation failed: sessionNumber: Path `sessionNumber` is required."}`
-- [x] PUT /api/v1/booking/reschedule/69ff5f6883de5f8377dfa428 (from /api/v1/booking/reschedule/:bookingId)
+  - authContextUsed: public
+  - message: Invoice generated successfully
+  - requestBody: `{"bookingId":"69ff42989d7c3398cf4b5520","patientId":"6927ec404619ff9ef06df478","doctorId":"69ff978bb5f404edb32b7114","serviceId":"69ff38769f29739c4bf095f4","billingDetails":{"category":"consultation","serviceName":"Phase Consultation","durationMinutes":30,"basePrice":100,"calculatedBase":100,"taxPercentage":18},"medicines":[{"name":"Paracetamol","quantity":1,"pricePerUnit":10,"gstPercentage":12}],"additionalEquipment":[]}`
+  - response: `{"success":true,"message":"Invoice generated successfully","data":{"invoiceNumber":"INV-1778359627194-E131","bookingId":"69ff42989d7c3398cf4b5520","patientId":"6927ec404619ff9ef06df478","doctorId":"69ff978bb5f404edb32b7114","billingDetails":{"category":"consultation","serviceName":"Phase Consultation","durationMinutes":30,"basePrice":100,"calculatedBase":100,"taxPercentage":18},"medicines":[{"name":"Paracetamol","quantity":1,"pricePerUnit":10,"gstPercentage":12,"total":11.2,"addedDate":"2026-05-09T20:47:07.194Z","_id":"69ff9d4bf02939353e933b4c"}],"additionalEquipment":[],"invoiceUrl":"/uploads/1778359627698-INV-1778359627194-E131.pdf","isInvoiceGenerated":true,"totals":{"subtotal":110,"gstAmount":19.2,"cgst":9.6,"sgst":9.6,"grandTotal":129.2},"paymentStatus":"Unpaid","_id":"69ff9d4bf02939353e933b4b","issuedAt":"2026-05-09T20:47:07.198Z","createdAt":"2026-05-09T20:47:07.199Z","updatedAt":"2026-05-09T20:47:07.701Z","__v":0}}`
+- [ ] POST /api/v1/payments/treatments/69ff42979d7c3398cf4b551d/online/order (from /api/v1/payments/treatments/:treatmentId/online/order)
   - oldStatus: 409
-  - newStatus: 200
-  - authContextUsed: patient
-  - message: Booking rescheduled successfully
-  - requestBody: `{"appointmentDate":"2026-05-15","startTime":"22:30","endTime":"23:00","duration":30,"reason":"retest reschedule"}`
-  - response: `{"success":true,"message":"Booking rescheduled successfully","data":{"_id":"69ff5f6883de5f8377dfa428","treatmentId":{"_id":"69ff5f6883de5f8377dfa429","status":"Active","validTill":"2026-05-14T16:23:04.872Z"},"patientId":{"_id":"6927ec404619ff9ef06df478","firstName":"PhaseUpdated1778336946397","phone":"8707807000"},"serviceId":{"_id":"6915d7cf9033f3ce1c0f322e","name":"Attendant Care","modes":["Home Service","Visit Provider Location"]},"modes":["Home Service","Visit Provider Location"],"servicePartnerId":null,"sessionNumber":1,"appointmentDate":"2026-05-15T00:00:00.000Z","slotTime":{"startTime":"22:30","endTime":"23:00"},"duration":30,"status":"Rescheduled","notes":"","pricing":{"basePrice":1500,"equipmentCharges":0,"subtotal":1500,"taxPercentage":18,"taxAmount":270,"totalAmount":1770},"city":"691d9aebeaae59d1db945598","createdBy":{"userId":"6927ec404619ff9ef06df478","userModel":"Patient"},"invoiceUrl":null,"cancelledBy":null,"cancelledAt":null,"cancellationReason":null,"adminApprovalRequired":false,"requestedCancellationAt":null,"originalStatus":null,"timeRemainingAtRequest":null,"previousBookingId":null,"createdAt":"2026-05-09T16:23:04.916Z","updatedAt":"2026-05-09T16:23:05.613Z","__v":0,"formattedDuration":"0.5 hours"}}`
-- [ ] PUT /api/v1/booking/update-status/69ff44a819b30ee2c5198cc5 (from /api/v1/booking/update-status/:bookingId)
-  - oldStatus: 401
-  - newStatus: 403
-  - authContextUsed: serviceProvider
-  - message: Unauthorized provider
-  - requestBody: `{"status":"In-Progress","notes":"retest status update"}`
-  - response: `{"success":false,"message":"Unauthorized provider"}`
-- [ ] POST /api/v1/geo/check-location (from /api/v1/geo/check-location)
-  - oldStatus: 400
-  - newStatus: 400
+  - newStatus: 401
   - authContextUsed: public
-  - message: Location not found
-  - requestBody: `{"address":"Delhi, India","polygon":[[77.05,28.4],[77.45,28.4],[77.45,28.9],[77.05,28.9]]}`
-  - response: `{"success":false,"message":"Location not found"}`
-- [ ] PATCH /api/v1/city/691d9aebeaae59d1db945598/toggle (from /api/v1/city/:cityId/toggle)
-  - oldStatus: 500
-  - newStatus: 500
-  - authContextUsed: public
-  - message: Error toggling status
-  - requestBody: `{}`
-  - response: `{"success":false,"message":"Error toggling status","error":"City validation failed: area.coordinates: Path `area.coordinates` is required."}`
-- [ ] POST /api/v1/article/create (from /api/v1/article/create)
-  - oldStatus: 500
-  - newStatus: 500
-  - authContextUsed: doctor
-  - message: Article validation failed: creatorModel: Path `creatorModel` is required.
-  - requestBody: `{"cityName":"chhatrapati sambhajinagar","category":"General Health","title":"Retest Article 1778343786059","articleType":"article","textContent":"Retest article content","tags":["retest","health"]}`
-  - response: `{"status":"error","error":{"errors":{"creatorModel":{"name":"ValidatorError","message":"Path `creatorModel` is required.","properties":{"message":"Path `creatorModel` is required.","type":"required","path":"creatorModel"},"kind":"required","path":"creatorModel"}},"_message":"Article validation failed","statusCode":500,"status":"error","name":"ValidationError","message":"Article validation failed: creatorModel: Path `creatorModel` is required."},"message":"Article validation failed: creatorModel: Path `creatorModel` is required.","stack":"ValidationError: Article validation failed: creatorModel: Path `creatorModel` is required.\n    at Document.invalidate (E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\document.js:3362:32)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\document.js:3123:17\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\mongoose\\lib\\schemaType.js:1420:9\n    at process.processTicksAndRejections (node:internal/process/task_queues:77:11)"}`
-- [x] POST /api/v1/payments/treatments/69ff5f6883de5f8377dfa429/online/verify (from /api/v1/payments/treatments/:treatmentId/online/verify)
+  - message: Authentication required
+  - requestBody: `{"amount":20}`
+  - response: `{"status":"fail","error":{"statusCode":401,"status":"fail","isOperational":true},"message":"Authentication required","stack":"Error: Authentication required\n    at E:\\easesmith\\medico\\medico_backend\\middleware\\auth.js:346:19\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\lib\\layer.js:152:17)\n    at E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:295:15\n    at param (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:600:14)\n    at param (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:610:14)\n    at processParams (E:\\easesmith\\medico\\medico_backend\\node_modules\\router\\index.js:664:3)"}`
+- [ ] POST /api/v1/payments/treatments/69ff42979d7c3398cf4b551d/online/verify (from /api/v1/payments/treatments/:treatmentId/online/verify)
   - oldStatus: 404
-  - newStatus: 200
+  - newStatus: 404
   - authContextUsed: patient
-  - message: Online payment verified successfully
-  - requestBody: `{"razorpay_order_id":"order_SnKWpjGJvqxkDt","razorpay_payment_id":"pay_retest_1778343786620","razorpay_signature":"63a7108840a2fd9e618182c5679433d6f0f479d7cd18935ded89791eb430bdc6"}`
-  - response: `{"success":true,"message":"Online payment verified successfully","data":{"paymentId":"69ff5f6883de5f8377dfa42d","treatmentId":"69ff5f6883de5f8377dfa429","patientId":"6927ec404619ff9ef06df478","servicePartnerId":null,"bookingIds":["69ff5f6883de5f8377dfa428"],"invoiceId":null,"currency":"INR","totalBillAmount":1770,"totalPaid":1,"totalRefunded":0,"remainingBalance":1769,"paymentStatus":"Partially Paid","transactions":[{"type":"Charge","stage":"Advance","method":"Online","razorpayOrderId":"order_SnKWpjGJvqxkDt","razorpayPaymentId":"pay_retest_1778343786620","razorpaySignature":"63a7108840a2fd9e618182c5679433d6f0f479d7cd18935ded89791eb430bdc6","amountPaid":1,"currency":"INR","status":"Paid","failureReason":null,"paidAt":"2026-05-09T16:23:06.744Z","note":"Pending advance payment","collectedBy":null,"_id":"69ff5f6a83de5f8377dfa44e","createdAt":"2026-05-09T16:23:06.576Z","updatedAt":"2026-05-09T16:23:06.745Z"}],"refunds":[],"updatedAt":"2026-05-09T16:23:06.745Z"}}`
-  - notes: `[{"preStep":"create_online_order","status":200,"response":"{\"success\":true,\"message\":\"Online payment order created successfully\",\"data\":{\"paymentId\":\"69ff5f6883de5f8377dfa42d\",\"treatmentId\":\"69ff5f6883de5f8377dfa429\",\"key\":\"rzp_test_kWYSpyyo3LppWV\",\"orderId\":\"order_SnKWpjGJvqxkDt\",\"amount\":100,\"currency\":\"INR\",\"stage\":\"Advance\"}}","error":null}]`
+  - message: Pending online transaction not found for this order
+  - requestBody: `{"razorpay_order_id":"order_missing_precondition","razorpay_payment_id":"pay_missing_precondition","razorpay_signature":"sig_missing_precondition"}`
+  - response: `{"success":false,"message":"Pending online transaction not found for this order"}`
+  - notes: `[{"preStep":"create_online_order","status":409,"response":"{\"success\":false,\"message\":\"A pending online payment already exists for this treatment\",\"data\":{\"paymentId\":\"69ff429a9d7c3398cf4b5542\",\"orderId\":\"order_SnISOKKs3RYR91\",\"amount\":2000,\"currency\":\"INR\",\"stage\":\"Partial\"}}","error":null}]`

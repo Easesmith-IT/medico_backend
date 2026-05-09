@@ -1,33 +1,18 @@
 # Post-Fix Route Failures
 
-- generatedAt: 2026-05-09T17:32:08.595Z
+- generatedAt: 2026-05-09T20:26:02.963Z
 
 ## Phase 01
 - totalRoutes: 18
-- fixedRoutes: 16
-- unresolvedRoutes: 2
+- fixedRoutes: 18
+- unresolvedRoutes: 0
 
-- POST /api/v1/admin/bookings/create | status=403 | context=admin
-  controller: controller/adminController.js#createBookingByAdmin
-  category: Auth/role restriction
-  error: Booking not allowed. Patient does not belong to the selected city.
-  request: /api/v1/admin/bookings/create
-- PATCH /api/v1/admin/bookings/update/:bookingId | status=403 | context=admin
-  controller: controller/adminController.js#updateBookingByAdmin
-  category: Auth/role restriction
-  error: Booking not allowed: patient does not belong to the selected city
-  request: /api/v1/admin/bookings/update/69ff42989d7c3398cf4b5520
 
 ## Phase 02
 - totalRoutes: 18
-- fixedRoutes: 17
-- unresolvedRoutes: 1
+- fixedRoutes: 18
+- unresolvedRoutes: 0
 
-- GET /api/v1/doctor/doctor/cities/by-name/:doctorId/:cityName | status=404 | context=doctor
-  controller: controller/doctorController.js#getDoctorCitiesByName
-  category: Data precondition missing
-  error: Doctor is not available in city: chhatrapati sambhajinagar
-  request: /api/v1/doctor/doctor/cities/by-name/69104ae53f18864f8d196806/chhatrapati sambhajinagar
 
 ## Phase 03
 - totalRoutes: 18
@@ -37,25 +22,15 @@
 
 ## Phase 04
 - totalRoutes: 18
-- fixedRoutes: 17
-- unresolvedRoutes: 1
+- fixedRoutes: 18
+- unresolvedRoutes: 0
 
-- PUT /api/v1/booking/reschedule/:bookingId | status=400 | context=patient
-  controller: controller/bookingController.js#rescheduleBooking
-  category: Validation/contract mismatch
-  error: Cannot reschedule cancelled or rejected bookings
-  request: /api/v1/booking/reschedule/69ff42989d7c3398cf4b5520
 
 ## Phase 05
 - totalRoutes: 11
-- fixedRoutes: 10
-- unresolvedRoutes: 1
+- fixedRoutes: 11
+- unresolvedRoutes: 0
 
-- PUT /api/v1/booking/update-status/:bookingId | status=403 | context=doctor
-  controller: controller/bookingController.js#updateServiceStatus
-  category: Auth/role restriction
-  error: Unauthorized provider
-  request: /api/v1/booking/update-status/69ff6f6db9c84d5136e4c576
 
 ## Phase 06
 - totalRoutes: 18
@@ -65,14 +40,9 @@
 
 ## Phase 07
 - totalRoutes: 12
-- fixedRoutes: 11
-- unresolvedRoutes: 1
+- fixedRoutes: 12
+- unresolvedRoutes: 0
 
-- POST /api/v1/geo/check-location | status=400 | context=public
-  controller: controller/geoController.js#checkAddressInPolygon
-  category: Validation/contract mismatch
-  error: Location not found
-  request: /api/v1/geo/check-location
 
 ## Phase 08
 - totalRoutes: 18
@@ -82,9 +52,24 @@
 
 ## Phase 09
 - totalRoutes: 8
-- fixedRoutes: 8
-- unresolvedRoutes: 0
+- fixedRoutes: 5
+- unresolvedRoutes: 3
 
+- POST /api/v1/invoice/generate | status=500 | context=public
+  controller: controller/invoiceController.js#generateInvoice
+  category: Backend bug / external block
+  error: paymentHistory is not defined
+  request: /api/v1/invoice/generate
+- POST /api/v1/payments/treatments/:treatmentId/online/order | status=409 | context=patient
+  controller: controller/payController.js#createTreatmentOnlineOrder
+  category: Validation/contract mismatch
+  error: A pending online payment already exists for this treatment
+  request: /api/v1/payments/treatments/69ff42979d7c3398cf4b551d/online/order
+- POST /api/v1/payments/treatments/:treatmentId/online/verify | status=404 | context=patient
+  controller: controller/payController.js#verifyTreatmentOnlinePayment
+  category: Data precondition missing
+  error: Pending online transaction not found for this order
+  request: /api/v1/payments/treatments/69ff42979d7c3398cf4b551d/online/verify
 
 ## Phase 10
 - totalRoutes: 3

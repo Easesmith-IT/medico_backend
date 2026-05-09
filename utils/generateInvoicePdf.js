@@ -516,47 +516,6 @@ const generateInvoicePdf = (invoice) => {
       gst:   L + 390,
       total: L + 445
     };
- if (paymentHistory.length) {
-    doc.moveDown(2);
-    doc.font("Helvetica-Bold").fontSize(12).text("Payment History");
-
-    let y = doc.y + 10;
-
-    doc.font("Helvetica-Bold").fontSize(10);
-    doc.text("Sr.", 50, y);
-    doc.text("Date", 90, y);
-    doc.text("Amount", 170, y);
-    doc.text("Method", 250, y);
-    doc.text("Stage", 330, y);
-    doc.text("Reference", 410, y);
-
-    y += 20;
-    doc.moveTo(50, y - 5).lineTo(550, y - 5).stroke();
-
-    doc.font("Helvetica").fontSize(10);
-
-    paymentHistory.forEach((item) => {
-      if (y > 750) {
-        doc.addPage();
-        y = 60;
-      }
-
-      doc.text(String(item.srNo), 50, y);
-      doc.text(item.paidDate, 90, y);
-      doc.text(`₹${item.amount}`, 170, y);
-      doc.text(item.method, 250, y);
-      doc.text(item.stage, 330, y);
-      doc.text(item.reference, 410, y, { width: 130 });
-
-      y += 20;
-      doc.moveTo(50, y - 5).lineTo(550, y - 5).strokeColor("#e0e0e0").stroke();
-    });
-
-    doc.y = y + 10;
-  }
-
-  doc.end();
-
     doc.fillColor('#2c3e50').rect(L, y, W, 26).fill();
     doc.font('Helvetica-Bold').fontSize(9).fillColor('white')
       .text('DESCRIPTION', cols.desc + 4, y + 8, { width: 265 })
@@ -1109,3 +1068,4 @@ module.exports = generateInvoicePdf;
 // };
 
 // module.exports = generateInvoicePdf;
+

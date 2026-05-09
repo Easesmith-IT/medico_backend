@@ -424,9 +424,9 @@ const razorpayInstance = require("../config/razorpay");
 
 //     const bookings = await Booking.find(query)
 //       .populate("serviceId", "name category modes")
-//       .populate("servicePartnerId", "name email phone")
+//       .populate("servicePartnerId", "firstName lastName email mobile phone")
 //         .populate("treatmentId", "status validTill") 
-//       .sort({ appointmentDate: 1 });
+//       .sort({ appointmentDate: -1, createdAt: -1 });
 
 //     res.status(200).json({
 //       success: true,
@@ -499,10 +499,10 @@ const razorpayInstance = require("../config/razorpay");
 
 //     const bookings = await Booking.find(query)
 //       .populate("serviceId", "name category modes")
-//       .populate("servicePartnerId", "name email phone")
+//       .populate("servicePartnerId", "firstName lastName email mobile phone")
 //       .populate("treatmentId", "status validTill")
 //       .populate("invoiceId")
-//       .sort({ appointmentDate: 1 });
+//       .sort({ appointmentDate: -1, createdAt: -1 });
 
 //     console.log("🔍 DEBUG - Raw bookings found:", bookings.length); // Add this
 //     console.log("🔍 DEBUG - Sample booking:", bookings[0]); // Add this
@@ -727,7 +727,7 @@ const razorpayInstance = require("../config/razorpay");
 //   // 4. Get filtered bookings – latest on top
 //   const bookings = await Booking.find(query)
 //     .populate("serviceId", "name category modes")
-//     .populate("servicePartnerId", "name email phone")
+//     .populate("servicePartnerId", "firstName lastName email mobile phone")
 //     .populate("treatmentId", "status validTill")
 //     .sort({ appointmentDate: -1 }); // latest booking first
 
@@ -801,7 +801,7 @@ const razorpayInstance = require("../config/razorpay");
 //     // 1. Initial Data Fetch
 //     let bookings = await Booking.find(query)
 //       .populate("serviceId", "name category modes")
-//       .populate("servicePartnerId", "name email phone")
+//       .populate("servicePartnerId", "firstName lastName email mobile phone")
 //       .populate("treatmentId", "status validTill")
 //       .populate("patientId", "firstName phone")
 //       .lean(); // Use lean for faster processing and easier object manipulation
@@ -866,11 +866,11 @@ const razorpayInstance = require("../config/razorpay");
 //       // 3. RE-FETCH to get updated URLs in response
 //       bookings = await Booking.find(query)
 //         .populate("serviceId", "name category modes")
-//         .populate("servicePartnerId", "name email phone")
+//         .populate("servicePartnerId", "firstName lastName email mobile phone")
 //         .populate("treatmentId", "status validTill")
 //         .populate("patientId", "firstName phone")
 //         .lean()
-//         .sort({ appointmentDate: 1 });
+//         .sort({ appointmentDate: -1, createdAt: -1 });
 //     }
 
 //     // 4. Final Response
@@ -1462,7 +1462,7 @@ const paymentController = require("../controller/payController");
 //     // 1. Initial Data Fetch
 //     let bookings = await Booking.find(query)
 //       .populate("serviceId", "name category modes")
-//       .populate("servicePartnerId", "name email phone")
+//       .populate("servicePartnerId", "firstName lastName email mobile phone")
 //       .populate("treatmentId", "status validTill")  // ✅ treatmentId populated
 //       .populate("patientId", "firstName phone")
 //       .lean();
@@ -1530,11 +1530,11 @@ const paymentController = require("../controller/payController");
 //       // 3. Re‑fetch to get updated URLs
 //       bookings = await Booking.find(query)
 //         .populate("serviceId", "name category modes")
-//         .populate("servicePartnerId", "name email phone")
+//         .populate("servicePartnerId", "firstName lastName email mobile phone")
 //         .populate("treatmentId", "status validTill")
 //         .populate("patientId", "firstName phone")
 //         .lean()
-//         .sort({ appointmentDate: 1 });
+//         .sort({ appointmentDate: -1, createdAt: -1 });
 //     }
 
 //     res.status(200).json({
@@ -1611,6 +1611,47 @@ exports.createBooking = async (req, res) => {
       resolvedTreatmentId = treatment._id;
     }
 
+    const appointmentDate = rest.appointmentDate || bookingDate;
+    if (!appointmentDate) {
+      return res.status(400).json({
+        success: false,
+        message: "appointmentDate is required",
+      });
+    }
+
+    let computedPricing = null;
+    if (serviceId) {
+      const serviceDoc = await Service.findById(serviceId);
+      if (serviceDoc) {
+        let durationForPricing = Number(rest.duration || 0);
+        if (!durationForPricing && startTime && endTime) {
+          const [sh, sm] = String(startTime).split(":").map(Number);
+          const [eh, em] = String(endTime).split(":").map(Number);
+          const diff = eh * 60 + em - (sh * 60 + sm);
+          durationForPricing = diff > 0 ? diff : 0;
+        }
+
+        computedPricing = serviceDoc.calculateTotalPrice(
+          durationForPricing || undefined,
+          false,
+          rest.shiftType || null
+        );
+      }
+    }
+
+    const finalPricing = {
+      basePrice: Number(pricing?.basePrice ?? computedPricing?.basePrice ?? 0),
+      equipmentCharges: Number(
+        pricing?.equipmentCharges ?? computedPricing?.equipmentCharges ?? 0
+      ),
+      subtotal: Number(pricing?.subtotal ?? computedPricing?.subtotal ?? 0),
+      taxPercentage: Number(
+        pricing?.taxPercentage ?? computedPricing?.taxPercentage ?? 0
+      ),
+      taxAmount: Number(pricing?.taxAmount ?? computedPricing?.taxAmount ?? 0),
+      totalAmount: Number(pricing?.totalAmount ?? computedPricing?.totalAmount ?? 0),
+    };
+
     // ✅ Create Booking (FIXED STRUCTURE)
     const booking = await Booking.create({
       ...rest,
@@ -1618,7 +1659,7 @@ exports.createBooking = async (req, res) => {
       patientId,
       serviceId,
       servicePartnerId,
-      bookingDate,
+      appointmentDate: new Date(appointmentDate),
       slot,
 
       // ✅ FIXED: match schema
@@ -1629,10 +1670,7 @@ exports.createBooking = async (req, res) => {
 
       sessionNumber, // ✅ REQUIRED FIELD
 
-      pricing: {
-        totalAmount: Number(pricing?.totalAmount || 0),
-        ...pricing,
-      },
+      pricing: finalPricing,
 
       paymentOption: paymentOption || "PayLater",
       createdBy: patientId,
@@ -1754,31 +1792,19 @@ exports.getBookedServicesByPatientId = async (req, res) => {
       query.appointmentDate = { $gte: firstDayOfWeek, $lte: lastDayOfWeek };
     } else if (dateFilterType === "custom" && startDate && endDate) {
       query.appointmentDate = {
-       
         $gte: new Date(startDate),
-       
         $lte: new Date(endDate),
-     ,
       };
     }
-
-    // 1. Initial booking fetch
-    let bookings = await Booking.find(query)
-      .populate("serviceId", "name category modes")
-      .populate("servicePartnerId", "name email phone")
-      .populate("treatmentId", "status validTill")
-      .populate("patientId", "firstName phone")
-      .sort({ appointmentDate: 1 })
-      .lean();
 
     const fetchBookings = async () =>
       Booking.find(query)
         .populate("serviceId", "name category modes")
-        .populate("servicePartnerId", "name email phone")
+        .populate("servicePartnerId", "firstName lastName email mobile phone")
         .populate("treatmentId", "status validTill")
         .populate("patientId", "firstName phone")
         .lean()
-        .sort({ appointmentDate: 1 });
+        .sort({ appointmentDate: -1, createdAt: -1 });
 
     const enrichBookingsWithPaymentDetails = async (bookingDocs) => {
       if (details !== "full" || !bookingDocs.length) {
@@ -2014,7 +2040,7 @@ exports.getBookedServicesByPatientId = async (req, res) => {
 //     // 1. Initial Data Fetch
 //     let bookings = await Booking.find(query)
 //       .populate("serviceId", "name category modes")
-//       .populate("servicePartnerId", "name email phone")
+//       .populate("servicePartnerId", "firstName lastName email mobile phone")
 //       .populate("treatmentId", "status validTill")
 //       .populate("patientId", "firstName phone")
 //       .lean();
@@ -2079,11 +2105,11 @@ exports.getBookedServicesByPatientId = async (req, res) => {
 //       // 3. RE-FETCH to get updated URLs in response
 //       bookings = await Booking.find(query)
 //         .populate("serviceId", "name category modes")
-//         .populate("servicePartnerId", "name email phone")
+//         .populate("servicePartnerId", "firstName lastName email mobile phone")
 //         .populate("treatmentId", "status validTill")
 //         .populate("patientId", "firstName phone")
 //         .lean()
-//         .sort({ appointmentDate: 1 });
+//         .sort({ appointmentDate: -1, createdAt: -1 });
 //     }
 
 //     // 4. Final Response
@@ -2122,9 +2148,9 @@ exports.getServiceSummaryByServiceId = async (req, res) => {
 
     const bookings = await Booking.find(query)
       .populate("patientId", "name email phone")
-      .populate("servicePartnerId", "name email phone")
+      .populate("servicePartnerId", "firstName lastName email mobile phone")
         .populate("treatmentId", "status validTill") 
-      .sort({ appointmentDate: 1 });
+      .sort({ appointmentDate: -1, createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -2391,7 +2417,7 @@ exports.rescheduleBooking = async (req, res) => {
       { new: true, runValidators: true }
     )
       .populate("serviceId", "name category modes")
-      .populate("servicePartnerId", "name email phone")
+      .populate("servicePartnerId", "firstName lastName email mobile phone")
       .populate("treatmentId", "status validTill")  // ✅ shows in response
       .populate("patientId", "firstName phone")
       .lean();
@@ -2418,7 +2444,7 @@ exports.rescheduleBooking = async (req, res) => {
 exports.cancelBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { reason } = req.body; // Patient cancellation reason
+    const { reason } = req.body || {}; // Patient cancellation reason
     
     if (!bookingId) {
       return res
@@ -2748,7 +2774,7 @@ exports.getAllBookings = async (req, res) => {
 //     const booking = await Booking.findById(bookingId)
 //       .populate("patientId", "firstName email phone")
 //       .populate("serviceId", "name category modes")
-//       .populate("servicePartnerId", "name email phone");
+//       .populate("servicePartnerId", "firstName lastName email mobile phone");
       
    
 
@@ -3257,7 +3283,7 @@ exports.getByIdBooking = async (req, res) => {
 //     const booking = await Booking.findById(bookingId)
 //       .populate("patientId", "firstName email phone")
 //       .populate("serviceId", "name category modes")
-//       .populate("servicePartnerId", "name email phone")
+//       .populate("servicePartnerId", "firstName lastName email mobile phone")
 //       .populate("treatmentId", "status validTill");  
 //     if (!booking) {
 //       return res
@@ -3404,6 +3430,10 @@ exports.updateServiceStatus = async (req, res) => {
       return res.status(403).json({ success: false, message: "Unauthorized provider" });
     }
 
+    const treatment = booking.treatmentId
+      ? await Treatment.findById(booking.treatmentId).select("status")
+      : null;
+
     // Regular booking statuses (NO INVOICE, NO PAYMENT CHECK)
     const bookingStatuses = ["Pending", "Approved", "Rejected", "Rescheduled", "Cancelled", "In-Progress"];
     if (bookingStatuses.includes(status)) {
@@ -3425,7 +3455,7 @@ exports.updateServiceStatus = async (req, res) => {
         message: `Booking status updated to "${status}"`,
         data: {
           bookingStatus: status,
-          treatmentStatus: booking.treatmentStatus || 'Active',
+          treatmentStatus: treatment?.status || null,
           paymentStatus: booking.paymentStatus,
           dueAmount: booking.dueAmount,
           invoiceGenerated: false
@@ -3528,7 +3558,7 @@ exports.updateServiceStatus = async (req, res) => {
     // }
 // ✅ TREATMENT COMPLETION - ADVANCE RESET + FINAL PAYMENT READY
 if (status.toLowerCase() === 'treatmentcompleted') {
-  if (booking.treatmentStatus !== 'Active') {
+  if (!treatment || treatment.status !== 'Active') {
     return res.status(400).json({ success: false, message: "Treatment must be Active" });
   }
 
@@ -3547,8 +3577,8 @@ if (status.toLowerCase() === 'treatmentcompleted') {
 
   // 3. Mark treatment complete
   booking.status = 'Completed';
-  booking.treatmentStatus = 'Completed';
   booking.serviceEndedAt = new Date();
+  treatment.status = "Completed";
 
   // 4. Handle equipment charges (if any)
   if (equipment && Array.isArray(equipment)) {
@@ -3584,6 +3614,7 @@ if (status.toLowerCase() === 'treatmentcompleted') {
   
   booking.invoiceId = savedInvoice._id;
   booking.invoiceGenerated = true;
+  await treatment.save();
   await booking.save();
 
   return res.status(200).json({
@@ -4741,13 +4772,18 @@ exports.createProviderBooking = async (req, res) => {
     }
 
     // ✅ Ensure previous booking has valid treatment status
+    const prevTreatment = prevBooking.treatmentId
+      ? await Treatment.findById(prevBooking.treatmentId).session(session).select("status")
+      : null;
+    const prevTreatmentStatus = prevTreatment?.status || null;
+
     const validTreatmentStatuses = ["Active", "InProgress", "Completed"];
     if (
-      prevBooking.treatmentStatus &&
-      !validTreatmentStatuses.includes(prevBooking.treatmentStatus)
+      prevTreatmentStatus &&
+      !validTreatmentStatuses.includes(prevTreatmentStatus)
     ) {
       throw new Error(
-        `Previous booking treatmentStatus must be valid (current: "${prevBooking.treatmentStatus}")`
+        `Previous booking treatmentStatus must be valid (current: "${prevTreatmentStatus}")`
       );
     }
 
@@ -4851,7 +4887,7 @@ exports.createProviderBooking = async (req, res) => {
         previousBooking: {
           bookingId: previousBookingId,
           status: "Completed",
-          treatmentStatus: prevBooking.treatmentStatus,
+          treatmentStatus: prevTreatmentStatus,
         },
       },
     });
@@ -5409,3 +5445,4 @@ exports.createProviderBooking = async (req, res) => {
 //     });
 //   }
 // };
+

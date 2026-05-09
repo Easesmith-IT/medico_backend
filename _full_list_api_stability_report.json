@@ -1,0 +1,635 @@
+{
+  "generatedAt": "2026-05-09T21:10:43.521Z",
+  "baseUrl": "http://localhost:5005",
+  "fixtures": {
+    "cityId": "69ff36c49f29739c4bf09300",
+    "cityName": "phasecity1778333380355",
+    "serviceId": "6915d7cf9033f3ce1c0f322e",
+    "patientId": "69099012606fc5a2ab07ae91",
+    "doctorId": "69ff983f51558d56a410ccfa",
+    "providerId": "69ff98503dfe2cc4bfac7fd3"
+  },
+  "summary": {
+    "totalChecks": 13,
+    "non2xxChecks": 3
+  },
+  "evidence": [
+    {
+      "area": "doctor-availability-hardening",
+      "route": "POST /api/v1/doctor/availability",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:5005/api/v1/doctor/availability",
+        "headers": {
+          "hasAuthorization": true,
+          "hasCookie": false,
+          "contentType": "application/json"
+        },
+        "body": {
+          "days": [
+            "Monday",
+            "Tuesday"
+          ],
+          "timeSlots": [
+            {
+              "start": "09:00",
+              "end": "11:00"
+            }
+          ],
+          "slotDuration": 30,
+          "startDate": "2026-05-10",
+          "endDate": "2026-05-11",
+          "serviceAvailability": {
+            "consultation": true
+          },
+          "serviceCoverage": {
+            "mode": "Home Service"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Availability configured successfully",
+          "data": {
+            "availability": {
+              "autoSlotGeneration": {
+                "enabled": false,
+                "defaultDuration": 30,
+                "bufferBetweenSlots": 5,
+                "advanceBookingDays": 30
+              },
+              "days": [
+                "Monday",
+                "Tuesday"
+              ],
+              "serviceAvailability": {
+                "consultation": true
+              },
+              "timeSlots": [
+                {
+                  "start": "09:00",
+                  "end": "11:00",
+                  "_id": "69ffa2d09fce833a9aabba66"
+                }
+              ],
+              "serviceCoverage": {
+                "mode": "Home Service"
+              },
+              "dailySlots": [
+                {
+                  "date": "2026-05-11T00:00:00.000Z",
+                  "dayOfWeek": "Monday",
+                  "isAvailable": true,
+                  "slots": [
+                    {
+                      "startTime": "09:00",
+                      "endTime": "09:30",
+                      "duration": 30,
+                      "isBooked": false,
+                      "isSlotAvailable": true,
+                      "status": "available",
+                      "_id": "69ffa2d09fce833a9aabba68"
+                    },
+                    {
+                      "startTime": "09:30",
+                      "endTime": "10:00",
+                      "duration": 30,
+                      "isBooked": false,
+                      "isSlotAvailable": true,
+                      "status": "available",
+                      "_id": "69ffa2d09fce833a9aabba69"
+                    },
+                    {
+                      "startTime": "10:00",
+                      "endTime": "10:30",
+                      "duration": 30,
+                      "isBooked": false,
+                      "isSlotAvailable": true,
+                      "status": "available",
+                      "_id": "69ffa2d09fce833a9aabba6a"
+                    },
+                    {
+                      "startTime": "10:30",
+                      "endTime": "11:00",
+                      "duration": 30,
+                      "isBooked": false,
+                      "isSlotAvailable": true,
+                      "status": "available",
+                      "_id": "69ffa2d09fce833a9aabba6b"
+                    }
+                  ],
+                  "_id": "69ffa2d09fce833a9aabba67",
+                  "breakTimes": []
+                }
+              ]
+            },
+            "slotsGenerated": true
+          }
+        }
+      },
+      "durationMs": 192,
+      "timestamp": "2026-05-09T21:10:40.865Z"
+    },
+    {
+      "area": "route-conflict-verification",
+      "route": "PUT /api/v1/doctor/availability",
+      "request": {
+        "method": "PUT",
+        "url": "http://localhost:5005/api/v1/doctor/availability",
+        "headers": {
+          "hasAuthorization": true,
+          "hasCookie": false,
+          "contentType": "application/json"
+        },
+        "body": {
+          "days": [
+            "Monday"
+          ],
+          "timeSlots": [
+            {
+              "start": "10:00",
+              "end": "12:00"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Availability updated successfully",
+          "data": {
+            "doctor": {
+              "verificationDocuments": {
+                "degreesCertificates": []
+              },
+              "availability": {
+                "autoSlotGeneration": {
+                  "enabled": false,
+                  "defaultDuration": 30,
+                  "bufferBetweenSlots": 5,
+                  "advanceBookingDays": 30
+                },
+                "serviceAvailability": "both",
+                "days": [
+                  "Monday"
+                ],
+                "timeSlots": [
+                  {
+                    "start": "10:00",
+                    "end": "12:00",
+                    "_id": "69ffa2d09fce833a9aabba6d"
+                  }
+                ],
+                "serviceCoverage": [],
+                "dailySlots": []
+              },
+              "_id": "69ff983f51558d56a410ccfa",
+              "firstName": "AdmDoc1778358335020",
+              "email": "adm.doc.1778358335020.618012@example.com",
+              "phone": "9335020223",
+              "profilePhoto": null,
+              "cities": [
+                "69ff3546921dd1f3626cc373"
+              ],
+              "medicalRegistrationNumber": "ADM-MED-1778358335020",
+              "issuingMedicalCouncil": "Medical Council",
+              "yearsOfExperience": 0,
+              "specialization": "General",
+              "subSpecialties": [],
+              "consultationFees": 0,
+              "degrees": [],
+              "certifications": [],
+              "residencies": [],
+              "trainingsWorkshops": [],
+              "verificationStatus": "rejected",
+              "services": [],
+              "role": "doctor",
+              "isPhoneVerified": true,
+              "averageRating": 0,
+              "totalReviews": 0,
+              "followers": [],
+              "followersCount": 0,
+              "isActive": true,
+              "clinics": [],
+              "createdAt": "2026-05-09T20:25:35.021Z",
+              "updatedAt": "2026-05-09T21:10:40.817Z",
+              "__v": 1
+            }
+          }
+        }
+      },
+      "durationMs": 49,
+      "timestamp": "2026-05-09T21:10:40.914Z"
+    },
+    {
+      "area": "article-geo-filter",
+      "route": "GET /api/v1/article/articles?longitude&latitude",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5005/api/v1/article/articles?longitude=77.5946&latitude=12.9716&maxDistance=50000&page=1&limit=5",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": null
+        },
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "count": 0,
+          "total": 0,
+          "totalPages": 0,
+          "currentPage": 1,
+          "articles": []
+        }
+      },
+      "durationMs": 41,
+      "timestamp": "2026-05-09T21:10:40.955Z"
+    },
+    {
+      "area": "article-city-filter",
+      "route": "GET /api/v1/article/articles?cityId",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5005/api/v1/article/articles?cityId=69ff36c49f29739c4bf09300&page=1&limit=5",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": null
+        },
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "count": 0,
+          "total": 0,
+          "totalPages": 0,
+          "currentPage": 1,
+          "articles": []
+        }
+      },
+      "durationMs": 149,
+      "timestamp": "2026-05-09T21:10:41.104Z"
+    },
+    {
+      "area": "article-city-filter-alias",
+      "route": "GET /api/v1/article/getallarticle?cityId",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5005/api/v1/article/getallarticle?cityId=69ff36c49f29739c4bf09300&page=1&limit=5",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": null
+        },
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "count": 0,
+          "total": 0,
+          "totalPages": 0,
+          "currentPage": 1,
+          "articles": []
+        }
+      },
+      "durationMs": 148,
+      "timestamp": "2026-05-09T21:10:41.252Z"
+    },
+    {
+      "area": "article-cityname-filter",
+      "route": "GET /api/v1/article/articles?cityName",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5005/api/v1/article/articles?cityName=phasecity1778333380355&page=1&limit=5",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": null
+        },
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "count": 0,
+          "total": 0,
+          "totalPages": 0,
+          "currentPage": 1,
+          "articles": []
+        }
+      },
+      "durationMs": 151,
+      "timestamp": "2026-05-09T21:10:41.403Z"
+    },
+    {
+      "area": "social-search-regression",
+      "route": "GET /api/v1/socialPost/search?q=health",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:5005/api/v1/socialPost/search?q=health&type=posts&page=1&limit=5",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": null
+        },
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "posts": {
+              "data": [
+                {
+                  "_id": "6939481b5bb0cb4978b66e6c",
+                  "doctor": null,
+                  "type": "TEXT",
+                  "content": "Feeling great after a successful surgery today! #medicine #healthcare",
+                  "hashtags": [],
+                  "mentions": [
+                    "64f8b1234567890abcdef123"
+                  ],
+                  "createdAt": "2025-12-10T10:14:51.350Z",
+                  "isHidden": false
+                },
+                {
+                  "_id": "6939488b20dc6d43b0421ebd",
+                  "doctor": null,
+                  "type": "TEXT",
+                  "content": "Feeling great after a successful surgery today! #medicine #healthcare",
+                  "hashtags": [],
+                  "mentions": [
+                    "64f8b1234567890abcdef123"
+                  ],
+                  "createdAt": "2025-12-10T10:16:43.678Z",
+                  "isHidden": false
+                },
+                {
+                  "_id": "69394b6963343bf440ff7e9c",
+                  "doctor": null,
+                  "type": "TEXT",
+                  "content": "Feeling great after a successful surgery today! #medicine #healthcare",
+                  "hashtags": [],
+                  "mentions": [
+                    "64f8b1234567890abcdef123"
+                  ],
+                  "createdAt": "2025-12-10T10:28:58.003Z",
+                  "isHidden": false
+                }
+              ],
+              "total": 3
+            }
+          },
+          "pagination": {
+            "page": 1,
+            "limit": 5,
+            "totalResults": 3
+          }
+        }
+      },
+      "durationMs": 80,
+      "timestamp": "2026-05-09T21:10:41.483Z"
+    },
+    {
+      "area": "provider-login-regression",
+      "route": "POST /api/v1/serviceProvider/login (email only)",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:5005/api/v1/serviceProvider/login",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": "application/json"
+        },
+        "body": {
+          "email": "phase.create.provider.1778358351955.372163@example.com",
+          "password": "Stability@123"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Login successful",
+          "data": {
+            "id": "69ff98503dfe2cc4bfac7fd3",
+            "role": "serviceprovider",
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmY5ODUwM2RmZTJjYzRiZmFjN2ZkMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzgzNjEwNDEsImV4cCI6MTgwOTg5NzA0MX0.tkhYWlQE62TDJozbE88Buf1hpV7FbEjMDAJV-Zqqdxk",
+            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmY5ODUwM2RmZTJjYzRiZmFjN2ZkMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzc4MzYxMDQxLCJleHAiOjE3ODYxMzcwNDF9.movX3ZYkHMgYdG3QOHzVGS2ua_a5FfqKxiopGi3ztuQ"
+          }
+        }
+      },
+      "durationMs": 344,
+      "timestamp": "2026-05-09T21:10:41.827Z"
+    },
+    {
+      "area": "provider-login-regression",
+      "route": "POST /api/v1/serviceProvider/login (mobile only)",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:5005/api/v1/serviceProvider/login",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": "application/json"
+        },
+        "body": {
+          "mobile": "9351955421",
+          "password": "Stability@123"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Login successful",
+          "data": {
+            "id": "69ff98503dfe2cc4bfac7fd3",
+            "role": "serviceprovider",
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmY5ODUwM2RmZTJjYzRiZmFjN2ZkMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzgzNjEwNDIsImV4cCI6MTgwOTg5NzA0Mn0.33EVi2Soc6FUpZlKCu5JWwHOBJB6ueoCXLFmmsW8aNY",
+            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmY5ODUwM2RmZTJjYzRiZmFjN2ZkMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzc4MzYxMDQyLCJleHAiOjE3ODYxMzcwNDJ9.tngUEB4k7LaYhnfnggqJQEaLcvSva63oMGHuBo8Y5LM"
+          }
+        }
+      },
+      "durationMs": 317,
+      "timestamp": "2026-05-09T21:10:42.144Z"
+    },
+    {
+      "area": "provider-login-regression",
+      "route": "POST /api/v1/serviceProvider/login (neither email/mobile)",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:5005/api/v1/serviceProvider/login",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": "application/json"
+        },
+        "body": {
+          "password": "Stability@123"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "success": false,
+          "message": "Email or mobile is required"
+        }
+      },
+      "durationMs": 2,
+      "timestamp": "2026-05-09T21:10:42.146Z"
+    },
+    {
+      "area": "provider-login-regression",
+      "route": "POST /api/v1/serviceProvider/login (wrong credential)",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:5005/api/v1/serviceProvider/login",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": "application/json"
+        },
+        "body": {
+          "email": "phase.create.provider.1778358351955.372163@example.com",
+          "password": "Stability@123_wrong"
+        }
+      },
+      "response": {
+        "status": 401,
+        "body": {
+          "success": false,
+          "message": "Invalid email/mobile or password"
+        }
+      },
+      "durationMs": 330,
+      "timestamp": "2026-05-09T21:10:42.476Z"
+    },
+    {
+      "area": "provider-login-regression",
+      "route": "POST /api/v1/serviceProvider/login (inactive provider)",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:5005/api/v1/serviceProvider/login",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": "application/json"
+        },
+        "body": {
+          "email": "phase.create.provider.1778358351955.372163@example.com",
+          "password": "Stability@123"
+        }
+      },
+      "response": {
+        "status": 403,
+        "body": {
+          "success": false,
+          "message": "Your account is currently inactive"
+        }
+      },
+      "durationMs": 336,
+      "timestamp": "2026-05-09T21:10:42.853Z"
+    },
+    {
+      "area": "invoice-generate-resilience",
+      "route": "POST /api/v1/invoice/generate",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:5005/api/v1/invoice/generate",
+        "headers": {
+          "hasAuthorization": false,
+          "hasCookie": false,
+          "contentType": "application/json"
+        },
+        "body": {
+          "bookingId": "69ffa2d2444fff64c731ee9b",
+          "patientId": "69099012606fc5a2ab07ae91",
+          "doctorId": "69ff98503dfe2cc4bfac7fd3",
+          "serviceId": "6915d7cf9033f3ce1c0f322e",
+          "billingDetails": {
+            "category": "consultation",
+            "serviceName": "Attendant Care",
+            "shiftType": "hourly",
+            "durationMinutes": 30,
+            "basePrice": 150,
+            "calculatedBase": 150,
+            "taxPercentage": 0
+          },
+          "medicines": [
+            {
+              "name": "Pain Relief",
+              "quantity": 1,
+              "pricePerUnit": 50,
+              "gstPercentage": 0
+            }
+          ],
+          "additionalEquipment": []
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "success": true,
+          "message": "Invoice generated successfully",
+          "data": {
+            "invoiceNumber": "INV-1778361042980-6709",
+            "bookingId": "69ffa2d2444fff64c731ee9b",
+            "patientId": "69099012606fc5a2ab07ae91",
+            "doctorId": "69ff98503dfe2cc4bfac7fd3",
+            "billingDetails": {
+              "category": "consultation",
+              "serviceName": "Attendant Care",
+              "shiftType": "hourly",
+              "durationMinutes": 30,
+              "basePrice": 150,
+              "calculatedBase": 150,
+              "taxPercentage": 0
+            },
+            "medicines": [
+              {
+                "name": "Pain Relief",
+                "quantity": 1,
+                "pricePerUnit": 50,
+                "gstPercentage": 0,
+                "total": 50,
+                "addedDate": "2026-05-09T21:10:42.980Z",
+                "_id": "69ffa2d29fce833a9aabba85"
+              }
+            ],
+            "additionalEquipment": [],
+            "invoiceUrl": "/uploads/1778361043477-INV-1778361042980-6709.pdf",
+            "isInvoiceGenerated": true,
+            "totals": {
+              "subtotal": 200,
+              "gstAmount": 0,
+              "cgst": 0,
+              "sgst": 0,
+              "grandTotal": 200
+            },
+            "paymentStatus": "Unpaid",
+            "_id": "69ffa2d29fce833a9aabba84",
+            "issuedAt": "2026-05-09T21:10:42.982Z",
+            "createdAt": "2026-05-09T21:10:42.983Z",
+            "updatedAt": "2026-05-09T21:10:43.479Z",
+            "__v": 0
+          }
+        }
+      },
+      "durationMs": 543,
+      "timestamp": "2026-05-09T21:10:43.521Z"
+    }
+  ]
+}

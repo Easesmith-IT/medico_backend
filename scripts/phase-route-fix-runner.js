@@ -495,6 +495,38 @@ async function ensureFixtures(sessions) {
     }
   }
 
+  let reschedulableBooking = await Booking.findOne({
+    patientId: refs.patient._id,
+    serviceId: refs.service._id,
+    status: { $nin: ["Cancelled", "Rejected"] },
+  })
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  if (!reschedulableBooking) {
+    const createdReschedulable = await Booking.create({
+      treatmentId: treatment._id,
+      patientId: refs.patient._id,
+      serviceId: refs.service._id,
+      servicePartnerId: refs.serviceProvider?._id || null,
+      sessionNumber: (await Booking.countDocuments({ treatmentId: treatment._id })) + 1,
+      appointmentDate: bookingDate,
+      slotTime: { startTime: "15:00", endTime: "15:30" },
+      duration: 30,
+      status: "Approved",
+      city: refs.city._id,
+      pricing: {
+        basePrice: refs.service.basePrice || 100,
+        subtotal: refs.service.basePrice || 100,
+        taxPercentage: refs.service.taxPercentage || 18,
+        taxAmount: 18,
+        totalAmount: 118,
+      },
+      createdBy: { userId: refs.patient._id, userModel: "Patient" },
+    });
+    reschedulableBooking = createdReschedulable.toObject();
+  }
+
   let completedProviderBooking = null;
   if (refs.serviceProvider?._id) {
     completedProviderBooking = await Booking.findOne({
@@ -900,6 +932,7 @@ async function ensureFixtures(sessions) {
     subAdminId: refs.subAdmin ? String(refs.subAdmin._id) : null,
     providerBookingId: providerBooking ? String(providerBooking._id) : String(booking._id),
     completedProviderBookingId: completedProviderBooking ? String(completedProviderBooking._id) : (providerBooking ? String(providerBooking._id) : String(booking._id)),
+    reschedulableBookingId: reschedulableBooking ? String(reschedulableBooking._id) : String(booking._id),
     cancellationBookingId: cancellationBooking ? String(cancellationBooking._id) : String(booking._id),
     adminEmail: refs.admin?.email || sessions.admin?.identity?.email || null,
     adminPhone: refs.admin?.phone || sessions.admin?.identity?.phone || null,
@@ -924,7 +957,7 @@ function withPhasePathParams(routePath, refs, method) {
       : lp.includes("/booking/update-status/")
         ? (refs.providerBookingId || refs.bookingId)
         : lp.includes("/booking/reschedule/")
-          ? refs.bookingId
+          ? (refs.reschedulableBookingId || refs.bookingId)
           : refs.bookingId;
   p = p.replace(/:bookingId\b/g, bookingReplacement);
   p = p.replace(/:patientId\b/g, refs.patientId);
@@ -982,7 +1015,7 @@ function routeContexts(routePath) {
   if (p.includes("/booking/my-bookings/:providerid")) return ["serviceProvider", "doctor", "admin", "patient", "public"];
   if (p.includes("/booking/providerbookings")) return ["serviceProvider", "doctor", "admin", "patient", "public"];
   if (p.includes("/booking/completed-details/")) return ["serviceProvider", "doctor", "admin", "patient", "public"];
-  if (p.includes("/booking/update-status/")) return ["doctor", "serviceProvider", "admin", "patient", "public"];
+  if (p.includes("/booking/update-status/")) return ["serviceProvider", "doctor", "admin", "patient", "public"];
   if (p.includes("/socialpost/")) return ["doctor", "patient", "admin", "serviceProvider", "public"];
   if (p.includes("/article/")) return ["doctor", "admin", "patient", "public"];
   if (p.includes("/admin/")) return ["admin", "public"];
@@ -998,6 +1031,8 @@ function payloadFor(method, routePath, refs) {
   const key = `${method.toUpperCase()} ${routePath}`;
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const isoDate = tomorrow.toISOString().slice(0, 10);
+  const futureDate = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000);
+  const farIsoDate = futureDate.toISOString().slice(0, 10);
   const slotFromSeed = (seed = 0) => {
     const slotIndex = (Math.floor((Date.now() / 1000) + seed) % 20) + 2; // 10:00 to 19:30
     const minutes = slotIndex * 30;
@@ -1023,7 +1058,15 @@ function payloadFor(method, routePath, refs) {
     "POST /api/v1/admin/admin/doctor/remove-cities": { doctorId: refs.doctorId, cityIds: [refs.cityId] },
     "PUT /api/v1/admin/admin/doctor/update-cities": { doctorId: refs.doctorId, cityIds: [refs.cityId] },
     "PATCH /api/v1/admin/bookings/:bookingId/status": { status: "Approved", reason: "phase-fix" },
-    "POST /api/v1/admin/bookings/create": { patientId: refs.patientId, serviceId: refs.serviceId, ...commonBooking, cityId: refs.cityId },
+    "POST /api/v1/admin/bookings/create": {
+      patientId: refs.patientId,
+      serviceId: refs.serviceId,
+      appointmentDate: farIsoDate,
+      startTime: providerSlot.startTime,
+      endTime: providerSlot.endTime,
+      duration: 30,
+      cityId: refs.cityId,
+    },
     "PATCH /api/v1/admin/bookings/update/:bookingId": { patientId: refs.patientId, ...commonBooking, status: "Approved", notes: "phase update", cityId: refs.cityId },
     "POST /api/v1/admin/doctors/create": {
       firstName: "Phase Doctor",
@@ -1096,7 +1139,11 @@ function payloadFor(method, routePath, refs) {
     "POST /api/v1/booking/create": {
       patientId: refs.patientId,
       serviceId: refs.serviceId,
-      ...commonBooking,
+      appointmentDate: farIsoDate,
+      startTime: bookingSlot.startTime,
+      endTime: bookingSlot.endTime,
+      duration: 30,
+      sessionNumber: 1,
       cityId: refs.cityId,
     },
     "POST /api/v1/booking/completed-details/:bookingId": {
@@ -1107,7 +1154,7 @@ function payloadFor(method, routePath, refs) {
     "PUT /api/v1/booking/update-status/:bookingId": { status: "In-Progress", notes: "phase status update" },
     "PUT /api/v1/booking/cancel/:bookingId": { reason: "Need to cancel this appointment due to schedule conflict" },
     "PUT /api/v1/booking/reschedule/:bookingId": {
-      appointmentDate: isoDate,
+      appointmentDate: farIsoDate,
       startTime: rescheduleSlot.startTime,
       endTime: rescheduleSlot.endTime,
       reason: "phase reschedule",
@@ -1438,6 +1485,31 @@ async function attemptRoute(route, sessions, refs) {
   }
   if (routeKey === "DELETE /api/v1/admin/patient/:patientId/medications" && refs.patientId) {
     await Patient.updateOne({ _id: refs.patientId }, { $addToSet: { currentMedications: "Paracetamol" } });
+  }
+  if (["POST /api/v1/admin/bookings/create", "PATCH /api/v1/admin/bookings/update/:bookingId"].includes(routeKey) && refs.patientId && refs.cityId) {
+    await Patient.updateOne(
+      { _id: refs.patientId },
+      { $set: { "address.cityId": refs.cityId, "address.city": refs.cityName || "Lucknow" } }
+    );
+  }
+  if (routeKey === "GET /api/v1/doctor/doctor/cities/by-name/:doctorId/:cityName" && refs.doctorId && refs.cityId) {
+    await Doctor.updateOne({ _id: refs.doctorId }, { $addToSet: { cities: refs.cityId } });
+  }
+  if (routeKey === "PUT /api/v1/booking/update-status/:bookingId" && refs.providerBookingId && refs.serviceProviderId) {
+    await ServiceProvider.updateOne(
+      { _id: refs.serviceProviderId },
+      { $set: { isActive: true, approvalStatus: "Approved", isVerified: true } }
+    );
+    await Booking.updateOne(
+      { _id: refs.providerBookingId },
+      { $set: { servicePartnerId: refs.serviceProviderId, status: "Approved" } }
+    );
+  }
+  if (routeKey === "PUT /api/v1/booking/reschedule/:bookingId" && refs.reschedulableBookingId) {
+    await Booking.updateOne(
+      { _id: refs.reschedulableBookingId },
+      { $set: { status: "Approved" } }
+    );
   }
 
   for (const ctx of contexts) {
