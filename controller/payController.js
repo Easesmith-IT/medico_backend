@@ -1,202 +1,290 @@
-const crypto = require("crypto");
-const Booking = require("../models/bookingModel");
-const Payment = require("../models/paymentModel");
-const Treatment = require("../models/treatmentModel");
-const razorpay = require("../config/razorpay");
+// const crypto = require("crypto");
+// const Booking = require("../models/bookingModel");
+// const Payment = require("../models/paymentModel");
+// const Treatment = require("../models/treatmentModel");
+// const razorpay = require("../config/razorpay");
 
-const ADMIN_ROLES = new Set(["admin", "superadmin", "subadmin"]);
-const PROVIDER_ROLES = new Set(["serviceprovider"]);
+// const ADMIN_ROLES = new Set(["admin", "superadmin", "subadmin"]);
+// const PROVIDER_ROLES = new Set(["serviceprovider"]);
 
-const normalizeAmount = (value) => {
-  const amount = Number(value || 0);
-  return Number.isFinite(amount) && amount > 0 ? Number(amount.toFixed(2)) : 0;
-};
+// const normalizeAmount = (value) => {
+//   const amount = Number(value || 0);
+//   return Number.isFinite(amount) && amount > 0 ? Number(amount.toFixed(2)) : 0;
+// };
 
-const getRole = (req) => (req.user?.role || "").toString().toLowerCase();
+// const getRole = (req) => (req.user?.role || "").toString().toLowerCase();
 
-const isObjectIdEqual = (a, b) => String(a || "") === String(b || "");
+// const isObjectIdEqual = (a, b) => String(a || "") === String(b || "");
 
-const canAccessTreatment = (req, treatment) => {
-  const role = getRole(req);
+// const canAccessTreatment = (req, treatment) => {
+//   const role = getRole(req);
 
-  if (ADMIN_ROLES.has(role)) {
-    return true;
-  }
+//   if (ADMIN_ROLES.has(role)) {
+//     return true;
+//   }
 
-  if (role === "patient") {
-    return isObjectIdEqual(treatment.patientId, req.user?.id);
-  }
+//   if (role === "patient") {
+//     return isObjectIdEqual(treatment.patientId, req.user?.id);
+//   }
 
-  if (PROVIDER_ROLES.has(role)) {
-    return isObjectIdEqual(treatment.servicePartnerId, req.user?.id);
-  }
+//   if (PROVIDER_ROLES.has(role)) {
+//     return isObjectIdEqual(treatment.servicePartnerId, req.user?.id);
+//   }
 
-  return false;
-};
+//   return false;
+// };
 
-const canManageManualLedgerActions = (req) => ADMIN_ROLES.has(getRole(req));
+// const canManageManualLedgerActions = (req) => ADMIN_ROLES.has(getRole(req));
 
-const getTreatmentOr404 = async (treatmentId) => Treatment.findById(treatmentId);
+// const getTreatmentOr404 = async (treatmentId) => Treatment.findById(treatmentId);
 
+// // const buildRazorpayReceipt = (prefix, entityId) => {
+// //   const safePrefix = String(prefix || "pay").slice(0, 8);
+// //   const shortId = String(entityId || "").replace(/[^a-zA-Z0-9]/g, "").slice(-12);
+// //   const stamp = Date.now().toString().slice(-10);
+// //   return `${safePrefix}_${shortId}_${stamp}`.slice(0, 40);
+// // };
+
+// const recalculateLedger = (payment) => {
+//   const totalPaid = (payment.transactions || [])
+//     .filter((item) => item.status === "Paid")
+//     .reduce((sum, item) => sum + Number(item.amountPaid || 0), 0);
+
+//   const totalRefunded = (payment.refunds || [])
+//     .filter((item) => item.status === "Processed")
+//     .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+//   payment.totalPaid = Number(totalPaid.toFixed(2));
+//   payment.totalRefunded = Number(totalRefunded.toFixed(2));
+//   payment.remainingBalance = Number(
+//     Math.max(Number(payment.totalBillAmount || 0) - payment.totalPaid + payment.totalRefunded, 0).toFixed(2)
+//   );
+// };
+
+// const syncPaymentLedger = async (payment, treatment) => {
+//   const bookings = await Booking.find({ treatmentId: treatment._id }).select(
+//     "_id pricing.totalAmount servicePartnerId"
+//   );
+
+//   const totalBillAmount = bookings.reduce(
+//     (sum, booking) => sum + Number(booking.pricing?.totalAmount || 0),
+//     0
+//   );
+
+//   payment.patientId = treatment.patientId;
+//   payment.servicePartnerId = treatment.servicePartnerId || null;
+//   payment.bookingIds = bookings.map((booking) => booking._id);
+//   payment.totalBillAmount = Number(totalBillAmount.toFixed(2));
+//   payment.billBreakdown = {
+//     ...(payment.billBreakdown || {}),
+//     subtotal: payment.totalBillAmount,
+//     gstAmount: Number(payment.billBreakdown?.gstAmount || 0),
+//     cgst: Number(payment.billBreakdown?.cgst || 0),
+//     sgst: Number(payment.billBreakdown?.sgst || 0),
+//     grandTotal: payment.totalBillAmount,
+//   };
+
+//   recalculateLedger(payment);
+//   return payment;
+// };
+
+// const getOrCreatePaymentLedger = async (treatment) => {
+//   let payment = await Payment.findOne({ treatmentId: treatment._id });
+
+//   if (!payment) {
+//     payment = new Payment({
+//       treatmentId: treatment._id,
+//       patientId: treatment.patientId,
+//       servicePartnerId: treatment.servicePartnerId || null,
+//       bookingIds: [],
+//       totalBillAmount: 0,
+//       totalPaid: 0,
+//       totalRefunded: 0,
+//       remainingBalance: 0,
+//       billBreakdown: {
+//         subtotal: 0,
+//         gstAmount: 0,
+//         cgst: 0,
+//         sgst: 0,
+//         grandTotal: 0,
+//       },
+//       paymentStatus: "Unpaid",
+//       transactions: [],
+//       refunds: [],
+//     });
+//   }
+
+//   await syncPaymentLedger(payment, treatment);
+//   await payment.save();
+//   return payment;
+// };
+
+// const inferStage = (payment, incomingAmount) => {
+//   const amount = normalizeAmount(incomingAmount);
+//   const paidSoFar = Number(payment.totalPaid || 0);
+//   const remainingBefore = Number(payment.remainingBalance || 0);
+
+//   if (paidSoFar <= 0) {
+//     return "Advance";
+//   }
+
+//   if (amount >= remainingBefore) {
+//     return "Final";
+//   }
+
+//   return "Partial";
+// };
+
+// const buildLedgerResponse = (payment) => ({
+//   paymentId: payment._id,
+//   treatmentId: payment.treatmentId,
+//   patientId: payment.patientId,
+//   servicePartnerId: payment.servicePartnerId,
+//   bookingIds: payment.bookingIds,
+//   invoiceId: payment.invoiceId,
+//   currency: payment.currency,
+//   totalBillAmount: payment.totalBillAmount,
+//   totalPaid: payment.totalPaid,
+//   totalRefunded: payment.totalRefunded,
+//   remainingBalance: payment.remainingBalance,
+//   paymentStatus: payment.paymentStatus,
+//   transactions: payment.transactions,
+//   refunds: payment.refunds,
+//   updatedAt: payment.updatedAt,
+// });
+
+// exports.getTreatmentPaymentLedger = async (req, res) => {
+//   try {
+//     const { treatmentId } = req.params;
+//     const treatment = await getTreatmentOr404(treatmentId);
+
+//     if (!treatment) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Treatment not found",
+//       });
+//     }
+
+//     if (!canAccessTreatment(req, treatment)) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "You are not allowed to access this payment ledger",
+//       });
+//     }
+
+//     const payment = await getOrCreatePaymentLedger(treatment);
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Payment ledger fetched successfully",
+//       data: buildLedgerResponse(payment),
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch payment ledger",
+//       error: error.message,
+//     });
+//   }
+// };
 // const buildRazorpayReceipt = (prefix, entityId) => {
 //   const safePrefix = String(prefix || "pay").slice(0, 8);
-//   const shortId = String(entityId || "").replace(/[^a-zA-Z0-9]/g, "").slice(-12);
+//   const shortId = String(entityId || "")
+//     .replace(/[^a-zA-Z0-9]/g, "")
+//     .slice(-12);
 //   const stamp = Date.now().toString().slice(-10);
+
 //   return `${safePrefix}_${shortId}_${stamp}`.slice(0, 40);
 // };
 
-const recalculateLedger = (payment) => {
-  const totalPaid = (payment.transactions || [])
-    .filter((item) => item.status === "Paid")
-    .reduce((sum, item) => sum + Number(item.amountPaid || 0), 0);
+// // exports.createTreatmentOnlineOrder = async (req, res) => {
+// //   try {
+// //     const { treatmentId } = req.params;
+// //     const { amount } = req.body;
 
-  const totalRefunded = (payment.refunds || [])
-    .filter((item) => item.status === "Processed")
-    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+// //     const treatment = await getTreatmentOr404(treatmentId);
+// //     if (!treatment) {
+// //       return res.status(404).json({
+// //         success: false,
+// //         message: "Treatment not found",
+// //       });
+// //     }
 
-  payment.totalPaid = Number(totalPaid.toFixed(2));
-  payment.totalRefunded = Number(totalRefunded.toFixed(2));
-  payment.remainingBalance = Number(
-    Math.max(Number(payment.totalBillAmount || 0) - payment.totalPaid + payment.totalRefunded, 0).toFixed(2)
-  );
-};
+// //     if (!canAccessTreatment(req, treatment) || getRole(req) !== "patient") {
+// //       return res.status(403).json({
+// //         success: false,
+// //         message: "Only the treatment owner can create an online payment order",
+// //       });
+// //     }
 
-const syncPaymentLedger = async (payment, treatment) => {
-  const bookings = await Booking.find({ treatmentId: treatment._id }).select(
-    "_id pricing.totalAmount servicePartnerId"
-  );
+// //     const payment = await getOrCreatePaymentLedger(treatment);
+// //     const requestedAmount = normalizeAmount(amount);
 
-  const totalBillAmount = bookings.reduce(
-    (sum, booking) => sum + Number(booking.pricing?.totalAmount || 0),
-    0
-  );
+// //     if (requestedAmount <= 0) {
+// //       return res.status(400).json({
+// //         success: false,
+// //         message: "A valid amount is required",
+// //       });
+// //     }
 
-  payment.patientId = treatment.patientId;
-  payment.servicePartnerId = treatment.servicePartnerId || null;
-  payment.bookingIds = bookings.map((booking) => booking._id);
-  payment.totalBillAmount = Number(totalBillAmount.toFixed(2));
-  payment.billBreakdown = {
-    ...(payment.billBreakdown || {}),
-    subtotal: payment.totalBillAmount,
-    gstAmount: Number(payment.billBreakdown?.gstAmount || 0),
-    cgst: Number(payment.billBreakdown?.cgst || 0),
-    sgst: Number(payment.billBreakdown?.sgst || 0),
-    grandTotal: payment.totalBillAmount,
-  };
+// //     if (requestedAmount > Number(payment.remainingBalance || 0)) {
+// //       return res.status(400).json({
+// //         success: false,
+// //         message: "Amount exceeds the remaining treatment balance",
+// //       });
+// //     }
 
-  recalculateLedger(payment);
-  return payment;
-};
+// //     const stage = inferStage(payment, requestedAmount);
+// //     const order = await razorpay.orders.create({
+// //       amount: Math.round(requestedAmount * 100),
+// //       currency: payment.currency || "INR",
+// //       receipt: buildRazorpayReceipt("treatpay", treatment._id),
+// //       notes: {
+// //         treatmentId: String(treatment._id),
+// //         paymentStage: stage,
+// //       },
+// //      razorpayOrderId: order.id,
+// //       razorpayPaymentId: null,
+// //       razorpaySignature: null,    });
 
-const getOrCreatePaymentLedger = async (treatment) => {
-  let payment = await Payment.findOne({ treatmentId: treatment._id });
+// //     payment.transactions.push({
+// //       type: "Charge",
+// //       stage,
+// //       method: "Online",
+// //       amountPaid: requestedAmount,
+// //       currency: payment.currency || "INR",
+// //       status: "Pending",
+ 
+// //       note: `Pending ${stage.toLowerCase()} payment`,
+// //       collectedBy: null,
+// //     });
 
-  if (!payment) {
-    payment = new Payment({
-      treatmentId: treatment._id,
-      patientId: treatment.patientId,
-      servicePartnerId: treatment.servicePartnerId || null,
-      bookingIds: [],
-      totalBillAmount: 0,
-      totalPaid: 0,
-      totalRefunded: 0,
-      remainingBalance: 0,
-      billBreakdown: {
-        subtotal: 0,
-        gstAmount: 0,
-        cgst: 0,
-        sgst: 0,
-        grandTotal: 0,
-      },
-      paymentStatus: "Unpaid",
-      transactions: [],
-      refunds: [],
-    });
-  }
+// //     recalculateLedger(payment);
+// //     await payment.save();
 
-  await syncPaymentLedger(payment, treatment);
-  await payment.save();
-  return payment;
-};
+// //     return res.status(200).json({
+// //       success: true,
+// //       message: "Online payment order created successfully",
+// //       data: {
+// //         paymentId: payment._id,
+// //         treatmentId: treatment._id,
+// //         orderId: order.id,
+// //         amount: order.amount,
+// //         currency: order.currency,
+// //         stage,
+// //       },
+// //     });
+// //   } catch (error) {
+// //     console.error("CREATE ORDER ERROR:", error);
+// //     console.error("STACK:", error.stack);
 
-const inferStage = (payment, incomingAmount) => {
-  const amount = normalizeAmount(incomingAmount);
-  const paidSoFar = Number(payment.totalPaid || 0);
-  const remainingBefore = Number(payment.remainingBalance || 0);
-
-  if (paidSoFar <= 0) {
-    return "Advance";
-  }
-
-  if (amount >= remainingBefore) {
-    return "Final";
-  }
-
-  return "Partial";
-};
-
-const buildLedgerResponse = (payment) => ({
-  paymentId: payment._id,
-  treatmentId: payment.treatmentId,
-  patientId: payment.patientId,
-  servicePartnerId: payment.servicePartnerId,
-  bookingIds: payment.bookingIds,
-  invoiceId: payment.invoiceId,
-  currency: payment.currency,
-  totalBillAmount: payment.totalBillAmount,
-  totalPaid: payment.totalPaid,
-  totalRefunded: payment.totalRefunded,
-  remainingBalance: payment.remainingBalance,
-  paymentStatus: payment.paymentStatus,
-  transactions: payment.transactions,
-  refunds: payment.refunds,
-  updatedAt: payment.updatedAt,
-});
-
-exports.getTreatmentPaymentLedger = async (req, res) => {
-  try {
-    const { treatmentId } = req.params;
-    const treatment = await getTreatmentOr404(treatmentId);
-
-    if (!treatment) {
-      return res.status(404).json({
-        success: false,
-        message: "Treatment not found",
-      });
-    }
-
-    if (!canAccessTreatment(req, treatment)) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not allowed to access this payment ledger",
-      });
-    }
-
-    const payment = await getOrCreatePaymentLedger(treatment);
-
-    return res.status(200).json({
-      success: true,
-      message: "Payment ledger fetched successfully",
-      data: buildLedgerResponse(payment),
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch payment ledger",
-      error: error.message,
-    });
-  }
-};
-const buildRazorpayReceipt = (prefix, entityId) => {
-  const safePrefix = String(prefix || "pay").slice(0, 8);
-  const shortId = String(entityId || "")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .slice(-12);
-  const stamp = Date.now().toString().slice(-10);
-
-  return `${safePrefix}_${shortId}_${stamp}`.slice(0, 40);
-};
-
+// //     return res.status(500).json({
+// //       success: false,
+// //       message: "Failed to create online payment order",
+// //       error: error.message,
+// //     });
+// //   }
+// // };
 // exports.createTreatmentOnlineOrder = async (req, res) => {
 //   try {
 //     const { treatmentId } = req.params;
@@ -235,6 +323,7 @@ const buildRazorpayReceipt = (prefix, entityId) => {
 //     }
 
 //     const stage = inferStage(payment, requestedAmount);
+
 //     const order = await razorpay.orders.create({
 //       amount: Math.round(requestedAmount * 100),
 //       currency: payment.currency || "INR",
@@ -243,9 +332,7 @@ const buildRazorpayReceipt = (prefix, entityId) => {
 //         treatmentId: String(treatment._id),
 //         paymentStage: stage,
 //       },
-//      razorpayOrderId: order.id,
-//       razorpayPaymentId: null,
-//       razorpaySignature: null,    });
+//     });
 
 //     payment.transactions.push({
 //       type: "Charge",
@@ -254,9 +341,11 @@ const buildRazorpayReceipt = (prefix, entityId) => {
 //       amountPaid: requestedAmount,
 //       currency: payment.currency || "INR",
 //       status: "Pending",
- 
 //       note: `Pending ${stage.toLowerCase()} payment`,
 //       collectedBy: null,
+//       razorpayOrderId: order.id,
+//       razorpayPaymentId: null,
+//       razorpaySignature: null,
 //     });
 
 //     recalculateLedger(payment);
@@ -268,6 +357,7 @@ const buildRazorpayReceipt = (prefix, entityId) => {
 //       data: {
 //         paymentId: payment._id,
 //         treatmentId: treatment._id,
+//         key: process.env.RAZORPAY_API_KEY,
 //         orderId: order.id,
 //         amount: order.amount,
 //         currency: order.currency,
@@ -285,6 +375,455 @@ const buildRazorpayReceipt = (prefix, entityId) => {
 //     });
 //   }
 // };
+// exports.verifyTreatmentOnlinePayment = async (req, res) => {
+//   try {
+//     const { treatmentId } = req.params;
+//     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+//     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "razorpay_order_id, razorpay_payment_id and razorpay_signature are required",
+//       });
+//     }
+
+//     const treatment = await getTreatmentOr404(treatmentId);
+//     if (!treatment) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Treatment not found",
+//       });
+//     }
+
+//     if (!canAccessTreatment(req, treatment) || getRole(req) !== "patient") {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only the treatment owner can verify an online payment",
+//       });
+//     }
+
+//     const payment = await Payment.findOne({ treatmentId });
+//     if (!payment) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Payment ledger not found for this treatment",
+//       });
+//     }
+
+//     const transaction = [...(payment.transactions || [])]
+//       .reverse()
+//       .find(
+//         (item) =>
+//           item.razorpayOrderId === razorpay_order_id &&
+//           item.method === "Online" &&
+//           item.status === "Pending"
+//       );
+
+//     if (!transaction) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Pending online transaction not found for this order",
+//       });
+//     }
+
+//     const expectedSignature = crypto
+//       .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
+//       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+//       .digest("hex");
+
+//     if (expectedSignature !== razorpay_signature) {
+//       transaction.status = "Failed";
+//       transaction.failureReason = "Signature verification failed";
+//       await payment.save();
+
+//       return res.status(400).json({
+//         success: false,
+//         message: "Payment verification failed",
+//       });
+//     }
+
+//     transaction.status = "Paid";
+//     transaction.razorpayPaymentId = razorpay_payment_id;
+//     transaction.razorpaySignature = razorpay_signature;
+//     transaction.paidAt = new Date();
+//     transaction.failureReason = null;
+
+//     recalculateLedger(payment);
+//     await payment.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Online payment verified successfully",
+//       data: buildLedgerResponse(payment),
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to verify online payment",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// exports.recordManualPayment = async (req, res) => {
+//   try {
+//     const { treatmentId } = req.params;
+//     const { amount, method, stage, note = "", referenceNumber = null } = req.body;
+
+//     if (!canManageManualLedgerActions(req)) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only admins can record manual payments",
+//       });
+//     }
+
+//     const treatment = await getTreatmentOr404(treatmentId);
+//     if (!treatment) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Treatment not found",
+//       });
+//     }
+
+//     const payment = await getOrCreatePaymentLedger(treatment);
+//     const receivedAmount = normalizeAmount(amount);
+//     const allowedMethods = new Set(["Cash", "UPI", "Card", "BankTransfer"]);
+
+//     if (receivedAmount <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "A valid amount is required",
+//       });
+//     }
+
+//     if (!allowedMethods.has(method)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Manual payment method must be Cash, UPI, Card, or BankTransfer",
+//       });
+//     }
+
+//     if (receivedAmount > Number(payment.remainingBalance || 0)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Amount exceeds the remaining treatment balance",
+//       });
+//     }
+
+//     const resolvedStage = ["Advance", "Partial", "Final"].includes(stage)
+//       ? stage
+//       : inferStage(payment, receivedAmount);
+
+//     payment.transactions.push({
+//       type: "Charge",
+//       stage: resolvedStage,
+//       method,
+//       amountPaid: receivedAmount,
+//       currency: payment.currency || "INR",
+//       status: "Paid",
+//       razorpayOrderId: null,
+//       razorpayPaymentId: referenceNumber,
+//       razorpaySignature: null,
+//       note,
+//       collectedBy: req.user?.id || null,
+//       paidAt: new Date(),
+//     });
+
+//     payment.lastWebhookEvent = "MANUAL_COLLECTION";
+//     payment.lastWebhookProcessedAt = new Date();
+//     recalculateLedger(payment);
+//     await payment.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Manual payment recorded successfully",
+//       data: buildLedgerResponse(payment),
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to record manual payment",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// exports.recordManualRefund = async (req, res) => {
+//   try {
+//     const { treatmentId } = req.params;
+//     const {
+//       amount,
+//       reason,
+//       mode,
+//       refundType,
+//       note = "",
+//       referenceTransactionId = null,
+//     } = req.body;
+
+//     if (!canManageManualLedgerActions(req)) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Only admins can process manual refunds",
+//       });
+//     }
+
+//     const treatment = await getTreatmentOr404(treatmentId);
+//     if (!treatment) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Treatment not found",
+//       });
+//     }
+
+//     const payment = await getOrCreatePaymentLedger(treatment);
+//     const refundAmount = normalizeAmount(amount);
+//     const refundableAmount = Math.max(
+//       Number(payment.totalPaid || 0) - Number(payment.totalRefunded || 0),
+//       0
+//     );
+
+//     if (refundAmount <= 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "A valid refund amount is required",
+//       });
+//     }
+
+//     if (!reason || !mode) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "reason and mode are required for a manual refund",
+//       });
+//     }
+
+//     if (refundAmount > refundableAmount) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Refund amount exceeds the refundable balance",
+//       });
+//     }
+
+//     payment.refunds.push({
+//       refundType:
+//         refundType && ["Full", "Partial"].includes(refundType)
+//           ? refundType
+//           : refundAmount === refundableAmount
+//             ? "Full"
+//             : "Partial",
+//       amount: refundAmount,
+//       reason,
+//       status: "Processed",
+//       mode,
+//       referenceTransactionId,
+//       adminId: req.user?.id || null,
+//       approvedBy: req.user?.id || null,
+//       refundedAt: new Date(),
+//       note,
+//     });
+
+//     payment.lastWebhookEvent = "MANUAL_REFUND";
+//     payment.lastWebhookProcessedAt = new Date();
+//     recalculateLedger(payment);
+//     await payment.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Manual refund recorded successfully",
+//       data: buildLedgerResponse(payment),
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to record manual refund",
+//       error: error.message,
+//     });
+//   }
+// };
+
+
+
+
+const crypto = require("crypto");
+const Booking = require("../models/bookingModel");
+const Payment = require("../models/paymentModel");
+const Treatment = require("../models/treatmentModel");
+const razorpay = require("../config/razorpay");
+
+const ADMIN_ROLES = new Set(["admin", "superadmin", "subadmin"]);
+const PROVIDER_ROLES = new Set(["serviceprovider"]);
+
+const normalizeAmount = (value) => {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) && amount > 0 ? Number(amount.toFixed(2)) : 0;
+};
+
+const getRole = (req) => (req.user?.role || "").toString().toLowerCase();
+const isObjectIdEqual = (a, b) => String(a || "") === String(b || "");
+
+const canAccessTreatment = (req, treatment) => {
+  const role = getRole(req);
+
+  if (ADMIN_ROLES.has(role)) return true;
+  if (role === "patient") return isObjectIdEqual(treatment.patientId, req.user?.id);
+  if (PROVIDER_ROLES.has(role)) return isObjectIdEqual(treatment.servicePartnerId, req.user?.id);
+
+  return false;
+};
+
+const canManageManualLedgerActions = (req) => ADMIN_ROLES.has(getRole(req));
+const getTreatmentOr404 = async (treatmentId) => Treatment.findById(treatmentId);
+
+const buildRazorpayReceipt = (prefix, entityId) => {
+  const safePrefix = String(prefix || "pay").slice(0, 8);
+  const shortId = String(entityId || "").replace(/[^a-zA-Z0-9]/g, "").slice(-12);
+  const stamp = Date.now().toString().slice(-10);
+  return `${safePrefix}_${shortId}_${stamp}`.slice(0, 40);
+};
+
+const recalculateLedger = (payment) => {
+  const totalPaid = (payment.transactions || [])
+    .filter((item) => item.status === "Paid")
+    .reduce((sum, item) => sum + Number(item.amountPaid || 0), 0);
+
+  const totalRefunded = (payment.refunds || [])
+    .filter((item) => item.status === "Processed")
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  payment.totalPaid = Number(totalPaid.toFixed(2));
+  payment.totalRefunded = Number(totalRefunded.toFixed(2));
+  payment.remainingBalance = Number(
+    Math.max(Number(payment.totalBillAmount || 0) - payment.totalPaid + payment.totalRefunded, 0).toFixed(2)
+  );
+
+  if (payment.totalPaid <= 0) {
+    payment.paymentStatus = "Unpaid";
+  } else if (payment.remainingBalance <= 0) {
+    payment.paymentStatus = "Paid";
+  } else {
+    payment.paymentStatus = "Partially Paid";
+  }
+};
+
+const syncPaymentLedger = async (payment, treatment) => {
+  const bookings = await Booking.find({ treatmentId: treatment._id }).select(
+    "_id pricing.totalAmount servicePartnerId"
+  );
+
+  const totalBillAmount = bookings.reduce(
+    (sum, booking) => sum + Number(booking.pricing?.totalAmount || 0),
+    0
+  );
+
+  payment.patientId = treatment.patientId;
+  payment.servicePartnerId = treatment.servicePartnerId || bookings[0]?.servicePartnerId || null;
+  payment.bookingIds = bookings.map((booking) => booking._id);
+  payment.currency = payment.currency || "INR";
+  payment.totalBillAmount = Number(totalBillAmount.toFixed(2));
+  payment.billBreakdown = {
+    ...(payment.billBreakdown || {}),
+    subtotal: payment.totalBillAmount,
+    gstAmount: Number(payment.billBreakdown?.gstAmount || 0),
+    cgst: Number(payment.billBreakdown?.cgst || 0),
+    sgst: Number(payment.billBreakdown?.sgst || 0),
+    grandTotal: payment.totalBillAmount,
+  };
+
+  recalculateLedger(payment);
+  return payment;
+};
+
+const getOrCreatePaymentLedger = async (treatment) => {
+  let payment = await Payment.findOne({ treatmentId: treatment._id });
+
+  if (!payment) {
+    payment = new Payment({
+      treatmentId: treatment._id,
+      patientId: treatment.patientId,
+      servicePartnerId: treatment.servicePartnerId || null,
+      bookingIds: [],
+      currency: "INR",
+      totalBillAmount: 0,
+      totalPaid: 0,
+      totalRefunded: 0,
+      remainingBalance: 0,
+      billBreakdown: {
+        subtotal: 0,
+        gstAmount: 0,
+        cgst: 0,
+        sgst: 0,
+        grandTotal: 0,
+      },
+      paymentStatus: "Unpaid",
+      transactions: [],
+      refunds: [],
+    });
+  }
+
+  await syncPaymentLedger(payment, treatment);
+  await payment.save();
+  return payment;
+};
+
+const inferStage = (payment, incomingAmount) => {
+  const amount = normalizeAmount(incomingAmount);
+  const paidSoFar = Number(payment.totalPaid || 0);
+  const remainingBefore = Number(payment.remainingBalance || 0);
+
+  if (paidSoFar <= 0) return "Advance";
+  if (amount >= remainingBefore) return "Final";
+  return "Partial";
+};
+
+const buildLedgerResponse = (payment) => ({
+  paymentId: payment._id,
+  treatmentId: payment.treatmentId,
+  patientId: payment.patientId,
+  servicePartnerId: payment.servicePartnerId,
+  bookingIds: payment.bookingIds,
+  invoiceId: payment.invoiceId,
+  currency: payment.currency,
+  totalBillAmount: payment.totalBillAmount,
+  totalPaid: payment.totalPaid,
+  totalRefunded: payment.totalRefunded,
+  remainingBalance: payment.remainingBalance,
+  paymentStatus: payment.paymentStatus,
+  transactions: payment.transactions,
+  refunds: payment.refunds,
+  updatedAt: payment.updatedAt,
+});
+
+exports.getTreatmentPaymentLedger = async (req, res) => {
+  try {
+    const { treatmentId } = req.params;
+    const treatment = await getTreatmentOr404(treatmentId);
+
+    if (!treatment) {
+      return res.status(404).json({ success: false, message: "Treatment not found" });
+    }
+
+    if (!canAccessTreatment(req, treatment)) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not allowed to access this payment ledger",
+      });
+    }
+
+    const payment = await getOrCreatePaymentLedger(treatment);
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment ledger fetched successfully",
+      data: buildLedgerResponse(payment),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment ledger",
+      error: error.message,
+    });
+  }
+};
+
 exports.createTreatmentOnlineOrder = async (req, res) => {
   try {
     const { treatmentId } = req.params;
@@ -292,10 +831,7 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
 
     const treatment = await getTreatmentOr404(treatmentId);
     if (!treatment) {
-      return res.status(404).json({
-        success: false,
-        message: "Treatment not found",
-      });
+      return res.status(404).json({ success: false, message: "Treatment not found" });
     }
 
     if (!canAccessTreatment(req, treatment) || getRole(req) !== "patient") {
@@ -306,12 +842,19 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
     }
 
     const payment = await getOrCreatePaymentLedger(treatment);
-    const requestedAmount = normalizeAmount(amount);
+    const requestedAmount = normalizeAmount(amount || payment.remainingBalance);
 
     if (requestedAmount <= 0) {
       return res.status(400).json({
         success: false,
-        message: "A valid amount is required",
+        message: "No payable amount found for this treatment",
+      });
+    }
+
+    if (Number(payment.totalBillAmount || 0) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking amount is not available yet. Create booking first, then pay.",
       });
     }
 
@@ -319,6 +862,24 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Amount exceeds the remaining treatment balance",
+      });
+    }
+
+    const existingPending = (payment.transactions || []).find(
+      (item) => item.method === "Online" && item.status === "Pending"
+    );
+
+    if (existingPending) {
+      return res.status(409).json({
+        success: false,
+        message: "A pending online payment already exists for this treatment",
+        data: {
+          paymentId: payment._id,
+          orderId: existingPending.razorpayOrderId,
+          amount: Math.round(Number(existingPending.amountPaid || 0) * 100),
+          currency: existingPending.currency || payment.currency || "INR",
+          stage: existingPending.stage,
+        },
       });
     }
 
@@ -346,6 +907,8 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
       razorpayOrderId: order.id,
       razorpayPaymentId: null,
       razorpaySignature: null,
+      paidAt: null,
+      failureReason: null,
     });
 
     recalculateLedger(payment);
@@ -366,8 +929,6 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("CREATE ORDER ERROR:", error);
-    console.error("STACK:", error.stack);
-
     return res.status(500).json({
       success: false,
       message: "Failed to create online payment order",
@@ -375,6 +936,7 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
     });
   }
 };
+
 exports.verifyTreatmentOnlinePayment = async (req, res) => {
   try {
     const { treatmentId } = req.params;
@@ -389,10 +951,7 @@ exports.verifyTreatmentOnlinePayment = async (req, res) => {
 
     const treatment = await getTreatmentOr404(treatmentId);
     if (!treatment) {
-      return res.status(404).json({
-        success: false,
-        message: "Treatment not found",
-      });
+      return res.status(404).json({ success: false, message: "Treatment not found" });
     }
 
     if (!canAccessTreatment(req, treatment) || getRole(req) !== "patient") {
@@ -402,7 +961,7 @@ exports.verifyTreatmentOnlinePayment = async (req, res) => {
       });
     }
 
-    const payment = await Payment.findOne({ treatmentId });
+    const payment = await Payment.findOne({ treatmentId: treatment._id });
     if (!payment) {
       return res.status(404).json({
         success: false,
@@ -479,10 +1038,7 @@ exports.recordManualPayment = async (req, res) => {
 
     const treatment = await getTreatmentOr404(treatmentId);
     if (!treatment) {
-      return res.status(404).json({
-        success: false,
-        message: "Treatment not found",
-      });
+      return res.status(404).json({ success: false, message: "Treatment not found" });
     }
 
     const payment = await getOrCreatePaymentLedger(treatment);
@@ -490,10 +1046,7 @@ exports.recordManualPayment = async (req, res) => {
     const allowedMethods = new Set(["Cash", "UPI", "Card", "BankTransfer"]);
 
     if (receivedAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "A valid amount is required",
-      });
+      return res.status(400).json({ success: false, message: "A valid amount is required" });
     }
 
     if (!allowedMethods.has(method)) {
@@ -569,10 +1122,7 @@ exports.recordManualRefund = async (req, res) => {
 
     const treatment = await getTreatmentOr404(treatmentId);
     if (!treatment) {
-      return res.status(404).json({
-        success: false,
-        message: "Treatment not found",
-      });
+      return res.status(404).json({ success: false, message: "Treatment not found" });
     }
 
     const payment = await getOrCreatePaymentLedger(treatment);
@@ -638,4 +1188,14 @@ exports.recordManualRefund = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+exports.ensurePaymentLedgerForBooking = async ({ treatmentId }) => {
+  if (!treatmentId) throw new Error("treatmentId is required");
+
+  const treatment = await Treatment.findById(treatmentId);
+  if (!treatment) throw new Error("Treatment not found");
+
+  const payment = await getOrCreatePaymentLedger(treatment);
+  return payment;
 };
