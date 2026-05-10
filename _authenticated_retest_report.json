@@ -1,0 +1,3461 @@
+{
+  "generatedAt": "2026-05-10T05:01:14.737Z",
+  "providerId": "6954b8661f9e10ca7a950d6a",
+  "patientId": "6a000505a02d2dab01a0b2bd",
+  "out": [
+    {
+      "id": "cancel-booking",
+      "host": "rehab",
+      "method": "PUT",
+      "url": "https://api.rehabmedico.in/api/v1/booking/cancel/69f9dfeb5f0e742e4190dab2",
+      "status": 400,
+      "response": {
+        "success": false,
+        "message": "Cannot cancel past appointments"
+      }
+    },
+    {
+      "id": "pay-null-treatment",
+      "host": "rehab",
+      "method": "POST",
+      "url": "https://api.rehabmedico.in/api/v1/payments/treatments/null/online/order",
+      "status": 400,
+      "response": {
+        "success": false,
+        "message": "Invalid treatment ID format"
+      }
+    },
+    {
+      "id": "pay-pending-treatment",
+      "host": "rehab",
+      "method": "POST",
+      "url": "https://api.rehabmedico.in/api/v1/payments/treatments/69cfafda0ef597c814b1602a/online/order",
+      "status": 403,
+      "response": {
+        "success": false,
+        "message": "Only the treatment owner can create an online payment order"
+      }
+    },
+    {
+      "id": "update-status-complete",
+      "host": "umber",
+      "method": "PUT",
+      "url": "https://medico-backend-umber.vercel.app/api/v1/booking/update-status/69f9df74f2ebe7e5eec65fb3",
+      "status": 400,
+      "response": {
+        "success": false,
+        "message": "Treatment must be Active"
+      }
+    },
+    {
+      "id": "schedule-next-treatment",
+      "host": "umber",
+      "method": "POST",
+      "url": "https://medico-backend-umber.vercel.app/api/v1/booking/providerBookings",
+      "status": 400,
+      "response": {
+        "success": false,
+        "message": "Service not found or inactive"
+      }
+    },
+    {
+      "id": "generate-invoice",
+      "host": "umber",
+      "method": "POST",
+      "url": "https://medico-backend-umber.vercel.app/api/v1/invoice/generate",
+      "status": 500,
+      "response": {
+        "success": false,
+        "message": "The billing account for the owning project is disabled in state closed"
+      }
+    },
+    {
+      "id": "provider-my-bookings",
+      "host": "umber",
+      "method": "GET",
+      "url": "https://medico-backend-umber.vercel.app/api/v1/booking/my-bookings/6954b8661f9e10ca7a950d6a",
+      "status": 200,
+      "response": {
+        "success": true,
+        "count": 20,
+        "message": "Bookings retrieved successfully",
+        "data": [
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 200,
+              "equipmentCharges": 0,
+              "subtotal": 200,
+              "taxPercentage": 18,
+              "taxAmount": 36,
+              "totalAmount": 236
+            },
+            "createdBy": {
+              "userId": "69ff3ce98a1f5b32610afba5",
+              "userModel": "Admin"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3cf20888e1f00411adc3",
+            "treatmentId": {
+              "_id": "69ff3cea8a1f5b32610afbb1",
+              "status": "Active",
+              "validTill": "2026-05-14T13:55:54.233Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69ff36c49f29739c4bf092fb",
+              "name": "Phase Service 1778333379608",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": null,
+            "sessionNumber": 3,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Approved",
+            "notes": "",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:56:02.610Z",
+            "updatedAt": "2026-05-09T13:56:02.610Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 200,
+              "equipmentCharges": 0,
+              "subtotal": 200,
+              "taxPercentage": 18,
+              "taxAmount": 36,
+              "totalAmount": 236
+            },
+            "createdBy": {
+              "userId": "6916d13436be446373d52387",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3cea8a1f5b32610afbb4",
+            "treatmentId": {
+              "_id": "69ff3cea8a1f5b32610afbb1",
+              "status": "Active",
+              "validTill": "2026-05-14T13:55:54.233Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69ff36c49f29739c4bf092fb",
+              "name": "Phase Service 1778333379608",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "modes": [],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "sessionNumber": 1,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Cancelled",
+            "notes": "phase update",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": "patient",
+            "cancelledAt": "2026-05-09T13:56:21.715Z",
+            "cancellationReason": "Need to cancel this appointment due to schedule conflict",
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:55:54.482Z",
+            "updatedAt": "2026-05-09T13:56:21.716Z",
+            "__v": 0,
+            "statusReason": "phase-fix",
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 200,
+              "equipmentCharges": 0,
+              "subtotal": 200,
+              "taxPercentage": 18,
+              "taxAmount": 36,
+              "totalAmount": 236
+            },
+            "createdBy": {
+              "userId": "69ff3c6e77bd2bb06f47dd50",
+              "userModel": "Admin"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3c78c7a1952f3bc2afa9",
+            "treatmentId": {
+              "_id": "69ff3c6f77bd2bb06f47dd5c",
+              "status": "Active",
+              "validTill": "2026-05-14T13:53:51.485Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69ff3543921dd1f3626cc358",
+              "name": "Phase Service 1778332995219",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": null,
+            "sessionNumber": 3,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Approved",
+            "notes": "",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:54:00.708Z",
+            "updatedAt": "2026-05-09T13:54:00.708Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 200,
+              "equipmentCharges": 0,
+              "subtotal": 200,
+              "taxPercentage": 18,
+              "taxAmount": 36,
+              "totalAmount": 236
+            },
+            "createdBy": {
+              "userId": "6916d13436be446373d52387",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3c6f77bd2bb06f47dd5f",
+            "treatmentId": {
+              "_id": "69ff3c6f77bd2bb06f47dd5c",
+              "status": "Active",
+              "validTill": "2026-05-14T13:53:51.485Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69ff3543921dd1f3626cc358",
+              "name": "Phase Service 1778332995219",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "modes": [],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "sessionNumber": 1,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Cancelled",
+            "notes": "phase update",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": "patient",
+            "cancelledAt": "2026-05-09T13:54:13.276Z",
+            "cancellationReason": "Need to cancel this appointment due to schedule conflict",
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:53:51.624Z",
+            "updatedAt": "2026-05-09T13:54:13.277Z",
+            "__v": 0,
+            "statusReason": "phase-fix",
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 210,
+              "equipmentCharges": 0,
+              "subtotal": 210,
+              "taxPercentage": 18,
+              "taxAmount": 37.8,
+              "totalAmount": 247.8
+            },
+            "createdBy": {
+              "userId": "69ff3b700a5c8abe24494f59",
+              "userModel": "Admin"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3b7a830a1994a7619fb7",
+            "treatmentId": {
+              "_id": "69ff3a9ba442980b5ae87d21",
+              "status": "Active",
+              "validTill": "2026-05-14T13:46:03.612Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": null,
+            "sessionNumber": 2,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Approved",
+            "notes": "",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:49:46.034Z",
+            "updatedAt": "2026-05-09T13:49:46.034Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 210,
+              "equipmentCharges": 0,
+              "subtotal": 210,
+              "taxPercentage": 18,
+              "taxAmount": 37.8,
+              "totalAmount": 247.8
+            },
+            "createdBy": {
+              "userId": "6916d13436be446373d52387",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3a9ba442980b5ae87d24",
+            "treatmentId": {
+              "_id": "69ff3a9ba442980b5ae87d21",
+              "status": "Active",
+              "validTill": "2026-05-14T13:46:03.612Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "modes": [],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "sessionNumber": 1,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Cancelled",
+            "notes": "phase update",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": "patient",
+            "cancelledAt": "2026-05-09T13:50:05.997Z",
+            "cancellationReason": "Need to cancel this appointment due to schedule conflict",
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:46:03.814Z",
+            "updatedAt": "2026-05-09T13:50:05.998Z",
+            "__v": 0,
+            "statusReason": "phase-fix",
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "18:30",
+              "endTime": "21:30"
+            },
+            "pricing": {
+              "totalAmount": 0,
+              "basePrice": 0,
+              "equipmentCharges": 0,
+              "subtotal": 0,
+              "taxPercentage": 0,
+              "taxAmount": 0
+            },
+            "createdBy": {
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69f9df74f2ebe7e5eec65fb3",
+            "treatmentId": {
+              "_id": "69f9df74f2ebe7e5eec65fb1",
+              "status": "Completed",
+              "validTill": "2026-05-10T12:15:48.665Z"
+            },
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "sessionNumber": 1,
+            "appointmentDate": "2026-03-26T00:00:00.000Z",
+            "duration": 30,
+            "status": "Completed",
+            "notes": "Please call me 10 minutes before arriving",
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-05T12:15:48.732Z",
+            "updatedAt": "2026-05-10T03:48:08.050Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "18:30",
+              "endTime": "21:30"
+            },
+            "pricing": {
+              "totalAmount": 0,
+              "basePrice": 0,
+              "equipmentCharges": 0,
+              "subtotal": 0,
+              "taxPercentage": 0,
+              "taxAmount": 0
+            },
+            "createdBy": {
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69f89b06243d41dabbb45132",
+            "treatmentId": {
+              "_id": "69f89b06243d41dabbb45130",
+              "status": "Active",
+              "validTill": "2026-05-09T13:11:34.909Z"
+            },
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "sessionNumber": 1,
+            "appointmentDate": "2026-03-26T00:00:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 minutes before arriving",
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-04T13:11:34.962Z",
+            "updatedAt": "2026-05-04T13:11:34.962Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "6:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69e073b32378d25802eda7e5",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "PendingPayment",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 590,
+            "paidAmount": 0,
+            "dueAmount": 590,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [],
+            "createdAt": "2026-04-16T05:29:23.838Z",
+            "updatedAt": "2026-04-16T05:35:08.473Z",
+            "__v": 0,
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "7:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69d40c8961d5ff2a0effe8da",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Partially Paid",
+            "paymentMethod": "Online",
+            "advanceAmount": 500,
+            "paidAmount": 500,
+            "dueAmount": 90,
+            "isAdvancePaid": true,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": "order_SaKHysoLnBLBMy",
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [
+              {
+                "amount": 500,
+                "method": "Online",
+                "stage": "Booking",
+                "razorpayOrderId": null,
+                "razorpayPaymentId": null,
+                "note": "Advance payment at booking time",
+                "paidAt": "2026-04-06T19:42:01.619Z"
+              }
+            ],
+            "createdAt": "2026-04-06T19:42:01.623Z",
+            "updatedAt": "2026-04-06T19:42:01.882Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69d40c8961d5ff2a0effe8dd",
+              "status": "Active",
+              "validTill": "2026-04-11T19:42:01.826Z"
+            },
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "8:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69d409ef00282eaaabb9f082",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Partially Paid",
+            "paymentMethod": "Online",
+            "advanceAmount": 500,
+            "paidAmount": 500,
+            "dueAmount": 90,
+            "isAdvancePaid": true,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [
+              {
+                "amount": 500,
+                "method": "Online",
+                "stage": "Booking",
+                "razorpayOrderId": null,
+                "razorpayPaymentId": null,
+                "note": "Advance payment at booking time",
+                "paidAt": "2026-04-06T19:30:55.030Z"
+              }
+            ],
+            "createdAt": "2026-04-06T19:30:55.047Z",
+            "updatedAt": "2026-04-06T19:30:55.186Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69d409ef00282eaaabb9f084",
+              "status": "Active",
+              "validTill": "2026-04-11T19:30:55.126Z"
+            },
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "13:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69d3a219c0cfd94a75be4964",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Partially Paid",
+            "paymentMethod": "Online",
+            "advanceAmount": 500,
+            "paidAmount": 500,
+            "dueAmount": 90,
+            "isAdvancePaid": true,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [
+              {
+                "amount": 500,
+                "method": "Online",
+                "stage": "Booking",
+                "razorpayOrderId": null,
+                "razorpayPaymentId": null,
+                "note": "Advance payment at booking time",
+                "paidAt": "2026-04-06T12:07:53.449Z"
+              }
+            ],
+            "createdAt": "2026-04-06T12:07:53.459Z",
+            "updatedAt": "2026-04-06T12:07:53.584Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69d3a219c0cfd94a75be4966",
+              "status": "Active",
+              "validTill": "2026-04-11T12:07:53.524Z"
+            },
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "12:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69d3a1b210f19fc2a6a43414",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Partially Paid",
+            "paymentMethod": "Online",
+            "advanceAmount": 500,
+            "paidAmount": 500,
+            "dueAmount": 90,
+            "isAdvancePaid": true,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [
+              {
+                "amount": 500,
+                "method": "Online",
+                "stage": "Booking",
+                "razorpayOrderId": null,
+                "razorpayPaymentId": null,
+                "note": "Advance payment at booking time",
+                "paidAt": "2026-04-06T12:06:10.756Z"
+              }
+            ],
+            "createdAt": "2026-04-06T12:06:10.769Z",
+            "updatedAt": "2026-04-06T12:06:10.897Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69d3a1b210f19fc2a6a43416",
+              "status": "Active",
+              "validTill": "2026-04-11T12:06:10.837Z"
+            },
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "14:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69d39a64f6a1c38341c2949b",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Partially Paid",
+            "paymentMethod": "Online",
+            "advanceAmount": 500,
+            "paidAmount": 500,
+            "dueAmount": 90,
+            "isAdvancePaid": true,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [
+              {
+                "amount": 500,
+                "method": "Online",
+                "stage": "Booking",
+                "razorpayOrderId": null,
+                "razorpayPaymentId": null,
+                "note": "Advance payment at booking time",
+                "paidAt": "2026-04-06T11:35:00.855Z"
+              }
+            ],
+            "createdAt": "2026-04-06T11:35:00.866Z",
+            "updatedAt": "2026-04-06T11:35:00.984Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69d39a64f6a1c38341c2949d",
+              "status": "Active",
+              "validTill": "2026-04-11T11:35:00.925Z"
+            },
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "18:46",
+              "endTime": "18:76"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "6954b8661f9e10ca7a950d6a",
+              "userModel": "ServiceProvider"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69cfbdb78e747888b5747a20",
+            "treatmentId": {
+              "_id": "69c5282b8cf9e49defc29ddb",
+              "status": "Active",
+              "validTill": "2026-03-31T12:35:55.458Z"
+            },
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-04-05T00:00:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Follow-up consultation after completed treatment",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": "69c528bb8cf9e49defc29e32",
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-04-03T13:16:39.146Z",
+            "updatedAt": "2026-04-03T13:16:39.146Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "09:00",
+              "endTime": "19:00"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692e8652deff065cd6540a99",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69cfb6aa8b0f088e6257460f",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-04-04T00:00:00.000Z",
+            "duration": 30,
+            "status": "In-Progress",
+            "notes": "this is test this is test",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-04-03T12:46:34.298Z",
+            "updatedAt": "2026-04-03T13:00:58.043Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69cfb6aa8b0f088e62574611",
+              "status": "Active",
+              "validTill": "2026-04-08T12:46:34.514Z"
+            },
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "09:00",
+              "endTime": "19:00"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692e8652deff065cd6540a99",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69cfb6908b0f088e625745f0",
+            "treatmentStatus": "Completed",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-04-03T00:00:00.000Z",
+            "duration": 30,
+            "status": "Completed",
+            "notes": "",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-04-03T12:46:08.255Z",
+            "updatedAt": "2026-04-03T13:02:57.087Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69cfb6908b0f088e625745f2",
+              "status": "Active",
+              "validTill": "2026-04-08T12:46:08.476Z"
+            },
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "09:00",
+              "endTime": "19:00"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692e8652deff065cd6540a99",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69cfafda0ef597c814b16028",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-04-03T00:00:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-04-03T12:17:30.437Z",
+            "updatedAt": "2026-04-03T12:17:30.898Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69cfafda0ef597c814b1602a",
+              "status": "Active",
+              "validTill": "2026-04-08T12:17:30.670Z"
+            },
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "18:08",
+              "endTime": "18:38"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "6954b8661f9e10ca7a950d6a",
+              "userModel": "ServiceProvider"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69c528bb8cf9e49defc29e32",
+            "treatmentId": {
+              "_id": "69c5282b8cf9e49defc29ddb",
+              "status": "Active",
+              "validTill": "2026-03-31T12:35:55.458Z"
+            },
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-27T00:00:00.000Z",
+            "duration": 30,
+            "status": "Completed",
+            "notes": "Follow-up consultation after completed treatment",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": "69c5282b8cf9e49defc29dd9",
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-03-26T12:38:19.885Z",
+            "updatedAt": "2026-04-03T13:16:39.369Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "12:30",
+              "endTime": "13:00"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692e8652deff065cd6540a99",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69c5282b8cf9e49defc29dd9",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-26T00:00:00.000Z",
+            "duration": 30,
+            "status": "Completed",
+            "notes": "this is test this is test",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-03-26T12:35:55.252Z",
+            "updatedAt": "2026-03-26T12:38:20.100Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69c5282b8cf9e49defc29ddb",
+              "status": "Active",
+              "validTill": "2026-03-31T12:35:55.458Z"
+            },
+            "additionalEquipment": [],
+            "paymentHistory": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "local-cancel-booking",
+      "host": "local",
+      "method": "PUT",
+      "url": "http://localhost:5005/api/v1/booking/cancel/69f9dfeb5f0e742e4190dab2",
+      "status": 400,
+      "response": {
+        "success": false,
+        "message": "Cannot cancel past appointments"
+      }
+    },
+    {
+      "id": "local-pay-null-treatment",
+      "host": "local",
+      "method": "POST",
+      "url": "http://localhost:5005/api/v1/payments/treatments/null/online/order",
+      "status": 400,
+      "response": {
+        "success": false,
+        "message": "Invalid treatment ID format"
+      }
+    },
+    {
+      "id": "local-pay-pending-treatment",
+      "host": "local",
+      "method": "POST",
+      "url": "http://localhost:5005/api/v1/payments/treatments/69cfafda0ef597c814b1602a/online/order",
+      "status": 403,
+      "response": {
+        "success": false,
+        "message": "Only the treatment owner can create an online payment order"
+      }
+    },
+    {
+      "id": "local-update-status-complete",
+      "host": "local",
+      "method": "PUT",
+      "url": "http://localhost:5005/api/v1/booking/update-status/69f9df74f2ebe7e5eec65fb3",
+      "status": 400,
+      "response": {
+        "success": false,
+        "message": "Treatment must be Active"
+      }
+    },
+    {
+      "id": "local-schedule-next-treatment",
+      "host": "local",
+      "method": "POST",
+      "url": "http://localhost:5005/api/v1/booking/providerBookings",
+      "status": 400,
+      "response": {
+        "success": false,
+        "message": "Service not found or inactive"
+      }
+    },
+    {
+      "id": "local-generate-invoice",
+      "host": "local",
+      "method": "POST",
+      "url": "http://localhost:5005/api/v1/invoice/generate",
+      "status": 201,
+      "response": {
+        "success": true,
+        "message": "Invoice generated successfully",
+        "data": {
+          "invoiceNumber": "INV-1778389273854-FA96",
+          "bookingId": "69cfb6908b0f088e625745f0",
+          "patientId": "692e8652deff065cd6540a99",
+          "doctorId": "69200a03f94dd4c32856d886",
+          "billingDetails": {
+            "category": "consultation",
+            "serviceName": "Doctor Visit",
+            "shiftType": "hourly",
+            "durationMinutes": 30,
+            "basePrice": 590,
+            "calculatedBase": 590,
+            "taxPercentage": 0
+          },
+          "medicines": [],
+          "additionalEquipment": [],
+          "invoiceUrl": "/uploads/1778389274480-INV-1778389273854-FA96.pdf",
+          "isInvoiceGenerated": true,
+          "totals": {
+            "subtotal": 590,
+            "gstAmount": 0,
+            "cgst": 0,
+            "sgst": 0,
+            "grandTotal": 590
+          },
+          "paymentStatus": "Unpaid",
+          "_id": "6a001119582f2795a6d6b04b",
+          "issuedAt": "2026-05-10T05:01:13.856Z",
+          "createdAt": "2026-05-10T05:01:13.858Z",
+          "updatedAt": "2026-05-10T05:01:14.483Z",
+          "__v": 0
+        }
+      }
+    },
+    {
+      "id": "local-provider-my-bookings",
+      "host": "local",
+      "method": "GET",
+      "url": "http://localhost:5005/api/v1/booking/my-bookings/6954b8661f9e10ca7a950d6a",
+      "status": 200,
+      "response": {
+        "success": true,
+        "count": 20,
+        "message": "Bookings retrieved successfully",
+        "data": [
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 200,
+              "equipmentCharges": 0,
+              "subtotal": 200,
+              "taxPercentage": 18,
+              "taxAmount": 36,
+              "totalAmount": 236
+            },
+            "createdBy": {
+              "userId": "69ff3ce98a1f5b32610afba5",
+              "userModel": "Admin"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3cf20888e1f00411adc3",
+            "treatmentId": {
+              "_id": "69ff3cea8a1f5b32610afbb1",
+              "status": "Active",
+              "validTill": "2026-05-14T13:55:54.233Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69ff36c49f29739c4bf092fb",
+              "name": "Phase Service 1778333379608",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": null,
+            "sessionNumber": 3,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Approved",
+            "notes": "",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:56:02.610Z",
+            "updatedAt": "2026-05-09T13:56:02.610Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 200,
+              "equipmentCharges": 0,
+              "subtotal": 200,
+              "taxPercentage": 18,
+              "taxAmount": 36,
+              "totalAmount": 236
+            },
+            "createdBy": {
+              "userId": "6916d13436be446373d52387",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3cea8a1f5b32610afbb4",
+            "treatmentId": {
+              "_id": "69ff3cea8a1f5b32610afbb1",
+              "status": "Active",
+              "validTill": "2026-05-14T13:55:54.233Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69ff36c49f29739c4bf092fb",
+              "name": "Phase Service 1778333379608",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "modes": [],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "sessionNumber": 1,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Cancelled",
+            "notes": "phase update",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": "patient",
+            "cancelledAt": "2026-05-09T13:56:21.715Z",
+            "cancellationReason": "Need to cancel this appointment due to schedule conflict",
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:55:54.482Z",
+            "updatedAt": "2026-05-09T13:56:21.716Z",
+            "__v": 0,
+            "statusReason": "phase-fix",
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 200,
+              "equipmentCharges": 0,
+              "subtotal": 200,
+              "taxPercentage": 18,
+              "taxAmount": 36,
+              "totalAmount": 236
+            },
+            "createdBy": {
+              "userId": "69ff3c6e77bd2bb06f47dd50",
+              "userModel": "Admin"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3c78c7a1952f3bc2afa9",
+            "treatmentId": {
+              "_id": "69ff3c6f77bd2bb06f47dd5c",
+              "status": "Active",
+              "validTill": "2026-05-14T13:53:51.485Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69ff3543921dd1f3626cc358",
+              "name": "Phase Service 1778332995219",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": null,
+            "sessionNumber": 3,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Approved",
+            "notes": "",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:54:00.708Z",
+            "updatedAt": "2026-05-09T13:54:00.708Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 200,
+              "equipmentCharges": 0,
+              "subtotal": 200,
+              "taxPercentage": 18,
+              "taxAmount": 36,
+              "totalAmount": 236
+            },
+            "createdBy": {
+              "userId": "6916d13436be446373d52387",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3c6f77bd2bb06f47dd5f",
+            "treatmentId": {
+              "_id": "69ff3c6f77bd2bb06f47dd5c",
+              "status": "Active",
+              "validTill": "2026-05-14T13:53:51.485Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69ff3543921dd1f3626cc358",
+              "name": "Phase Service 1778332995219",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "modes": [],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "sessionNumber": 1,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Cancelled",
+            "notes": "phase update",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": "patient",
+            "cancelledAt": "2026-05-09T13:54:13.276Z",
+            "cancellationReason": "Need to cancel this appointment due to schedule conflict",
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:53:51.624Z",
+            "updatedAt": "2026-05-09T13:54:13.277Z",
+            "__v": 0,
+            "statusReason": "phase-fix",
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 210,
+              "equipmentCharges": 0,
+              "subtotal": 210,
+              "taxPercentage": 18,
+              "taxAmount": 37.8,
+              "totalAmount": 247.8
+            },
+            "createdBy": {
+              "userId": "69ff3b700a5c8abe24494f59",
+              "userModel": "Admin"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3b7a830a1994a7619fb7",
+            "treatmentId": {
+              "_id": "69ff3a9ba442980b5ae87d21",
+              "status": "Active",
+              "validTill": "2026-05-14T13:46:03.612Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": null,
+            "sessionNumber": 2,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Approved",
+            "notes": "",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:49:46.034Z",
+            "updatedAt": "2026-05-09T13:49:46.034Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "11:00",
+              "endTime": "11:30"
+            },
+            "pricing": {
+              "basePrice": 210,
+              "equipmentCharges": 0,
+              "subtotal": 210,
+              "taxPercentage": 18,
+              "taxAmount": 37.8,
+              "totalAmount": 247.8
+            },
+            "createdBy": {
+              "userId": "6916d13436be446373d52387",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69ff3a9ba442980b5ae87d24",
+            "treatmentId": {
+              "_id": "69ff3a9ba442980b5ae87d21",
+              "status": "Active",
+              "validTill": "2026-05-14T13:46:03.612Z"
+            },
+            "patientId": {
+              "_id": "6916d13436be446373d52387",
+              "firstName": "John ji",
+              "email": "ravi@gmail.com",
+              "profilePhoto": "https://example.com/photo.jpg"
+            },
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "modes": [],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "sessionNumber": 1,
+            "appointmentDate": "2026-05-10T00:00:00.000Z",
+            "duration": 30,
+            "status": "Cancelled",
+            "notes": "phase update",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": "patient",
+            "cancelledAt": "2026-05-09T13:50:05.997Z",
+            "cancellationReason": "Need to cancel this appointment due to schedule conflict",
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-09T13:46:03.814Z",
+            "updatedAt": "2026-05-09T13:50:05.998Z",
+            "__v": 0,
+            "statusReason": "phase-fix",
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "18:30",
+              "endTime": "21:30"
+            },
+            "pricing": {
+              "totalAmount": 0,
+              "basePrice": 0,
+              "equipmentCharges": 0,
+              "subtotal": 0,
+              "taxPercentage": 0,
+              "taxAmount": 0
+            },
+            "createdBy": {
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69f9df74f2ebe7e5eec65fb3",
+            "treatmentId": {
+              "_id": "69f9df74f2ebe7e5eec65fb1",
+              "status": "Completed",
+              "validTill": "2026-05-10T12:15:48.665Z"
+            },
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "sessionNumber": 1,
+            "appointmentDate": "2026-03-26T00:00:00.000Z",
+            "duration": 30,
+            "status": "Completed",
+            "notes": "Please call me 10 minutes before arriving",
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-05T12:15:48.732Z",
+            "updatedAt": "2026-05-10T03:48:08.050Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "18:30",
+              "endTime": "21:30"
+            },
+            "pricing": {
+              "totalAmount": 0,
+              "basePrice": 0,
+              "equipmentCharges": 0,
+              "subtotal": 0,
+              "taxPercentage": 0,
+              "taxAmount": 0
+            },
+            "createdBy": {
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69f89b06243d41dabbb45132",
+            "treatmentId": {
+              "_id": "69f89b06243d41dabbb45130",
+              "status": "Active",
+              "validTill": "2026-05-09T13:11:34.909Z"
+            },
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "sessionNumber": 1,
+            "appointmentDate": "2026-03-26T00:00:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 minutes before arriving",
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "createdAt": "2026-05-04T13:11:34.962Z",
+            "updatedAt": "2026-05-04T13:11:34.962Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "6:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69e073b32378d25802eda7e5",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "PendingPayment",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 590,
+            "paidAmount": 0,
+            "dueAmount": 590,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [],
+            "createdAt": "2026-04-16T05:29:23.838Z",
+            "updatedAt": "2026-04-16T05:35:08.473Z",
+            "__v": 0,
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "7:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69d40c8961d5ff2a0effe8da",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Partially Paid",
+            "paymentMethod": "Online",
+            "advanceAmount": 500,
+            "paidAmount": 500,
+            "dueAmount": 90,
+            "isAdvancePaid": true,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": "order_SaKHysoLnBLBMy",
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [
+              {
+                "amount": 500,
+                "method": "Online",
+                "stage": "Booking",
+                "razorpayOrderId": null,
+                "razorpayPaymentId": null,
+                "note": "Advance payment at booking time",
+                "paidAt": "2026-04-06T19:42:01.619Z"
+              }
+            ],
+            "createdAt": "2026-04-06T19:42:01.623Z",
+            "updatedAt": "2026-04-06T19:42:01.882Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69d40c8961d5ff2a0effe8dd",
+              "status": "Active",
+              "validTill": "2026-04-11T19:42:01.826Z"
+            },
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "8:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69d409ef00282eaaabb9f082",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Partially Paid",
+            "paymentMethod": "Online",
+            "advanceAmount": 500,
+            "paidAmount": 500,
+            "dueAmount": 90,
+            "isAdvancePaid": true,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [
+              {
+                "amount": 500,
+                "method": "Online",
+                "stage": "Booking",
+                "razorpayOrderId": null,
+                "razorpayPaymentId": null,
+                "note": "Advance payment at booking time",
+                "paidAt": "2026-04-06T19:30:55.030Z"
+              }
+            ],
+            "createdAt": "2026-04-06T19:30:55.047Z",
+            "updatedAt": "2026-04-06T19:30:55.186Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69d409ef00282eaaabb9f084",
+              "status": "Active",
+              "validTill": "2026-04-11T19:30:55.126Z"
+            },
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "13:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69d3a219c0cfd94a75be4964",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Partially Paid",
+            "paymentMethod": "Online",
+            "advanceAmount": 500,
+            "paidAmount": 500,
+            "dueAmount": 90,
+            "isAdvancePaid": true,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [
+              {
+                "amount": 500,
+                "method": "Online",
+                "stage": "Booking",
+                "razorpayOrderId": null,
+                "razorpayPaymentId": null,
+                "note": "Advance payment at booking time",
+                "paidAt": "2026-04-06T12:07:53.449Z"
+              }
+            ],
+            "createdAt": "2026-04-06T12:07:53.459Z",
+            "updatedAt": "2026-04-06T12:07:53.584Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69d3a219c0cfd94a75be4966",
+              "status": "Active",
+              "validTill": "2026-04-11T12:07:53.524Z"
+            },
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "12:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69d3a1b210f19fc2a6a43414",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Partially Paid",
+            "paymentMethod": "Online",
+            "advanceAmount": 500,
+            "paidAmount": 500,
+            "dueAmount": 90,
+            "isAdvancePaid": true,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [
+              {
+                "amount": 500,
+                "method": "Online",
+                "stage": "Booking",
+                "razorpayOrderId": null,
+                "razorpayPaymentId": null,
+                "note": "Advance payment at booking time",
+                "paidAt": "2026-04-06T12:06:10.756Z"
+              }
+            ],
+            "createdAt": "2026-04-06T12:06:10.769Z",
+            "updatedAt": "2026-04-06T12:06:10.897Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69d3a1b210f19fc2a6a43416",
+              "status": "Active",
+              "validTill": "2026-04-11T12:06:10.837Z"
+            },
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "14:30",
+              "endTime": "18:30"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692d7a9ff8d99699ddc9fada",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "payNow": false,
+            "_id": "69d39a64f6a1c38341c2949b",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-25T18:30:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Please call me 10 mins before arriving",
+            "city": {
+              "_id": "691c6979160086905997cc1d",
+              "name": "vanaras"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "paymentStatus": "Partially Paid",
+            "paymentMethod": "Online",
+            "advanceAmount": 500,
+            "paidAmount": 500,
+            "dueAmount": 90,
+            "isAdvancePaid": true,
+            "isFinalPaymentDone": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "paymentHistory": [
+              {
+                "amount": 500,
+                "method": "Online",
+                "stage": "Booking",
+                "razorpayOrderId": null,
+                "razorpayPaymentId": null,
+                "note": "Advance payment at booking time",
+                "paidAt": "2026-04-06T11:35:00.855Z"
+              }
+            ],
+            "createdAt": "2026-04-06T11:35:00.866Z",
+            "updatedAt": "2026-04-06T11:35:00.984Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69d39a64f6a1c38341c2949d",
+              "status": "Active",
+              "validTill": "2026-04-11T11:35:00.925Z"
+            },
+            "additionalEquipment": []
+          },
+          {
+            "slotTime": {
+              "startTime": "18:46",
+              "endTime": "18:76"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "6954b8661f9e10ca7a950d6a",
+              "userModel": "ServiceProvider"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69cfbdb78e747888b5747a20",
+            "treatmentId": {
+              "_id": "69c5282b8cf9e49defc29ddb",
+              "status": "Active",
+              "validTill": "2026-03-31T12:35:55.458Z"
+            },
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-04-05T00:00:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "Follow-up consultation after completed treatment",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": "69c528bb8cf9e49defc29e32",
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-04-03T13:16:39.146Z",
+            "updatedAt": "2026-04-03T13:16:39.146Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "09:00",
+              "endTime": "19:00"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692e8652deff065cd6540a99",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69cfb6aa8b0f088e6257460f",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-04-04T00:00:00.000Z",
+            "duration": 30,
+            "status": "In-Progress",
+            "notes": "this is test this is test",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-04-03T12:46:34.298Z",
+            "updatedAt": "2026-04-03T13:00:58.043Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69cfb6aa8b0f088e62574611",
+              "status": "Active",
+              "validTill": "2026-04-08T12:46:34.514Z"
+            },
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "09:00",
+              "endTime": "19:00"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692e8652deff065cd6540a99",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69cfb6908b0f088e625745f0",
+            "treatmentStatus": "Completed",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-04-03T00:00:00.000Z",
+            "duration": 30,
+            "status": "Completed",
+            "notes": "",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-04-03T12:46:08.255Z",
+            "updatedAt": "2026-04-03T13:02:57.087Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69cfb6908b0f088e625745f2",
+              "status": "Active",
+              "validTill": "2026-04-08T12:46:08.476Z"
+            },
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "09:00",
+              "endTime": "19:00"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692e8652deff065cd6540a99",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69cfafda0ef597c814b16028",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-04-03T00:00:00.000Z",
+            "duration": 30,
+            "status": "Pending",
+            "notes": "",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-04-03T12:17:30.437Z",
+            "updatedAt": "2026-04-03T12:17:30.898Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69cfafda0ef597c814b1602a",
+              "status": "Active",
+              "validTill": "2026-04-08T12:17:30.670Z"
+            },
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "18:08",
+              "endTime": "18:38"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "6954b8661f9e10ca7a950d6a",
+              "userModel": "ServiceProvider"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69c528bb8cf9e49defc29e32",
+            "treatmentId": {
+              "_id": "69c5282b8cf9e49defc29ddb",
+              "status": "Active",
+              "validTill": "2026-03-31T12:35:55.458Z"
+            },
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-27T00:00:00.000Z",
+            "duration": 30,
+            "status": "Completed",
+            "notes": "Follow-up consultation after completed treatment",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": "69c5282b8cf9e49defc29dd9",
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-03-26T12:38:19.885Z",
+            "updatedAt": "2026-04-03T13:16:39.369Z",
+            "__v": 0,
+            "additionalEquipment": [],
+            "paymentHistory": []
+          },
+          {
+            "slotTime": {
+              "startTime": "12:30",
+              "endTime": "13:00"
+            },
+            "pricing": {
+              "basePrice": 500,
+              "equipmentCharges": 0,
+              "subtotal": 500,
+              "taxPercentage": 18,
+              "taxAmount": 90,
+              "totalAmount": 590
+            },
+            "createdBy": {
+              "userId": "692e8652deff065cd6540a99",
+              "userModel": "Patient"
+            },
+            "nextBookingId": null,
+            "treatmentFlow": false,
+            "invoiceId": null,
+            "invoiceGenerated": false,
+            "serviceStartedAt": null,
+            "serviceEndedAt": null,
+            "validTill": null,
+            "paymentStatus": "Unpaid",
+            "paymentMethod": "None",
+            "advanceAmount": 0,
+            "paidAmount": 0,
+            "dueAmount": 0,
+            "isAdvancePaid": false,
+            "isFinalPaymentDone": false,
+            "payNow": false,
+            "lastRazorpayOrderId": null,
+            "lastRazorpayPaymentId": null,
+            "_id": "69c5282b8cf9e49defc29dd9",
+            "treatmentStatus": "Active",
+            "patientId": null,
+            "serviceId": {
+              "_id": "69200a03f94dd4c32856d886",
+              "name": "Doctor Visit",
+              "category": "consultation",
+              "modes": [
+                "Home Service"
+              ]
+            },
+            "category": "consultation",
+            "modes": [
+              "Home Service"
+            ],
+            "servicePartnerId": "6954b8661f9e10ca7a950d6a",
+            "appointmentDate": "2026-03-26T00:00:00.000Z",
+            "duration": 30,
+            "status": "Completed",
+            "notes": "this is test this is test",
+            "city": {
+              "_id": "690c456658dd2334d7cb9581",
+              "name": "phasecityupd1778336486552"
+            },
+            "invoiceUrl": null,
+            "cancelledBy": null,
+            "cancelledAt": null,
+            "cancellationReason": null,
+            "adminApprovalRequired": false,
+            "requestedCancellationAt": null,
+            "originalStatus": null,
+            "timeRemainingAtRequest": null,
+            "previousBookingId": null,
+            "isInvoiceGenerated": false,
+            "createdAt": "2026-03-26T12:35:55.252Z",
+            "updatedAt": "2026-03-26T12:38:20.100Z",
+            "__v": 0,
+            "treatmentId": {
+              "_id": "69c5282b8cf9e49defc29ddb",
+              "status": "Active",
+              "validTill": "2026-03-31T12:35:55.458Z"
+            },
+            "additionalEquipment": [],
+            "paymentHistory": []
+          }
+        ]
+      }
+    }
+  ]
+}

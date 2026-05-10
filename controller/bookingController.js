@@ -3558,7 +3558,17 @@ exports.updateServiceStatus = async (req, res) => {
     // }
 // ✅ TREATMENT COMPLETION - ADVANCE RESET + FINAL PAYMENT READY
 if (status.toLowerCase() === 'treatmentcompleted') {
-  if (!treatment || treatment.status !== 'Active') {
+  if (booking.status === "Completed") {
+    return res.status(400).json({
+      success: false,
+      message: "Booking already completed",
+    });
+  }
+
+  // Backward compatibility: legacy data can keep treatment as Completed
+  // while a newly scheduled follow-up booking is still pending.
+  const allowedTreatmentStates = ["Active", "Completed"];
+  if (!treatment || !allowedTreatmentStates.includes(treatment.status)) {
     return res.status(400).json({ success: false, message: "Treatment must be Active" });
   }
 
@@ -4843,6 +4853,13 @@ exports.createProviderBooking = async (req, res) => {
       false,
       shiftType || null
     );
+
+    // If treatment was previously completed, re-activate it for the new session.
+    if (prevTreatment && prevTreatment.status === "Completed") {
+      prevTreatment.status = "Active";
+      prevTreatment.lastBookingAt = new Date();
+      await prevTreatment.save({ session });
+    }
 
     // 9. ✅ NEXT BOOKING: reuse same treatmentId
     const nextSessionNumber = Number(prevBooking.sessionNumber || 1) + 1;
