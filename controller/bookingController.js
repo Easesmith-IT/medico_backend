@@ -3559,9 +3559,25 @@ exports.updateServiceStatus = async (req, res) => {
 // ✅ TREATMENT COMPLETION - ADVANCE RESET + FINAL PAYMENT READY
 if (status.toLowerCase() === 'treatmentcompleted') {
   if (booking.status === "Completed") {
-    return res.status(400).json({
+    if (treatment?.status === "Completed") {
+      return res.status(200).json({
+        success: true,
+        message: "Booking and treatment already completed",
+        data: {
+          bookingStatus: "Completed",
+          treatmentStatus: "Completed",
+          alreadyCompleted: true,
+          paymentStatus: booking.paymentStatus || null,
+          dueAmount: Number(booking.dueAmount || 0),
+          invoiceGenerated: Boolean(booking.invoiceGenerated),
+        },
+      });
+    }
+
+    return res.status(409).json({
       success: false,
-      message: "Booking already completed",
+      message:
+        "Booking is already completed but treatment is not completed. Admin repair required.",
     });
   }
 
