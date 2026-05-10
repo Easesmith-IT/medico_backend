@@ -1799,69 +1799,6 @@ exports.getServiceAvailability = async (req, res) => {
 
 
 
-// Get available slots for a specific date range (optional - for patients)
-exports.getAvailableSlots = async (req, res) => {
-  try {
-    const { doctorId } = req.params;
-    const { startDate, endDate } = req.query;
-
-    const doctor = await Doctor.findById(doctorId);
-
-    if (!doctor) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Doctor not found' 
-      });
-    }
-
-    // If date range provided, filter slots
-    let availableSlots = doctor.availability.dailySlots;
-
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      
-      availableSlots = doctor.availability.dailySlots.filter(ds => {
-        const slotDate = new Date(ds.date);
-        return slotDate >= start && slotDate <= end && ds.isAvailable;
-      });
-    }
-
-    // Filter only available slots (not booked/blocked)
-    const formattedSlots = availableSlots.map(ds => ({
-      date: ds.date,
-      dayOfWeek: ds.dayOfWeek,
-      availableSlots: ds.slots.filter(s => 
-        s.status === 'available' && 
-        !s.isBooked && 
-        s.isSlotAvailable === true
-      ).map(s => ({
-        startTime: s.startTime,
-        endTime: s.endTime,
-        duration: s.duration
-      }))
-    })).filter(ds => ds.availableSlots.length > 0);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        doctorId: doctor._id,
-        doctorName: doctor.firstName,
-        totalDays: formattedSlots.length,
-        slots: formattedSlots
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error fetching available slots', 
-      error: error.message 
-    });
-  }
-};
-
-
-
 // Get Available Slots
 exports.getAvailableSlots = async (req, res) => {
   try {

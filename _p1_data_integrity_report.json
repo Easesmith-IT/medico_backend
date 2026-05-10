@@ -1,0 +1,55 @@
+{
+  "phase": "P1-data-integrity",
+  "generatedAt": "2026-05-10T04:22:30Z",
+  "changes": [
+    "Removed duplicate exports in doctorController.getAvailableSlots, patientController.removeMedication, serviceController.getAllServices/getServiceById",
+    "Aligned booking schema with active controller writes (invoice/payment/lifecycle fields)",
+    "Added TreatmentCompleted to booking status enum for backward compatibility",
+    "Updated createProviderBooking to stop writing deprecated treatmentStatus and populate previousBookingId.treatmentId"
+  ],
+  "tests": [
+    {
+      "name": "focused-route-retest",
+      "command": "node scripts/focused-route-retest.js",
+      "evidenceFile": "_p1_focused_route_retest_output.json",
+      "keyResults": [
+        "PUT /api/v1/booking/update-status/:bookingId -> 200",
+        "POST /api/v1/booking/providerBookings -> 409 on reused slot (expected conflict path)"
+      ]
+    },
+    {
+      "name": "providerBookings-success-retest",
+      "command": "inline node script (unique slot/date)",
+      "keyResults": [
+        "POST /api/v1/booking/providerBookings -> 201",
+        "Persisted fields confirmed: previousBookingId, treatmentFlow, validTill, invoiceGenerated"
+      ]
+    },
+    {
+      "name": "update-status-persistence-check",
+      "command": "inline node query",
+      "keyResults": [
+        "Completed booking persisted invoiceGenerated=true, invoiceId set, dueAmount=141.6, paymentStatus=Unpaid, payNow=true"
+      ]
+    },
+    {
+      "name": "full-list-stability-retest",
+      "command": "node scripts/full-list-api-stability-retest.js",
+      "keyResults": [
+        "13 checks executed",
+        "3 non-2xx checks are expected negative test cases in provider login validation paths"
+      ]
+    },
+    {
+      "name": "module-load-smoke",
+      "command": "node -e require(...)",
+      "keyResults": [
+        "All modified controllers/models loaded without syntax/runtime import errors"
+      ]
+    }
+  ],
+  "knownWarnings": [
+    "Mongoose duplicate index warnings remain in other models (P2 cleanup backlog)",
+    "Many additional duplicate controller exports still exist across codebase and should be handled in remaining P1 sweep"
+  ]
+}

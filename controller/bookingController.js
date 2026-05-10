@@ -4261,38 +4261,58 @@ const processBillingCategories = async (categoriesData) => {
 
 exports.getBookingsByServiceProvider = async (req, res, next) => {
     try {
-        const { providerId } = req.params;
+        const requestedProviderId = req.params.providerId;
+        const loggedInProviderId = req.user?.id ? String(req.user.id) : null;
+        const providerId = loggedInProviderId || requestedProviderId;
 
-        // 1. Validate the ID format
-        if (!mongoose.Types.ObjectId.isValid(providerId)) {
+        // 1. Validate the provider ID format
+        if (!providerId || !mongoose.Types.ObjectId.isValid(providerId)) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid Service Provider ID"
             });
         }
 
-        // 2. Fetch bookings using the correct schema field: servicePartnerId
-        const bookings = await Booking.find({ 
-            servicePartnerId: providerId 
-        })
-        .populate({
-            path: 'patientId',
-            select: 'firstName lastName email mobile profilePhoto'
-        })
-        .populate({
-            path: 'serviceId',
-            select: 'name category modes'
-        })
-        .populate({
-            path: 'city',
-            select: 'name'
-        })
-        // 
-        .populate({
-            path: 'treatmentId',
-            select: 'status validTill'
-        })
-        .sort({ createdAt: -1 });
+        const treatmentIds = await Treatment.find({ servicePartnerId: providerId })
+            .distinct('_id');
+
+        const bookingQuery = treatmentIds.length > 0
+            ? {
+                $or: [
+                    { servicePartnerId: providerId },
+                    {
+                        $and: [
+                            { treatmentId: { $in: treatmentIds } },
+                            {
+                                $or: [
+                                    { servicePartnerId: null },
+                                    { servicePartnerId: { $exists: false } }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+            : { servicePartnerId: providerId };
+
+        const bookings = await Booking.find(bookingQuery)
+            .populate({
+                path: 'patientId',
+                select: 'firstName lastName email mobile profilePhoto'
+            })
+            .populate({
+                path: 'serviceId',
+                select: 'name category modes'
+            })
+            .populate({
+                path: 'city',
+                select: 'name'
+            })
+            .populate({
+                path: 'treatmentId',
+                select: 'status validTill'
+            })
+            .sort({ createdAt: -1 });
 
         // 3. Return response (UNCHANGED)
         return res.status(200).json({
@@ -4783,7 +4803,7 @@ exports.createProviderBooking = async (req, res) => {
       !validTreatmentStatuses.includes(prevTreatmentStatus)
     ) {
       throw new Error(
-        `Previous booking treatmentStatus must be valid (current: "${prevTreatmentStatus}")`
+        `Previous booking treatment status must be valid (current: "${prevTreatmentStatus}")`
       );
     }
 
@@ -4847,7 +4867,6 @@ exports.createProviderBooking = async (req, res) => {
         userId: servicePartnerId,
         userModel: "ServiceProvider",
       },
-      treatmentStatus: "Active", // Treatment is in progress
       validTill: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days prescription
       invoiceGenerated: false,
       previousBookingId: previousBookingId,
@@ -4874,7 +4893,7 @@ exports.createProviderBooking = async (req, res) => {
       .populate("city", "name")
       .populate("patientId", "firstName phone")
       .populate("serviceId", "name category basePrice")
-      .populate("previousBookingId", "appointmentDate status treatmentStatus")
+      .populate("previousBookingId", "appointmentDate status treatmentId")
       .populate("treatmentId", "status validTill"); // ✅ this shows treatmentId in response
 
     res.status(201).json({

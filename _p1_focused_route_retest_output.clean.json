@@ -1,0 +1,77 @@
+{
+  "generatedAt": "2026-05-10T04:20:49.497Z",
+  "baseUrl": "http://localhost:5005",
+  "auth": {
+    "role": "serviceProvider",
+    "providerId": "69ffa3ab9fce833a9aabbaf3",
+    "loginStatus": 200
+  },
+  "fixtures": {
+    "patientId": "69ff350f921dd1f3626cc01f",
+    "serviceId": "691d7886eaae59d1db94554c",
+    "cityId": "69ff3c8ec7a1952f3bc2b20d",
+    "updateStatusBookingId": "6a0007a088f31af1586e0d59",
+    "updateStatusTreatmentId": "6a0007a088f31af1586e0d57",
+    "providerBookingsPreviousBookingId": "6a0007a088f31af1586e0d54",
+    "providerBookingsPreviousTreatmentId": "6a0007a088f31af1586e0d52"
+  },
+  "evidence": [
+    {
+      "route": "PUT /api/v1/booking/update-status/:bookingId",
+      "request": {
+        "method": "PUT",
+        "url": "http://localhost:5005/api/v1/booking/update-status/6a0007a088f31af1586e0d59",
+        "body": {
+          "status": "TreatmentCompleted"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Treatment completed. Full payment now due: ?141.6",
+          "data": {
+            "bookingStatus": "Completed",
+            "treatmentStatus": "Completed",
+            "advanceReset": true,
+            "paymentStatus": "Unpaid",
+            "totalAmount": 141.6,
+            "dueAmount": 141.6,
+            "payNow": true,
+            "invoiceGenerated": true
+          }
+        }
+      }
+    },
+    {
+      "route": "POST /api/v1/booking/providerBookings",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:5005/api/v1/booking/providerBookings",
+        "body": {
+          "patientId": "69ff350f921dd1f3626cc01f",
+          "previousBookingId": "6a0007a088f31af1586e0d54",
+          "serviceId": "691d7886eaae59d1db94554c",
+          "appointmentDate": "2026-05-17",
+          "startTime": "16:00",
+          "endTime": "16:30",
+          "duration": 30,
+          "shiftType": "afternoon",
+          "notes": "Focused retest follow-up",
+          "category": "consultation",
+          "modes": [
+            "Home Service"
+          ],
+          "cityId": "69ff3c8ec7a1952f3bc2b20d"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "success": false,
+          "message": "Your slot is already booked"
+        }
+      }
+    }
+  ]
+}

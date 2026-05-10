@@ -1,0 +1,365 @@
+{
+  "totalDuplicates": 72,
+  "duplicates": [
+    {
+      "file": "adminController.js",
+      "exportName": "adminSignup",
+      "count": 5
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "verifySignupOtp",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "adminLogin",
+      "count": 3
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "logout",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "logoutAllDevices",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "getMyProfile",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "updateProfile",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "checkAuthStatus",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "getAllDoctors",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "getDoctorById",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "approveDoctor",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "rejectDoctor",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "deleteDoctor",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "getAllPatients",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "getPatientById",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "blockPatient",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "deletePatient",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "getDashboardStats",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "getDoctorStats",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "createBookingByAdmin",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "updateBookingByAdmin",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "getServiceProviderNames",
+      "count": 2
+    },
+    {
+      "file": "adminController.js",
+      "exportName": "addEquipment",
+      "count": 3
+    },
+    {
+      "file": "bookingController.js",
+      "exportName": "createBooking",
+      "count": 6
+    },
+    {
+      "file": "bookingController.js",
+      "exportName": "getBookedServicesByPatientId",
+      "count": 8
+    },
+    {
+      "file": "bookingController.js",
+      "exportName": "rescheduleBooking",
+      "count": 2
+    },
+    {
+      "file": "bookingController.js",
+      "exportName": "cancelBooking",
+      "count": 2
+    },
+    {
+      "file": "bookingController.js",
+      "exportName": "getByIdBooking",
+      "count": 3
+    },
+    {
+      "file": "bookingController.js",
+      "exportName": "updateServiceStatus",
+      "count": 6
+    },
+    {
+      "file": "bookingController.js",
+      "exportName": "bookingCompletedDetails",
+      "count": 3
+    },
+    {
+      "file": "bookingController.js",
+      "exportName": "getBookingsByServiceProvider",
+      "count": 3
+    },
+    {
+      "file": "bookingController.js",
+      "exportName": "createProviderBooking",
+      "count": 4
+    },
+    {
+      "file": "doctorController.js",
+      "exportName": "doctorSignup",
+      "count": 3
+    },
+    {
+      "file": "doctorController.js",
+      "exportName": "verifyLoginOtp",
+      "count": 2
+    },
+    {
+      "file": "doctorController.js",
+      "exportName": "getServiceAvailability",
+      "count": 2
+    },
+    {
+      "file": "invoiceController.js",
+      "exportName": "generateInvoice",
+      "count": 5
+    },
+    {
+      "file": "invoiceController.js",
+      "exportName": "downloadInvoice",
+      "count": 5
+    },
+    {
+      "file": "itemCategoryController.js",
+      "exportName": "createCategory",
+      "count": 2
+    },
+    {
+      "file": "itemCategoryController.js",
+      "exportName": "getActiveCategories",
+      "count": 2
+    },
+    {
+      "file": "itemCategoryController.js",
+      "exportName": "getAllCategories",
+      "count": 2
+    },
+    {
+      "file": "itemCategoryController.js",
+      "exportName": "updateCategory",
+      "count": 3
+    },
+    {
+      "file": "itemCategoryController.js",
+      "exportName": "toggleCategoryStatus",
+      "count": 2
+    },
+    {
+      "file": "itemCategoryController.js",
+      "exportName": "deleteCategory",
+      "count": 2
+    },
+    {
+      "file": "patientController.js",
+      "exportName": "patientSignup",
+      "count": 2
+    },
+    {
+      "file": "patientController.js",
+      "exportName": "patientLogin",
+      "count": 2
+    },
+    {
+      "file": "patientController.js",
+      "exportName": "updatePatient",
+      "count": 3
+    },
+    {
+      "file": "patientController.js",
+      "exportName": "updateMedicalHistory",
+      "count": 2
+    },
+    {
+      "file": "patientController.js",
+      "exportName": "addMedication",
+      "count": 2
+    },
+    {
+      "file": "patientController.js",
+      "exportName": "getCompletePatientTreatmentHistory",
+      "count": 2
+    },
+    {
+      "file": "payController.js",
+      "exportName": "getTreatmentPaymentLedger",
+      "count": 2
+    },
+    {
+      "file": "payController.js",
+      "exportName": "createTreatmentOnlineOrder",
+      "count": 3
+    },
+    {
+      "file": "payController.js",
+      "exportName": "verifyTreatmentOnlinePayment",
+      "count": 2
+    },
+    {
+      "file": "payController.js",
+      "exportName": "recordManualPayment",
+      "count": 2
+    },
+    {
+      "file": "payController.js",
+      "exportName": "recordManualRefund",
+      "count": 2
+    },
+    {
+      "file": "providerController.js",
+      "exportName": "createServiceProvider",
+      "count": 4
+    },
+    {
+      "file": "providerController.js",
+      "exportName": "loginServiceProvider",
+      "count": 2
+    },
+    {
+      "file": "providerController.js",
+      "exportName": "updateServiceProvider",
+      "count": 2
+    },
+    {
+      "file": "providerController.js",
+      "exportName": "toggleStatus",
+      "count": 2
+    },
+    {
+      "file": "serviceController.js",
+      "exportName": "createService",
+      "count": 3
+    },
+    {
+      "file": "serviceController.js",
+      "exportName": "getServiceById",
+      "count": 2
+    },
+    {
+      "file": "serviceController.js",
+      "exportName": "updateService",
+      "count": 3
+    },
+    {
+      "file": "serviceController.js",
+      "exportName": "deleteService",
+      "count": 3
+    },
+    {
+      "file": "serviceController.js",
+      "exportName": "getServicesByCity",
+      "count": 2
+    },
+    {
+      "file": "socialmediaController.js",
+      "exportName": "createPost",
+      "count": 4
+    },
+    {
+      "file": "socialmediaController.js",
+      "exportName": "getPosts",
+      "count": 2
+    },
+    {
+      "file": "socialmediaController.js",
+      "exportName": "deletePost",
+      "count": 2
+    },
+    {
+      "file": "socialmediaController.js",
+      "exportName": "toggleHidePost",
+      "count": 3
+    },
+    {
+      "file": "socialmediaController.js",
+      "exportName": "getPostById",
+      "count": 4
+    },
+    {
+      "file": "socialmediaController.js",
+      "exportName": "toggleLikePost",
+      "count": 6
+    },
+    {
+      "file": "socialmediaController.js",
+      "exportName": "toggleFollowDoctor",
+      "count": 5
+    },
+    {
+      "file": "socialmediaController.js",
+      "exportName": "addComment",
+      "count": 2
+    },
+    {
+      "file": "socialmediaController.js",
+      "exportName": "searchSocialPosts",
+      "count": 2
+    }
+  ]
+}

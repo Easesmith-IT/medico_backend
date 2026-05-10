@@ -1907,32 +1907,6 @@ exports.updateMedicalHistory = catchAsync(async (req, res, next) => { //update
 
 
 
-// Remove Medication
-exports.removeMedication = catchAsync(async (req, res, next) => { //remove 
-  const medication = req.body.medication;
-  if (!medication) {
-    return next(new AppError('Please provide medication to remove', 400));
-  }
-
-  const patient = await Patient.findById(req.user?.id);
-  if (!patient) {
-    return next(new AppError('Patient not found', 404));
-  }
-
-  patient.currentMedications = patient.currentMedications.filter(
-    (m) => m !== medication
-  );
-
-  await patient.save();
-
-  res.status(200).json({
-    success: true,
-    message: 'Medication removed successfully',
-    data: { currentMedications: patient.currentMedications },
-  });
-});
-
-
 // exports.updateMedicalHistory = catchAsync(async (req, res, next) => {
 //   const { condition, diagnosedDate, notes } = req.body;
 

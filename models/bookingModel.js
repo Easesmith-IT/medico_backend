@@ -1,46 +1,46 @@
 
 const mongoose = require("mongoose");
 
-// const paymentEntrySchema = new mongoose.Schema(
-//   {
-//     amount: {
-//       type: Number,
-//       required: true,
-//       min: 0,
-//     },
-//     method: {
-//       type: String,
-//       enum: ["Online", "Cash", "UPI"],
-//       required: true,
-//     },
-//     stage: {
-//       type: String,
-//       enum: ["Booking", "TreatmentCompletion"],
-//       required: true,
-//     },
-//     razorpayOrderId: {
-//       type: String,
-//       default: null,
-//       trim: true,
-//     },
-//     razorpayPaymentId: {
-//       type: String,
-//       default: null,
-//       trim: true,
-//     },
-//     paidAt: {
-//       type: Date,
-//       default: Date.now,
-//     },
-//     note: {
-//       type: String,
-//       default: "",
-//       trim: true,
-//       maxlength: 300,
-//     },
-//   },
-//   { _id: false }
-// );
+const paymentEntrySchema = new mongoose.Schema(
+  {
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    method: {
+      type: String,
+      enum: ["Online", "Cash", "UPI"],
+      required: true,
+    },
+    stage: {
+      type: String,
+      enum: ["Booking", "TreatmentCompletion"],
+      required: true,
+    },
+    razorpayOrderId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    razorpayPaymentId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    paidAt: {
+      type: Date,
+      default: Date.now,
+    },
+    note: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 300,
+    },
+  },
+  { _id: false }
+);
 
 const bookingSchema = new mongoose.Schema(
   {
@@ -92,7 +92,7 @@ const bookingSchema = new mongoose.Schema(
       ref: "ServiceProvider",
       default: null,
     },
- sessionNumber: {
+    sessionNumber: {
       type: Number,
       min: 1,
       required: true,
@@ -129,6 +129,7 @@ const bookingSchema = new mongoose.Schema(
         "Cancelled",
         "In-Progress",
         "Completed",
+        "TreatmentCompleted",
         "Confirmed",
         "Started",
       ],
@@ -241,71 +242,111 @@ const bookingSchema = new mongoose.Schema(
       default: null,
     },
 
-    // isInvoiceGenerated: {
-    //   type: Boolean,
-    //   default: false,
-    // },
+    nextBookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+      default: null,
+    },
 
-    // paymentStatus: {
-    //   type: String,
-    //   enum: ["Unpaid", "Partially Paid", "Paid"],
-    //   default: "Unpaid",
-    // },
+    treatmentFlow: {
+      type: Boolean,
+      default: false,
+    },
 
-    // // -----------------------------
-    // // NEW OPTIONAL PARTIAL PAYMENT FIELDS
-    // // backward-compatible with old data
-    // // -----------------------------
-    // paymentMethod: {
-    //   type: String,
-    //   enum: ["None", "Online", "Cash", "UPI"],
-    //   default: "None",
-    // },
+    invoiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Invoice",
+      default: null,
+    },
 
-    // advanceAmount: {
-    //   type: Number,
-    //   default: 0,
-    //   min: 0,
-    // },
+    invoiceGenerated: {
+      type: Boolean,
+      default: false,
+    },
 
-    // paidAmount: {
-    //   type: Number,
-    //   default: 0,
-    //   min: 0,
-    // },
+    serviceStartedAt: {
+      type: Date,
+      default: null,
+    },
 
-    // dueAmount: {
-    //   type: Number,
-    //   default: 0,
-    //   min: 0,
-    // },
+    serviceEndedAt: {
+      type: Date,
+      default: null,
+    },
 
-    // isAdvancePaid: {
-    //   type: Boolean,
-    //   default: false,
-    // },
+    validTill: {
+      type: Date,
+      default: null,
+    },
 
-    // isFinalPaymentDone: {
-    //   type: Boolean,
-    //   default: false,
-    // },
+    additionalEquipment: [
+      {
+        name: { type: String, trim: true },
+        charge: { type: Number, min: 0, default: 0 },
+      },
+    ],
 
-    // lastRazorpayOrderId: {
-    //   type: String,
-    //   default: null,
-    //   trim: true,
-    // },
+    paymentStatus: {
+      type: String,
+      enum: ["Unpaid", "Partially Paid", "Paid"],
+      default: "Unpaid",
+    },
 
-    // lastRazorpayPaymentId: {
-    //   type: String,
-    //   default: null,
-    //   trim: true,
-    // },
+    paymentMethod: {
+      type: String,
+      enum: ["None", "Online", "Cash", "UPI"],
+      default: "None",
+    },
 
-    // paymentHistory: {
-    //   type: [paymentEntrySchema],
-    //   default: [],
-    // },
+    advanceAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    paidAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    dueAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    isAdvancePaid: {
+      type: Boolean,
+      default: false,
+    },
+
+    isFinalPaymentDone: {
+      type: Boolean,
+      default: false,
+    },
+
+    payNow: {
+      type: Boolean,
+      default: false,
+    },
+
+    lastRazorpayOrderId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
+    lastRazorpayPaymentId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
+    paymentHistory: {
+      type: [paymentEntrySchema],
+      default: [],
+    },
   },
   { timestamps: true }
 );
@@ -313,7 +354,7 @@ const bookingSchema = new mongoose.Schema(
 // Indexes for performance
 bookingSchema.index({ serviceId: 1, appointmentDate: 1 });
 bookingSchema.index({ patientId: 1, appointmentDate: 1 });
-// bookingSchema.index({ paymentStatus: 1 });
+bookingSchema.index({ paymentStatus: 1 });
 // bookingSchema.index({ treatmentStatus: 1 });
 bookingSchema.index({ status: 1 });
 

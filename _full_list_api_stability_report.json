@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-05-09T21:15:05.707Z",
+  "generatedAt": "2026-05-10T04:21:41.736Z",
   "baseUrl": "http://localhost:5005",
   "fixtures": {
-    "cityId": "69ff38779f29739c4bf095f9",
-    "cityName": "phasecity1778333814945",
-    "serviceId": "6915d7cf9033f3ce1c0f322e",
+    "cityId": "69ff3c8ec7a1952f3bc2b20d",
+    "cityName": "phasecity1778334862808",
+    "serviceId": "691d7886eaae59d1db94554c",
     "patientId": "69099012606fc5a2ab07ae91",
     "doctorId": "69ff983f51558d56a410ccfa",
     "providerId": "69ffa3ab9fce833a9aabbaf3"
@@ -37,8 +37,8 @@
             }
           ],
           "slotDuration": 30,
-          "startDate": "2026-05-10",
-          "endDate": "2026-05-11",
+          "startDate": "2026-05-11",
+          "endDate": "2026-05-12",
           "serviceAvailability": {
             "consultation": true
           },
@@ -71,7 +71,7 @@
                 {
                   "start": "09:00",
                   "end": "11:00",
-                  "_id": "69ffa3d79fce833a9aabc0af"
+                  "_id": "6a0007d0bed5452e920379c4"
                 }
               ],
               "serviceCoverage": {
@@ -90,7 +90,7 @@
                       "isBooked": false,
                       "isSlotAvailable": true,
                       "status": "available",
-                      "_id": "69ffa3d79fce833a9aabc0b1"
+                      "_id": "6a0007d0bed5452e920379c6"
                     },
                     {
                       "startTime": "09:30",
@@ -99,7 +99,7 @@
                       "isBooked": false,
                       "isSlotAvailable": true,
                       "status": "available",
-                      "_id": "69ffa3d79fce833a9aabc0b2"
+                      "_id": "6a0007d0bed5452e920379c7"
                     },
                     {
                       "startTime": "10:00",
@@ -108,7 +108,7 @@
                       "isBooked": false,
                       "isSlotAvailable": true,
                       "status": "available",
-                      "_id": "69ffa3d79fce833a9aabc0b3"
+                      "_id": "6a0007d0bed5452e920379c8"
                     },
                     {
                       "startTime": "10:30",
@@ -117,10 +117,55 @@
                       "isBooked": false,
                       "isSlotAvailable": true,
                       "status": "available",
-                      "_id": "69ffa3d79fce833a9aabc0b4"
+                      "_id": "6a0007d0bed5452e920379c9"
                     }
                   ],
-                  "_id": "69ffa3d79fce833a9aabc0b0",
+                  "_id": "6a0007d0bed5452e920379c5",
+                  "breakTimes": []
+                },
+                {
+                  "date": "2026-05-12T00:00:00.000Z",
+                  "dayOfWeek": "Tuesday",
+                  "isAvailable": true,
+                  "slots": [
+                    {
+                      "startTime": "09:00",
+                      "endTime": "09:30",
+                      "duration": 30,
+                      "isBooked": false,
+                      "isSlotAvailable": true,
+                      "status": "available",
+                      "_id": "6a0007d0bed5452e920379cb"
+                    },
+                    {
+                      "startTime": "09:30",
+                      "endTime": "10:00",
+                      "duration": 30,
+                      "isBooked": false,
+                      "isSlotAvailable": true,
+                      "status": "available",
+                      "_id": "6a0007d0bed5452e920379cc"
+                    },
+                    {
+                      "startTime": "10:00",
+                      "endTime": "10:30",
+                      "duration": 30,
+                      "isBooked": false,
+                      "isSlotAvailable": true,
+                      "status": "available",
+                      "_id": "6a0007d0bed5452e920379cd"
+                    },
+                    {
+                      "startTime": "10:30",
+                      "endTime": "11:00",
+                      "duration": 30,
+                      "isBooked": false,
+                      "isSlotAvailable": true,
+                      "status": "available",
+                      "_id": "6a0007d0bed5452e920379ce"
+                    }
+                  ],
+                  "_id": "6a0007d0bed5452e920379ca",
                   "breakTimes": []
                 }
               ]
@@ -129,8 +174,8 @@
           }
         }
       },
-      "durationMs": 130,
-      "timestamp": "2026-05-09T21:15:03.175Z"
+      "durationMs": 880,
+      "timestamp": "2026-05-10T04:21:37.327Z"
     },
     {
       "area": "route-conflict-verification",
@@ -180,7 +225,7 @@
                   {
                     "start": "10:00",
                     "end": "12:00",
-                    "_id": "69ffa3d79fce833a9aabc0b6"
+                    "_id": "6a0007d1bed5452e920379d0"
                   }
                 ],
                 "serviceCoverage": [],
@@ -215,14 +260,14 @@
               "isActive": true,
               "clinics": [],
               "createdAt": "2026-05-09T20:25:35.021Z",
-              "updatedAt": "2026-05-09T21:15:03.130Z",
-              "__v": 2
+              "updatedAt": "2026-05-10T04:21:36.988Z",
+              "__v": 3
             }
           }
         }
       },
-      "durationMs": 46,
-      "timestamp": "2026-05-09T21:15:03.221Z"
+      "durationMs": 232,
+      "timestamp": "2026-05-10T04:21:37.559Z"
     },
     {
       "area": "article-geo-filter",
@@ -248,15 +293,15 @@
           "articles": []
         }
       },
-      "durationMs": 40,
-      "timestamp": "2026-05-09T21:15:03.261Z"
+      "durationMs": 246,
+      "timestamp": "2026-05-10T04:21:37.805Z"
     },
     {
       "area": "article-city-filter",
       "route": "GET /api/v1/article/articles?cityId",
       "request": {
         "method": "GET",
-        "url": "http://localhost:5005/api/v1/article/articles?cityId=69ff38779f29739c4bf095f9&page=1&limit=5",
+        "url": "http://localhost:5005/api/v1/article/articles?cityId=69ff3c8ec7a1952f3bc2b20d&page=1&limit=5",
         "headers": {
           "hasAuthorization": false,
           "hasCookie": false,
@@ -275,15 +320,15 @@
           "articles": []
         }
       },
-      "durationMs": 157,
-      "timestamp": "2026-05-09T21:15:03.418Z"
+      "durationMs": 450,
+      "timestamp": "2026-05-10T04:21:38.255Z"
     },
     {
       "area": "article-city-filter-alias",
       "route": "GET /api/v1/article/getallarticle?cityId",
       "request": {
         "method": "GET",
-        "url": "http://localhost:5005/api/v1/article/getallarticle?cityId=69ff38779f29739c4bf095f9&page=1&limit=5",
+        "url": "http://localhost:5005/api/v1/article/getallarticle?cityId=69ff3c8ec7a1952f3bc2b20d&page=1&limit=5",
         "headers": {
           "hasAuthorization": false,
           "hasCookie": false,
@@ -302,15 +347,15 @@
           "articles": []
         }
       },
-      "durationMs": 154,
-      "timestamp": "2026-05-09T21:15:03.572Z"
+      "durationMs": 443,
+      "timestamp": "2026-05-10T04:21:38.698Z"
     },
     {
       "area": "article-cityname-filter",
       "route": "GET /api/v1/article/articles?cityName",
       "request": {
         "method": "GET",
-        "url": "http://localhost:5005/api/v1/article/articles?cityName=phasecity1778333814945&page=1&limit=5",
+        "url": "http://localhost:5005/api/v1/article/articles?cityName=phasecity1778334862808&page=1&limit=5",
         "headers": {
           "hasAuthorization": false,
           "hasCookie": false,
@@ -329,8 +374,8 @@
           "articles": []
         }
       },
-      "durationMs": 149,
-      "timestamp": "2026-05-09T21:15:03.721Z"
+      "durationMs": 685,
+      "timestamp": "2026-05-10T04:21:39.383Z"
     },
     {
       "area": "social-search-regression",
@@ -399,8 +444,8 @@
           }
         }
       },
-      "durationMs": 78,
-      "timestamp": "2026-05-09T21:15:03.799Z"
+      "durationMs": 172,
+      "timestamp": "2026-05-10T04:21:39.555Z"
     },
     {
       "area": "provider-login-regression",
@@ -426,13 +471,13 @@
           "data": {
             "id": "69ffa3ab9fce833a9aabbaf3",
             "role": "serviceprovider",
-            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzgzNjEzMDQsImV4cCI6MTgwOTg5NzMwNH0.VtAUTGXakMrNRN_Ik5wfPeDMVeb69HnVayPQr4zezhI",
-            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzc4MzYxMzA0LCJleHAiOjE3ODYxMzczMDR9.KqK-vvwZC1qPzUjLBzF85_vd20pwojhqq_60akAHPhM"
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzgzODY4OTksImV4cCI6MTgwOTkyMjg5OX0.jsK-PZoAxjbwFXyiXrKZTYT-SWGn3NXuiU62cwLDcHg",
+            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzc4Mzg2ODk5LCJleHAiOjE3ODYxNjI4OTl9.qdVLW_UC6mESEE3oy9aessLdJXx2x9hU6d1znROaSL4"
           }
         }
       },
-      "durationMs": 388,
-      "timestamp": "2026-05-09T21:15:04.187Z"
+      "durationMs": 340,
+      "timestamp": "2026-05-10T04:21:39.895Z"
     },
     {
       "area": "provider-login-regression",
@@ -458,13 +503,13 @@
           "data": {
             "id": "69ffa3ab9fce833a9aabbaf3",
             "role": "serviceprovider",
-            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzgzNjEzMDQsImV4cCI6MTgwOTg5NzMwNH0.VtAUTGXakMrNRN_Ik5wfPeDMVeb69HnVayPQr4zezhI",
-            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzc4MzYxMzA0LCJleHAiOjE3ODYxMzczMDR9.KqK-vvwZC1qPzUjLBzF85_vd20pwojhqq_60akAHPhM"
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NzgzODY5MDAsImV4cCI6MTgwOTkyMjkwMH0.OeH8T1_eSRrmVJrVZeeVYiYGY5qAwbF3iyJLrsGHsPs",
+            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZmZhM2FiOWZjZTgzM2E5YWFiYmFmMyIsInJvbGUiOiJzZXJ2aWNlcHJvdmlkZXIiLCJ0b2tlblZlcnNpb24iOjAsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzc4Mzg2OTAwLCJleHAiOjE3ODYxNjI5MDB9.q8aWcnlkO8ixMb1yc2Lys9GAXquY97qyxes6LClj73Q"
           }
         }
       },
-      "durationMs": 345,
-      "timestamp": "2026-05-09T21:15:04.532Z"
+      "durationMs": 338,
+      "timestamp": "2026-05-10T04:21:40.233Z"
     },
     {
       "area": "provider-login-regression",
@@ -489,7 +534,7 @@
         }
       },
       "durationMs": 2,
-      "timestamp": "2026-05-09T21:15:04.534Z"
+      "timestamp": "2026-05-10T04:21:40.235Z"
     },
     {
       "area": "provider-login-regression",
@@ -514,8 +559,8 @@
           "message": "Invalid email/mobile or password"
         }
       },
-      "durationMs": 389,
-      "timestamp": "2026-05-09T21:15:04.923Z"
+      "durationMs": 330,
+      "timestamp": "2026-05-10T04:21:40.565Z"
     },
     {
       "area": "provider-login-regression",
@@ -540,8 +585,8 @@
           "message": "Your account is currently inactive"
         }
       },
-      "durationMs": 322,
-      "timestamp": "2026-05-09T21:15:05.290Z"
+      "durationMs": 341,
+      "timestamp": "2026-05-10T04:21:40.953Z"
     },
     {
       "area": "invoice-generate-resilience",
@@ -555,13 +600,13 @@
           "contentType": "application/json"
         },
         "body": {
-          "bookingId": "69ffa3d99c75101f5978f39a",
+          "bookingId": "6a0007d4cf80062e07b8273e",
           "patientId": "69099012606fc5a2ab07ae91",
           "doctorId": "69ffa3ab9fce833a9aabbaf3",
-          "serviceId": "6915d7cf9033f3ce1c0f322e",
+          "serviceId": "691d7886eaae59d1db94554c",
           "billingDetails": {
             "category": "consultation",
-            "serviceName": "Attendant Care",
+            "serviceName": "Physiotherapy test",
             "shiftType": "hourly",
             "durationMinutes": 30,
             "basePrice": 150,
@@ -585,13 +630,13 @@
           "success": true,
           "message": "Invoice generated successfully",
           "data": {
-            "invoiceNumber": "INV-1778361305418-0467",
-            "bookingId": "69ffa3d99c75101f5978f39a",
+            "invoiceNumber": "INV-1778386901096-5FFD",
+            "bookingId": "6a0007d4cf80062e07b8273e",
             "patientId": "69099012606fc5a2ab07ae91",
             "doctorId": "69ffa3ab9fce833a9aabbaf3",
             "billingDetails": {
               "category": "consultation",
-              "serviceName": "Attendant Care",
+              "serviceName": "Physiotherapy test",
               "shiftType": "hourly",
               "durationMinutes": 30,
               "basePrice": 150,
@@ -605,12 +650,12 @@
                 "pricePerUnit": 50,
                 "gstPercentage": 0,
                 "total": 50,
-                "addedDate": "2026-05-09T21:15:05.418Z",
-                "_id": "69ffa3d99fce833a9aabc0ce"
+                "addedDate": "2026-05-10T04:21:41.096Z",
+                "_id": "6a0007d5bed5452e920379e8"
               }
             ],
             "additionalEquipment": [],
-            "invoiceUrl": "/uploads/1778361305664-INV-1778361305418-0467.pdf",
+            "invoiceUrl": "/uploads/1778386901675-INV-1778386901096-5FFD.pdf",
             "isInvoiceGenerated": true,
             "totals": {
               "subtotal": 200,
@@ -620,16 +665,16 @@
               "grandTotal": 200
             },
             "paymentStatus": "Unpaid",
-            "_id": "69ffa3d99fce833a9aabc0cd",
-            "issuedAt": "2026-05-09T21:15:05.420Z",
-            "createdAt": "2026-05-09T21:15:05.421Z",
-            "updatedAt": "2026-05-09T21:15:05.666Z",
+            "_id": "6a0007d5bed5452e920379e7",
+            "issuedAt": "2026-05-10T04:21:41.098Z",
+            "createdAt": "2026-05-10T04:21:41.098Z",
+            "updatedAt": "2026-05-10T04:21:41.684Z",
             "__v": 0
           }
         }
       },
-      "durationMs": 290,
-      "timestamp": "2026-05-09T21:15:05.707Z"
+      "durationMs": 643,
+      "timestamp": "2026-05-10T04:21:41.736Z"
     }
   ]
 }
