@@ -38,6 +38,11 @@ router.put(
   protect("superadmin", "subadmin"),
   adminController.updateProfile
 );
+router.get(
+  "/audit/profile-changes",
+  protect("superadmin", "subadmin", "admin"),
+  adminController.getProfileAuditLogs
+);
 
 router.post(
   "/doctors/create",

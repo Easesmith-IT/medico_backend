@@ -12,6 +12,10 @@ const mongoose = require("mongoose");
 const { sendOtp } = require('../utils/otpUtils');
 const jwt = require('jsonwebtoken');
 const City = require('../models/availableCities'); 
+const {
+  getChangedFields,
+  writeProfileAuditLog,
+} = require('../utils/profileAudit');
 // Import token utilities (NOT from middleware)
 const {
   generateAccessToken,
@@ -853,9 +857,16 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
     medicalRegistrationNumber,
     ...updateData
   } = req.body;
+  const doctorId = req.user?._id || req.user?.id;
+
+  const beforeDoctor = await Doctor.findById(doctorId);
+
+  if (!beforeDoctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
 
   const updatedDoctor = await Doctor.findByIdAndUpdate(
-    req.user?._id || req.user?.id,
+    doctorId,
     updateData,
     { new: true, runValidators: true }
   ).select('-password -tokenVersion');
@@ -863,6 +874,16 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
   if (!updatedDoctor) {
     return next(new AppError('Doctor not found', 404));
   }
+
+  await writeProfileAuditLog({
+    req,
+    targetModel: 'Doctor',
+    targetId: doctorId,
+    action: 'update',
+    before: beforeDoctor,
+    after: updatedDoctor,
+    changedFields: getChangedFields(beforeDoctor, updatedDoctor, Object.keys(updateData)),
+  });
 
   res.status(200).json({
     success: true,
