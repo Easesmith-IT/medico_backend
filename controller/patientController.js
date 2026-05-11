@@ -11,10 +11,6 @@ const Doctor = require('../models/doctorModel');
 const Booking = require('../models/bookingModel');
 const City = require('../models/availableCities');
 const {
-  getChangedFields,
-  writeProfileAuditLog,
-} = require('../utils/profileAudit');
-const {
   generateAccessToken,
   generateRefreshToken,
   generateOtpToken,
@@ -1501,16 +1497,6 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     
     console.log('Step 6 PASSED: Patient updated successfully');
     console.log('   Updated fields:', Object.keys(filteredUpdateData));
-
-    await writeProfileAuditLog({
-      req,
-      targetModel: 'Patient',
-      targetId: req.params.id,
-      action: 'update',
-      before: userExists,
-      after: updatedPatient,
-      changedFields: getChangedFields(userExists, updatedPatient, fieldsToUpdate),
-    });
 
   } catch (error) {
     console.log('Step 6 FAILED: Database error');

@@ -1226,12 +1226,6 @@ const Treatment = require("../models/treatmentModel");
 const ServiceProvider = require("../models/serviceProviderModel");
 const { formatDuration } = require("../utils/timeFormat");
 const mongoose = require("mongoose");
-const ProfileAuditLog = require("../models/profileAuditLogModel");
-const {
-  getChangedFields,
-  targetRoleToModel,
-  writeProfileAuditLog,
-} = require("../utils/profileAudit");
 
 // ============================================
 // ADMIN SIGNUP - STEP 1: Create Account
@@ -1654,16 +1648,9 @@ exports.getMyProfile = catchAsync(async (req, res, next) => {
 
 exports.updateProfile = catchAsync(async (req, res, next) => {
   const { password, tokenVersion, role, ...updateData } = req.body;
-  const adminId = req.user?.id || req.user?._id;
-
-  const beforeAdmin = await Admin.findById(adminId);
-
-  if (!beforeAdmin) {
-    return next(new AppError("Admin not found", 404));
-  }
 
   const updatedAdmin = await Admin.findByIdAndUpdate(
-    adminId,
+    req.user?.id || req.user?._id,
     updateData,
     { new: true, runValidators: true }
   ).select("-password -tokenVersion");
@@ -1672,87 +1659,10 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
     return next(new AppError("Admin not found", 404));
   }
 
-  await writeProfileAuditLog({
-    req,
-    targetModel: "Admin",
-    targetId: adminId,
-    action: "update",
-    before: beforeAdmin,
-    after: updatedAdmin,
-    changedFields: getChangedFields(beforeAdmin, updatedAdmin, Object.keys(updateData)),
-  });
-
   res.status(200).json({
     success: true,
     message: "Profile updated",
     data: { admin: updatedAdmin },
-  });
-});
-
-exports.getProfileAuditLogs = catchAsync(async (req, res, next) => {
-  const { targetRole, targetId, from, to, actorId } = req.query;
-  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
-  const skip = (page - 1) * limit;
-  const filter = {};
-
-  if (targetRole) {
-    const targetModel = targetRoleToModel(targetRole);
-    if (!targetModel) {
-      return next(new AppError("Invalid targetRole. Use admin, doctor, or patient.", 400));
-    }
-    filter.targetModel = targetModel;
-  }
-
-  if (targetId) {
-    if (!mongoose.Types.ObjectId.isValid(targetId)) {
-      return next(new AppError("Invalid targetId", 400));
-    }
-    filter.targetId = targetId;
-  }
-
-  if (actorId) {
-    if (!mongoose.Types.ObjectId.isValid(actorId)) {
-      return next(new AppError("Invalid actorId", 400));
-    }
-    filter.actorId = actorId;
-  }
-
-  if (from || to) {
-    filter.createdAt = {};
-
-    if (from) {
-      const fromDate = new Date(from);
-      if (Number.isNaN(fromDate.getTime())) {
-        return next(new AppError("Invalid from date", 400));
-      }
-      filter.createdAt.$gte = fromDate;
-    }
-
-    if (to) {
-      const toDate = new Date(to);
-      if (Number.isNaN(toDate.getTime())) {
-        return next(new AppError("Invalid to date", 400));
-      }
-      filter.createdAt.$lte = toDate;
-    }
-  }
-
-  const [logs, total] = await Promise.all([
-    ProfileAuditLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
-    ProfileAuditLog.countDocuments(filter),
-  ]);
-
-  res.status(200).json({
-    success: true,
-    results: logs.length,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-    data: { logs },
   });
 });
 
