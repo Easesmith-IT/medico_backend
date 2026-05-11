@@ -254,7 +254,7 @@
 // //       amountPaid: requestedAmount,
 // //       currency: payment.currency || "INR",
 // //       status: "Pending",
- 
+
 // //       note: `Pending ${stage.toLowerCase()} payment`,
 // //       collectedBy: null,
 // //     });
@@ -408,6 +408,7 @@
 //         success: false,
 //         message: "Payment ledger not found for this treatment",
 //       });
+
 //     }
 
 //     const transaction = [...(payment.transactions || [])]
@@ -640,9 +641,6 @@
 //   }
 // };
 
-
-
-
 const crypto = require("crypto");
 const mongoose = require("mongoose");
 const Booking = require("../models/bookingModel");
@@ -665,18 +663,23 @@ const canAccessTreatment = (req, treatment) => {
   const role = getRole(req);
 
   if (ADMIN_ROLES.has(role)) return true;
-  if (role === "patient") return isObjectIdEqual(treatment.patientId, req.user?.id);
-  if (PROVIDER_ROLES.has(role)) return isObjectIdEqual(treatment.servicePartnerId, req.user?.id);
+  if (role === "patient")
+    return isObjectIdEqual(treatment.patientId, req.user?.id);
+  if (PROVIDER_ROLES.has(role))
+    return isObjectIdEqual(treatment.servicePartnerId, req.user?.id);
 
   return false;
 };
 
 const canManageManualLedgerActions = (req) => ADMIN_ROLES.has(getRole(req));
-const getTreatmentOr404 = async (treatmentId) => Treatment.findById(treatmentId);
+const getTreatmentOr404 = async (treatmentId) =>
+  Treatment.findById(treatmentId);
 
 const buildRazorpayReceipt = (prefix, entityId) => {
   const safePrefix = String(prefix || "pay").slice(0, 8);
-  const shortId = String(entityId || "").replace(/[^a-zA-Z0-9]/g, "").slice(-12);
+  const shortId = String(entityId || "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(-12);
   const stamp = Date.now().toString().slice(-10);
   return `${safePrefix}_${shortId}_${stamp}`.slice(0, 40);
 };
@@ -693,7 +696,12 @@ const recalculateLedger = (payment) => {
   payment.totalPaid = Number(totalPaid.toFixed(2));
   payment.totalRefunded = Number(totalRefunded.toFixed(2));
   payment.remainingBalance = Number(
-    Math.max(Number(payment.totalBillAmount || 0) - payment.totalPaid + payment.totalRefunded, 0).toFixed(2)
+    Math.max(
+      Number(payment.totalBillAmount || 0) -
+        payment.totalPaid +
+        payment.totalRefunded,
+      0,
+    ).toFixed(2),
   );
 
   if (payment.totalPaid <= 0) {
@@ -707,16 +715,17 @@ const recalculateLedger = (payment) => {
 
 const syncPaymentLedger = async (payment, treatment) => {
   const bookings = await Booking.find({ treatmentId: treatment._id }).select(
-    "_id pricing.totalAmount servicePartnerId"
+    "_id pricing.totalAmount servicePartnerId",
   );
 
   const totalBillAmount = bookings.reduce(
     (sum, booking) => sum + Number(booking.pricing?.totalAmount || 0),
-    0
+    0,
   );
 
   payment.patientId = treatment.patientId;
-  payment.servicePartnerId = treatment.servicePartnerId || bookings[0]?.servicePartnerId || null;
+  payment.servicePartnerId =
+    treatment.servicePartnerId || bookings[0]?.servicePartnerId || null;
   payment.bookingIds = bookings.map((booking) => booking._id);
   payment.currency = payment.currency || "INR";
   payment.totalBillAmount = Number(totalBillAmount.toFixed(2));
@@ -799,7 +808,9 @@ exports.getTreatmentPaymentLedger = async (req, res) => {
     const treatment = await getTreatmentOr404(treatmentId);
 
     if (!treatment) {
-      return res.status(404).json({ success: false, message: "Treatment not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Treatment not found" });
     }
 
     if (!canAccessTreatment(req, treatment)) {
@@ -839,7 +850,9 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
 
     const treatment = await getTreatmentOr404(treatmentId);
     if (!treatment) {
-      return res.status(404).json({ success: false, message: "Treatment not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Treatment not found" });
     }
 
     if (!canAccessTreatment(req, treatment) || getRole(req) !== "patient") {
@@ -862,7 +875,8 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
     if (Number(payment.totalBillAmount || 0) <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Booking amount is not available yet. Create booking first, then pay.",
+        message:
+          "Booking amount is not available yet. Create booking first, then pay.",
       });
     }
 
@@ -874,7 +888,7 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
     }
 
     const existingPending = (payment.transactions || []).find(
-      (item) => item.method === "Online" && item.status === "Pending"
+      (item) => item.method === "Online" && item.status === "Pending",
     );
 
     if (existingPending) {
@@ -948,18 +962,22 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
 exports.verifyTreatmentOnlinePayment = async (req, res) => {
   try {
     const { treatmentId } = req.params;
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+      req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({
         success: false,
-        message: "razorpay_order_id, razorpay_payment_id and razorpay_signature are required",
+        message:
+          "razorpay_order_id, razorpay_payment_id and razorpay_signature are required",
       });
     }
 
     const treatment = await getTreatmentOr404(treatmentId);
     if (!treatment) {
-      return res.status(404).json({ success: false, message: "Treatment not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Treatment not found" });
     }
 
     if (!canAccessTreatment(req, treatment) || getRole(req) !== "patient") {
@@ -983,7 +1001,7 @@ exports.verifyTreatmentOnlinePayment = async (req, res) => {
         (item) =>
           item.razorpayOrderId === razorpay_order_id &&
           item.method === "Online" &&
-          item.status === "Pending"
+          item.status === "Pending",
       );
 
     if (!transaction) {
@@ -1035,7 +1053,13 @@ exports.verifyTreatmentOnlinePayment = async (req, res) => {
 exports.recordManualPayment = async (req, res) => {
   try {
     const { treatmentId } = req.params;
-    const { amount, method, stage, note = "", referenceNumber = null } = req.body;
+    const {
+      amount,
+      method,
+      stage,
+      note = "",
+      referenceNumber = null,
+    } = req.body;
 
     if (!canManageManualLedgerActions(req)) {
       return res.status(403).json({
@@ -1046,7 +1070,9 @@ exports.recordManualPayment = async (req, res) => {
 
     const treatment = await getTreatmentOr404(treatmentId);
     if (!treatment) {
-      return res.status(404).json({ success: false, message: "Treatment not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Treatment not found" });
     }
 
     const payment = await getOrCreatePaymentLedger(treatment);
@@ -1054,13 +1080,16 @@ exports.recordManualPayment = async (req, res) => {
     const allowedMethods = new Set(["Cash", "UPI", "Card", "BankTransfer"]);
 
     if (receivedAmount <= 0) {
-      return res.status(400).json({ success: false, message: "A valid amount is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "A valid amount is required" });
     }
 
     if (!allowedMethods.has(method)) {
       return res.status(400).json({
         success: false,
-        message: "Manual payment method must be Cash, UPI, Card, or BankTransfer",
+        message:
+          "Manual payment method must be Cash, UPI, Card, or BankTransfer",
       });
     }
 
@@ -1130,14 +1159,16 @@ exports.recordManualRefund = async (req, res) => {
 
     const treatment = await getTreatmentOr404(treatmentId);
     if (!treatment) {
-      return res.status(404).json({ success: false, message: "Treatment not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Treatment not found" });
     }
 
     const payment = await getOrCreatePaymentLedger(treatment);
     const refundAmount = normalizeAmount(amount);
     const refundableAmount = Math.max(
       Number(payment.totalPaid || 0) - Number(payment.totalRefunded || 0),
-      0
+      0,
     );
 
     if (refundAmount <= 0) {
