@@ -16,6 +16,12 @@ router.post(
 );
 
 router.post(
+  "/booking/:bookingId/advance/order",
+  protect("patient"),
+  paymentController.createBookingAdvanceOrderCompat
+);
+
+router.post(
   "/treatments/:treatmentId/online/verify",
   protect("patient"),
   paymentController.verifyTreatmentOnlinePayment

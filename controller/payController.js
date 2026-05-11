@@ -959,6 +959,46 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
   }
 };
 
+exports.createBookingAdvanceOrderCompat = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking ID format",
+      });
+    }
+
+    const booking = await Booking.findById(bookingId).select(
+      "_id treatmentId patientId",
+    );
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    if (!booking.treatmentId) {
+      return res.status(400).json({
+        success: false,
+        message: "This booking is not linked to a treatment",
+      });
+    }
+
+    req.params.treatmentId = String(booking.treatmentId);
+    return exports.createTreatmentOnlineOrder(req, res);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create online payment order",
+      error: error.message,
+    });
+  }
+};
+
 exports.verifyTreatmentOnlinePayment = async (req, res) => {
   try {
     const { treatmentId } = req.params;
