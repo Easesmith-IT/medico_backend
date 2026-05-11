@@ -1597,6 +1597,7 @@ exports.createBooking = async (req, res) => {
     }
 
     let resolvedTreatmentId = treatmentId;
+    let createdTreatmentInThisRequest = false;
 
     // ✅ Create Treatment if not provided
     if (!resolvedTreatmentId) {
@@ -1609,6 +1610,7 @@ exports.createBooking = async (req, res) => {
       });
 
       resolvedTreatmentId = treatment._id;
+      createdTreatmentInThisRequest = true;
     }
 
     const appointmentDate = rest.appointmentDate || bookingDate;
@@ -1674,6 +1676,19 @@ exports.createBooking = async (req, res) => {
 
       paymentOption: paymentOption || "PayLater",
       createdBy: patientId,
+    });
+
+    const treatmentPatch = {
+      currentBookingId: booking._id,
+      lastBookingAt: new Date(appointmentDate),
+    };
+
+    if (createdTreatmentInThisRequest) {
+      treatmentPatch.bookingId = booking._id;
+    }
+
+    await Treatment.findByIdAndUpdate(resolvedTreatmentId, {
+      $set: treatmentPatch,
     });
 
     // ✅ Payment Ledger

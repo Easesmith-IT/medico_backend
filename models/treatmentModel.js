@@ -3,8 +3,7 @@ const treatmentSchema = new mongoose.Schema({
   bookingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Booking",
-    unique: true,
-    default: null,
+    default: undefined,
   },
   patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
   serviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
