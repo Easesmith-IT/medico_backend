@@ -548,13 +548,171 @@ exports.getServiceProviderById = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Service provider not found" });
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Service provider fetched successfully",
-        data: provider,
+    const providerObject = provider.toObject();
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date(startOfToday);
+    endOfToday.setDate(endOfToday.getDate() + 1);
+
+    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
+    const startOfNextMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth() + 1, 1);
+
+    const bookingStats = await Booking.aggregate([
+      {
+        $match: {
+          servicePartnerId: provider._id,
+        },
+      },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+          totalRevenue: { $sum: { $ifNull: ["$pricing.totalAmount", 0] } },
+          collectedRevenue: { $sum: { $ifNull: ["$paidAmount", 0] } },
+          pendingPayments: {
+            $sum: {
+              $cond: [{ $gt: [{ $ifNull: ["$dueAmount", 0] }, 0] }, { $ifNull: ["$dueAmount", 0] }, 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    const statusBreakdownMap = bookingStats.reduce((acc, item) => {
+      const statusKey = item?._id || "Unknown";
+      acc[statusKey] = item?.count || 0;
+      return acc;
+    }, {});
+
+    const totalBookings = bookingStats.reduce((sum, item) => sum + (item?.count || 0), 0);
+    const totalRevenue = bookingStats.reduce((sum, item) => sum + (item?.totalRevenue || 0), 0);
+    const collectedRevenue = bookingStats.reduce((sum, item) => sum + (item?.collectedRevenue || 0), 0);
+    const pendingPayments = bookingStats.reduce((sum, item) => sum + (item?.pendingPayments || 0), 0);
+
+    const cancelledBookingsCount =
+      (statusBreakdownMap.Cancelled || 0) +
+      (statusBreakdownMap.Rejected || 0) +
+      (statusBreakdownMap["Cancellation Requested"] || 0);
+
+    const cancellationRate =
+      totalBookings > 0 ? Number(((cancelledBookingsCount / totalBookings) * 100).toFixed(2)) : 0;
+
+    const [todayBookings, thisMonthBookings, upcomingBookings] = await Promise.all([
+      Booking.countDocuments({
+        servicePartnerId: provider._id,
+        appointmentDate: { $gte: startOfToday, $lt: endOfToday },
+      }),
+      Booking.countDocuments({
+        servicePartnerId: provider._id,
+        appointmentDate: { $gte: startOfMonth, $lt: startOfNextMonth },
+      }),
+      Booking.find({
+        servicePartnerId: provider._id,
+        appointmentDate: { $gte: startOfToday },
+        status: {
+          $nin: ["Cancelled", "Rejected", "Cancellation Requested"],
+        },
+      })
+        .populate({
+          path: "patientId",
+          select: "firstName lastName mobile profilePhoto",
+          model: "Patient",
+        })
+        .populate({
+          path: "serviceId",
+          select: "name category basePrice",
+          model: "Service",
+        })
+        .select(
+          "appointmentDate slotTime status paymentStatus pricing.totalAmount paidAmount dueAmount patientId serviceId createdAt",
+        )
+        .sort({ appointmentDate: 1, "slotTime.startTime": 1, createdAt: 1 })
+        .limit(5)
+        .lean(),
+    ]);
+
+    providerObject.bookingStats = {
+      totalBookings,
+      statusBreakdown: statusBreakdownMap,
+      totalRevenue,
+      collectedRevenue,
+      todayBookings,
+      thisMonthBookings,
+      pendingPayments,
+      cancellationRate,
+      upcomingBookings: upcomingBookings.length,
+    };
+    providerObject.upcomingBookings = upcomingBookings;
+
+    res.status(200).json({
+      success: true,
+      message: "Service provider fetched successfully",
+      data: providerObject,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.updateServiceProviderWorkflow = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, reason = "" } = req.body || {};
+
+    const allowedActions = ["approve", "under_review", "reject", "suspend"];
+    if (!allowedActions.includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid workflow action",
       });
+    }
+
+    const provider = await ServiceProvider.findById(id);
+    if (!provider) {
+      return res.status(404).json({
+        success: false,
+        message: "Service provider not found",
+      });
+    }
+
+    if (action === "approve") {
+      provider.approvalStatus = "Approved";
+      provider.isActive = true;
+      provider.isVerified = true;
+      provider.rejectionReason = undefined;
+      provider.suspensionReason = undefined;
+      provider.approvedBy = {
+        adminId: req.user?.id,
+        adminName: req.user?.email || "Admin",
+        approvedAt: new Date(),
+      };
+    }
+
+    if (action === "under_review") {
+      provider.approvalStatus = "Under Review";
+    }
+
+    if (action === "reject") {
+      provider.approvalStatus = "Rejected";
+      provider.isActive = false;
+      provider.rejectionReason = reason?.trim() || "Rejected by admin";
+    }
+
+    if (action === "suspend") {
+      provider.approvalStatus = "Suspended";
+      provider.isActive = false;
+      provider.suspensionReason = reason?.trim() || "Suspended by admin";
+    }
+
+    await provider.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+      success: true,
+      message: "Service provider workflow updated successfully",
+      data: provider,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

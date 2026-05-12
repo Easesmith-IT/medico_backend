@@ -1207,6 +1207,7 @@ const AppError = require("../utils/appError");
 const Admin = require("../models/adminModel");
 const Doctor = require("../models/doctorModel");
 const Patient = require("../models/patientModel");
+const PatientAddress = require("../models/patientAddressModel");
 const Otp = require("../models/otpModel");
 const { sendOtp } = require("../utils/otpUtils");
 const bcrypt = require("bcryptjs");
@@ -2873,6 +2874,8 @@ exports.createBookingByAdmin = async (req, res) => {
     const {
       patientId,
       serviceId,
+      treatmentId,
+      createNewTreatment,
       appointmentDate,
       startTime,
       endTime,
@@ -3035,12 +3038,60 @@ exports.createBookingByAdmin = async (req, res) => {
       shiftType || null
     );
 
-    const treatment = await Treatment.findOne({ patientId, serviceId }).sort({ createdAt: -1 });
-    if (!treatment) {
-      return res.status(400).json({
-        success: false,
-        message: "No active treatment found for this patient and service",
+    let treatment = null;
+    let treatmentCreated = false;
+    const shouldCreateTreatment =
+      createNewTreatment === true || createNewTreatment === "true";
+
+    if (treatmentId) {
+      if (!mongoose.Types.ObjectId.isValid(treatmentId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid treatmentId",
+        });
+      }
+
+      treatment = await Treatment.findById(treatmentId);
+      if (!treatment) {
+        return res.status(404).json({
+          success: false,
+          message: "Treatment not found",
+        });
+      }
+
+      if (String(treatment.patientId) !== String(patientId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected treatment does not belong to this patient",
+        });
+      }
+
+      if (String(treatment.serviceId) !== String(serviceId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected treatment is not linked to the selected service",
+        });
+      }
+    } else if (shouldCreateTreatment) {
+      treatment = await Treatment.create({
+        patientId,
+        serviceId,
+        servicePartnerId: servicePartnerId || undefined,
+        status: "Active",
+        startDate: new Date(appointmentDate),
       });
+      treatmentCreated = true;
+    } else {
+      treatment = await Treatment.findOne({ patientId, serviceId }).sort({
+        createdAt: -1,
+      });
+      if (!treatment) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "No treatment found. Select an existing treatment or create a new treatment.",
+        });
+      }
     }
 
     const previousCount = await Booking.countDocuments({ treatmentId: treatment._id });
@@ -3095,6 +3146,11 @@ exports.createBookingByAdmin = async (req, res) => {
       message: "Booking created successfully",
       data: {
         ...populated.toObject(),
+        treatment: {
+          _id: treatment._id,
+          status: treatment.status,
+          createdNew: treatmentCreated,
+        },
         formattedDuration: formatDuration(computedDuration),
       },
     });
@@ -3131,6 +3187,8 @@ exports.updateBookingByAdmin = async (req, res) => {
       modes,
       shiftType,
       cityId,
+      treatmentId,
+      createNewTreatment,
     } = req.body;
 
     // Fetch booking
@@ -3252,6 +3310,75 @@ exports.updateBookingByAdmin = async (req, res) => {
       }
     }
 
+    // Resolve treatment for this booking update
+    const shouldCreateTreatment =
+      createNewTreatment === true || createNewTreatment === "true";
+    const oldTreatmentId = booking.treatmentId ? String(booking.treatmentId) : null;
+    let resolvedTreatment = null;
+    let treatmentCreated = false;
+    const effectiveServicePartnerId =
+      servicePartnerId !== undefined ? servicePartnerId : booking.servicePartnerId;
+
+    if (treatmentId) {
+      if (!mongoose.Types.ObjectId.isValid(treatmentId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid treatmentId",
+        });
+      }
+
+      resolvedTreatment = await Treatment.findById(treatmentId);
+      if (!resolvedTreatment) {
+        return res.status(404).json({
+          success: false,
+          message: "Treatment not found",
+        });
+      }
+
+      if (String(resolvedTreatment.patientId) !== String(effectivePatientId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected treatment does not belong to this patient",
+        });
+      }
+
+      if (String(resolvedTreatment.serviceId) !== String(booking.serviceId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected treatment is not linked to this booking service",
+        });
+      }
+    } else if (shouldCreateTreatment) {
+      const treatmentPayload = {
+        patientId: effectivePatientId,
+        serviceId: booking.serviceId,
+        status: "Active",
+        startDate: new Date(effectiveDate),
+      };
+      if (effectiveServicePartnerId) {
+        treatmentPayload.servicePartnerId = effectiveServicePartnerId;
+      }
+      resolvedTreatment = await Treatment.create(treatmentPayload);
+      treatmentCreated = true;
+    } else if (booking.treatmentId) {
+      resolvedTreatment = await Treatment.findById(booking.treatmentId);
+    }
+
+    if (!resolvedTreatment) {
+      resolvedTreatment = await Treatment.findOne({
+        patientId: effectivePatientId,
+        serviceId: booking.serviceId,
+      }).sort({ createdAt: -1 });
+    }
+
+    if (!resolvedTreatment) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No treatment found. Select an existing treatment or create a new treatment.",
+      });
+    }
+
     // Conflict check only if any of date/start/end/partner changed (or always check to be safe)
     const dayStart = new Date(effectiveDate);
     dayStart.setHours(0, 0, 0, 0);
@@ -3297,6 +3424,17 @@ exports.updateBookingByAdmin = async (req, res) => {
       shiftType || booking.shiftType
     );
     if (shiftType) booking.shiftType = shiftType;
+    booking.treatmentId = resolvedTreatment._id;
+
+    const isTreatmentChanged =
+      !oldTreatmentId || oldTreatmentId !== String(resolvedTreatment._id);
+    if (!booking.sessionNumber || isTreatmentChanged) {
+      const existingSessionCount = await Booking.countDocuments({
+        treatmentId: resolvedTreatment._id,
+        _id: { $ne: booking._id },
+      });
+      booking.sessionNumber = existingSessionCount + 1;
+    }
 
     // Update city to bookingCityDoc
     booking.city = bookingCityDoc._id;
@@ -3304,6 +3442,26 @@ exports.updateBookingByAdmin = async (req, res) => {
 
     // Save
     await booking.save();
+
+    if (oldTreatmentId && oldTreatmentId !== String(resolvedTreatment._id)) {
+      await Treatment.updateOne(
+        { _id: oldTreatmentId, currentBookingId: booking._id },
+        { $set: { currentBookingId: null } }
+      );
+    }
+
+    const treatmentPatch = {
+      currentBookingId: booking._id,
+      lastBookingAt: new Date(effectiveDate),
+    };
+    if (resolvedTreatment.status === "Completed") {
+      treatmentPatch.status = "Active";
+      resolvedTreatment.status = "Active";
+    }
+    await Treatment.updateOne(
+      { _id: resolvedTreatment._id },
+      { $set: treatmentPatch }
+    );
 
     // Populate city for response
     const populated = await booking.populate("city", "name latitude longitude");
@@ -3313,6 +3471,11 @@ exports.updateBookingByAdmin = async (req, res) => {
       message: "Booking updated successfully",
       data: {
         ...populated.toObject(),
+        treatment: {
+          _id: resolvedTreatment._id,
+          status: resolvedTreatment.status,
+          createdNew: treatmentCreated,
+        },
         formattedDuration: formatDuration(finalDuration),
       },
     });
@@ -3369,8 +3532,14 @@ exports.getAllPatients = catchAsync(async (req, res, next) => {
     typeof isActive !== "undefined"
   );
 
-  if (isActive !== "null") {
-    filter.isActive = isActive === "true"; // convert string → boolean
+  const hasStatusFilter =
+    typeof isActive !== "undefined" &&
+    isActive !== null &&
+    isActive !== "" &&
+    isActive !== "null";
+
+  if (hasStatusFilter) {
+    filter.isActive = isActive === "true";
   }
 
   // Fetch patients with filters
@@ -3402,9 +3571,48 @@ exports.getPatientById = catchAsync(async (req, res, next) => {
     return next(new AppError("Patient not found", 404));
   }
 
+  const savedAddresses = await PatientAddress.find({ patientId: patient._id })
+    .sort({ isPrimary: -1, createdAt: 1 })
+    .lean();
+
+  const mappedAddresses = savedAddresses.map((address) => ({
+    _id: address._id,
+    label: address.label || "home",
+    street: address.street || "",
+    city: address.city || "",
+    cityId: address.cityId || null,
+    state: address.state || "",
+    country: address.country || "",
+    pincode: address.pincode || "",
+    landmark: address.landmark || "",
+    isDefault: Boolean(address.isPrimary),
+    isPrimary: Boolean(address.isPrimary),
+  }));
+
+  if (mappedAddresses.length === 0 && patient.address) {
+    mappedAddresses.push({
+      _id: "legacy-primary-address",
+      label: "home",
+      street: patient.address.street || "",
+      city: patient.address.city || "",
+      cityId: patient.address.cityId || null,
+      state: patient.address.state || "",
+      country: patient.address.country || "",
+      pincode: patient.address.pincode || "",
+      landmark: patient.address.landmark || "",
+      isDefault: true,
+      isPrimary: true,
+    });
+  }
+
+  const patientData =
+    typeof patient.toObject === "function" ? patient.toObject() : patient;
+
+  patientData.addresses = mappedAddresses;
+
   res.status(200).json({
     success: true,
-    data: { patient },
+    data: { patient: patientData },
   });
 });
 
@@ -3939,10 +4147,12 @@ exports.getPatientNames = async (req, res) => {
   }
 
   try {
-    const patients = await Patient.find(
-      filter,
-      { firstName: 1, lastName: 1 } // Projection: return only name + _id
-    ).sort({ firstName: 1 }); // Alphabetical order
+    const patients = await Patient.find(filter, {
+      firstName: 1,
+      lastName: 1,
+      phone: 1,
+      address: 1,
+    }).sort({ firstName: 1 });
 
     res.status(200).json({
       success: true,
@@ -3954,6 +4164,73 @@ exports.getPatientNames = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch patient names",
+    });
+  }
+};
+
+exports.getPatientTreatmentsForBooking = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { serviceId } = req.query;
+
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid patientId",
+      });
+    }
+
+    const patient = await Patient.findById(patientId).select("_id");
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    const filter = { patientId };
+    if (serviceId) {
+      if (!mongoose.Types.ObjectId.isValid(serviceId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid serviceId",
+        });
+      }
+      filter.serviceId = serviceId;
+    }
+
+    const treatments = await Treatment.find(filter)
+      .select(
+        "_id patientId serviceId servicePartnerId status currentBookingId startDate endDate validTill createdAt updatedAt"
+      )
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .lean();
+
+    const treatmentIds = treatments.map((item) => item._id);
+    const counts = treatmentIds.length
+      ? await Booking.aggregate([
+          { $match: { treatmentId: { $in: treatmentIds } } },
+          { $group: { _id: "$treatmentId", sessionsCount: { $sum: 1 } } },
+        ])
+      : [];
+    const sessionsMap = new Map(
+      counts.map((item) => [String(item._id), item.sessionsCount])
+    );
+
+    return res.status(200).json({
+      success: true,
+      count: treatments.length,
+      data: treatments.map((item) => ({
+        ...item,
+        sessionsCount: sessionsMap.get(String(item._id)) || 0,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching patient treatments:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch patient treatments",
+      error: error.message,
     });
   }
 };
@@ -4411,3 +4688,5 @@ exports.addEquipment = async (req, res) => {
 //   }
 // };
 module.exports = exports;
+
+

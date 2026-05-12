@@ -26,6 +26,11 @@ router.patch(
 
 router.get("/services/names", adminController.getServiceNames);
 router.get("/patients/names", adminController.getPatientNames);
+router.get(
+  "/patients/:patientId/treatments",
+  protect("superadmin", "subadmin", "admin"),
+  adminController.getPatientTreatmentsForBooking
+);
 router.get("/service-providers/names", adminController.getServiceProviderNames);
 
 router.get(

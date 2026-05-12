@@ -70,6 +70,12 @@ router.put(
   serviceProviderController.updateServiceProvider,
 );
 
+router.patch(
+  "/service-provider/:id/workflow",
+  protect("superadmin", "subadmin"),
+  serviceProviderController.updateServiceProviderWorkflow,
+);
+
 // Soft delete service provider by ID - admin only
 router.delete(
   "/service-provider/:id",
