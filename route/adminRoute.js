@@ -3,6 +3,7 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controller/adminController");
+const adminGovernanceController = require("../controller/adminGovernanceController");
 const { protect } = require("../middleware/auth");
 
 router.post("/signup", adminController.adminSignup);
@@ -13,14 +14,86 @@ router.post("/check-auth", adminController.checkAuthStatus);
 // router.post('/logout', protect("superadmin", "subadmin"), adminController.logout);
 router.post("/logout", adminController.logout);
 router.post("/logout-all-devices", adminController.logoutAllDevices);
+router.get(
+  "/sessions/me",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.getMySessions
+);
+router.delete(
+  "/sessions/:sessionId",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.revokeMySessionById
+);
+router.delete(
+  "/sessions/me/all",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.revokeMyAllSessions
+);
+router.post(
+  "/subadmins/:id/force-logout",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.forceLogoutSubAdmin
+);
+
+router.patch(
+  "/profile/password",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.updateMyPassword
+);
+router.post(
+  "/mfa/setup",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.setupMfa
+);
+router.post(
+  "/mfa/verify",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.verifyMfa
+);
+router.post(
+  "/mfa/disable",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.disableMfa
+);
+router.patch(
+  "/security-policy",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.updateSecurityPolicy
+);
+router.get(
+  "/audit-logs",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.getAuditLogs
+);
+router.get(
+  "/audit-logs/export",
+  protect("superadmin", "subadmin"),
+  adminGovernanceController.exportAuditLogs
+);
 
 router.get(
   "/subadmins",
   protect("superadmin", "subadmin"),
   adminController.getSubAdmins,
 );
+router.get(
+  "/subadmins/:id",
+  protect("superadmin", "subadmin"),
+  adminController.getSubAdminById
+);
+router.patch(
+  "/subadmins/:id",
+  protect("superadmin", "subadmin"),
+  adminController.updateSubAdmin
+);
+router.delete(
+  "/subadmins/:id",
+  protect("superadmin", "subadmin"),
+  adminController.deleteSubAdmin
+);
 router.patch(
   "/subadmins/:id/toggle-status",
+  protect("superadmin", "subadmin"),
   adminController.toggleSubAdminStatus
 );
 
