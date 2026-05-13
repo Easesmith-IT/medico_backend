@@ -106,29 +106,307 @@ const {
 //     res.status(500).json({ success: false, message: error.message });
 //   }
 // };
+//vivek
+// exports.createServiceProvider = async (req, res) => {
+//   try {
+//     const raw = req.body;
+
+//     console.log("req.files", req.files);
+
+//     console.log("req.body", req.body);
+
+//     const parseJson = (val, fallback) => {
+//       if (!val) return fallback;
+//       if (
+//         typeof val === "string" &&
+//         (val.startsWith("[") || val.startsWith("{"))
+//       ) {
+//         try {
+//           return JSON.parse(val);
+//         } catch {
+//           return fallback;
+//         }
+//       }
+//       return val;
+//     };
+
+//     const data = {
+//       ...raw,
+
+//       currentAddress: parseJson(raw.currentAddress, {}),
+//       permanentAddress: parseJson(raw.permanentAddress, {}),
+//       workAddress: parseJson(raw.workAddress, {}),
+
+//       services: parseJson(raw.services, []),
+
+//       bankDetails: parseJson(raw.bankDetails, {}),
+//       availability: parseJson(raw.availability, {}),
+
+//       emergencyContact: parseJson(raw.emergencyContact, {}),
+
+//       serviceCities: parseJson(raw.serviceCities, []),
+//       languages: parseJson(raw.languages, []),
+
+//       // dateOfBirth: raw.dateOfBirth
+//       //   ? new Date(JSON.parse(raw.dateOfBirth))
+//       //   : null,
+
+
+//       dateOfBirth: raw.dateOfBirth
+//   ? new Date(raw.dateOfBirth)
+//   : null,
+//     };
+
+//     /* ---------------------------
+//        1️⃣ Validate Cities
+//     ----------------------------*/
+//     // if (data.serviceCities?.length) {
+//     //   const validCities = await City.find({
+//     //     _id: { $in: data.serviceCities },
+//     //     isActive: true,
+//     //   });
+
+//     //   if (validCities.length !== data.serviceCities.length) {
+//     //     return res.status(400).json({
+//     //       success: false,
+//     //       message: "One or more selected cities are invalid or inactive",
+//     //     });
+//     //   }
+//     // }
+
+
+//     /* 1️⃣ Validate Cities - FIXED VERSION */
+// if (data.serviceCities?.length) {
+//   // Convert to ObjectIds and filter invalid
+//   const cityIds = data.serviceCities
+//     .map(id => String(id).trim())
+//     .filter(id => mongoose.Types.ObjectId.isValid(id))
+//     .map(id => new mongoose.Types.ObjectId(id));
+
+//   if (cityIds.length !== data.serviceCities.length) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Some city IDs are invalid",
+//       received: data.serviceCities,
+//       validCount: cityIds.length
+//     });
+//   }
+
+//   // const validCities = await City.find({
+//   //   _id: { $in: cityIds },
+//   //   isActive: true
+//   // }).select('_id name isActive');
+// const validCities = await City.find({
+//   _id: { $in: cityIds }
+// }).select('_id name isActive');
+
+// const activeCities = validCities.filter(city => city.isActive);
+
+// if (activeCities.length !== cityIds.length) {
+//   return res.status(400).json({
+//     success: false,
+//     message: "One or more selected cities are invalid or inactive",
+//     expected: cityIds.length,
+//     found: activeCities.length,
+//     foundCities: activeCities
+//   });
+// }
+
+// data.serviceCities = activeCities.map(c => c._id);
+//   if (validCities.length !== cityIds.length) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "One or more selected cities are invalid or inactive",
+//       expected: cityIds.length,
+//       found: validCities.length,
+//       foundCities: validCities.map(c => ({id: c._id, name: c.name}))
+//     });
+//   }
+
+//   //  All good - use converted ObjectIds
+//   data.serviceCities = cityIds;
+// }
+
+//     /* ---------------------------
+//        2️⃣ Admin Auto Approval
+//     ----------------------------*/
+//     if (req.user && ["superadmin", "subadmin"].includes(req.user.role)) {
+//       data.approvedBy = {
+//         adminId: req.user.id,
+//         adminName: req.user.email || "Admin",
+//         approvedAt: new Date(),
+//       };
+//       data.approvalStatus = "Approved";
+//       data.isActive = true;
+//     }
+
+//     /* ---------------------------
+//        3️⃣ Password Validation
+//     ----------------------------*/
+//     // if (!data.password) {
+//     //   return res.status(400).json({
+//     //     success: false,
+//     //     message: "Password is required for service provider account creation"
+//     //   });
+//     // }
+
+//     /* ---------------------------
+//        4️⃣ Documents Object
+//     ----------------------------*/
+//     const documents = {};
+
+//     /* Profile Photo */
+//     if (req.files?.profilePhoto?.[0]) {
+//       documents.profilePhoto = await uploadFile(req.files.profilePhoto[0]);
+//     }
+
+//     /* Identity Proof */
+//     if (req.files?.identityProofFile?.[0]) {
+//       documents.identityProof = {
+//         ...parseJson(raw.identityProof, {}),
+//         documentUrl: await uploadFile(req.files.identityProofFile[0]),
+//       };
+//     }
+
+//     /* Address Proof */
+//     if (req.files?.addressProofFile?.[0]) {
+//       documents.addressProof = {
+//         ...parseJson(raw.addressProof, {}),
+//         documentUrl: await uploadFile(req.files.addressProofFile[0]),
+//       };
+//     }
+
+//     /* Registration Certificate */
+//     if (req.files?.registrationCertificateFile?.[0]) {
+//       documents.registrationCertificate = {
+//         ...parseJson(raw.registrationCertificate, {}),
+//         certificateUrl: await uploadFile(
+//           req.files.registrationCertificateFile[0],
+//         ),
+//       };
+//     }
+
+//     /* Police Verification */
+//     if (req.files?.policeVerificationFile?.[0]) {
+//       documents.policeVerification = {
+//         ...parseJson(raw.policeVerification, {}),
+//         certificateUrl: await uploadFile(req.files.policeVerificationFile[0]),
+//       };
+//     }
+
+//     /* Educational Certificates */
+//     if (req.files?.educationalCertificatesFiles?.length) {
+//       const educationMeta = parseJson(raw.educationalCertificates, []);
+
+//       documents.educationalCertificates = await Promise.all(
+//         req.files.educationalCertificatesFiles.map(async (file, index) => ({
+//           ...educationMeta[index],
+//           certificateUrl: await uploadFile(file),
+//         })),
+//       );
+//     }
+
+//     /* Professional Certificates */
+//     if (req.files?.professionalCertificatesFiles?.length) {
+//       const professionalMeta = parseJson(raw.professionalCertificates, []);
+
+//       documents.professionalCertificates = await Promise.all(
+//         req.files.professionalCertificatesFiles.map(async (file, index) => ({
+//           ...professionalMeta[index],
+//           certificateUrl: await uploadFile(file),
+//         })),
+//       );
+//     }
+
+//     /* Experience Certificates */
+//     if (req.files?.experienceCertificatesFiles?.length) {
+//       const experienceMeta = parseJson(raw.experienceCertificates, []);
+
+//       documents.experienceCertificates = await Promise.all(
+//         req.files.experienceCertificatesFiles.map(async (file, index) => ({
+//           ...experienceMeta[index],
+//           certificateUrl: await uploadFile(file),
+//         })),
+//       );
+//     }
+
+//     data.documents = documents;
+
+//     /* ---------------------------
+//        5️⃣ Create Provider
+//     ----------------------------*/
+//     const newProvider = await ServiceProvider.create(data);
+
+//     const providerResponse = newProvider.toObject();
+//     delete providerResponse.password;
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Service provider created successfully",
+//       data: providerResponse,
+//     });
+//   } catch (error) {
+//     console.error("Create provider error:", error);
+//     if (error.code === 11000) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Mobile or Email already exists",
+//         details: error.keyValue,
+//       });
+//     }
+
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
+
+
 
 exports.createServiceProvider = async (req, res) => {
   try {
     const raw = req.body;
 
     console.log("req.files", req.files);
-
     console.log("req.body", req.body);
+
+    /* ---------------------------
+       Helpers
+    ----------------------------*/
 
     const parseJson = (val, fallback) => {
       if (!val) return fallback;
+
       if (
         typeof val === "string" &&
         (val.startsWith("[") || val.startsWith("{"))
       ) {
         try {
           return JSON.parse(val);
-        } catch {
+        } catch (err) {
+          console.log("JSON parse failed:", val);
           return fallback;
         }
       }
+
       return val;
     };
+
+    const parseDate = (val) => {
+      if (!val) return null;
+
+      try {
+        return new Date(JSON.parse(val));
+      } catch {
+        return new Date(val);
+      }
+    };
+
+    /* ---------------------------
+       Parse Incoming Data
+    ----------------------------*/
 
     const data = {
       ...raw,
@@ -144,179 +422,200 @@ exports.createServiceProvider = async (req, res) => {
 
       emergencyContact: parseJson(raw.emergencyContact, {}),
 
-      serviceCities: parseJson(raw.serviceCities, []),
       languages: parseJson(raw.languages, []),
 
-      dateOfBirth: raw.dateOfBirth
-        ? new Date(JSON.parse(raw.dateOfBirth))
-        : null,
+      dateOfBirth: parseDate(raw.dateOfBirth),
     };
 
     /* ---------------------------
-       1️⃣ Validate Cities
+       Handle serviceCities
     ----------------------------*/
-    // if (data.serviceCities?.length) {
-    //   const validCities = await City.find({
-    //     _id: { $in: data.serviceCities },
-    //     isActive: true,
-    //   });
 
-    //   if (validCities.length !== data.serviceCities.length) {
-    //     return res.status(400).json({
-    //       success: false,
-    //       message: "One or more selected cities are invalid or inactive",
-    //     });
-    //   }
-    // }
+    if (raw.serviceCities) {
+      let parsedCities = parseJson(raw.serviceCities, raw.serviceCities);
 
+      // Convert single string into array
+      if (!Array.isArray(parsedCities)) {
+        parsedCities = [parsedCities];
+      }
 
-    /* 1️⃣ Validate Cities - FIXED VERSION */
-if (data.serviceCities?.length) {
-  // Convert to ObjectIds and filter invalid
-  const cityIds = data.serviceCities
-    .map(id => String(id).trim())
-    .filter(id => mongoose.Types.ObjectId.isValid(id))
-    .map(id => new mongoose.Types.ObjectId(id));
+      // Clean and validate ObjectIds
+      const cityIds = parsedCities
+        .map((id) => String(id).trim())
+        .filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
 
-  if (cityIds.length !== data.serviceCities.length) {
-    return res.status(400).json({
-      success: false,
-      message: "Some city IDs are invalid",
-      received: data.serviceCities,
-      validCount: cityIds.length
-    });
-  }
+      // Invalid ObjectId check
+      if (cityIds.length !== parsedCities.length) {
+        return res.status(400).json({
+          success: false,
+          message: "Some city IDs are invalid",
+          received: parsedCities,
+        });
+      }
 
-  const validCities = await City.find({
-    _id: { $in: cityIds },
-    isActive: true
-  }).select('_id name isActive');
+      // Fetch active cities
+      const validCities = await City.find({
+        _id: { $in: cityIds },
+        isActive: true,
+      }).select("_id name isActive");
 
-  if (validCities.length !== cityIds.length) {
-    return res.status(400).json({
-      success: false,
-      message: "One or more selected cities are invalid or inactive",
-      expected: cityIds.length,
-      found: validCities.length,
-      foundCities: validCities.map(c => ({id: c._id, name: c.name}))
-    });
-  }
+      // Check if all cities found
+      if (validCities.length !== cityIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: "One or more selected cities are invalid or inactive",
+          expected: cityIds.length,
+          found: validCities.length,
+          foundCities: validCities.map((c) => ({
+            id: c._id,
+            name: c.name,
+          })),
+        });
+      }
 
-  //  All good - use converted ObjectIds
-  data.serviceCities = cityIds;
-}
+      data.serviceCities = validCities.map((c) => c._id);
+    } else {
+      data.serviceCities = [];
+    }
 
     /* ---------------------------
-       2️⃣ Admin Auto Approval
+       Admin Auto Approval
     ----------------------------*/
+
     if (req.user && ["superadmin", "subadmin"].includes(req.user.role)) {
       data.approvedBy = {
         adminId: req.user.id,
         adminName: req.user.email || "Admin",
         approvedAt: new Date(),
       };
+
       data.approvalStatus = "Approved";
       data.isActive = true;
     }
 
     /* ---------------------------
-       3️⃣ Password Validation
+       Documents Object
     ----------------------------*/
-    // if (!data.password) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Password is required for service provider account creation"
-    //   });
-    // }
 
-    /* ---------------------------
-       4️⃣ Documents Object
-    ----------------------------*/
     const documents = {};
 
     /* Profile Photo */
+
     if (req.files?.profilePhoto?.[0]) {
-      documents.profilePhoto = await uploadFile(req.files.profilePhoto[0]);
+      documents.profilePhoto = await uploadFile(
+        req.files.profilePhoto[0]
+      );
     }
 
     /* Identity Proof */
+
     if (req.files?.identityProofFile?.[0]) {
       documents.identityProof = {
         ...parseJson(raw.identityProof, {}),
-        documentUrl: await uploadFile(req.files.identityProofFile[0]),
+        documentUrl: await uploadFile(
+          req.files.identityProofFile[0]
+        ),
       };
     }
 
     /* Address Proof */
+
     if (req.files?.addressProofFile?.[0]) {
       documents.addressProof = {
         ...parseJson(raw.addressProof, {}),
-        documentUrl: await uploadFile(req.files.addressProofFile[0]),
+        documentUrl: await uploadFile(
+          req.files.addressProofFile[0]
+        ),
       };
     }
 
     /* Registration Certificate */
+
     if (req.files?.registrationCertificateFile?.[0]) {
       documents.registrationCertificate = {
         ...parseJson(raw.registrationCertificate, {}),
         certificateUrl: await uploadFile(
-          req.files.registrationCertificateFile[0],
+          req.files.registrationCertificateFile[0]
         ),
       };
     }
 
     /* Police Verification */
+
     if (req.files?.policeVerificationFile?.[0]) {
       documents.policeVerification = {
         ...parseJson(raw.policeVerification, {}),
-        certificateUrl: await uploadFile(req.files.policeVerificationFile[0]),
+        certificateUrl: await uploadFile(
+          req.files.policeVerificationFile[0]
+        ),
       };
     }
 
     /* Educational Certificates */
+
     if (req.files?.educationalCertificatesFiles?.length) {
-      const educationMeta = parseJson(raw.educationalCertificates, []);
+      const educationMeta = parseJson(
+        raw.educationalCertificates,
+        []
+      );
 
       documents.educationalCertificates = await Promise.all(
-        req.files.educationalCertificatesFiles.map(async (file, index) => ({
-          ...educationMeta[index],
-          certificateUrl: await uploadFile(file),
-        })),
+        req.files.educationalCertificatesFiles.map(
+          async (file, index) => ({
+            ...educationMeta[index],
+            certificateUrl: await uploadFile(file),
+          })
+        )
       );
     }
 
     /* Professional Certificates */
+
     if (req.files?.professionalCertificatesFiles?.length) {
-      const professionalMeta = parseJson(raw.professionalCertificates, []);
+      const professionalMeta = parseJson(
+        raw.professionalCertificates,
+        []
+      );
 
       documents.professionalCertificates = await Promise.all(
-        req.files.professionalCertificatesFiles.map(async (file, index) => ({
-          ...professionalMeta[index],
-          certificateUrl: await uploadFile(file),
-        })),
+        req.files.professionalCertificatesFiles.map(
+          async (file, index) => ({
+            ...professionalMeta[index],
+            certificateUrl: await uploadFile(file),
+          })
+        )
       );
     }
 
     /* Experience Certificates */
+
     if (req.files?.experienceCertificatesFiles?.length) {
-      const experienceMeta = parseJson(raw.experienceCertificates, []);
+      const experienceMeta = parseJson(
+        raw.experienceCertificates,
+        []
+      );
 
       documents.experienceCertificates = await Promise.all(
-        req.files.experienceCertificatesFiles.map(async (file, index) => ({
-          ...experienceMeta[index],
-          certificateUrl: await uploadFile(file),
-        })),
+        req.files.experienceCertificatesFiles.map(
+          async (file, index) => ({
+            ...experienceMeta[index],
+            certificateUrl: await uploadFile(file),
+          })
+        )
       );
     }
 
     data.documents = documents;
 
     /* ---------------------------
-       5️⃣ Create Provider
+       Create Provider
     ----------------------------*/
+
     const newProvider = await ServiceProvider.create(data);
 
     const providerResponse = newProvider.toObject();
+
     delete providerResponse.password;
 
     res.status(201).json({
@@ -324,8 +623,10 @@ if (data.serviceCities?.length) {
       message: "Service provider created successfully",
       data: providerResponse,
     });
+
   } catch (error) {
     console.error("Create provider error:", error);
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
@@ -340,6 +641,11 @@ if (data.serviceCities?.length) {
     });
   }
 };
+
+
+
+
+
 
 exports.loginServiceProvider = async (req, res) => {
   try {
