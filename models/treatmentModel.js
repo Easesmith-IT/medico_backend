@@ -1,10 +1,17 @@
 const mongoose = require('mongoose');
 const treatmentSchema = new mongoose.Schema({
+  // bookingId: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: "Booking",
+  //   default: undefined,
+  // },
+
   bookingId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Booking",
-    default: undefined,
-  },
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Booking",
+  unique: true,
+  sparse: true
+},
   patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
   serviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
   servicePartnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceProvider' },
