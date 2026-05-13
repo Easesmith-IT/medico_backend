@@ -887,9 +887,57 @@ exports.createTreatmentOnlineOrder = async (req, res) => {
       });
     }
 
-    const existingPending = (payment.transactions || []).find(
-      (item) => item.method === "Online" && item.status === "Pending",
-    );
+    // const existingPending = (payment.transactions || []).find(
+    //   (item) => item.method === "Online" && item.status === "Pending",
+    // );
+
+    // Check for active pending payment (max 15 mins old)
+const now = new Date();
+const PENDING_TIMEOUT_MINUTES = 15;
+
+let existingPending = null;
+
+for (const item of payment.transactions || []) {
+  if (item.method === "Online" && item.status === "Pending") {
+    const createdAt = item.createdAt || item.updatedAt;
+
+    const ageInMinutes = createdAt
+      ? (now - new Date(createdAt)) / (1000 * 60)
+      : 9999;
+
+    // Expire old pending transactions automatically
+    if (ageInMinutes > PENDING_TIMEOUT_MINUTES) {
+      item.status = "Failed";
+      item.failureReason = "Payment session expired";
+    } else {
+      existingPending = item;
+    }
+  }
+}
+
+// Save expired updates
+await payment.save();
+
+// Reuse existing active order instead of throwing error
+if (existingPending) {
+  return res.status(200).json({
+    success: true,
+    message: "Existing pending payment found",
+    data: {
+      paymentId: payment._id,
+      treatmentId: treatment._id,
+      key: process.env.RAZORPAY_API_KEY,
+      orderId: existingPending.razorpayOrderId,
+      amount: Math.round(
+        Number(existingPending.amountPaid || 0) * 100,
+      ),
+      currency:
+        existingPending.currency || payment.currency || "INR",
+      stage: existingPending.stage,
+      isExisting: true,
+    },
+  });
+}
 
     if (existingPending) {
       return res.status(409).json({
