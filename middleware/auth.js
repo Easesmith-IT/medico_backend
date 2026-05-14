@@ -11,6 +11,10 @@ const Patient = require("../models/patientModel");
 const Doctor = require("../models/doctorModel");
 const Admin = require("../models/adminModel");
 const ServiceProvider = require("../models/serviceProviderModel");
+const {
+  isSessionActiveByRefreshToken,
+  touchAdminSession,
+} = require("../utils/adminSessionService");
 /**
  * PROTECT MIDDLEWARE - Automatic token refresh on expiry
 //  * @param  {...string} allowedRoles - Optional roles for authorization
@@ -286,6 +290,27 @@ const protect = (...allowedRoles) => {
           const user = await loadUserByRole(decoded.role, decoded.id, true);
 
           if (user) {
+            if (user.tokenVersion != null && decoded.tokenVersion !== user.tokenVersion) {
+              clearAuthCookies(res);
+              return next(new AppError("Session expired. Please login again.", 401));
+            }
+
+            const roleKey = String(decoded.role || "").toLowerCase().replace(/[_\s]/g, "");
+            const hasRefreshCookie =
+              refreshToken && refreshToken !== "undefined" && refreshToken !== "null";
+
+            if (
+              hasRefreshCookie &&
+              (roleKey === "superadmin" || roleKey === "subadmin" || roleKey === "admin")
+            ) {
+              const isActiveSession = await isSessionActiveByRefreshToken(refreshToken, decoded.id);
+              if (!isActiveSession) {
+                clearAuthCookies(res);
+                return next(new AppError("Session revoked. Please login again.", 401));
+              }
+              await touchAdminSession(refreshToken);
+            }
+
             req.user = {
               ...decoded,
               isActive: user.isActive,
@@ -306,6 +331,20 @@ const protect = (...allowedRoles) => {
           const user = await loadUserByRole(refreshDecoded.role, refreshDecoded.id, true);
 
           if (!user) {
+            clearAuthCookies(res);
+            return next(new AppError("Session expired. Please login again.", 401));
+          }
+
+          const isActiveSession = await isSessionActiveByRefreshToken(
+            refreshToken,
+            refreshDecoded.id
+          );
+          if (!isActiveSession) {
+            clearAuthCookies(res);
+            return next(new AppError("Session revoked. Please login again.", 401));
+          }
+
+          if (user.tokenVersion != null && refreshDecoded.tokenVersion !== user.tokenVersion) {
             clearAuthCookies(res);
             return next(new AppError("Session expired. Please login again.", 401));
           }
@@ -335,6 +374,8 @@ const protect = (...allowedRoles) => {
             email: user.email,
             firstName: user.firstName,
           };
+
+          await touchAdminSession(refreshToken);
 
           return authorizeAndContinue(req, req.user.role, normalizedAllowedRoles, next);
         } catch (err) {

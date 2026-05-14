@@ -52,11 +52,14 @@ const itemRoute = require('../route/itemRoute');
 const uploadsRoute = require('../route/uploadRoute');
 const paymentRoute = require('../route/paymentRoute');
 const seperatePatientAddressRoute = require('../route/seperatePatientAddressRoute')
+const adminPaymentRoute = require("../route/adminPaymentRoute");
+
 const router = express.Router();
 
 
 // Mount routes
 router.use('/', authRoutes);
+router.use("/admin/payments", adminPaymentRoute);
 router.use('/doctor', doctorRoute);
 router.use('/patient', patientRoute);
 router.use('/admin', adminRoute);

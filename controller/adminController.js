@@ -1227,6 +1227,18 @@ const Treatment = require("../models/treatmentModel");
 const ServiceProvider = require("../models/serviceProviderModel");
 const { formatDuration } = require("../utils/timeFormat");
 const mongoose = require("mongoose");
+const {
+  createOrUpdateAdminSession,
+  revokeSessionByRefreshToken,
+  revokeAllAdminSessions,
+  resolveRequestRefreshToken,
+} = require("../utils/adminSessionService");
+const { writeAdminAuditLog } = require("../utils/adminAuditLogger");
+
+const normalizeRole = (role = "") =>
+  String(role || "")
+    .toLowerCase()
+    .replace(/[_\s]/g, "");
 
 // ============================================
 // ADMIN SIGNUP - STEP 1: Create Account
@@ -1468,6 +1480,21 @@ exports.adminLogin = catchAsync(async (req, res, next) => {
   await admin.save({ validateBeforeSave: false });
 
   const tokens = setAuthCookies(res, accessToken, refreshToken);
+  await createOrUpdateAdminSession({
+    adminId: admin._id,
+    refreshToken: tokens.refreshToken,
+    req,
+  });
+
+  await writeAdminAuditLog({
+    req,
+    actorAdminId: admin._id,
+    actorEmail: admin.email,
+    targetAdminId: admin._id,
+    action: "admin.auth.login",
+    module: "auth",
+    severity: "MEDIUM",
+  });
 
   console.log("✓ Login successful");
   console.log("=".repeat(60));
@@ -1483,7 +1510,11 @@ exports.adminLogin = catchAsync(async (req, res, next) => {
         id: admin._id,
         email: admin.email,
         firstName: admin.firstName,
+        lastName: admin.lastName,
         role: admin.role,
+        permissions: admin.permissions || [],
+        status: admin.status,
+        isActive: admin.isActive,
       },
     },
   });
@@ -1494,6 +1525,8 @@ exports.adminLogin = catchAsync(async (req, res, next) => {
 // ============================================
 
 exports.logout = catchAsync(async (req, res, next) => {
+  const refreshToken = resolveRequestRefreshToken(req);
+  await revokeSessionByRefreshToken(refreshToken);
   clearAuthCookies(res);
 
   res.status(200).json({
@@ -1523,6 +1556,17 @@ exports.logoutAllDevices = catchAsync(async (req, res, next) => {
 
   admin.tokenVersion = (admin.tokenVersion || 0) + 1;
   await admin.save({ validateBeforeSave: false });
+  await revokeAllAdminSessions(admin._id);
+
+  await writeAdminAuditLog({
+    req,
+    actorAdminId: req.user?.id || null,
+    actorEmail: email.toLowerCase(),
+    targetAdminId: admin._id,
+    action: "admin.auth.logout-all-devices",
+    module: "auth",
+    severity: "HIGH",
+  });
 
   clearAuthCookies(res);
 
@@ -1585,6 +1629,220 @@ exports.getSubAdmins = catchAsync(async (req, res, next) => {
   });
 });
 
+const buildAdminPayload = (adminDoc) => ({
+  _id: adminDoc._id,
+  firstName: adminDoc.firstName,
+  lastName: adminDoc.lastName,
+  email: adminDoc.email,
+  phone: adminDoc.phone,
+  role: adminDoc.role,
+  status: adminDoc.status,
+  isActive: adminDoc.isActive,
+  permissions: adminDoc.permissions || [],
+  createdAt: adminDoc.createdAt,
+  updatedAt: adminDoc.updatedAt,
+});
+
+const ensureNoSelfTarget = (requesterId, targetId, next) => {
+  if (String(requesterId || "") === String(targetId || "")) {
+    return next(new AppError("You cannot perform this action on your own account", 403));
+  }
+  return null;
+};
+
+const assertSuperAdminInvariant = async (targetRole, updatedRole, targetStatus, next) => {
+  const currentRole = normalizeRole(targetRole);
+  const nextRole = normalizeRole(updatedRole || targetRole);
+  const willDeactivate = String(targetStatus || "").toLowerCase() === "inactive";
+
+  if (currentRole === "superadmin" && (nextRole !== "superadmin" || willDeactivate)) {
+    const activeSuperAdminCount = await Admin.countDocuments({
+      role: "superAdmin",
+      status: "active",
+      isActive: true,
+    });
+
+    if (activeSuperAdminCount <= 1) {
+      return next(
+        new AppError("Cannot deactivate or demote the last active superAdmin", 400)
+      );
+    }
+  }
+
+  return null;
+};
+
+// GET /api/admin/subadmins/:id
+exports.getSubAdminById = catchAsync(async (req, res, next) => {
+  const admin = await Admin.findById(req.params.id).select(
+    "firstName lastName email phone role status isActive permissions createdAt updatedAt"
+  );
+
+  if (!admin) {
+    return next(new AppError("Admin not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: buildAdminPayload(admin),
+  });
+});
+
+// PATCH /api/admin/subadmins/:id
+exports.updateSubAdmin = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  const admin = await Admin.findById(id).select(
+    "firstName lastName email phone role status isActive permissions password"
+  );
+  if (!admin) {
+    return next(new AppError("Admin not found", 404));
+  }
+
+  const selfError = ensureNoSelfTarget(req.user?.id || req.user?._id, admin._id, next);
+  if (selfError) return;
+
+  const allowedFields = new Set([
+    "firstName",
+    "lastName",
+    "email",
+    "phone",
+    "role",
+    "permissions",
+    "status",
+    "password",
+  ]);
+
+  Object.keys(req.body || {}).forEach((field) => {
+    if (!allowedFields.has(field)) {
+      delete req.body[field];
+    }
+  });
+
+  if (req.body.role && !["superAdmin", "subAdmin"].includes(req.body.role)) {
+    return next(new AppError("Invalid role. Must be superAdmin or subAdmin", 400));
+  }
+
+  if (req.body.status && !["active", "inactive"].includes(req.body.status)) {
+    return next(new AppError("Invalid status. Must be active or inactive", 400));
+  }
+
+  if (req.body.email) {
+    const duplicateByEmail = await Admin.findOne({
+      _id: { $ne: admin._id },
+      email: String(req.body.email).toLowerCase(),
+    }).select("_id");
+    if (duplicateByEmail) {
+      return next(new AppError("Email already in use by another admin", 409));
+    }
+    admin.email = String(req.body.email).toLowerCase();
+  }
+
+  if (req.body.phone) {
+    const duplicateByPhone = await Admin.findOne({
+      _id: { $ne: admin._id },
+      phone: String(req.body.phone),
+    }).select("_id");
+    if (duplicateByPhone) {
+      return next(new AppError("Phone already in use by another admin", 409));
+    }
+    admin.phone = String(req.body.phone);
+  }
+
+  if (req.body.firstName !== undefined) admin.firstName = req.body.firstName;
+  if (req.body.lastName !== undefined) admin.lastName = req.body.lastName;
+
+  const originalRole = admin.role;
+
+  if (req.body.permissions !== undefined) {
+    admin.permissions = Array.isArray(req.body.permissions) ? req.body.permissions : [];
+  }
+
+  const invariantError = await assertSuperAdminInvariant(
+    originalRole,
+    req.body.role,
+    req.body.status,
+    next
+  );
+  if (invariantError) return;
+
+  if (req.body.role !== undefined) {
+    admin.role = req.body.role;
+  }
+
+  if (req.body.status !== undefined) {
+    admin.status = req.body.status;
+    admin.isActive = req.body.status === "active";
+  }
+
+  if (req.body.password) {
+    admin.password = await bcrypt.hash(req.body.password, 10);
+  }
+
+  await admin.save();
+
+  await writeAdminAuditLog({
+    req,
+    actorAdminId: req.user?.id || null,
+    actorEmail: req.user?.email || "",
+    targetAdminId: admin._id,
+    action: "admin.subadmin.update",
+    severity: "HIGH",
+    metadata: {
+      updatedFields: Object.keys(req.body || {}),
+      status: admin.status,
+      role: admin.role,
+    },
+  });
+
+  res.status(200).json({
+    status: "success",
+    message: "Admin updated successfully",
+    data: buildAdminPayload(admin),
+  });
+});
+
+// DELETE /api/admin/subadmins/:id
+exports.deleteSubAdmin = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  const admin = await Admin.findById(id).select(
+    "firstName lastName email phone role status isActive permissions tokenVersion"
+  );
+  if (!admin) {
+    return next(new AppError("Admin not found", 404));
+  }
+
+  const selfError = ensureNoSelfTarget(req.user?.id || req.user?._id, admin._id, next);
+  if (selfError) return;
+
+  const invariantError = await assertSuperAdminInvariant(admin.role, admin.role, "inactive", next);
+  if (invariantError) return;
+
+  admin.status = "inactive";
+  admin.isActive = false;
+  admin.permissions = [];
+  admin.tokenVersion = (admin.tokenVersion || 0) + 1;
+  await admin.save({ validateBeforeSave: false });
+  await revokeAllAdminSessions(admin._id);
+
+  await writeAdminAuditLog({
+    req,
+    actorAdminId: req.user?.id || null,
+    actorEmail: req.user?.email || "",
+    targetAdminId: admin._id,
+    action: "admin.subadmin.delete",
+    severity: "CRITICAL",
+    metadata: { status: admin.status },
+  });
+
+  res.status(200).json({
+    status: "success",
+    message: "Admin deleted successfully",
+    data: buildAdminPayload(admin),
+  });
+});
+
 // PATCH /api/admin/subadmins/:id/toggle-status
 exports.toggleSubAdminStatus = catchAsync(async (req, res, next) => {
   const { id } = req.params;
@@ -1598,17 +1856,35 @@ exports.toggleSubAdminStatus = catchAsync(async (req, res, next) => {
     return next(new AppError("Admin not found", 404));
   }
 
-  // Prevent disabling superAdmin accounts
-  if (admin.role !== "subAdmin") {
-    return next(new AppError("Only subAdmin accounts can be toggled", 403));
-  }
+  const selfError = ensureNoSelfTarget(req.user?.id || req.user?._id, admin._id, next);
+  if (selfError) return;
 
   // -----------------------
   // Toggle status
   // -----------------------
-  admin.status = admin.status === "active" ? "inactive" : "active";
+  const nextStatus = admin.status === "active" ? "inactive" : "active";
+  const invariantError = await assertSuperAdminInvariant(
+    admin.role,
+    admin.role,
+    nextStatus,
+    next
+  );
+  if (invariantError) return;
+
+  admin.status = nextStatus;
+  admin.isActive = admin.status === "active";
 
   await admin.save();
+
+  await writeAdminAuditLog({
+    req,
+    actorAdminId: req.user?.id || null,
+    actorEmail: req.user?.email || "",
+    targetAdminId: admin._id,
+    action: "admin.subadmin.toggle-status",
+    severity: "HIGH",
+    metadata: { status: admin.status },
+  });
 
   res.status(200).json({
     status: "success",
@@ -1685,11 +1961,15 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
   if (accessToken && accessToken !== "undefined") {
     try {
       const decoded = verifyToken(accessToken, "access");
-      const admin = await Admin.findById(decoded.id);
+      const admin = await Admin.findById(decoded.id).select(
+        "email firstName lastName role permissions status isActive"
+      );
+      const normalizedTokenRole = normalizeRole(decoded.role);
 
       if (
         admin &&
-        (decoded.role === "superAdmin" || decoded.role === "subAdmin")
+        (normalizedTokenRole === "superadmin" ||
+          normalizedTokenRole === "subadmin")
       ) {
         return res.status(200).json({
           success: true,
@@ -1698,7 +1978,11 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
             id: admin._id,
             email: admin.email,
             firstName: admin.firstName,
-            role: decoded.role,
+            lastName: admin.lastName,
+            role: admin.role || decoded.role,
+            permissions: admin.permissions || [],
+            status: admin.status,
+            isActive: admin.isActive,
           },
         });
       }
@@ -1711,7 +1995,9 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
   if (refreshToken && refreshToken !== "undefined") {
     try {
       const decoded = verifyToken(refreshToken, "refresh");
-      const admin = await Admin.findById(decoded.id).select("+tokenVersion");
+      const admin = await Admin.findById(decoded.id).select(
+        "+tokenVersion email firstName lastName role permissions status isActive"
+      );
 
       if (!admin || admin.tokenVersion !== decoded.tokenVersion) {
         return res.status(200).json({
@@ -1741,7 +2027,11 @@ exports.checkAuthStatus = catchAsync(async (req, res, next) => {
           id: admin._id,
           email: admin.email,
           firstName: admin.firstName,
+          lastName: admin.lastName,
           role: adminRole,
+          permissions: admin.permissions || [],
+          status: admin.status,
+          isActive: admin.isActive,
         },
       });
     } catch (error) {

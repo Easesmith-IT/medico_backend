@@ -140,6 +140,23 @@ const adminSchema = new mongoose.Schema({
     type: String,
     select: false
   },
+  mfaEnabled: {
+    type: Boolean,
+    default: false,
+  },
+  mfaSecret: {
+    type: String,
+    default: "",
+    select: false,
+  },
+  mfaVerifiedAt: {
+    type: Date,
+    default: null,
+  },
+  passwordChangedAt: {
+    type: Date,
+    default: Date.now,
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -9,6 +9,7 @@ const { formatDuration } = require("../utils/timeFormat");
 const City = require("../models/availableCities");
 const mongoose = require("mongoose");
 const Patient = require("../models/patientModel");
+const ServiceProvider = require("../models/serviceProviderModel");
 const {User}= require("../models/bookingModel");
 const ItemCategory = require('../models/itemCategoryModel');
 const Treatment = require("../models/treatmentModel");
@@ -3225,18 +3226,18 @@ exports.getByIdBooking = async (req, res) => {
     }
 
     const booking = await Booking.findById(bookingId)
-      .populate("patientId", "firstName email phone")
-      .populate("serviceId", "name category modes")
+      .populate("patientId", "firstName lastName email phone profilePhoto allergies currentMedications medicalHistory address createdAt")
+      .populate("serviceId", "name category modes basePrice taxPercentage description")
       .populate({
         path: "servicePartnerId",
-        select: "firstName lastName email mobile serviceCities",
+        select: "firstName lastName email mobile yearsOfExperience rating serviceCities services documents.profilePhoto availability isAvailable",
         populate: {
           path: "serviceCities",
           select: "name"
         }
       })
       .populate("city", "name")
-      .populate("treatmentId", "status validTill");
+      .populate("treatmentId", "status validTill startDate endDate currentBookingId servicePartnerId");
 
     if (!booking) {
       return res.status(404).json({
@@ -3245,20 +3246,327 @@ exports.getByIdBooking = async (req, res) => {
       });
     }
 
+    const now = new Date();
+
     // Format provider response
     let provider = null;
     if (booking.servicePartnerId) {
       provider = {
         id: booking.servicePartnerId._id,
-        name:
-          booking.servicePartnerId.firstName +
-          " " +
-          booking.servicePartnerId.lastName,
+        firstName: booking.servicePartnerId.firstName,
+        lastName: booking.servicePartnerId.lastName,
+        name: `${booking.servicePartnerId.firstName || ""} ${booking.servicePartnerId.lastName || ""}`.trim(),
         email: booking.servicePartnerId.email,
         phone: booking.servicePartnerId.mobile,
-        city: booking.servicePartnerId.serviceCities.map(c => c.name),
+        city: (booking.servicePartnerId.serviceCities || []).map((c) => c.name),
+        yearsOfExperience: booking.servicePartnerId.yearsOfExperience || null,
+        rating: booking.servicePartnerId.rating?.average || 0,
+        isAvailable: booking.servicePartnerId.isAvailable,
+        profilePhoto: booking.servicePartnerId.documents?.profilePhoto || null,
       };
     }
+
+    const patient = booking.patientId;
+    const treatment = booking.treatmentId;
+    const service = booking.serviceId;
+
+    const paymentLedger = treatment?._id
+      ? await Payment.findOne({ treatmentId: treatment._id })
+          .select(
+            "paymentStatus totalBillAmount totalPaid totalRefunded remainingBalance invoiceId currency transactions refunds updatedAt createdAt"
+          )
+          .populate("transactions.collectedBy", "firstName lastName email")
+          .populate("refunds.adminId", "firstName lastName email")
+          .populate("refunds.approvedBy", "firstName lastName email")
+          .lean()
+      : null;
+
+    const allPatientBookings = await Booking.find({
+      patientId: booking.patientId,
+      _id: { $ne: booking._id },
+      status: { $nin: ["Cancelled", "Rejected"] },
+    })
+      .select("_id appointmentDate status")
+      .sort({ appointmentDate: -1 })
+      .lean();
+
+    const completedHistory = allPatientBookings.filter((entry) =>
+      ["Completed", "TreatmentCompleted"].includes(String(entry.status || ""))
+    );
+
+    const lastVisitDate = completedHistory.length
+      ? completedHistory[0].appointmentDate
+      : null;
+
+    const treatmentBookings = treatment?._id
+      ? await Booking.find({ treatmentId: treatment._id })
+          .select("_id appointmentDate status sessionNumber servicePartnerId")
+          .sort({ sessionNumber: 1, appointmentDate: 1 })
+          .lean()
+      : [];
+
+    const currentIndex = treatmentBookings.findIndex(
+      (entry) => String(entry._id) === String(booking._id)
+    );
+    const previousBooking = currentIndex > 0 ? treatmentBookings[currentIndex - 1] : null;
+    const nextBooking =
+      currentIndex >= 0 && currentIndex < treatmentBookings.length - 1
+        ? treatmentBookings[currentIndex + 1]
+        : null;
+    const completedSessions = treatmentBookings.filter((entry) =>
+      ["Completed", "TreatmentCompleted"].includes(String(entry.status || ""))
+    ).length;
+
+    const alternativeProviders = booking.city?._id
+      ? await ServiceProvider.find({
+          _id: { $ne: booking.servicePartnerId?._id },
+          isDeleted: { $ne: true },
+          isActive: true,
+          approvalStatus: "Approved",
+          serviceCities: booking.city._id,
+          "services.serviceId": booking.serviceId?._id,
+        })
+          .select(
+            "firstName lastName email mobile yearsOfExperience rating serviceCities documents.profilePhoto"
+          )
+          .populate("serviceCities", "name")
+          .limit(3)
+          .lean()
+      : [];
+
+    const similarServices = await Service.find({
+      _id: { $ne: booking.serviceId?._id },
+      isActive: true,
+      category: booking.serviceId?.category,
+      ...(booking.city?._id ? { cities: booking.city._id } : {}),
+    })
+      .select("name category description basePrice taxPercentage")
+      .limit(3)
+      .lean();
+
+    const isOverdue =
+      booking.appointmentDate &&
+      new Date(booking.appointmentDate).getTime() < now.getTime() &&
+      !["Completed", "Cancelled", "Rejected", "TreatmentCompleted"].includes(
+        String(booking.status || "")
+      );
+
+    const actionRecommendations = [];
+    const bookingStatus = String(booking.status || "");
+    const paymentStatus = String(paymentLedger?.paymentStatus || booking.paymentStatus || "Unpaid");
+    const treatmentStatus = String(treatment?.status || "Active");
+    const treatmentValidityMs = treatment?.validTill
+      ? new Date(treatment.validTill).getTime() - now.getTime()
+      : null;
+    const treatmentNearExpiry =
+      treatmentValidityMs !== null &&
+      treatmentValidityMs > 0 &&
+      treatmentValidityMs <= 48 * 60 * 60 * 1000;
+
+    if (bookingStatus === "Pending") {
+      actionRecommendations.push({
+        key: "approve-booking",
+        severity: "high",
+        message: "Booking request is pending review.",
+        cta: "Approve Booking",
+        targetStatus: "Approved",
+      });
+      actionRecommendations.push({
+        key: "review-request",
+        severity: "medium",
+        message: "Verify schedule, provider and payment preconditions.",
+        cta: "Review Request",
+        targetStatus: "Pending",
+      });
+    }
+    if (bookingStatus === "Approved") {
+      actionRecommendations.push({
+        key: "mark-in-progress",
+        severity: "medium",
+        message: "Appointment approved. Start visit workflow when service begins.",
+        cta: "Mark In Progress",
+        targetStatus: "In-Progress",
+      });
+    }
+    if (bookingStatus === "In-Progress") {
+      actionRecommendations.push({
+        key: "complete-appointment",
+        severity: "high",
+        message: "Visit in progress. Complete appointment when done.",
+        cta: "Complete Appointment",
+        targetStatus: "Completed",
+      });
+    }
+    if (["Completed", "TreatmentCompleted"].includes(bookingStatus)) {
+      actionRecommendations.push({
+        key: "generate-invoice",
+        severity: "medium",
+        message: booking.invoiceGenerated
+          ? "Invoice already generated for this booking."
+          : "Generate invoice for completed appointment.",
+        cta: booking.invoiceGenerated ? "View Invoice" : "Generate Invoice",
+        targetStatus: bookingStatus,
+      });
+      actionRecommendations.push({
+        key: "follow-up",
+        severity: "low",
+        message: "Schedule follow-up if treatment requires next session.",
+        cta: "Follow Up Patient",
+        targetStatus: bookingStatus,
+      });
+    }
+    if (bookingStatus === "Cancellation Requested") {
+      actionRecommendations.push({
+        key: "review-cancellation",
+        severity: "high",
+        message: "Cancellation request is awaiting admin decision.",
+        cta: "Review Cancellation",
+        targetStatus: bookingStatus,
+      });
+    }
+    if (isOverdue) {
+      actionRecommendations.push({
+        key: "contact-patient",
+        severity: "high",
+        message: "Appointment is overdue. Contact patient/provider immediately.",
+        cta: "Contact Patient",
+        targetStatus: bookingStatus,
+      });
+    }
+
+    const completionPercentage = treatmentBookings.length
+      ? Math.round((completedSessions / treatmentBookings.length) * 100)
+      : ["Completed", "TreatmentCompleted"].includes(bookingStatus)
+      ? 100
+      : 0;
+
+    const timeline = [
+      {
+        type: "booking_created",
+        title: "Booking Created",
+        description: "Appointment booking was created.",
+        timestamp: booking.createdAt,
+        actor: booking.createdBy?.userModel || "System",
+      },
+      booking.status === "Approved"
+        ? {
+            type: "booking_approved",
+            title: "Booking Approved",
+            description: "Appointment moved to approved state.",
+            timestamp: booking.updatedAt,
+            actor: "Admin",
+          }
+        : null,
+      booking.serviceStartedAt
+        ? {
+            type: "visit_started",
+            title: "Visit Started",
+            description: "Provider marked visit start.",
+            timestamp: booking.serviceStartedAt,
+            actor: "Provider",
+          }
+        : null,
+      booking.serviceEndedAt
+        ? {
+            type: "visit_completed",
+            title: "Visit Completed",
+            description: "Provider marked visit completion.",
+            timestamp: booking.serviceEndedAt,
+            actor: "Provider",
+          }
+        : null,
+      ...(paymentLedger?.transactions || []).map((tx) => ({
+        type: "payment_received",
+        title: `Payment ${tx.status}`,
+        description: `${tx.stage} • ${tx.method} • ${tx.amountPaid || 0}`,
+        timestamp: tx.paidAt || tx.createdAt,
+        actor:
+          tx.collectedBy
+            ? `${tx.collectedBy.firstName || ""} ${tx.collectedBy.lastName || ""}`.trim() ||
+              tx.collectedBy.email
+            : "System",
+      })),
+      ...(paymentLedger?.refunds || []).map((refund) => ({
+        type: "refund_update",
+        title: `Refund ${refund.status}`,
+        description: `${refund.refundType} refund • ${refund.amount || 0}`,
+        timestamp: refund.refundedAt || refund.updatedAt || refund.createdAt,
+        actor:
+          refund.approvedBy
+            ? `${refund.approvedBy.firstName || ""} ${refund.approvedBy.lastName || ""}`.trim() ||
+              refund.approvedBy.email
+            : refund.adminId
+            ? `${refund.adminId.firstName || ""} ${refund.adminId.lastName || ""}`.trim() ||
+              refund.adminId.email
+            : "Admin",
+      })),
+      paymentLedger?.lastWebhookProcessedAt
+        ? {
+            type: "webhook",
+            title: "Payment Webhook Processed",
+            description: paymentLedger.lastWebhookEvent || "Webhook event handled",
+            timestamp: paymentLedger.lastWebhookProcessedAt,
+            actor: "Gateway",
+          }
+        : null,
+    ]
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+
+    const recommendations = {
+      patientHistory: {
+        pastAppointments: allPatientBookings.length,
+        lastVisitDate,
+        medicalConditions: (patient?.medicalHistory || []).map((entry) => entry.condition).filter(Boolean),
+        allergies: patient?.allergies || [],
+        medicationsCount: (patient?.currentMedications || []).length,
+      },
+      treatmentFlow: {
+        previousBooking,
+        nextBooking,
+        sessionProgress: completedSessions,
+        totalSessions: treatmentBookings.length || booking.sessionNumber || 1,
+      },
+      alternativeProviders: alternativeProviders.map((item) => ({
+        id: item._id,
+        firstName: item.firstName,
+        lastName: item.lastName,
+        email: item.email,
+        phone: item.mobile,
+        yearsOfExperience: item.yearsOfExperience || 0,
+        rating: item.rating?.average || 0,
+        city: (item.serviceCities || []).map((city) => city.name).filter(Boolean),
+        profilePhoto: item.documents?.profilePhoto || null,
+      })),
+      similarServices: similarServices.map((item) => ({
+        id: item._id,
+        name: item.name,
+        category: item.category,
+        description: item.description || "",
+        basePrice: item.basePrice || 0,
+        taxPercentage: item.taxPercentage || 0,
+      })),
+      actionRecommendations,
+      analytics: {
+        paymentStatus,
+        totalAmount: paymentLedger?.totalBillAmount || booking.pricing?.totalAmount || 0,
+        paidAmount: paymentLedger?.totalPaid || booking.paidAmount || 0,
+        pendingAmount:
+          paymentLedger?.remainingBalance ??
+          Math.max(
+            Number(booking.pricing?.totalAmount || 0) - Number(booking.paidAmount || 0),
+            0
+          ),
+        totalRefunded: paymentLedger?.totalRefunded || 0,
+        treatmentValidityDays: treatment?.validTill
+          ? Math.ceil((new Date(treatment.validTill).getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+          : null,
+        completionPercentage,
+        isOverdue,
+        treatmentNearExpiry,
+      },
+      timeline,
+    };
 
     res.status(200).json({
       success: true,
@@ -3268,11 +3576,23 @@ exports.getByIdBooking = async (req, res) => {
         service: booking.serviceId,
         provider: provider,
         bookingCity: booking.city?.name,
+        bookingCityId: booking.city?._id || null,
         appointmentDate: booking.appointmentDate,
         slotTime: booking.slotTime,
         status: booking.status,
         pricing: booking.pricing,
-        treatment: booking.treatmentId
+        paymentStatus: booking.paymentStatus,
+        paidAmount: booking.paidAmount || 0,
+        dueAmount: booking.dueAmount || 0,
+        sessionNumber: booking.sessionNumber || 1,
+        createdAt: booking.createdAt,
+        updatedAt: booking.updatedAt,
+        createdBy: booking.createdBy || null,
+        invoiceId: booking.invoiceId || null,
+        invoiceGenerated: booking.invoiceGenerated || false,
+        treatment: booking.treatmentId,
+        paymentLedger,
+        recommendations,
       },
     });
 
