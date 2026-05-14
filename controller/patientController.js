@@ -10,6 +10,7 @@ const Patient = require('../models/patientModel');
 const Doctor = require('../models/doctorModel');
 const Booking = require('../models/bookingModel');
 const City = require('../models/availableCities');
+const PatientAddress = require("../models/patientAddressModel");
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -173,6 +174,184 @@ const otpUtils = require('../utils/otpUtils');
 //     }
 //   });
 // });
+
+//originsl without multiple address
+// exports.patientSignup = catchAsync(async (req, res, next) => {
+//   const {
+//     firstName,
+//     email,
+//     phone,
+//     password,
+//     dateOfBirth,
+//     gender,
+//     address,
+//     bloodGroup,
+//     emergencyContact,
+//     otherCities = []
+//   } = req.body;
+
+//   console.log('\n');
+//   console.log('PATIENT SIGNUP - OTP Generation');
+//   console.log('='.repeat(60));
+
+//   if (!phone) {
+//     return next(new AppError('Please provide phone number', 400));
+//   }
+
+//   if (!otpUtils.validatePhoneNumber(phone)) {
+//     return next(new AppError('Phone number must be a valid 10-digit Indian number', 400));
+//   }
+
+//   if (!address || !address.cityId) {
+//     return next(new AppError('Address with cityId is required', 400));
+//   }
+
+//   // Validate cityId inside address exists
+//   const cityExists = await City.findById(address.cityId);
+//   if (!cityExists) {
+//     return next(new AppError('Invalid city ID in address', 400));
+//   }
+
+//   // Validate otherCities exists in City collection
+//   for (const cityId of otherCities) {
+//     const exists = await City.findById(cityId);
+//     if (!exists) {
+//       return next(new AppError(`Invalid other city id: ${cityId}`, 400));
+//     }
+//   }
+
+//   const existingPatient = await Patient.findOne({ phone });
+
+//   if (existingPatient) {
+//     console.log(' Phone found in database → LOGIN FLOW');
+
+//     if (!existingPatient.isVerified) {
+//       console.log('Patient not verified yet → Complete signup verification');
+
+//       const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+//       existingPatient.signupOtp = otp;
+//       existingPatient.signupOtpExpiry = otpExpiry;
+
+//       if (firstName) existingPatient.firstName = firstName;
+//       if (email) existingPatient.email = email;
+//       if (password) existingPatient.password = password;
+//       if (dateOfBirth) existingPatient.dateOfBirth = dateOfBirth;
+//       if (gender) existingPatient.gender = gender;
+//       if (address) existingPatient.address = address;
+//       if (bloodGroup) existingPatient.bloodGroup = bloodGroup;
+//       if (emergencyContact) existingPatient.emergencyContact = emergencyContact;
+//       if (otherCities.length > 0) existingPatient.otherCities = otherCities;
+
+//       await existingPatient.save({ validateBeforeSave: false });
+
+//       const smsSent = await otpUtils.sendOtp(phone);
+//       if (!smsSent) {
+//         return next(new AppError('Failed to send OTP. Please try again.', 500));
+//       }
+
+//       const otpToken = generateOtpToken(phone, 'patient');
+
+//       console.log('='.repeat(60));
+//       console.log('\n');
+
+//       return res.status(200).json({
+//         success: true,
+//         action: 'verify-signup',
+//         message: 'Phone found but not verified. OTP sent to complete signup.',
+//         data: {
+//           otpToken,
+//           expiresIn: 600,
+//           phone: phone.slice(-4)
+//         }
+//       });
+//     }
+
+//     // Patient verified → LOGIN OTP
+//     console.log(' Patient verified → SEND LOGIN OTP');
+
+//     if (!existingPatient.isActive) {
+//       return next(new AppError('Your account has been deactivated. Please contact support.', 403));
+//     }
+
+//     const smsSent = await otpUtils.sendOtp(phone);
+//     if (!smsSent) {
+//       return next(new AppError('Failed to send OTP. Please try again.', 500));
+//     }
+
+//     const otpToken = generateOtpToken(phone, 'patient');
+
+//     console.log('='.repeat(60));
+//     console.log('\n');
+
+//     return res.status(200).json({
+//       success: true,
+//       action: 'login',
+//       message: 'Account found. OTP sent to your phone for login.',
+//       data: {
+//         otpToken,
+//         expiresIn: 600,
+//         phone: phone.slice(-4)
+//       }
+//     });
+//   }
+
+//   // NEW SIGNUP
+//   if (!firstName || !email || !password) {
+//     return next(new AppError('Please provide firstName, email, and password', 400));
+//   }
+
+//   const existingEmail = await Patient.findOne({ email });
+//   if (existingEmail) {
+//     return next(new AppError('Patient with this email already exists', 400));
+//   }
+
+//   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//   const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+//   const smsSent = await otpUtils.sendOtp(phone);
+//   if (!smsSent) {
+//     return next(new AppError('Failed to send OTP. Please check your phone number and try again.', 500));
+//   }
+
+//   const newPatient = await Patient.create({
+//     firstName,
+//     email,
+//     phone,
+//     password,
+//     dateOfBirth: dateOfBirth || null,
+//     gender: gender || null,
+//     address, // with cityId inside address
+//     bloodGroup: bloodGroup || null,
+//     emergencyContact: emergencyContact || { name: null, phone: null, relation: null },
+//     signupOtp: otp,
+//     signupOtpExpiry: otpExpiry,
+//     isVerified: false,
+//     isActive: false,
+//     tokenVersion: 0,
+//     otherCities
+//   });
+
+//   const otpToken = generateOtpToken(phone, 'patient');
+
+//   console.log(' New patient created - Awaiting OTP verification');
+//   console.log('='.repeat(60));
+//   console.log('\n');
+
+//   res.status(200).json({
+//     success: true,
+//     action: 'signup',
+//     message: 'New account created. OTP sent to your phone number.',
+//     data: {
+//       otpToken,
+//       expiresIn: 600,
+//       phone: phone.slice(-4)
+//     }
+//   });
+// });
+
+
 exports.patientSignup = catchAsync(async (req, res, next) => {
   const {
     firstName,
@@ -181,35 +360,44 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     password,
     dateOfBirth,
     gender,
-    address,
+    addresses = [],
     bloodGroup,
     emergencyContact,
     otherCities = []
   } = req.body;
 
-  console.log('\n');
-  console.log('PATIENT SIGNUP - OTP Generation');
-  console.log('='.repeat(60));
+  console.log("\n");
+  console.log("PATIENT SIGNUP - OTP Generation");
+  console.log("=".repeat(60));
 
   if (!phone) {
-    return next(new AppError('Please provide phone number', 400));
+    return next(new AppError("Please provide phone number", 400));
   }
 
   if (!otpUtils.validatePhoneNumber(phone)) {
-    return next(new AppError('Phone number must be a valid 10-digit Indian number', 400));
+    return next(new AppError("Phone number must be a valid 10-digit Indian number", 400));
   }
 
-  if (!address || !address.cityId) {
-    return next(new AppError('Address with cityId is required', 400));
+  if (!Array.isArray(addresses) || addresses.length === 0) {
+    return next(new AppError("At least one address is required", 400));
   }
 
-  // Validate cityId inside address exists
-  const cityExists = await City.findById(address.cityId);
-  if (!cityExists) {
-    return next(new AppError('Invalid city ID in address', 400));
+  const primaryCount = addresses.filter((addr) => addr.isPrimary).length;
+  if (primaryCount > 1) {
+    return next(new AppError("Only one primary address is allowed", 400));
   }
 
-  // Validate otherCities exists in City collection
+  for (const addr of addresses) {
+    if (!addr.cityId) {
+      return next(new AppError("Each address must have cityId", 400));
+    }
+
+    const cityExists = await City.findById(addr.cityId);
+    if (!cityExists) {
+      return next(new AppError(`Invalid city ID in address: ${addr.cityId}`, 400));
+    }
+  }
+
   for (const cityId of otherCities) {
     const exists = await City.findById(cityId);
     if (!exists) {
@@ -220,10 +408,10 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
   const existingPatient = await Patient.findOne({ phone });
 
   if (existingPatient) {
-    console.log(' Phone found in database → LOGIN FLOW');
+    console.log(" Phone found in database → LOGIN FLOW");
 
     if (!existingPatient.isVerified) {
-      console.log('Patient not verified yet → Complete signup verification');
+      console.log("Patient not verified yet → Complete signup verification");
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -236,72 +424,78 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
       if (password) existingPatient.password = password;
       if (dateOfBirth) existingPatient.dateOfBirth = dateOfBirth;
       if (gender) existingPatient.gender = gender;
-      if (address) existingPatient.address = address;
       if (bloodGroup) existingPatient.bloodGroup = bloodGroup;
       if (emergencyContact) existingPatient.emergencyContact = emergencyContact;
       if (otherCities.length > 0) existingPatient.otherCities = otherCities;
 
       await existingPatient.save({ validateBeforeSave: false });
 
+      await PatientAddress.deleteMany({ patientId: existingPatient._id });
+
+      const preparedAddresses = addresses.map((addr, index) => ({
+        patientId: existingPatient._id,
+        label: addr.label || "home",
+        street: addr.street,
+        city: addr.city,
+        cityId: addr.cityId,
+        state: addr.state,
+        country: addr.country || "India",
+        pincode: addr.pincode,
+        landmark: addr.landmark || "",
+        isPrimary: primaryCount === 0 ? index === 0 : !!addr.isPrimary,
+      }));
+
+      await PatientAddress.insertMany(preparedAddresses);
+
       const smsSent = await otpUtils.sendOtp(phone);
       if (!smsSent) {
-        return next(new AppError('Failed to send OTP. Please try again.', 500));
+        return next(new AppError("Failed to send OTP. Please try again.", 500));
       }
 
-      const otpToken = generateOtpToken(phone, 'patient');
-
-      console.log('='.repeat(60));
-      console.log('\n');
+      const otpToken = generateOtpToken(phone, "patient");
 
       return res.status(200).json({
         success: true,
-        action: 'verify-signup',
-        message: 'Phone found but not verified. OTP sent to complete signup.',
+        action: "verify-signup",
+        message: "Phone found but not verified. OTP sent to complete signup.",
         data: {
           otpToken,
           expiresIn: 600,
-          phone: phone.slice(-4)
-        }
+          phone: phone.slice(-4),
+        },
       });
     }
 
-    // Patient verified → LOGIN OTP
-    console.log(' Patient verified → SEND LOGIN OTP');
-
     if (!existingPatient.isActive) {
-      return next(new AppError('Your account has been deactivated. Please contact support.', 403));
+      return next(new AppError("Your account has been deactivated. Please contact support.", 403));
     }
 
     const smsSent = await otpUtils.sendOtp(phone);
     if (!smsSent) {
-      return next(new AppError('Failed to send OTP. Please try again.', 500));
+      return next(new AppError("Failed to send OTP. Please try again.", 500));
     }
 
-    const otpToken = generateOtpToken(phone, 'patient');
-
-    console.log('='.repeat(60));
-    console.log('\n');
+    const otpToken = generateOtpToken(phone, "patient");
 
     return res.status(200).json({
       success: true,
-      action: 'login',
-      message: 'Account found. OTP sent to your phone for login.',
+      action: "login",
+      message: "Account found. OTP sent to your phone for login.",
       data: {
         otpToken,
         expiresIn: 600,
-        phone: phone.slice(-4)
-      }
+        phone: phone.slice(-4),
+      },
     });
   }
 
-  // NEW SIGNUP
   if (!firstName || !email || !password) {
-    return next(new AppError('Please provide firstName, email, and password', 400));
+    return next(new AppError("Please provide firstName, email, and password", 400));
   }
 
   const existingEmail = await Patient.findOne({ email });
   if (existingEmail) {
-    return next(new AppError('Patient with this email already exists', 400));
+    return next(new AppError("Patient with this email already exists", 400));
   }
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -309,7 +503,7 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
 
   const smsSent = await otpUtils.sendOtp(phone);
   if (!smsSent) {
-    return next(new AppError('Failed to send OTP. Please check your phone number and try again.', 500));
+    return next(new AppError("Failed to send OTP. Please check your phone number and try again.", 500));
   }
 
   const newPatient = await Patient.create({
@@ -319,7 +513,6 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     password,
     dateOfBirth: dateOfBirth || null,
     gender: gender || null,
-    address, // with cityId inside address
     bloodGroup: bloodGroup || null,
     emergencyContact: emergencyContact || { name: null, phone: null, relation: null },
     signupOtp: otp,
@@ -330,24 +523,34 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
     otherCities
   });
 
-  const otpToken = generateOtpToken(phone, 'patient');
+  const preparedAddresses = addresses.map((addr, index) => ({
+    patientId: newPatient._id,
+    label: addr.label || "home",
+    street: addr.street,
+    city: addr.city,
+    cityId: addr.cityId,
+    state: addr.state,
+    country: addr.country || "India",
+    pincode: addr.pincode,
+    landmark: addr.landmark || "",
+    isPrimary: primaryCount === 0 ? index === 0 : !!addr.isPrimary,
+  }));
 
-  console.log(' New patient created - Awaiting OTP verification');
-  console.log('='.repeat(60));
-  console.log('\n');
+  await PatientAddress.insertMany(preparedAddresses);
+
+  const otpToken = generateOtpToken(phone, "patient");
 
   res.status(200).json({
     success: true,
-    action: 'signup',
-    message: 'New account created. OTP sent to your phone number.',
+    action: "signup",
+    message: "New account created. OTP sent to your phone number.",
     data: {
       otpToken,
       expiresIn: 600,
-      phone: phone.slice(-4)
-    }
+      phone: phone.slice(-4),
+    },
   });
 });
-
 exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   const { phone, otp, dateOfBirth, gender, address, bloodGroup, emergencyContact } = req.body;
 
