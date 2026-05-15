@@ -4,6 +4,7 @@ const express = require("express");
 const router = express.Router();
 const adminController = require("../controller/adminController");
 const adminGovernanceController = require("../controller/adminGovernanceController");
+const adminReportController = require("../controller/adminReportController");
 const { protect } = require("../middleware/auth");
 
 router.post("/signup", adminController.adminSignup);
@@ -184,6 +185,58 @@ router.get(
   "/reports/doctors",
   protect("superadmin", "subadmin"),
   adminController.getDoctorStats
+);
+
+router.get(
+  "/reports/command-center",
+  protect("admin", "superadmin", "subadmin"),
+  adminReportController.getCommandCenterReport
+);
+router.get(
+  "/reports/filter-options",
+  protect("admin", "superadmin", "subadmin"),
+  adminReportController.getCommandCenterFilterOptions
+);
+router.get(
+  "/reports/command-center/export",
+  protect("admin", "superadmin", "subadmin"),
+  adminReportController.exportCommandCenterReport
+);
+
+router.post(
+  "/reports/schedules",
+  protect("superadmin", "subadmin"),
+  adminReportController.createReportSchedule
+);
+router.get(
+  "/reports/schedules",
+  protect("admin", "superadmin", "subadmin"),
+  adminReportController.listReportSchedules
+);
+router.patch(
+  "/reports/schedules/:scheduleId",
+  protect("superadmin", "subadmin"),
+  adminReportController.updateReportSchedule
+);
+router.post(
+  "/reports/schedules/:scheduleId/run",
+  protect("superadmin", "subadmin"),
+  adminReportController.runReportSchedule
+);
+router.post(
+  "/reports/schedules/run-due",
+  protect("superadmin", "subadmin"),
+  adminReportController.runDueReportSchedules
+);
+router.get(
+  "/reports/runs",
+  protect("admin", "superadmin", "subadmin"),
+  adminReportController.listReportRuns
+);
+router.get(
+  "/reports/runs/:runId/download",
+  protect("admin", "superadmin", "subadmin"),
+  adminReportController.downloadReportRun
 );
 
 router.patch(
