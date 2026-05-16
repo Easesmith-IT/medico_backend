@@ -5,6 +5,7 @@ const router = express.Router();
 const adminController = require("../controller/adminController");
 const adminGovernanceController = require("../controller/adminGovernanceController");
 const adminReportController = require("../controller/adminReportController");
+const adminTreatmentController = require("../controller/adminTreatmentController");
 const { protect } = require("../middleware/auth");
 
 router.post("/signup", adminController.adminSignup);
@@ -104,6 +105,26 @@ router.get(
   "/patients/:patientId/treatments",
   protect("superadmin", "subadmin", "admin"),
   adminController.getPatientTreatmentsForBooking
+);
+router.get(
+  "/treatments",
+  protect("admin", "superadmin", "subadmin"),
+  adminTreatmentController.listTreatments
+);
+router.get(
+  "/treatments/:treatmentId",
+  protect("admin", "superadmin", "subadmin"),
+  adminTreatmentController.getTreatmentDetail
+);
+router.patch(
+  "/treatments/:treatmentId/status",
+  protect("superadmin", "subadmin"),
+  adminTreatmentController.updateTreatmentStatus
+);
+router.post(
+  "/treatments/:treatmentId/complete",
+  protect("superadmin", "subadmin"),
+  adminTreatmentController.completeTreatment
 );
 router.get("/service-providers/names", adminController.getServiceProviderNames);
 
