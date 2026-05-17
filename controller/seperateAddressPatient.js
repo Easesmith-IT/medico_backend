@@ -74,16 +74,118 @@ exports.getMyAddresses = catchAsync(async (req, res, next) => {
 
 
 //Update address
+// exports.updatePatientAddress = catchAsync(async (req, res, next) => {
+//   const { addressId } = req.params;
+//   const patientId = req.user.id;
+
+//   const address = await PatientAddress.findOne({ _id: addressId, patientId });
+//   if (!address) {
+//     return next(new AppError("Address not found", 404));
+//   }
+
+//   if (req.body.cityId) {
+//     const cityExists = await City.findById(req.body.cityId);
+//     if (!cityExists) {
+//       return next(new AppError("Invalid city ID", 400));
+//     }
+//   }
+
+//   if (req.body.isPrimary === true) {
+//     await PatientAddress.updateMany(
+//       { patientId, isPrimary: true },
+//       { $set: { isPrimary: false } }
+//     );
+//   }
+
+//   const allowedFields = [
+//     "label",
+//     "street",
+//     "city",
+//     "cityId",
+//     "state",
+//     "country",
+//     "pincode",
+//     "landmark",
+//     "isPrimary",
+//   ];
+
+//   allowedFields.forEach((field) => {
+//     if (field in req.body) {
+//       address[field] = req.body[field];
+//     }
+//   });
+
+//   await address.save();
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Address updated successfully",
+//     data: address,
+//   });
+// });
+
+
+// //Delete address
+// exports.deletePatientAddress = catchAsync(async (req, res, next) => {
+//   const { addressId } = req.params;
+//   const patientId = req.user.id;
+
+//   const address = await PatientAddress.findOneAndDelete({
+//     _id: addressId,
+//     patientId,
+//   });
+
+//   if (!address) {
+//     return next(new AppError("Address not found", 404));
+//   }
+
+//   if (address.isPrimary) {
+//     const nextPrimary = await PatientAddress.findOne({ patientId }).sort({
+//       createdAt: 1,
+//     });
+
+//     if (nextPrimary) {
+//       nextPrimary.isPrimary = true;
+//       await nextPrimary.save();
+//     }
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Address deleted successfully",
+//   });
+// });
+
 exports.updatePatientAddress = catchAsync(async (req, res, next) => {
   const { addressId } = req.params;
   const patientId = req.user.id;
 
-  const address = await PatientAddress.findOne({ _id: addressId, patientId });
+  if (!addressId) {
+    return next(new AppError("Address ID is required in route params", 400));
+  }
+
+  if (!mongoose.isValidObjectId(addressId)) {
+    return next(new AppError("Invalid address ID", 400));
+  }
+
+  if (!mongoose.isValidObjectId(patientId)) {
+    return next(new AppError("Invalid patient ID", 400));
+  }
+
+  const address = await PatientAddress.findOne({
+    _id: addressId,
+    patientId,
+  });
+
   if (!address) {
     return next(new AppError("Address not found", 404));
   }
 
   if (req.body.cityId) {
+    if (!mongoose.isValidObjectId(req.body.cityId)) {
+      return next(new AppError("Invalid city ID", 400));
+    }
+
     const cityExists = await City.findById(req.body.cityId);
     if (!cityExists) {
       return next(new AppError("Invalid city ID", 400));
@@ -92,7 +194,7 @@ exports.updatePatientAddress = catchAsync(async (req, res, next) => {
 
   if (req.body.isPrimary === true) {
     await PatientAddress.updateMany(
-      { patientId, isPrimary: true },
+      { patientId, isPrimary: true, _id: { $ne: addressId } },
       { $set: { isPrimary: false } }
     );
   }
@@ -110,7 +212,7 @@ exports.updatePatientAddress = catchAsync(async (req, res, next) => {
   ];
 
   allowedFields.forEach((field) => {
-    if (field in req.body) {
+    if (Object.prototype.hasOwnProperty.call(req.body, field)) {
       address[field] = req.body[field];
     }
   });
@@ -124,11 +226,22 @@ exports.updatePatientAddress = catchAsync(async (req, res, next) => {
   });
 });
 
-
-//Delete address
+// Delete address
 exports.deletePatientAddress = catchAsync(async (req, res, next) => {
   const { addressId } = req.params;
   const patientId = req.user.id;
+
+  if (!addressId) {
+    return next(new AppError("Address ID is required in route params", 400));
+  }
+
+  if (!mongoose.isValidObjectId(addressId)) {
+    return next(new AppError("Invalid address ID", 400));
+  }
+
+  if (!mongoose.isValidObjectId(patientId)) {
+    return next(new AppError("Invalid patient ID", 400));
+  }
 
   const address = await PatientAddress.findOneAndDelete({
     _id: addressId,
@@ -155,8 +268,6 @@ exports.deletePatientAddress = catchAsync(async (req, res, next) => {
     message: "Address deleted successfully",
   });
 });
-
-
 //Set primary address
 
 exports.setPrimaryAddress = catchAsync(async (req, res, next) => {

@@ -4,9 +4,7 @@ const router = require('express').Router();
 const cityController = require('../controller/cityController');
 const {  protect } = require('../middleware/auth');
 
-// ============================================
-// PUBLIC ROUTES (No Authentication)
-// ============================================
+
 
 // Get all cities
 router.get('/getAllCities', cityController.getAllCities);
@@ -14,9 +12,7 @@ router.get('/getAllCities', cityController.getAllCities);
 // Get city by ID
 router.get('/cities/:cityId', cityController.getCityById);
 
-// ============================================
-// ADMIN ROUTES (Authentication Required)
-// ============================================
+
 
 // Add new city (Admin only)
 router.post('/admin/cities', protect("superadmin", "subadmin"), cityController.addCity);
