@@ -6,6 +6,11 @@ const adminController = require("../controller/adminController");
 const adminGovernanceController = require("../controller/adminGovernanceController");
 const adminReportController = require("../controller/adminReportController");
 const adminTreatmentController = require("../controller/adminTreatmentController");
+const profileAuditController = require("../controller/profileAuditController");
+const doctorVerificationController = require("../controller/doctorVerificationController");
+const reviewController = require("../controller/reviewController");
+const supportController = require("../controller/supportController");
+const adminOpsController = require("../controller/adminOpsController");
 const { protect } = require("../middleware/auth");
 
 router.post("/signup", adminController.adminSignup);
@@ -71,6 +76,21 @@ router.get(
   "/audit-logs/export",
   protect("superadmin", "subadmin"),
   adminGovernanceController.exportAuditLogs
+);
+router.get(
+  "/audit/profile-changes",
+  protect("admin", "superadmin", "subadmin"),
+  profileAuditController.listProfileChanges
+);
+router.get(
+  "/actions/logs",
+  protect("admin", "superadmin", "subadmin"),
+  adminOpsController.listAdminActionLogs
+);
+router.get(
+  "/ops/queues",
+  protect("admin", "superadmin", "subadmin"),
+  adminOpsController.getOpsQueues
 );
 
 router.get(
@@ -144,6 +164,16 @@ router.post(
   protect("superadmin", "subadmin"),
   adminController.createDoctor
 );
+router.get(
+  "/doctors/verification-queue",
+  protect("admin", "superadmin", "subadmin"),
+  doctorVerificationController.getVerificationQueue
+);
+router.get(
+  "/doctors/verification-expiring",
+  protect("admin", "superadmin", "subadmin"),
+  doctorVerificationController.getExpiringVerificationDocs
+);
 router.get("/doctors", protect("superadmin","subadmin","admin"), adminController.getAllDoctors);
 router.get(
   "/doctors/:id",
@@ -159,6 +189,11 @@ router.put(
   "/doctors/:id/reject",
   protect("superadmin", "subadmin"),
   adminController.rejectDoctor
+);
+router.patch(
+  "/doctors/:id/verification-review",
+  protect("admin", "superadmin", "subadmin"),
+  doctorVerificationController.reviewDoctorVerification
 );
 router.delete(
   "/doctors/:id",
@@ -346,6 +381,21 @@ router.post(
   '/patient/:patientId/medications', 
   protect('admin', 'superadmin', 'subadmin'),
   adminController.adminAddMedication
+);
+router.get(
+  "/support/tickets",
+  protect("admin", "superadmin", "subadmin"),
+  supportController.listTickets
+);
+router.patch(
+  "/support/tickets/:id",
+  protect("admin", "superadmin", "subadmin"),
+  supportController.updateTicket
+);
+router.patch(
+  "/reviews/:id/moderation",
+  protect("admin", "superadmin", "subadmin"),
+  reviewController.moderateReview
 );
 // DELETE /api/v1/patients/admin/patient/:patientId/medications
 router.delete('/patient/:patientId/medications', protect('superadmin', 'subadmin', 'admin'),   adminController.adminRemoveMedication);

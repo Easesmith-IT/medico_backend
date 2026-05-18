@@ -1234,6 +1234,7 @@ const {
   resolveRequestRefreshToken,
 } = require("../utils/adminSessionService");
 const { writeAdminAuditLog } = require("../utils/adminAuditLogger");
+const { getChangedFields, writeProfileAudit } = require("../utils/profileAudit");
 
 const normalizeRole = (role = "") =>
   String(role || "")
@@ -1925,9 +1926,11 @@ exports.getMyProfile = catchAsync(async (req, res, next) => {
 
 exports.updateProfile = catchAsync(async (req, res, next) => {
   const { password, tokenVersion, role, ...updateData } = req.body;
+  const adminId = req.user?.id || req.user?._id;
+  const beforeAdmin = await Admin.findById(adminId).select("-password -tokenVersion");
 
   const updatedAdmin = await Admin.findByIdAndUpdate(
-    req.user?.id || req.user?._id,
+    adminId,
     updateData,
     { new: true, runValidators: true }
   ).select("-password -tokenVersion");
@@ -1935,6 +1938,19 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
   if (!updatedAdmin) {
     return next(new AppError("Admin not found", 404));
   }
+
+  const changedFields = getChangedFields(beforeAdmin, updatedAdmin, Object.keys(updateData));
+  await writeProfileAudit({
+    req,
+    actorId: adminId,
+    actorRole: req.user?.role || "admin",
+    targetModel: "Admin",
+    targetId: adminId,
+    action: "update",
+    changedFields,
+    before: beforeAdmin,
+    after: updatedAdmin,
+  });
 
   res.status(200).json({
     success: true,

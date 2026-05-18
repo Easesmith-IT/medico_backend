@@ -11,6 +11,7 @@ const Doctor = require('../models/doctorModel');
 const Booking = require('../models/bookingModel');
 const City = require('../models/availableCities');
 const PatientAddress = require("../models/patientAddressModel");
+const { getChangedFields, writeProfileAudit } = require('../utils/profileAudit');
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -1678,6 +1679,7 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
   console.log('   Patient ID:', req.params.id);
   console.log('   Update options: { new: true, runValidators: true }');
   
+  const beforePatient = await Patient.findById(req.params.id).select('-password -tokenVersion');
   let updatedPatient;
   
   try {
@@ -1713,6 +1715,19 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
   console.log('Step 7: Sending response to client');
   console.log('='.repeat(60));
   console.log('SUCCESS: Profile updated successfully');
+
+  const changedFields = getChangedFields(beforePatient, updatedPatient, fieldsToUpdate);
+  await writeProfileAudit({
+    req,
+    actorId: req.user?.id || req.user?._id,
+    actorRole: req.user?.role || 'patient',
+    targetModel: 'Patient',
+    targetId: req.params.id,
+    action: 'update',
+    changedFields,
+    before: beforePatient,
+    after: updatedPatient
+  });
   console.log('='.repeat(60));
   console.log('\n');
 

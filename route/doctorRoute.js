@@ -3,6 +3,8 @@
 const express = require('express');
 const router = express.Router();
 const doctorController = require('../controller/doctorController');
+const doctorDiscoveryController = require('../controller/doctorDiscoveryController');
+const doctorVerificationController = require('../controller/doctorVerificationController');
 const { verifyAccessToken } = require('../middleware/auth');
 const { protect } = require('../middleware/auth');
 
@@ -15,6 +17,8 @@ router.post('/login', doctorController.doctorLogin);
 router.post('/verify-login-otp', doctorController.verifyLoginOtp);
 router.post('/resend-login-otp', doctorController.resendLoginOtp);
 router.post('/check-auth', doctorController.checkAuthStatus);
+router.get('/search', doctorDiscoveryController.searchDoctors);
+router.get('/:id/public-profile', doctorDiscoveryController.getPublicProfile);
 router.get('/getAllDoctors', doctorController.getAllDoctors);
 router.get('/specialization/:specialization', doctorController.getDoctorsBySpecialization);
 router.get('/getDoctorById/:id', doctorController.getDoctorById);
@@ -28,7 +32,8 @@ router.put('/availability', verifyAccessToken, doctorController.updateAvailabili
 router.post('/clinic', verifyAccessToken, doctorController.addClinic);
 router.put('/clinic/:clinicId', verifyAccessToken, doctorController.updateClinic);
 router.delete('/clinic/:clinicId', verifyAccessToken, doctorController.deleteClinic);
-router.post('/verification-documents', verifyAccessToken, doctorController.uploadVerificationDocuments);
+router.post('/verification-documents', protect('doctor'), doctorVerificationController.uploadVerificationDocuments);
+router.post('/verification/submit', protect('doctor'), doctorVerificationController.submitVerification);
 
 
 //citywise 

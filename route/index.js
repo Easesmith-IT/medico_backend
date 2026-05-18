@@ -53,6 +53,9 @@ const uploadsRoute = require('../route/uploadRoute');
 const paymentRoute = require('../route/paymentRoute');
 const seperatePatientAddressRoute = require('../route/seperatePatientAddressRoute')
 const adminPaymentRoute = require("../route/adminPaymentRoute");
+const medicalRecordRoute = require("../route/medicalRecordRoute");
+const reviewRoute = require("../route/reviewRoute");
+const supportRoute = require("../route/supportRoute");
 
 const router = express.Router();
 
@@ -75,5 +78,8 @@ router.use("/crash-report", crashReportRoutes);
 router.use('/items',itemRoute);
 router.use('/uploadfile',uploadsRoute) // File upload route
 router.use('/payments', paymentRoute);
+router.use('/medical-records', medicalRecordRoute);
+router.use('/reviews', reviewRoute);
+router.use('/support', supportRoute);
 router.use('/seperatepatientAddress', seperatePatientAddressRoute)
 module.exports = router;

@@ -5,24 +5,45 @@ const settlementRequestSchema = new mongoose.Schema(
     paymentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Payment",
-      required: true,
+      default: null,
       index: true,
     },
     treatmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Treatment",
-      required: true,
+      default: null,
       index: true,
     },
     servicePartnerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ServiceProvider",
-      required: true,
+      default: null,
       index: true,
+    },
+    requesterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+      index: true,
+    },
+    requesterRole: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    amount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    currency: {
+      type: String,
+      default: "INR",
+      uppercase: true,
+      trim: true,
     },
     amountRequested: {
       type: Number,
-      required: true,
+      default: 0,
       min: 0,
     },
     amountApproved: {
@@ -32,18 +53,27 @@ const settlementRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected", "Paid"],
+      enum: ["Pending", "Approved", "Rejected", "Paid", "pending", "approved", "rejected", "paid"],
       default: "Pending",
       index: true,
     },
     requestedByAdminId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
-      required: true,
+      default: null,
     },
     reviewedByAdminId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
+      default: null,
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+    reviewedAt: {
+      type: Date,
       default: null,
     },
     paidAt: {

@@ -9,6 +9,7 @@ const Service = require("../models/serviceModel");
 const Booking = require("../models/bookingModel");
 const SettlementRequest = require("../models/settlementRequestModel");
 const DisputeCase = require("../models/disputeCaseModel");
+const AdminActionLog = require("../models/adminActionLogModel");
 const payController = require("./payController");
 
 const parseNumber = (value, fallback) => {
@@ -30,6 +31,11 @@ const objectIdOrNull = (value) =>
 
 const sortDirection = (order) =>
   String(order || "desc").toLowerCase() === "asc" ? 1 : -1;
+
+const getClientIp = (req) =>
+  req?.headers?.["x-forwarded-for"]?.split(",")?.[0]?.trim() ||
+  req?.socket?.remoteAddress ||
+  "";
 
 const normalizeLedgerFilters = (query) => {
   const baseMatch = {};
@@ -721,7 +727,12 @@ exports.listSettlementRequests = catchAsync(async (req, res) => {
   const skip = (page - 1) * limit;
   const match = {};
 
-  if (req.query.status) match.status = req.query.status;
+  if (req.query.status) {
+    const normalized =
+      String(req.query.status).charAt(0).toUpperCase() +
+      String(req.query.status).slice(1).toLowerCase();
+    match.status = { $in: [req.query.status, normalized, String(req.query.status).toLowerCase()] };
+  }
   const providerId = objectIdOrNull(req.query.providerId);
   if (providerId) match.servicePartnerId = providerId;
   const paymentId = objectIdOrNull(req.query.paymentId);
@@ -753,8 +764,18 @@ exports.listSettlementRequests = catchAsync(async (req, res) => {
 });
 
 exports.updateSettlementStatus = catchAsync(async (req, res, next) => {
-  const { settlementId } = req.params;
-  const { status, amountApproved, payoutReference = "", notes = "" } = req.body;
+  const settlementId = req.params.settlementId || req.params.id;
+  const actionStatusMap = {
+    approve: "Approved",
+    reject: "Rejected",
+    "mark-paid": "Paid",
+    markPaid: "Paid",
+  };
+  const rawStatus = req.body.status || actionStatusMap[req.body.action];
+  const status = rawStatus
+    ? String(rawStatus).charAt(0).toUpperCase() + String(rawStatus).slice(1).toLowerCase()
+    : rawStatus;
+  const { amountApproved, payoutReference = "", notes = "" } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(settlementId)) {
     return next(new AppError("Invalid settlement ID format", 400));
@@ -762,6 +783,10 @@ exports.updateSettlementStatus = catchAsync(async (req, res, next) => {
 
   const settlement = await SettlementRequest.findById(settlementId);
   if (!settlement) return next(new AppError("Settlement request not found", 404));
+  const before = settlement.toObject();
+  const currentStatus =
+    String(settlement.status || "Pending").charAt(0).toUpperCase() +
+    String(settlement.status || "Pending").slice(1).toLowerCase();
 
   const transitions = {
     Pending: new Set(["Approved", "Rejected"]),
@@ -770,7 +795,7 @@ exports.updateSettlementStatus = catchAsync(async (req, res, next) => {
     Paid: new Set([]),
   };
 
-  if (!status || !transitions[settlement.status]?.has(status)) {
+  if (!status || !transitions[currentStatus]?.has(status)) {
     return next(
       new AppError(
         `Invalid settlement status transition: ${settlement.status} -> ${status}`,
@@ -798,13 +823,32 @@ exports.updateSettlementStatus = catchAsync(async (req, res, next) => {
     }
     settlement.paidAt = new Date();
     settlement.payoutReference = payoutReference;
+    const payment = settlement.paymentId ? await Payment.findById(settlement.paymentId) : null;
+    if (payment) {
+      payment.lastWebhookEvent = "SETTLEMENT_PAID";
+      payment.lastWebhookProcessedAt = new Date();
+      await payment.save();
+    }
   }
 
   settlement.status = status;
   settlement.reviewedByAdminId = req.user?.id || settlement.reviewedByAdminId;
+  settlement.reviewedBy = req.user?.id || settlement.reviewedBy;
+  settlement.reviewedAt = new Date();
   if (notes) settlement.notes = notes;
 
   await settlement.save();
+  await AdminActionLog.create({
+    adminId: req.user?.id || req.user?._id,
+    actionType: "payments.settlement.update",
+    entityType: "SettlementRequest",
+    entityId: settlement._id,
+    before,
+    after: settlement.toObject(),
+    reason: notes,
+    ip: getClientIp(req),
+    userAgent: req.headers["user-agent"] || "",
+  });
 
   res.status(200).json({
     success: true,

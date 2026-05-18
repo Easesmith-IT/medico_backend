@@ -61,6 +61,12 @@ router.patch(
   adminPaymentController.updateSettlementStatus
 );
 
+router.patch(
+  "/settlements/:id",
+  protect(...mutateRoles),
+  adminPaymentController.updateSettlementStatus
+);
+
 router.post(
   "/disputes",
   protect(...mutateRoles),

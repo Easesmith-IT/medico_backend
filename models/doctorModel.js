@@ -928,11 +928,26 @@ const doctorSchema = new mongoose.Schema({
   trainingsWorkshops: [String],
 
   // Verification Documents
-  verificationDocuments: {
-    identityProof: String,
-    degreesCertificates: [String],
-    medicalCouncilRegistration: String
-  },
+  verificationDocuments: [{
+    docType: { type: String, default: "other", trim: true },
+    url: { type: String, default: "", trim: true },
+    docNumber: { type: String, default: "", trim: true },
+    issuedAt: { type: Date, default: null },
+    expiresAt: { type: Date, default: null },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected", "expired"],
+      default: "pending",
+      index: true
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null
+    },
+    reviewedAt: { type: Date, default: null },
+    rejectionReason: { type: String, default: "", trim: true }
+  }],
 
   // Verification Status
   verificationStatus: {
@@ -942,6 +957,13 @@ const doctorSchema = new mongoose.Schema({
   },
   verifiedAt: Date,
   rejectionReason: String,
+  verificationSubmittedAt: Date,
+  verificationReviewedAt: Date,
+  verificationNotes: {
+    type: String,
+    default: "",
+    trim: true
+  },
 
   // Clinic Details
   clinics: [{
@@ -1283,6 +1305,12 @@ doctorSchema.methods.releaseSlot = function(date, startTime) {
   return false;
 };
 doctorSchema.index({ socialHandle: 1 });  // Fast handle lookup
+doctorSchema.index({ cities: 1 });
+doctorSchema.index({ specialization: 1 });
+doctorSchema.index({ subSpecialties: 1 });
+doctorSchema.index({ consultationFees: 1 });
+doctorSchema.index({ averageRating: -1 });
+doctorSchema.index({ "availability.dailySlots.date": 1 });
 doctorSchema.index({ 
   firstName: 'text', 
   lastName: 'text', 

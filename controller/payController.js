@@ -646,6 +646,8 @@ const mongoose = require("mongoose");
 const Booking = require("../models/bookingModel");
 const Payment = require("../models/paymentModel");
 const Treatment = require("../models/treatmentModel");
+const SettlementRequest = require("../models/settlementRequestModel");
+const QrPaymentIntent = require("../models/qrPaymentIntentModel");
 const razorpay = require("../config/razorpay");
 
 const ADMIN_ROLES = new Set(["admin", "superadmin", "subadmin"]);
@@ -1314,6 +1316,159 @@ exports.recordManualRefund = async (req, res) => {
       message: "Failed to record manual refund",
       error: error.message,
     });
+  }
+};
+
+const resolvePaymentForEntity = async (entityType, entityId) => {
+  if (entityType === "payment") return Payment.findById(entityId);
+  if (entityType === "treatment") {
+    const treatment = await Treatment.findById(entityId);
+    if (!treatment) return null;
+    return getOrCreatePaymentLedger(treatment);
+  }
+  if (entityType === "booking") {
+    const booking = await Booking.findById(entityId);
+    if (!booking?.treatmentId) return null;
+    const treatment = await Treatment.findById(booking.treatmentId);
+    if (!treatment) return null;
+    return getOrCreatePaymentLedger(treatment);
+  }
+  return null;
+};
+
+exports.requestSettlement = async (req, res) => {
+  try {
+    const requesterId = req.user?.id || req.user?._id;
+    const requesterRole = getRole(req);
+    const amount = normalizeAmount(req.body.amount);
+    const treatmentId = req.body.treatmentId || null;
+    const paymentId = req.body.paymentId || null;
+
+    if (amount <= 0) {
+      return res.status(400).json({ success: false, message: "A valid amount is required" });
+    }
+
+    const payment = paymentId
+      ? await Payment.findById(paymentId)
+      : treatmentId
+        ? await Payment.findOne({ treatmentId })
+        : null;
+
+    const settlement = await SettlementRequest.create({
+      paymentId: payment?._id || paymentId || null,
+      treatmentId: payment?.treatmentId || treatmentId,
+      servicePartnerId: payment?.servicePartnerId || req.body.servicePartnerId || null,
+      requesterId,
+      requesterRole,
+      amount,
+      amountRequested: amount,
+      currency: req.body.currency || payment?.currency || "INR",
+      status: "pending",
+      notes: req.body.notes || "",
+    });
+
+    if (payment) {
+      payment.lastWebhookEvent = "SETTLEMENT_REQUESTED";
+      payment.lastWebhookProcessedAt = new Date();
+      await payment.save();
+    }
+
+    return res.status(201).json({ success: true, data: { settlement } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to request settlement", error: error.message });
+  }
+};
+
+exports.listMySettlements = async (req, res) => {
+  try {
+    const settlements = await SettlementRequest.find({
+      requesterId: req.user?.id || req.user?._id,
+      requesterRole: getRole(req),
+    }).sort({ createdAt: -1 });
+
+    return res.status(200).json({ success: true, data: settlements });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch settlements", error: error.message });
+  }
+};
+
+exports.generateQrPaymentIntent = async (req, res) => {
+  try {
+    const { entityType = "treatment", entityId, provider = "manual-qr" } = req.body;
+    const amount = normalizeAmount(req.body.amount);
+    const currency = req.body.currency || "INR";
+
+    if (!entityId || amount <= 0) {
+      return res.status(400).json({ success: false, message: "entityId and valid amount are required" });
+    }
+
+    const payment = await resolvePaymentForEntity(entityType, entityId);
+    if (!payment) return res.status(404).json({ success: false, message: "Payment entity not found" });
+
+    const providerRef = `QR-${Date.now()}-${String(entityId).slice(-6)}`;
+    const expiresAt = new Date(Date.now() + Number(req.body.ttlMinutes || 15) * 60 * 1000);
+    const intent = await QrPaymentIntent.create({
+      entityType,
+      entityId,
+      amount,
+      currency,
+      provider,
+      providerRef,
+      expiresAt,
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        intent,
+        qrData: `${provider}:${providerRef}:${currency}:${amount}`,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to generate QR intent", error: error.message });
+  }
+};
+
+exports.verifyQrPaymentIntent = async (req, res) => {
+  try {
+    const { providerRef } = req.body;
+    const intent = await QrPaymentIntent.findOne({ providerRef });
+    if (!intent) return res.status(404).json({ success: false, message: "QR payment intent not found" });
+    if (intent.status !== "pending") {
+      return res.status(400).json({ success: false, message: `QR payment is already ${intent.status}` });
+    }
+    if (intent.expiresAt < new Date()) {
+      intent.status = "expired";
+      await intent.save();
+      return res.status(400).json({ success: false, message: "QR payment intent expired" });
+    }
+
+    const payment = await resolvePaymentForEntity(intent.entityType, intent.entityId);
+    if (!payment) return res.status(404).json({ success: false, message: "Payment ledger not found" });
+
+    payment.transactions.push({
+      type: "Charge",
+      stage: req.body.stage || "Partial",
+      method: "UPI",
+      amountPaid: intent.amount,
+      currency: intent.currency,
+      status: "Paid",
+      paidAt: new Date(),
+      note: `QR payment verified: ${providerRef}`,
+      razorpayPaymentId: req.body.providerPaymentId || providerRef,
+    });
+    payment.lastWebhookEvent = "QR_PAYMENT_VERIFIED";
+    payment.lastWebhookProcessedAt = new Date();
+    recalculateLedger(payment);
+    await payment.save();
+
+    intent.status = "verified";
+    intent.verifiedAt = new Date();
+    await intent.save();
+
+    return res.status(200).json({ success: true, data: { intent, ledger: buildLedgerResponse(payment) } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to verify QR payment", error: error.message });
   }
 };
 
