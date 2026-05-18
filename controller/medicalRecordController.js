@@ -29,7 +29,7 @@ const canAccessRecord = (req, record) => {
 
 exports.createMedicalRecord = catchAsync(async (req, res, next) => {
   const role = getRole(req);
-  if (!["doctor", "patient", "admin", "superadmin", "subadmin"].includes(role)) {
+  if (!["doctor", "patient", "admin", "superadmin", "subadmin", "serviceprovider"].includes(role)) {
     return next(new AppError("Not allowed to create medical records", 403));
   }
 
