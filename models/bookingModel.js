@@ -179,6 +179,23 @@ const bookingSchema = new mongoose.Schema(
       required: false,
     },
 
+    addressId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PatientAddress",
+      default: null,
+    },
+
+    serviceAddressSnapshot: {
+      label: { type: String, trim: true, default: "" },
+      street: { type: String, trim: true, default: "" },
+      city: { type: String, trim: true, default: "" },
+      cityId: { type: mongoose.Schema.Types.ObjectId, ref: "City", default: null },
+      state: { type: String, trim: true, default: "" },
+      country: { type: String, trim: true, default: "" },
+      pincode: { type: String, trim: true, default: "" },
+      landmark: { type: String, trim: true, default: "" },
+    },
+
     // Record who created the booking (Patient, Admin etc.)
     createdBy: {
       userId: {

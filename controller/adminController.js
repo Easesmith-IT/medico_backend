@@ -3192,7 +3192,22 @@ exports.createBookingByAdmin = async (req, res) => {
       category,
       modes,
       cityId,
+      addressId,
     } = req.body;
+
+    const BOOKING_CATEGORY_ENUM = new Set(["consultation", "nursing", "equipment"]);
+    const BOOKING_MODE_ENUM = new Set(["Home Service", "Visit Provider Location"]);
+
+    const sanitizeModes = (inputModes, fallbackModes = []) => {
+      const source = Array.isArray(inputModes)
+        ? inputModes
+        : inputModes
+        ? [inputModes]
+        : fallbackModes;
+
+      const cleaned = source.filter((mode) => BOOKING_MODE_ENUM.has(mode));
+      return cleaned.length ? cleaned : fallbackModes.filter((mode) => BOOKING_MODE_ENUM.has(mode));
+    };
 
     // ------------------------------------------------------------
     // Required fields
@@ -3219,7 +3234,7 @@ exports.createBookingByAdmin = async (req, res) => {
     // ------------------------------------------------------------
     // Validate patient and patient city
     // ------------------------------------------------------------
-    const patient = await Patient.findById(patientId).select("address.cityId");
+    const patient = await Patient.findById(patientId).select("address.cityId address");
     if (!patient) {
       return res.status(404).json({
         success: false,
@@ -3227,7 +3242,48 @@ exports.createBookingByAdmin = async (req, res) => {
       });
     }
 
-    if (!patient.address?.cityId) {
+    // ------------------------------------------------------------
+    // Resolve booking address and city from patient addresses
+    // ------------------------------------------------------------
+    const patientAddressRows = await PatientAddress.find({ patientId })
+      .sort({ isPrimary: -1, createdAt: 1 })
+      .lean();
+
+    let resolvedAddress = null;
+    if (addressId) {
+      if (!mongoose.Types.ObjectId.isValid(addressId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid addressId",
+        });
+      }
+      resolvedAddress = patientAddressRows.find(
+        (item) => String(item._id) === String(addressId)
+      );
+      if (!resolvedAddress) {
+        return res.status(404).json({
+          success: false,
+          message: "Selected patient address not found",
+        });
+      }
+    } else if (patientAddressRows.length) {
+      resolvedAddress =
+        patientAddressRows.find((item) => item.isPrimary) || patientAddressRows[0];
+    } else if (patient?.address?.cityId) {
+      resolvedAddress = {
+        _id: null,
+        label: "legacy",
+        street: patient?.address?.street || "",
+        city: patient?.address?.city || "",
+        cityId: patient?.address?.cityId,
+        state: patient?.address?.state || "",
+        country: patient?.address?.country || "",
+        pincode: patient?.address?.pincode || "",
+        landmark: "",
+      };
+    }
+
+    if (!resolvedAddress?.cityId) {
       return res.status(400).json({
         success: false,
         message: "Patient city not set. Please update patient address first.",
@@ -3237,7 +3293,7 @@ exports.createBookingByAdmin = async (req, res) => {
     // ------------------------------------------------------------
     // Determine booking city
     // ------------------------------------------------------------
-    let bookingCityId = patient.address.cityId;
+    let bookingCityId = resolvedAddress.cityId;
 
     if (cityId) {
       const cityDoc = await City.findById(cityId);
@@ -3248,7 +3304,7 @@ exports.createBookingByAdmin = async (req, res) => {
         });
       }
 
-      if (cityDoc._id.toString() !== patient.address.cityId.toString()) {
+      if (cityDoc._id.toString() !== resolvedAddress.cityId.toString()) {
         return res.status(403).json({
           success: false,
           message:
@@ -3263,8 +3319,70 @@ exports.createBookingByAdmin = async (req, res) => {
     // Booking category & modes
     // ------------------------------------------------------------
     const bookingCategory = category || service.category || null;
-    const bookingModes =
-      Array.isArray(modes) && modes.length > 0 ? modes : service.modes || [];
+    if (bookingCategory && !BOOKING_CATEGORY_ENUM.has(bookingCategory)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking category",
+      });
+    }
+
+    const bookingModes = sanitizeModes(modes, service.modes || []);
+    if (!bookingModes.length) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one valid booking mode is required",
+      });
+    }
+
+    // ------------------------------------------------------------
+    // Validate provider-service-city compatibility
+    // ------------------------------------------------------------
+    if (servicePartnerId) {
+      if (!mongoose.Types.ObjectId.isValid(servicePartnerId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid servicePartnerId",
+        });
+      }
+
+      const provider = await ServiceProvider.findById(servicePartnerId)
+        .select("isDeleted isActive approvalStatus services serviceCities")
+        .lean();
+
+      if (!provider || provider.isDeleted) {
+        return res.status(404).json({
+          success: false,
+          message: "Service provider not found",
+        });
+      }
+
+      if (!provider.isActive || provider.approvalStatus !== "Approved") {
+        return res.status(400).json({
+          success: false,
+          message: "Provider must be active and approved",
+        });
+      }
+
+      const supportsService = (provider.services || []).some(
+        (item) => String(item.serviceId) === String(serviceId)
+      );
+      if (!supportsService) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected provider does not support the selected service",
+        });
+      }
+
+      const supportsCity = (provider.serviceCities || []).some(
+        (item) => String(item) === String(bookingCityId)
+      );
+      if (!supportsCity) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected provider does not support the selected city",
+        });
+      }
+    }
 
     // ------------------------------------------------------------
     // Prepare date range for conflict checks
@@ -3425,6 +3543,17 @@ exports.createBookingByAdmin = async (req, res) => {
       pricing,
       notes: notes || "",
       city: bookingCityId,
+      addressId: resolvedAddress?._id || null,
+      serviceAddressSnapshot: {
+        label: resolvedAddress?.label || "home",
+        street: resolvedAddress?.street || "",
+        city: resolvedAddress?.city || "",
+        cityId: resolvedAddress?.cityId || null,
+        state: resolvedAddress?.state || "",
+        country: resolvedAddress?.country || "",
+        pincode: resolvedAddress?.pincode || "",
+        landmark: resolvedAddress?.landmark || "",
+      },
       createdBy: {
         userId: adminId,
         userModel: "Admin",
@@ -3495,7 +3624,22 @@ exports.updateBookingByAdmin = async (req, res) => {
       cityId,
       treatmentId,
       createNewTreatment,
+      addressId,
     } = req.body;
+
+    const BOOKING_CATEGORY_ENUM = new Set(["consultation", "nursing", "equipment"]);
+    const BOOKING_MODE_ENUM = new Set(["Home Service", "Visit Provider Location"]);
+
+    const sanitizeModes = (inputModes, fallbackModes = []) => {
+      const source = Array.isArray(inputModes)
+        ? inputModes
+        : inputModes
+        ? [inputModes]
+        : fallbackModes;
+
+      const cleaned = source.filter((mode) => BOOKING_MODE_ENUM.has(mode));
+      return cleaned.length ? cleaned : fallbackModes.filter((mode) => BOOKING_MODE_ENUM.has(mode));
+    };
 
     // Fetch booking
     const booking = await Booking.findById(bookingId);
@@ -3517,14 +3661,59 @@ exports.updateBookingByAdmin = async (req, res) => {
     // Determine which patient to validate: provided patientId or existing booking.patientId
     const effectivePatientId = patientId || booking.patientId;
     const patient = await Patient.findById(effectivePatientId).select(
-      "address.cityId"
+      "address.cityId address"
     );
     if (!patient) {
       return res
         .status(404)
         .json({ success: false, message: "Patient not found" });
     }
-    if (!patient.address?.cityId) {
+    const patientAddressRows = await PatientAddress.find({ patientId: effectivePatientId })
+      .sort({ isPrimary: -1, createdAt: 1 })
+      .lean();
+
+    let resolvedAddress = null;
+    if (addressId !== undefined) {
+      if (!addressId) {
+        resolvedAddress = null;
+      } else {
+        if (!mongoose.Types.ObjectId.isValid(addressId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid addressId",
+          });
+        }
+        resolvedAddress = patientAddressRows.find(
+          (item) => String(item._id) === String(addressId)
+        );
+        if (!resolvedAddress) {
+          return res.status(404).json({
+            success: false,
+            message: "Selected patient address not found",
+          });
+        }
+      }
+    } else if (booking.addressId) {
+      resolvedAddress =
+        patientAddressRows.find((item) => String(item._id) === String(booking.addressId)) || null;
+    } else if (patientAddressRows.length) {
+      resolvedAddress =
+        patientAddressRows.find((item) => item.isPrimary) || patientAddressRows[0];
+    } else if (patient?.address?.cityId) {
+      resolvedAddress = {
+        _id: null,
+        label: "legacy",
+        street: patient?.address?.street || "",
+        city: patient?.address?.city || "",
+        cityId: patient?.address?.cityId,
+        state: patient?.address?.state || "",
+        country: patient?.address?.country || "",
+        pincode: patient?.address?.pincode || "",
+        landmark: "",
+      };
+    }
+
+    if (!resolvedAddress?.cityId) {
       return res.status(400).json({
         success: false,
         message: "Patient city not set. Please update patient address first.",
@@ -3540,7 +3729,7 @@ exports.updateBookingByAdmin = async (req, res) => {
           .status(400)
           .json({ success: false, message: "Invalid city selected" });
       }
-      if (bookingCityDoc._id.toString() !== patient.address.cityId.toString()) {
+      if (bookingCityDoc._id.toString() !== resolvedAddress.cityId.toString()) {
         return res.status(403).json({
           success: false,
           message:
@@ -3548,7 +3737,7 @@ exports.updateBookingByAdmin = async (req, res) => {
         });
       }
     } else {
-      bookingCityDoc = await City.findById(patient.address.cityId);
+      bookingCityDoc = await City.findById(resolvedAddress.cityId);
       if (!bookingCityDoc) {
         return res.status(400).json({
           success: false,
@@ -3558,8 +3747,25 @@ exports.updateBookingByAdmin = async (req, res) => {
     }
 
     // Update category/modes if provided
-    if (category) booking.category = category;
-    if (Array.isArray(modes)) booking.modes = modes;
+    if (category) {
+      if (!BOOKING_CATEGORY_ENUM.has(category)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid booking category",
+        });
+      }
+      booking.category = category;
+    }
+    if (modes !== undefined) {
+      const sanitizedModes = sanitizeModes(modes, service.modes || booking.modes || []);
+      if (!sanitizedModes.length) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one valid booking mode is required",
+        });
+      }
+      booking.modes = sanitizedModes;
+    }
 
     // Update notes (allow empty string)
     if (notes !== undefined) booking.notes = notes;
@@ -3624,6 +3830,53 @@ exports.updateBookingByAdmin = async (req, res) => {
     let treatmentCreated = false;
     const effectiveServicePartnerId =
       servicePartnerId !== undefined ? servicePartnerId : booking.servicePartnerId;
+
+    if (effectiveServicePartnerId) {
+      if (!mongoose.Types.ObjectId.isValid(effectiveServicePartnerId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid servicePartnerId",
+        });
+      }
+
+      const provider = await ServiceProvider.findById(effectiveServicePartnerId)
+        .select("isDeleted isActive approvalStatus services serviceCities")
+        .lean();
+
+      if (!provider || provider.isDeleted) {
+        return res.status(404).json({
+          success: false,
+          message: "Service provider not found",
+        });
+      }
+
+      if (!provider.isActive || provider.approvalStatus !== "Approved") {
+        return res.status(400).json({
+          success: false,
+          message: "Provider must be active and approved",
+        });
+      }
+
+      const supportsService = (provider.services || []).some(
+        (item) => String(item.serviceId) === String(booking.serviceId)
+      );
+      if (!supportsService) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected provider does not support the selected service",
+        });
+      }
+
+      const supportsCity = (provider.serviceCities || []).some(
+        (item) => String(item) === String(bookingCityDoc._id)
+      );
+      if (!supportsCity) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected provider does not support the selected city",
+        });
+      }
+    }
 
     if (treatmentId) {
       if (!mongoose.Types.ObjectId.isValid(treatmentId)) {
@@ -3744,6 +3997,17 @@ exports.updateBookingByAdmin = async (req, res) => {
 
     // Update city to bookingCityDoc
     booking.city = bookingCityDoc._id;
+    booking.addressId = resolvedAddress?._id || null;
+    booking.serviceAddressSnapshot = {
+      label: resolvedAddress?.label || "home",
+      street: resolvedAddress?.street || "",
+      city: resolvedAddress?.city || "",
+      cityId: resolvedAddress?.cityId || null,
+      state: resolvedAddress?.state || "",
+      country: resolvedAddress?.country || "",
+      pincode: resolvedAddress?.pincode || "",
+      landmark: resolvedAddress?.landmark || "",
+    };
 
 
     // Save
@@ -4417,8 +4681,14 @@ exports.getServiceNames = async (req, res) => {
       { isDeleted: false, isActive: true }, // Only active data
       {
         name: 1,
-        "slotConfig.consultationSlots.startTime": 1,
-        "slotConfig.consultationSlots.endTime": 1,
+        category: 1,
+        modes: 1,
+        basePrice: 1,
+        equipmentCharges: 1,
+        taxPercentage: 1,
+        defaultDuration: 1,
+        cities: 1,
+        slotConfig: 1,
       }
     ).sort({ createdAt: 1 });
 
@@ -4574,10 +4844,22 @@ exports.getServiceProviderNames = async (req, res) => {
 
     // Apply service filter only if provided
     if (serviceId) {
+      if (!mongoose.Types.ObjectId.isValid(serviceId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid serviceId",
+        });
+      }
       filter["services.serviceId"] = serviceId;
     }
 
     if (cityId) {
+      if (!mongoose.Types.ObjectId.isValid(cityId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid cityId",
+        });
+      }
       filter.serviceCities = cityId;
     }
 
