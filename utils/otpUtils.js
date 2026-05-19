@@ -136,10 +136,13 @@ const sendOtp = async (phone) => {
     const expirationTimeframe = 15 * 60 * 1000;
     const otpExpiresAt = new Date(Date.now() + expirationTimeframe);
 
-    // Save to database
-    const existingOtpDoc = await otpSchema.findOne({ phone });
+    // Save to database using a canonical 10-digit phone number. Verification
+    // accepts both +91/91-prefixed and plain 10-digit inputs.
+    const phoneVariants = Array.from(new Set([phone, formattedPhone]));
+    const existingOtpDoc = await otpSchema.findOne({ phone: { $in: phoneVariants } });
 
     if (existingOtpDoc) {
+      existingOtpDoc.phone = formattedPhone;
       existingOtpDoc.otp = otp;
       existingOtpDoc.otpExpiresAt = otpExpiresAt;
       existingOtpDoc.attempts = 0;
@@ -149,7 +152,7 @@ const sendOtp = async (phone) => {
       console.log('SUCCESS: OTP updated in database');
     } else {
       const otpDoc = new otpSchema({
-        phone,
+        phone: formattedPhone,
         otp: otp,
         otpExpiresAt: otpExpiresAt,
         attempts: 0,
@@ -199,7 +202,9 @@ const verifyOtp = async (phone, enteredOTP) => {
       return false;
     }
 
-    const otpDoc = await otpSchema.findOne({ phone });
+    const formattedPhone = formatPhoneNumber(phone);
+    const phoneVariants = Array.from(new Set([phone, formattedPhone]));
+    const otpDoc = await otpSchema.findOne({ phone: { $in: phoneVariants } });
 
     if (!otpDoc) {
       console.log('ERROR: No OTP found for this phone');
@@ -216,7 +221,7 @@ const verifyOtp = async (phone, enteredOTP) => {
       console.log(`ERROR: OTP mismatch (Attempt ${otpDoc.attempts}/5)`);
 
       if (otpDoc.attempts >= 5) {
-        await otpSchema.deleteOne({ phone });
+        await otpSchema.deleteMany({ phone: { $in: phoneVariants } });
         console.log('BLOCKED: Too many attempts - OTP deleted');
       } else {
         await otpDoc.save();
@@ -226,12 +231,12 @@ const verifyOtp = async (phone, enteredOTP) => {
 
     const currentTime = new Date().getTime();
     if (currentTime > otpDoc.otpExpiresAt.getTime()) {
-      await otpSchema.deleteOne({ phone });
+      await otpSchema.deleteMany({ phone: { $in: phoneVariants } });
       console.log('ERROR: OTP expired');
       return false;
     }
 
-    await otpSchema.deleteOne({ phone });
+    await otpSchema.deleteMany({ phone: { $in: phoneVariants } });
     console.log('SUCCESS: OTP verified successfully');
     console.log('='.repeat(60));
     console.log('');
@@ -253,7 +258,8 @@ const resendOtp = async (phone) => {
     console.log('='.repeat(60));
     console.log(`Phone: ${phone}`);
 
-    await otpSchema.deleteOne({ phone });
+    const formattedPhone = formatPhoneNumber(phone);
+    await otpSchema.deleteMany({ phone: { $in: Array.from(new Set([phone, formattedPhone])) } });
     console.log('DELETED: Old OTP removed');
 
     const sent = await sendOtp(phone);
@@ -270,7 +276,8 @@ const resendOtp = async (phone) => {
  */
 const clearOtp = async (phone) => {
   try {
-    await otpSchema.deleteOne({ phone });
+    const formattedPhone = formatPhoneNumber(phone);
+    await otpSchema.deleteMany({ phone: { $in: Array.from(new Set([phone, formattedPhone])) } });
     console.log(`SUCCESS: OTP cleared for ${phone}`);
     return true;
   } catch (err) {

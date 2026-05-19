@@ -9,6 +9,12 @@ const ServiceProvider = require("../models/serviceProviderModel");
 const APPROVED = "approved";
 const getUserId = (req) => req.user?.id || req.user?._id;
 
+const normalizeTargetType = (targetType = "") => {
+  const normalized = String(targetType).trim();
+  if (normalized === "servicePartner") return "serviceProvider";
+  return normalized;
+};
+
 const getTargetModel = (targetType) =>
   targetType === "doctor" ? Doctor : targetType === "serviceProvider" ? ServiceProvider : null;
 
@@ -28,9 +34,13 @@ const recalculateAggregate = async (targetType, targetId) => {
 };
 
 exports.createReview = catchAsync(async (req, res, next) => {
-  const { bookingId, targetType, targetId, rating, comment = "" } = req.body;
+  const { bookingId, targetId, rating, comment = "" } = req.body;
+  const targetType = normalizeTargetType(req.body.targetType);
   const booking = await Booking.findById(bookingId);
   if (!booking) return next(new AppError("Booking not found", 404));
+  if (!getTargetModel(targetType)) {
+    return next(new AppError("targetType must be doctor or serviceProvider", 400));
+  }
   if (String(booking.patientId) !== String(getUserId(req))) {
     return next(new AppError("Only the booking patient can review", 403));
   }
@@ -54,7 +64,7 @@ exports.listReviews = catchAsync(async (req, res) => {
   const page = Math.max(Number(req.query.page || 1), 1);
   const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 100);
   const match = {};
-  if (req.query.targetType) match.targetType = req.query.targetType;
+  if (req.query.targetType) match.targetType = normalizeTargetType(req.query.targetType);
   if (req.query.targetId && mongoose.Types.ObjectId.isValid(req.query.targetId)) {
     match.targetId = new mongoose.Types.ObjectId(req.query.targetId);
   }
