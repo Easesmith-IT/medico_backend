@@ -55,7 +55,7 @@ router.delete('/unfollow/:doctorId', protect(), patientController.unfollowDoctor
 
 
 //getByID
-router.get('/getAllPatients', protect('admin', 'superadmin', 'subadmin'), patientController.getAllPatients);
+router.get('/getAllPatients', protect('admin', 'superadmin', 'subadmin','serviceprovider'), patientController.getAllPatients);
 router.get('/getById/:patientId',patientController.getPatientById);
 router.get('/myTreatmentHistory', protect('patient', 'doctor', 'admin', 'superadmin'), patientController.getCompletePatientTreatmentHistory);
 
