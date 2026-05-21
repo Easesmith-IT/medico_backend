@@ -10,7 +10,7 @@ router.post(
 );
 
 router.get(
-  "/settlements/me",
+  "/getlistMySettlements",
   protect("doctor", "serviceprovider", "admin", "superadmin", "subadmin"),
   paymentController.listMySettlements
 );
