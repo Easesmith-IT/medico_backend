@@ -122,6 +122,8 @@ socialPostSchema.index({ 'follows.followerId': 1 });          // Follower querie
 socialPostSchema.index({ 'follows.followingId': 1 });         // Following queries
 socialPostSchema.index({ type: 1, createdAt: -1 });           // Content feeds
 socialPostSchema.index({ mentions: 1 });                      // Mentions notifications
+socialPostSchema.index({ doctor: 1, isHidden: 1, hiddenAt: 1, createdAt: -1 });
+socialPostSchema.index({ "stats.likes": -1, "stats.saves": -1, createdAt: -1 });
 
 //  FIXED: Export as 'Post' to match controller
 module.exports = mongoose.model('Post', socialPostSchema);

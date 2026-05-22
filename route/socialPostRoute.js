@@ -28,7 +28,7 @@ router.get('/getPosts', postCtrl.getPosts);
 
 
 // router.post('/likePost/:id/toggle', protect(['doctor', 'patient']),  postCtrl.toggleLikePost);
-router.post('/commentPost/:id', protect(['doctor', 'patient']),  postCtrl.addComment);
+router.post('/commentPost/:id', protect(['doctor', 'admin', 'superadmin', 'subadmin']),  postCtrl.addComment);
 // router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']),  postCtrl.toggleFollowDoctor); // Follow doctor
 router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']), postCtrl.toggleFollowDoctor);
 
@@ -45,14 +45,29 @@ router.post(
   protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
   postCtrl.toggleLikePost
 );
-router.get('/feed',  postCtrl.getSocialFeed);
+router.post(
+  '/savePost/:id/toggle',
+  protect(['patient']),
+  postCtrl.toggleSavePost
+);
+router.get(
+  '/savedPosts',
+  protect(['patient']),
+  postCtrl.getSavedPosts
+);
+router.get(
+  '/notifications',
+  protect(['patient']),
+  postCtrl.getMySocialNotifications
+);
+router.get('/feed', protect(['patient']), postCtrl.getSocialFeed);
 // router.get('/getPostById/:id', postCtrl.getPostById);
 router.get(
   '/getPostById/:id',
   protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
   postCtrl.getPostById
 );
-router.post('/addComment/:id', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']), postCtrl.addComment);
+router.post('/addComment/:id', protect(['doctor', 'admin', 'superadmin', 'subadmin']), postCtrl.addComment);
 
 router.patch(
   '/posts/:id/hide',

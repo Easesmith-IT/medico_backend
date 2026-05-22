@@ -49,6 +49,174 @@ const Patient = require('../models/patientModel');
 
 const ServiceProvider = require('../models/serviceProviderModel');
 const Service = require('../models/serviceModel');
+const SocialNotification = require('../models/socialNotificationModel');
+
+const normalizeUser = (req) => {
+  const user = req.user || {};
+  const rawRole = user.role || user.userRole || "";
+  const userRole = rawRole.toLowerCase();
+  const userIdRaw = user._id || user.id || user.userId || "";
+  const userId = userIdRaw ? userIdRaw.toString() : "";
+  return { userId, userRole };
+};
+
+const isPostVisible = (post) => !post.isHidden && !post.hiddenAt;
+
+const clamp = (value, min = 0, max = 1) => Math.min(Math.max(value, min), max);
+
+const incrementMap = (map, key, amount = 1) => {
+  if (!key) return;
+  map.set(key, (map.get(key) || 0) + amount);
+};
+
+const getPostIdSet = (items = []) =>
+  new Set(items.map((item) => item.postId?.toString()).filter(Boolean));
+
+const buildPatientInterestProfile = async (patient, userId) => {
+  const savedPostIds = getPostIdSet(patient.savedPosts || []);
+  const savedPosts = savedPostIds.size
+    ? await Post.find({ _id: { $in: Array.from(savedPostIds) } })
+        .select("doctor type hashtags")
+        .lean()
+    : [];
+
+  const likedPosts = await Post.find({
+    "likes.userId": userId,
+    "likes.userRole": "patient",
+  })
+    .select("doctor type hashtags")
+    .sort({ updatedAt: -1 })
+    .limit(100)
+    .lean();
+
+  const doctorAffinity = new Map();
+  const hashtagAffinity = new Map();
+  const typeAffinity = new Map();
+
+  const learnFromPost = (post, weight) => {
+    incrementMap(doctorAffinity, post.doctor?.toString(), weight);
+    incrementMap(typeAffinity, post.type, weight);
+    (post.hashtags || []).forEach((tag) =>
+      incrementMap(hashtagAffinity, String(tag).toLowerCase(), weight)
+    );
+  };
+
+  savedPosts.forEach((post) => learnFromPost(post, 3));
+  likedPosts.forEach((post) => learnFromPost(post, 2));
+
+  return {
+    savedPostIds,
+    doctorAffinity,
+    hashtagAffinity,
+    typeAffinity,
+  };
+};
+
+const scoreSocialPost = (post, profile, now = new Date()) => {
+  const createdAt = new Date(post.createdAt || now);
+  const ageHours = Math.max((now.getTime() - createdAt.getTime()) / (60 * 60 * 1000), 0);
+  const recencyScore = Math.exp(-ageHours / 72);
+
+  const stats = post.stats || {};
+  const engagementRaw =
+    Number(stats.likes || 0) * 2 +
+    Number(stats.saves || 0) * 3 +
+    Number(stats.comments || 0) * 0.75 +
+    Number(stats.views || 0) * 0.05;
+  const engagementScore = clamp(Math.log1p(engagementRaw) / Math.log1p(75));
+
+  const doctorId = post.doctor?._id?.toString?.() || post.doctor?.toString?.();
+  const doctorAffinityScore = clamp((profile.doctorAffinity.get(doctorId) || 0) / 10);
+  const typeAffinityScore = clamp((profile.typeAffinity.get(post.type) || 0) / 8);
+  const hashtagScore = clamp(
+    (post.hashtags || []).reduce(
+      (sum, tag) => sum + (profile.hashtagAffinity.get(String(tag).toLowerCase()) || 0),
+      0
+    ) / 12
+  );
+  const mediaQualityScore = post.mediaUrls?.length ? 0.08 : 0;
+  const alreadySavedPenalty = profile.savedPostIds.has(post._id.toString()) ? 0.06 : 0;
+
+  const recommendationScore =
+    recencyScore * 0.38 +
+    engagementScore * 0.26 +
+    doctorAffinityScore * 0.16 +
+    hashtagScore * 0.12 +
+    typeAffinityScore * 0.08 +
+    mediaQualityScore -
+    alreadySavedPenalty;
+
+  const reasons = [];
+  if (recencyScore > 0.72) reasons.push("recent");
+  if (engagementScore > 0.35) reasons.push("high_engagement");
+  if (doctorAffinityScore > 0) reasons.push("doctor_affinity");
+  if (hashtagScore > 0) reasons.push("topic_match");
+  if (typeAffinityScore > 0) reasons.push("format_match");
+
+  return {
+    recommendationScore: Number(recommendationScore.toFixed(4)),
+    recommendationReasons: reasons,
+  };
+};
+
+const rankSocialPosts = (posts, profile, sort = "recommended") => {
+  const now = new Date();
+  const scored = posts.map((post) => {
+    const postObject = typeof post.toObject === "function" ? post.toObject() : post;
+    return {
+      ...postObject,
+      ...scoreSocialPost(postObject, profile, now),
+    };
+  });
+
+  if (sort === "recent") {
+    return scored.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  if (sort === "trending") {
+    return scored.sort((a, b) => {
+      const aStats = a.stats || {};
+      const bStats = b.stats || {};
+      const aEngagement = Number(aStats.likes || 0) * 2 + Number(aStats.saves || 0) * 3 + Number(aStats.comments || 0);
+      const bEngagement = Number(bStats.likes || 0) * 2 + Number(bStats.saves || 0) * 3 + Number(bStats.comments || 0);
+      return bEngagement - aEngagement || new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  }
+
+  const perDoctorSeen = new Map();
+  return scored
+    .sort((a, b) => b.recommendationScore - a.recommendationScore || new Date(b.createdAt) - new Date(a.createdAt))
+    .map((post) => {
+      const doctorId = post.doctor?._id?.toString?.() || post.doctor?.toString?.() || "";
+      const seen = perDoctorSeen.get(doctorId) || 0;
+      perDoctorSeen.set(doctorId, seen + 1);
+      return {
+        ...post,
+        recommendationScore: Number((post.recommendationScore - seen * 0.035).toFixed(4)),
+      };
+    })
+    .sort((a, b) => b.recommendationScore - a.recommendationScore || new Date(b.createdAt) - new Date(a.createdAt));
+};
+
+const notifyFollowersForPost = async (doctor, post) => {
+  const followers = await Patient.find({ following: doctor._id })
+    .select("_id")
+    .lean();
+
+  if (!followers.length) return;
+
+  const doctorName = [doctor.firstName, doctor.lastName].filter(Boolean).join(" ") || "A doctor";
+  await SocialNotification.insertMany(
+    followers.map((patient) => ({
+      recipientId: patient._id,
+      actorId: doctor._id,
+      type: "doctor_post_created",
+      entityId: post._id,
+      message: `${doctorName} posted new content`,
+    })),
+    { ordered: false }
+  );
+};
 
 // CREATE POST
 // exports.createPost = async (req, res, next) => {
@@ -250,6 +418,7 @@ exports.createPost = async (req, res, next) => {
     // 7) Save post
     const post = new Post(postData);
     await post.save();
+    await notifyFollowersForPost(doctor, post);
 
     console.log('Post saved:', post._id);
 
@@ -1623,6 +1792,42 @@ exports.toggleFollowDoctor = async (req, res, next) => {
 
     await social.save();
 
+    if (userRole === "patient") {
+      const patient = await Patient.findById(userId);
+      if (patient) {
+        const alreadyFollowing = patient.following.some(
+          (doctorId) => doctorId.toString() === targetDoctorId.toString()
+        );
+
+        if (following && !alreadyFollowing) {
+          patient.following.push(targetDoctorId);
+        }
+
+        if (!following && alreadyFollowing) {
+          patient.following = patient.following.filter(
+            (doctorId) => doctorId.toString() !== targetDoctorId.toString()
+          );
+        }
+
+        patient.followingCount = patient.following.length;
+        await patient.save();
+
+        if (following && !alreadyFollowing) {
+          await Doctor.findByIdAndUpdate(targetDoctorId, {
+            $addToSet: { followers: userId },
+            $inc: { followersCount: 1 },
+          });
+        }
+
+        if (!following && alreadyFollowing) {
+          await Doctor.findByIdAndUpdate(targetDoctorId, {
+            $pull: { followers: userId },
+            $inc: { followersCount: -1 },
+          });
+        }
+      }
+    }
+
     return res.json({
       success: true,
       action,
@@ -1819,6 +2024,14 @@ exports.getPostByIdByAdmin = async (req, res, next) => {
 // };
 exports.addComment = async (req, res, next) => {
   try {
+    const { userRole } = normalizeUser(req);
+    if (userRole === "patient") {
+      return res.status(403).json({
+        success: false,
+        message: "Patients are not allowed to comment on social posts",
+      });
+    }
+
     const { text } = req.body;
     const { id } = req.params;
 
@@ -1858,12 +2071,200 @@ exports.addComment = async (req, res, next) => {
 // Get Posts + Follows
 exports.getSocialFeed = async (req, res, next) => {
   try {
-    const socials = await Post.find()
-      .populate('doctor', 'firstName lastName profilePhoto')
+    const { userId, userRole } = normalizeUser(req);
+    const page = Math.max(parseInt(req.query.page || "1", 10), 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit || "20", 10), 1), 50);
+    const sort = ["recommended", "recent", "trending"].includes(req.query.sort)
+      ? req.query.sort
+      : "recommended";
+
+    if (!userId || userRole !== "patient") {
+      return res.status(403).json({
+        success: false,
+        message: "Only patients can view personalized feed",
+      });
+    }
+
+    const patient = await Patient.findById(userId).select("following savedPosts").lean();
+    if (!patient) {
+      return res.status(404).json({ success: false, message: "Patient not found" });
+    }
+
+    const followedDoctorIds = patient.following || [];
+    if (!followedDoctorIds.length) {
+      return res.json({
+        success: true,
+        data: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+        },
+        algorithm: {
+          sort,
+          inputs: ["followedDoctors", "recency", "engagement", "likes", "saves", "hashtags", "postType"],
+        },
+      });
+    }
+
+    const profile = await buildPatientInterestProfile(patient, userId);
+    const candidateLimit = Math.min(Math.max(page * limit * 5, limit), 250);
+    const postQuery = {
+      doctor: { $in: followedDoctorIds },
+      isHidden: false,
+      hiddenAt: null,
+    };
+
+    const [socials, total] = await Promise.all([
+      Post.find(postQuery)
+      .populate('doctor', 'firstName lastName profilePhoto specialization')
       .sort({ createdAt: -1 })
-      .limit(20);
-    res.json({ success: true, data: socials });
+      .limit(candidateLimit),
+      Post.countDocuments(postQuery),
+    ]);
+
+    const rankedPosts = rankSocialPosts(socials, profile, sort);
+    const paginatedPosts = rankedPosts.slice((page - 1) * limit, page * limit);
+
+    const feed = paginatedPosts.map((postObject) => {
+      return {
+        ...postObject,
+        isLiked: !!postObject.likes?.some((like) => {
+          const likeUserId = like.userId?.toString();
+          const likeUserRole = (like.userRole || "").toLowerCase();
+          return likeUserId === userId && likeUserRole === userRole;
+        }),
+        isSaved: profile.savedPostIds.has(post._id.toString()),
+      };
+    });
+
+    res.json({
+      success: true,
+      data: feed,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      algorithm: {
+        sort,
+        candidateLimit,
+        inputs: ["followedDoctors", "recency", "engagement", "likes", "saves", "hashtags", "postType"],
+      },
+    });
   } catch (err) { next(err); }
+};
+
+exports.toggleSavePost = async (req, res, next) => {
+  try {
+    const { userId, userRole } = normalizeUser(req);
+    if (!userId || userRole !== "patient") {
+      return res.status(403).json({
+        success: false,
+        message: "Only patients can save posts",
+      });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post || !isPostVisible(post)) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+
+    if (!post.doctor) {
+      return res.status(400).json({
+        success: false,
+        message: "Only doctor posts can be saved",
+      });
+    }
+
+    const patient = await Patient.findById(userId);
+    if (!patient) {
+      return res.status(404).json({ success: false, message: "Patient not found" });
+    }
+
+    patient.savedPosts = Array.isArray(patient.savedPosts) ? patient.savedPosts : [];
+    const existingIndex = patient.savedPosts.findIndex(
+      (item) => item.postId?.toString() === post._id.toString()
+    );
+
+    const isSaved = existingIndex === -1;
+    if (isSaved) {
+      patient.savedPosts.push({ postId: post._id, savedAt: new Date() });
+      post.stats = post.stats || {};
+      post.stats.saves = Number(post.stats.saves || 0) + 1;
+    } else {
+      patient.savedPosts.splice(existingIndex, 1);
+      post.stats = post.stats || {};
+      post.stats.saves = Math.max(Number(post.stats.saves || 0) - 1, 0);
+    }
+
+    await Promise.all([patient.save(), post.save()]);
+
+    res.json({
+      success: true,
+      saved: isSaved,
+      saves: post.stats.saves,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getSavedPosts = async (req, res, next) => {
+  try {
+    const { userId, userRole } = normalizeUser(req);
+    if (!userId || userRole !== "patient") {
+      return res.status(403).json({
+        success: false,
+        message: "Only patients can view saved posts",
+      });
+    }
+
+    const patient = await Patient.findById(userId)
+      .select("savedPosts")
+      .populate({
+        path: "savedPosts.postId",
+        match: { isHidden: false, hiddenAt: null },
+        populate: { path: "doctor", select: "firstName lastName profilePhoto specialization" },
+      });
+
+    if (!patient) {
+      return res.status(404).json({ success: false, message: "Patient not found" });
+    }
+
+    const data = (patient.savedPosts || [])
+      .filter((item) => item.postId)
+      .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getMySocialNotifications = async (req, res, next) => {
+  try {
+    const { userId, userRole } = normalizeUser(req);
+    if (!userId || userRole !== "patient") {
+      return res.status(403).json({
+        success: false,
+        message: "Only patients can view social notifications",
+      });
+    }
+
+    const notifications = await SocialNotification.find({ recipientId: userId })
+      .populate("actorId", "firstName lastName profilePhoto specialization")
+      .populate("entityId", "content type mediaUrls createdAt")
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    res.json({ success: true, data: notifications });
+  } catch (err) {
+    next(err);
+  }
 };
 
 
