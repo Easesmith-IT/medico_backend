@@ -21,7 +21,7 @@ router.post(
   postCtrl.createPost
 );
 
-router.get('/getPosts',protect('doctor', 'admin', 'superadmin', 'subadmin'), postCtrl.getPosts);
+router.get('/getPosts',protect('doctor', 'admin', 'superadmin', 'subadmin','patient'), postCtrl.getPosts);
 
 // router.post('/likePost/:id/like', postCtrl.likePost);
 

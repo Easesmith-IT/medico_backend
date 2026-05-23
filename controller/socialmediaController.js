@@ -597,10 +597,15 @@ exports.createPost = async (req, res, next) => {
 
 exports.getPosts = async (req, res, next) => {
   try {
-    const userId = req.user?._id;
-    const userRole = req.user?.role;
+    const { userId, userRole } = normalizeUser(req);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
+    const skip = (page - 1) * limit;
 
-    const posts = await Post.find()
+    const query = { isHidden: { $ne: true } };
+
+    const [posts, total, followDocs] = await Promise.all([
+      Post.find(query)
       .populate({
         path: 'doctor',
         select:
@@ -609,7 +614,28 @@ exports.getPosts = async (req, res, next) => {
       })
       .populate('mentions', 'firstName lastName')
       .sort({ createdAt: -1 })
-      .limit(20);
+        .skip(skip)
+        .limit(limit),
+      Post.countDocuments(query),
+      userId
+        ? Post.find({
+            'follows.followerId': userId,
+            'follows.followerRole': userRole
+          }).select('doctor follows')
+        : []
+    ]);
+
+    const followedDoctorIds = new Set();
+    followDocs.forEach((doc) => {
+      (doc.follows || []).forEach((follow) => {
+        const followerId = follow.followerId?.toString();
+        const followerRole = (follow.followerRole || '').toLowerCase();
+        if (followerId === userId && followerRole === userRole) {
+          const followingId = follow.followingId || doc.doctor;
+          if (followingId) followedDoctorIds.add(followingId.toString());
+        }
+      });
+    });
 
     const postsWithCreators = await Promise.all(
       posts.map(async post => {
@@ -643,23 +669,14 @@ exports.getPosts = async (req, res, next) => {
 
         const position = doctor?.specialization || 'Doctor';
 
-        // CHECK LIKE
-        const likedPost = await Like.findOne({
-          postId: post._id,
-          userId,
-          userRole
-        });
-
-        const isLiked = !!likedPost;
-
-        // CHECK FOLLOW
-        const followedDoctor = await Follow.findOne({
-          followerId: userId,
-          followerRole: userRole,
-          followingId: doctor?._id
-        });
-
-        const isFollowed = !!followedDoctor;
+        const isLiked = !!post.likes?.some(
+          (like) =>
+            like.userId?.toString() === userId &&
+            (like.userRole || '').toLowerCase() === userRole
+        );
+        const isFollowed = doctor?._id
+          ? followedDoctorIds.has(doctor._id.toString())
+          : false;
 
         return {
           ...post.toObject(),
