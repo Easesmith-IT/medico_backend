@@ -521,81 +521,167 @@ exports.createPost = async (req, res, next) => {
 //   }
 // };
 
+// exports.getPosts = async (req, res, next) => {
+//   try {
+//     const userId = req.user?._id;
+//     const userRole = req.user?.role; // 'doctor' | 'patient' | 'admin' | ...
+
+//     const posts = await Post.find()
+//       .populate({
+//         path: 'doctor',
+//         select: 'firstName lastName address cities specialization profilePhoto clinics',
+//         populate: { path: 'cities', select: 'name' }
+//       })
+//       .populate('mentions', 'firstName lastName')
+//       .sort({ createdAt: -1 })
+//       .limit(20);
+
+//     const postsWithCreators = posts.map(post => {
+//       const doctor = post.doctor;
+
+//       const name = doctor
+//         ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+//         : 'Admin';
+
+//       let city = 'Not specified';
+
+//       if (doctor) {
+//         if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+//           city = doctor.cities[0].name;
+//         } else if (doctor.address?.city) {
+//           city = doctor.address.city;
+//         } else if (
+//           doctor.clinics &&
+//           doctor.clinics.length &&
+//           doctor.clinics[0]?.address?.city
+//         ) {
+//           city = doctor.clinics[0].address.city;
+//         }
+//       }
+
+//       const position = doctor?.specialization || 'Doctor';
+
+//       const isLiked = !!post.likes?.some(
+//         l =>
+//           l.userId.toString() === userId?.toString() &&
+//           l.userRole === userRole
+//       );
+
+//       const isFollowed = !!post.follows?.some(
+//         f =>
+//           f.followerId.toString() === userId?.toString() &&
+//           f.followerRole === userRole &&
+//           f.followingId.toString() === doctor?._id?.toString()
+//       );
+
+//       return {
+//         ...post.toObject(),
+//         creator: {
+//           _id: doctor?._id || post.doctor,
+//           name,
+//           location: city,
+//           position,
+//           profilePhoto: doctor?.profilePhoto || null,
+//           role: doctor ? 'doctor' : 'admin'
+//         },
+//         isLiked,
+//         isFollowed
+//       };
+//     });
+
+//     res.json(postsWithCreators);
+//   } catch (err) {
+//     next(err);
+//   }
+// }; //original
+
 exports.getPosts = async (req, res, next) => {
   try {
     const userId = req.user?._id;
-    const userRole = req.user?.role; // 'doctor' | 'patient' | 'admin' | ...
+    const userRole = req.user?.role;
 
     const posts = await Post.find()
       .populate({
         path: 'doctor',
-        select: 'firstName lastName address cities specialization profilePhoto clinics',
+        select:
+          'firstName lastName address cities specialization profilePhoto clinics',
         populate: { path: 'cities', select: 'name' }
       })
       .populate('mentions', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(20);
 
-    const postsWithCreators = posts.map(post => {
-      const doctor = post.doctor;
+    const postsWithCreators = await Promise.all(
+      posts.map(async post => {
+        const doctor = post.doctor;
 
-      const name = doctor
-        ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
-        : 'Admin';
+        const name = doctor
+          ? [doctor.firstName, doctor.lastName]
+              .filter(Boolean)
+              .join(' ')
+          : 'Admin';
 
-      let city = 'Not specified';
+        let city = 'Not specified';
 
-      if (doctor) {
-        if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
-          city = doctor.cities[0].name;
-        } else if (doctor.address?.city) {
-          city = doctor.address.city;
-        } else if (
-          doctor.clinics &&
-          doctor.clinics.length &&
-          doctor.clinics[0]?.address?.city
-        ) {
-          city = doctor.clinics[0].address.city;
+        if (doctor) {
+          if (
+            doctor.cities &&
+            doctor.cities.length &&
+            doctor.cities[0]?.name
+          ) {
+            city = doctor.cities[0].name;
+          } else if (doctor.address?.city) {
+            city = doctor.address.city;
+          } else if (
+            doctor.clinics &&
+            doctor.clinics.length &&
+            doctor.clinics[0]?.address?.city
+          ) {
+            city = doctor.clinics[0].address.city;
+          }
         }
-      }
 
-      const position = doctor?.specialization || 'Doctor';
+        const position = doctor?.specialization || 'Doctor';
 
-      const isLiked = !!post.likes?.some(
-        l =>
-          l.userId.toString() === userId?.toString() &&
-          l.userRole === userRole
-      );
+        // CHECK LIKE
+        const likedPost = await Like.findOne({
+          postId: post._id,
+          userId,
+          userRole
+        });
 
-      const isFollowed = !!post.follows?.some(
-        f =>
-          f.followerId.toString() === userId?.toString() &&
-          f.followerRole === userRole &&
-          f.followingId.toString() === doctor?._id?.toString()
-      );
+        const isLiked = !!likedPost;
 
-      return {
-        ...post.toObject(),
-        creator: {
-          _id: doctor?._id || post.doctor,
-          name,
-          location: city,
-          position,
-          profilePhoto: doctor?.profilePhoto || null,
-          role: doctor ? 'doctor' : 'admin'
-        },
-        isLiked,
-        isFollowed
-      };
-    });
+        // CHECK FOLLOW
+        const followedDoctor = await Follow.findOne({
+          followerId: userId,
+          followerRole: userRole,
+          followingId: doctor?._id
+        });
+
+        const isFollowed = !!followedDoctor;
+
+        return {
+          ...post.toObject(),
+          creator: {
+            _id: doctor?._id || post.doctor,
+            name,
+            location: city,
+            position,
+            profilePhoto: doctor?.profilePhoto || null,
+            role: doctor ? 'doctor' : 'admin'
+          },
+          isLiked,
+          isFollowed
+        };
+      })
+    );
 
     res.json(postsWithCreators);
   } catch (err) {
     next(err);
   }
 };
-
-
 exports.likePost = async (req, res, next) => {
   try {
     const post = await Post.findByIdAndUpdate(
@@ -2135,7 +2221,7 @@ exports.getSocialFeed = async (req, res, next) => {
           const likeUserRole = (like.userRole || "").toLowerCase();
           return likeUserId === userId && likeUserRole === userRole;
         }),
-        isSaved: profile.savedPostIds.has(post._id.toString()),
+        isSaved: profile.savedPostIds.has(postObject._id.toString()),
       };
     });
 

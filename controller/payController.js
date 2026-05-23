@@ -715,6 +715,88 @@ const recalculateLedger = (payment) => {
   }
 };
 
+const BOOKING_PAYMENT_METHODS = new Set(["Online", "Cash", "UPI"]);
+
+const toBookingPaymentMethod = (method) => {
+  if (BOOKING_PAYMENT_METHODS.has(method)) return method;
+  return method ? "UPI" : "None";
+};
+
+const toBookingPaymentStatus = (payment) => {
+  const totalPaid = Number(payment.totalPaid || 0);
+  const remainingBalance = Number(payment.remainingBalance || 0);
+
+  if (totalPaid <= 0) return "Unpaid";
+  if (remainingBalance <= 0) return "Paid";
+  return "Partially Paid";
+};
+
+const toBookingPaymentStage = (stage) =>
+  stage === "Advance" ? "Booking" : "TreatmentCompletion";
+
+const buildBookingPaymentSnapshot = (payment) => {
+  const paidTransactions = (payment.transactions || []).filter(
+    (transaction) => transaction.status === "Paid",
+  );
+  const latestPaidTransaction = [...paidTransactions].sort(
+    (left, right) =>
+      new Date(right.paidAt || right.createdAt || 0) -
+      new Date(left.paidAt || left.createdAt || 0),
+  )[0];
+  const latestOnlineTransaction = [...paidTransactions]
+    .filter((transaction) => transaction.method === "Online")
+    .sort(
+      (left, right) =>
+        new Date(right.paidAt || right.createdAt || 0) -
+        new Date(left.paidAt || left.createdAt || 0),
+    )[0];
+  const advanceAmount = paidTransactions
+    .filter((transaction) => transaction.stage === "Advance")
+    .reduce(
+      (sum, transaction) => sum + Number(transaction.amountPaid || 0),
+      0,
+    );
+  const remainingBalance = Number(payment.remainingBalance || 0);
+
+  return {
+    paymentStatus: toBookingPaymentStatus(payment),
+    paymentMethod: toBookingPaymentMethod(latestPaidTransaction?.method),
+    advanceAmount: Number(advanceAmount.toFixed(2)),
+    paidAmount: Number(Number(payment.totalPaid || 0).toFixed(2)),
+    dueAmount: Number(remainingBalance.toFixed(2)),
+    isAdvancePaid: advanceAmount > 0,
+    isFinalPaymentDone: Number(payment.totalPaid || 0) > 0 && remainingBalance <= 0,
+    payNow: remainingBalance > 0,
+    lastRazorpayOrderId: latestOnlineTransaction?.razorpayOrderId || null,
+    lastRazorpayPaymentId: latestOnlineTransaction?.razorpayPaymentId || null,
+    paymentHistory: paidTransactions.map((transaction) => ({
+      amount: Number(transaction.amountPaid || 0),
+      method: toBookingPaymentMethod(transaction.method),
+      stage: toBookingPaymentStage(transaction.stage),
+      razorpayOrderId: transaction.razorpayOrderId || null,
+      razorpayPaymentId: transaction.razorpayPaymentId || null,
+      paidAt: transaction.paidAt || transaction.updatedAt || new Date(),
+      note: transaction.note || "",
+    })),
+  };
+};
+
+const syncBookingsFromPaymentLedger = async (payment) => {
+  const bookingIds = (payment.bookingIds || []).filter(Boolean);
+  const query = {
+    $or: [
+      ...(bookingIds.length ? [{ _id: { $in: bookingIds } }] : []),
+      ...(payment.treatmentId ? [{ treatmentId: payment.treatmentId }] : []),
+    ],
+  };
+
+  if (!query.$or.length) return;
+
+  await Booking.updateMany(query, {
+    $set: buildBookingPaymentSnapshot(payment),
+  });
+};
+
 const syncPaymentLedger = async (payment, treatment) => {
   const bookings = await Booking.find({ treatmentId: treatment._id }).select(
     "_id pricing.totalAmount servicePartnerId",
@@ -985,6 +1067,7 @@ if (existingPending) {
 
     recalculateLedger(payment);
     await payment.save();
+    await syncBookingsFromPaymentLedger(payment);
 
     return res.status(200).json({
       success: true,
@@ -1213,6 +1296,7 @@ exports.recordManualPayment = async (req, res) => {
     payment.lastWebhookProcessedAt = new Date();
     recalculateLedger(payment);
     await payment.save();
+    await syncBookingsFromPaymentLedger(payment);
 
     return res.status(200).json({
       success: true,
@@ -1304,6 +1388,7 @@ exports.recordManualRefund = async (req, res) => {
     payment.lastWebhookProcessedAt = new Date();
     recalculateLedger(payment);
     await payment.save();
+    await syncBookingsFromPaymentLedger(payment);
 
     return res.status(200).json({
       success: true,
@@ -1461,6 +1546,7 @@ exports.verifyQrPaymentIntent = async (req, res) => {
     payment.lastWebhookProcessedAt = new Date();
     recalculateLedger(payment);
     await payment.save();
+    await syncBookingsFromPaymentLedger(payment);
 
     intent.status = "verified";
     intent.verifiedAt = new Date();

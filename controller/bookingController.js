@@ -22,6 +22,82 @@ const fs = require('fs');
 const { generateInvoicePdf } = require('../utils/generateInvoicePdf'); // Your PDF generator path
 const  uploadFile  = require('../utils/uploadFile')
 const razorpayInstance = require("../config/razorpay");
+
+const getBookingTreatmentId = (booking) =>
+  booking?.treatmentId?._id
+    ? String(booking.treatmentId._id)
+    : booking?.treatmentId
+    ? String(booking.treatmentId)
+    : null;
+
+const buildBookingPaymentView = (booking, payment) => {
+  const transactions = Array.isArray(payment?.transactions)
+    ? payment.transactions
+    : [];
+  const paidTransactions = transactions.filter(
+    (transaction) => transaction.status === "Paid"
+  );
+  const latestPaidTransaction = [...paidTransactions].sort(
+    (left, right) =>
+      new Date(right.paidAt || right.createdAt || 0) -
+      new Date(left.paidAt || left.createdAt || 0)
+  )[0];
+  const latestOnlineTransaction = [...paidTransactions]
+    .filter((transaction) => transaction.method === "Online")
+    .sort(
+      (left, right) =>
+        new Date(right.paidAt || right.createdAt || 0) -
+        new Date(left.paidAt || left.createdAt || 0)
+    )[0];
+  const advanceAmount = paidTransactions
+    .filter((transaction) => transaction.stage === "Advance")
+    .reduce(
+      (sum, transaction) =>
+        sum + Number(transaction.amountPaid ?? transaction.amount ?? 0),
+      0
+    );
+  const paidAmount = Number(payment?.totalPaid ?? booking?.paidAmount ?? 0);
+  const totalRefunded = Number(payment?.totalRefunded ?? 0);
+  const baseBillAmount = Number(
+    payment?.totalBillAmount ?? booking?.pricing?.totalAmount ?? 0
+  );
+  const dueAmount = Number(
+    payment?.remainingBalance ??
+      booking?.dueAmount ??
+      Math.max(baseBillAmount - paidAmount + totalRefunded, 0)
+  );
+  const rawPaymentStatus = payment?.paymentStatus || booking?.paymentStatus || "Unpaid";
+
+  return {
+    paymentStatus:
+      rawPaymentStatus === "PartialRefund" ? "Partial Refund" : rawPaymentStatus,
+    paymentMethod: latestPaidTransaction?.method || booking?.paymentMethod || "None",
+    advanceAmount,
+    paidAmount,
+    dueAmount,
+    isAdvancePaid: advanceAmount > 0 || Boolean(booking?.isAdvancePaid),
+    isFinalPaymentDone: paidAmount > 0 && dueAmount === 0,
+    payNow: dueAmount > 0,
+    lastRazorpayOrderId:
+      latestOnlineTransaction?.razorpayOrderId ||
+      booking?.lastRazorpayOrderId ||
+      null,
+    lastRazorpayPaymentId:
+      latestOnlineTransaction?.razorpayPaymentId ||
+      booking?.lastRazorpayPaymentId ||
+      null,
+    paymentHistory: transactions.map((transaction) => ({
+      amount: Number(transaction.amountPaid ?? transaction.amount ?? 0),
+      method: transaction.method || "None",
+      stage: transaction.stage || null,
+      razorpayOrderId: transaction.razorpayOrderId || null,
+      razorpayPaymentId: transaction.razorpayPaymentId || null,
+      note: transaction.note || "",
+      paidAt: transaction.paidAt || null,
+      status: transaction.status || null,
+    })),
+  };
+};
 //original one
 // exports.createBooking = async (req, res) => {
 //   const session = await mongoose.startSession();
@@ -1823,20 +1899,14 @@ exports.getBookedServicesByPatientId = async (req, res) => {
         .sort({ appointmentDate: -1, createdAt: -1 });
 
     const enrichBookingsWithPaymentDetails = async (bookingDocs) => {
-      if (details !== "full" || !bookingDocs.length) {
+      if (!bookingDocs.length) {
         return bookingDocs;
       }
 
       const treatmentIds = [
         ...new Set(
           bookingDocs
-            .map((booking) =>
-              booking.treatmentId?._id
-                ? String(booking.treatmentId._id)
-                : booking.treatmentId
-                ? String(booking.treatmentId)
-                : null
-            )
+            .map((booking) => getBookingTreatmentId(booking))
             .filter(Boolean)
         ),
       ];
@@ -1849,86 +1919,13 @@ exports.getBookedServicesByPatientId = async (req, res) => {
       );
 
       return bookingDocs.map((booking) => {
-        const treatmentId = booking.treatmentId?._id
-          ? String(booking.treatmentId._id)
-          : booking.treatmentId
-          ? String(booking.treatmentId)
-          : null;
+        const treatmentId = getBookingTreatmentId(booking);
         const payment = treatmentId ? paymentMap.get(treatmentId) : null;
-        const transactions = Array.isArray(payment?.transactions)
-          ? payment.transactions
-          : [];
-        const paidTransactions = transactions.filter(
-          (transaction) => transaction.status === "Paid"
-        );
-        const advanceAmount = paidTransactions
-          .filter((transaction) => transaction.stage === "Advance")
-          .reduce(
-            (sum, transaction) =>
-              sum + Number(transaction.amountPaid ?? transaction.amount ?? 0),
-            0
-          );
-        const latestPaidTransaction = [...paidTransactions].sort(
-          (left, right) =>
-            new Date(right.paidAt || right.createdAt || 0) -
-            new Date(left.paidAt || left.createdAt || 0)
-        )[0];
-        const latestOnlineTransaction = [...paidTransactions]
-          .filter(
-            (transaction) =>
-              transaction.method === "Online" ||
-              transaction.gateway === "Razorpay"
-          )
-          .sort(
-            (left, right) =>
-              new Date(right.paidAt || right.createdAt || 0) -
-              new Date(left.paidAt || left.createdAt || 0)
-          )[0];
-        const paidAmount = Number(
-          payment?.totalPaid ?? payment?.totals?.totalPaid ?? 0
-        );
-        const totalRefunded = Number(
-          payment?.totalRefunded ?? payment?.totals?.totalRefunded ?? 0
-        );
-        const baseBillAmount = Number(
-          payment?.totalBillAmount ??
-            payment?.billableAmount ??
-            booking.pricing?.totalAmount ??
-            0
-        );
-        const dueAmount = Number(
-          payment?.remainingBalance ??
-            payment?.totals?.remainingBalance ??
-            Math.max(baseBillAmount - paidAmount + totalRefunded, 0)
-        );
-        const rawPaymentStatus = payment?.paymentStatus || "Unpaid";
 
         return {
           ...booking,
           treatmentStatus: booking.treatmentId?.status || null,
-          paymentStatus:
-            rawPaymentStatus === "PartialRefund"
-              ? "Partial Refund"
-              : rawPaymentStatus,
-          paymentMethod: latestPaidTransaction?.method || "None",
-          advanceAmount,
-          paidAmount,
-          dueAmount,
-          isAdvancePaid: advanceAmount > 0,
-          isFinalPaymentDone: paidAmount > 0 && dueAmount === 0,
-          lastRazorpayOrderId: latestOnlineTransaction?.razorpayOrderId || null,
-          lastRazorpayPaymentId:
-            latestOnlineTransaction?.razorpayPaymentId || null,
-          paymentHistory: transactions.map((transaction) => ({
-            amount: Number(transaction.amountPaid ?? transaction.amount ?? 0),
-            method: transaction.method || "None",
-            stage: transaction.stage || null,
-            razorpayOrderId: transaction.razorpayOrderId || null,
-            razorpayPaymentId: transaction.razorpayPaymentId || null,
-            note: transaction.note || "",
-            paidAt: transaction.paidAt || null,
-            status: transaction.status || null,
-          })),
+          ...buildBookingPaymentView(booking, payment),
         };
       });
     };
@@ -3354,6 +3351,7 @@ exports.getByIdBooking = async (req, res) => {
     const actionRecommendations = [];
     const bookingStatus = String(booking.status || "");
     const paymentStatus = String(paymentLedger?.paymentStatus || booking.paymentStatus || "Unpaid");
+    const paymentView = buildBookingPaymentView(booking, paymentLedger);
     const treatmentStatus = String(treatment?.status || "Active");
     const treatmentValidityMs = treatment?.validTill
       ? new Date(treatment.validTill).getTime() - now.getTime()
@@ -3581,9 +3579,17 @@ exports.getByIdBooking = async (req, res) => {
         slotTime: booking.slotTime,
         status: booking.status,
         pricing: booking.pricing,
-        paymentStatus: booking.paymentStatus,
-        paidAmount: booking.paidAmount || 0,
-        dueAmount: booking.dueAmount || 0,
+        paymentStatus: paymentView.paymentStatus,
+        paymentMethod: paymentView.paymentMethod,
+        advanceAmount: paymentView.advanceAmount,
+        paidAmount: paymentView.paidAmount,
+        dueAmount: paymentView.dueAmount,
+        isAdvancePaid: paymentView.isAdvancePaid,
+        isFinalPaymentDone: paymentView.isFinalPaymentDone,
+        payNow: paymentView.payNow,
+        lastRazorpayOrderId: paymentView.lastRazorpayOrderId,
+        lastRazorpayPaymentId: paymentView.lastRazorpayPaymentId,
+        paymentHistory: paymentView.paymentHistory,
         sessionNumber: booking.sessionNumber || 1,
         createdAt: booking.createdAt,
         updatedAt: booking.updatedAt,
@@ -4673,14 +4679,35 @@ exports.getBookingsByServiceProvider = async (req, res, next) => {
                 path: 'treatmentId',
                 select: 'status validTill'
             })
+            .lean()
             .sort({ createdAt: -1 });
+
+        const bookingTreatmentIds = [
+            ...new Set(bookings.map((booking) => getBookingTreatmentId(booking)).filter(Boolean))
+        ];
+        const payments = bookingTreatmentIds.length
+            ? await Payment.find({ treatmentId: { $in: bookingTreatmentIds } }).lean()
+            : [];
+        const paymentMap = new Map(
+            payments.map((payment) => [String(payment.treatmentId), payment])
+        );
+        const responseData = bookings.map((booking) => {
+            const treatmentId = getBookingTreatmentId(booking);
+            const payment = treatmentId ? paymentMap.get(treatmentId) : null;
+
+            return {
+                ...booking,
+                treatmentStatus: booking.treatmentId?.status || null,
+                ...buildBookingPaymentView(booking, payment),
+            };
+        });
 
         // 3. Return response (UNCHANGED)
         return res.status(200).json({
             success: true,
-            count: bookings.length,
-            message: bookings.length === 0 ? "No bookings found" : "Bookings retrieved successfully",
-            data: bookings
+            count: responseData.length,
+            message: responseData.length === 0 ? "No bookings found" : "Bookings retrieved successfully",
+            data: responseData
         });
 
     } catch (err) {
