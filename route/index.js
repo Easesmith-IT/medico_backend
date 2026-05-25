@@ -56,6 +56,7 @@ const adminPaymentRoute = require("../route/adminPaymentRoute");
 const medicalRecordRoute = require("../route/medicalRecordRoute");
 const reviewRoute = require("../route/reviewRoute");
 const supportRoute = require("../route/supportRoute");
+const doctorAppointmentRoute = require("../route/doctorAppointmentRoute");
 
 const router = express.Router();
 
@@ -81,5 +82,6 @@ router.use('/payments', paymentRoute);
 router.use('/medical-records', medicalRecordRoute);
 router.use('/reviews', reviewRoute);
 router.use('/support', supportRoute);
+router.use('/doctor-appointments', doctorAppointmentRoute);
 router.use('/seperatepatientAddress', seperatePatientAddressRoute)
 module.exports = router;
