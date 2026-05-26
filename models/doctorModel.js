@@ -1067,6 +1067,10 @@ const doctorSchema = new mongoose.Schema({
           type: mongoose.Schema.Types.ObjectId, 
           ref: 'Booking' 
         },
+        doctorAppointmentId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'DoctorAppointment'
+        },
         status: {
           type: String,
           enum: ['available', 'booked', 'blocked'],

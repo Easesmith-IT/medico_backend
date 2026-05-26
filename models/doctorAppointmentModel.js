@@ -40,6 +40,21 @@ const doctorAppointmentSchema = new mongoose.Schema(
       default: 30,
       min: 1,
     },
+    serviceType: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    mode: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    consultationFees: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     status: {
       type: String,
       enum: [
@@ -52,8 +67,15 @@ const doctorAppointmentSchema = new mongoose.Schema(
         "In-Progress",
         "Completed",
         "TreatmentCompleted",
+        "Confirmed",
+        "Started",
       ],
       default: "Pending",
+    },
+    statusReason: {
+      type: String,
+      default: "",
+      trim: true,
     },
     notes: {
       type: String,
@@ -76,13 +98,13 @@ const doctorAppointmentSchema = new mongoose.Schema(
     createdBy: {
       userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Doctor",
+        refPath: "createdBy.userModel",
         required: true,
       },
       userModel: {
         type: String,
-        enum: ["Doctor"],
-        default: "Doctor",
+        enum: ["Patient", "Doctor", "Admin", "SuperAdmin"],
+        default: "Patient",
       },
     },
     isDeleted: {
@@ -97,5 +119,11 @@ doctorAppointmentSchema.index({ doctorId: 1, appointmentDate: 1 });
 doctorAppointmentSchema.index({ patientId: 1, appointmentDate: -1 });
 doctorAppointmentSchema.index({ status: 1 });
 doctorAppointmentSchema.index({ previousAppointmentId: 1 });
+doctorAppointmentSchema.index({
+  doctorId: 1,
+  appointmentDate: 1,
+  "slotTime.startTime": 1,
+  "slotTime.endTime": 1,
+});
 
 module.exports = mongoose.model("DoctorAppointment", doctorAppointmentSchema);
