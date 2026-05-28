@@ -343,14 +343,48 @@ const releaseDoctorSlot = async ({ doctorId, appointmentId, appointmentDate, sta
   );
 };
 
+const reserveSlotForAppointment = async ({
+  doctorId,
+  appointmentId,
+  dayRange,
+  startTime,
+  endTime,
+  duration,
+}) => {
+  let reservedDoctor = await reserveDoctorSlot({
+    doctorId,
+    appointmentId,
+    dayStart: dayRange.start,
+    dayEnd: dayRange.end,
+    startTime,
+    endTime,
+  });
+
+  if (!reservedDoctor) {
+    reservedDoctor = await reserveDoctorSlotFromWeeklyAvailability({
+      doctorId,
+      appointmentId,
+      dayStart: dayRange.start,
+      dayEnd: dayRange.end,
+      startTime,
+      endTime,
+      duration,
+    });
+  }
+
+  return reservedDoctor;
+};
+
 exports.createDoctorAppointment = async (req, res) => {
   const appointmentId = new mongoose.Types.ObjectId();
   let slotReserved = false;
 
   try {
-    const patientId = req.user?.id || req.user?._id;
+    const loggedInUserId = req.user?.id || req.user?._id;
+    const userRole = String(req.user?.role || "").toLowerCase().replace(/[_\s]/g, "");
     const {
-      doctorId,
+      doctorId: requestedDoctorId,
+      patientId: requestedPatientId,
       previousAppointmentId,
       appointmentDate,
       startTime,
@@ -362,10 +396,17 @@ exports.createDoctorAppointment = async (req, res) => {
       mode,
     } = req.body || {};
 
+    const isDoctorRequest = userRole === "doctor";
+    const isPatientRequest = userRole === "patient";
+    const patientId = isDoctorRequest ? requestedPatientId : loggedInUserId;
+    const doctorId = isDoctorRequest ? loggedInUserId : requestedDoctorId;
+
     if (!patientId) {
       return res.status(400).json({
         success: false,
-        message: "Patient ID not found in token",
+        message: isDoctorRequest
+          ? "patientId is required for doctor-created appointments"
+          : "Patient ID not found in token",
       });
     }
 
@@ -373,6 +414,13 @@ exports.createDoctorAppointment = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "doctorId, appointmentDate, startTime and endTime are required",
+      });
+    }
+
+    if (isDoctorRequest && requestedDoctorId && String(requestedDoctorId) !== String(loggedInUserId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Doctors can create appointments only for themselves",
       });
     }
 
@@ -474,27 +522,14 @@ exports.createDoctorAppointment = async (req, res) => {
     }
 
     const appointmentDuration = resolveDuration(startTime, endTime, duration);
-    let reservedDoctor = await reserveDoctorSlot({
+    const reservedDoctor = await reserveSlotForAppointment({
       doctorId,
       appointmentId,
-      dayStart: dayRange.start,
-      dayEnd: dayRange.end,
+      dayRange,
       startTime,
       endTime,
+      duration: appointmentDuration,
     });
-
-    if (!reservedDoctor) {
-      reservedDoctor = await reserveDoctorSlotFromWeeklyAvailability({
-        doctorId,
-        appointmentId,
-        dayStart: dayRange.start,
-        dayEnd: dayRange.end,
-        startTime,
-        endTime,
-        duration: appointmentDuration,
-      });
-    }
-
     slotReserved = Boolean(reservedDoctor);
 
     const appointment = await DoctorAppointment.create({
@@ -516,8 +551,8 @@ exports.createDoctorAppointment = async (req, res) => {
       city: bookingCity?._id || null,
       treatmentFlow: Boolean(previousAppointment),
       createdBy: {
-        userId: patientId,
-        userModel: "Patient",
+        userId: loggedInUserId,
+        userModel: isDoctorRequest ? "Doctor" : "Patient",
       },
     });
     slotReserved = false;
@@ -568,7 +603,13 @@ exports.createDoctorAppointment = async (req, res) => {
 
 exports.getMyPatientDoctorAppointments = async (req, res) => {
   try {
-    const patientId = req.user?.id || req.user?._id;
+    const userId = req.user?.id || req.user?._id;
+    const userRole = String(req.user?.role || "").toLowerCase().replace(/[_\s]/g, "");
+    if (userRole === "doctor") {
+      return listAppointments({ doctorId: userId }, req, res);
+    }
+
+    const patientId = userId;
     return listAppointments({ patientId }, req, res);
   } catch (error) {
     return res.status(500).json({
@@ -710,6 +751,163 @@ exports.updateDoctorAppointmentStatus = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to update doctor appointment status",
+      error: error.message,
+    });
+  }
+};
+
+exports.rescheduleDoctorAppointment = async (req, res) => {
+  const doctorId = req.user?.id || req.user?._id;
+  const appointmentId = req.params.appointmentId || req.params.id;
+  let newSlotReserved = false;
+  let oldSlotReleased = false;
+  let oldSlot = null;
+  let newSlot = null;
+
+  try {
+    const { appointmentDate, startTime, endTime, duration, notes, statusReason } = req.body || {};
+
+    if (!appointmentId || !appointmentDate || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: "appointmentId, appointmentDate, startTime and endTime are required",
+      });
+    }
+
+    const dayRange = getDayRange(appointmentDate);
+    if (!dayRange) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid appointmentDate",
+      });
+    }
+
+    const startMinutes = toMinutes(startTime);
+    const endMinutes = toMinutes(endTime);
+    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid startTime or endTime",
+      });
+    }
+
+    const appointment = await DoctorAppointment.findOne({
+      _id: appointmentId,
+      doctorId,
+      isDeleted: false,
+    });
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor appointment not found or not assigned to you",
+      });
+    }
+
+    if (CANCELLED_STATUSES.includes(appointment.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot reschedule cancelled or rejected doctor appointments",
+      });
+    }
+
+    const conflict = await DoctorAppointment.findOne({
+      _id: { $ne: appointment._id },
+      doctorId,
+      appointmentDate: { $gte: dayRange.start, $lte: dayRange.end },
+      status: { $in: ACTIVE_STATUSES },
+      "slotTime.startTime": startTime,
+      "slotTime.endTime": endTime,
+      isDeleted: false,
+    }).lean();
+
+    if (conflict) {
+      return res.status(409).json({
+        success: false,
+        message: "The selected doctor slot is already booked. Choose another slot.",
+      });
+    }
+
+    oldSlot = {
+      appointmentDate: appointment.appointmentDate,
+      startTime: appointment.slotTime.startTime,
+      endTime: appointment.slotTime.endTime,
+    };
+    newSlot = {
+      appointmentDate,
+      startTime,
+      endTime,
+    };
+
+    const appointmentDuration = resolveDuration(startTime, endTime, duration);
+    const reservedDoctor = await reserveSlotForAppointment({
+      doctorId,
+      appointmentId: appointment._id,
+      dayRange,
+      startTime,
+      endTime,
+      duration: appointmentDuration,
+    });
+    newSlotReserved = Boolean(reservedDoctor);
+
+    appointment.appointmentDate = new Date(appointmentDate);
+    appointment.slotTime = { startTime, endTime };
+    appointment.duration = appointmentDuration;
+    appointment.status = "Rescheduled";
+    if (notes !== undefined) appointment.notes = notes;
+    if (statusReason !== undefined) appointment.statusReason = statusReason;
+    await appointment.save();
+
+    await releaseDoctorSlot({
+      doctorId,
+      appointmentId: appointment._id,
+      appointmentDate: oldSlot.appointmentDate,
+      startTime: oldSlot.startTime,
+      endTime: oldSlot.endTime,
+    });
+    oldSlotReleased = true;
+
+    const populatedAppointment = await DoctorAppointment.findById(appointment._id)
+      .populate("doctorId", "firstName lastName email phone specialization consultationFees")
+      .populate("patientId", "firstName lastName email phone mobile profilePhoto")
+      .populate("city", "name")
+      .populate("previousAppointmentId", "appointmentDate status")
+      .populate("nextAppointmentId", "appointmentDate status")
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      message: "Doctor appointment rescheduled successfully",
+      data: populatedAppointment,
+    });
+  } catch (error) {
+    if (newSlotReserved && newSlot) {
+      await releaseDoctorSlot({
+        doctorId,
+        appointmentId,
+        appointmentDate: newSlot.appointmentDate,
+        startTime: newSlot.startTime,
+        endTime: newSlot.endTime,
+      });
+    }
+
+    if (oldSlotReleased && oldSlot) {
+      const oldDayRange = getDayRange(oldSlot.appointmentDate);
+      if (oldDayRange) {
+        await reserveSlotForAppointment({
+          doctorId,
+          appointmentId,
+          dayRange: oldDayRange,
+          startTime: oldSlot.startTime,
+          endTime: oldSlot.endTime,
+          duration: resolveDuration(oldSlot.startTime, oldSlot.endTime),
+        });
+      }
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reschedule doctor appointment",
       error: error.message,
     });
   }

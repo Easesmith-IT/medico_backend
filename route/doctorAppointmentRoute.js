@@ -35,6 +35,12 @@ router.patch(
 );
 
 router.put(
+  "/:appointmentId/reschedule",
+  protect("doctor"),
+  doctorAppointmentController.rescheduleDoctorAppointment
+);
+
+router.put(
   "/:appointmentId/cancel",
   protect("patient"),
   doctorAppointmentController.cancelMyDoctorAppointment
