@@ -6,13 +6,13 @@ const router = express.Router();
 
 router.post(
   "/create",
-  protect("patient"),
+  protect("patient","doctor"),
   doctorAppointmentController.createDoctorAppointment
 );
 
 router.get(
   "/my-appointments",
-  protect("patient"),
+  protect("patient","doctor"),
   doctorAppointmentController.getMyPatientDoctorAppointments
 );
 
