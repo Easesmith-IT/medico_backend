@@ -1134,11 +1134,41 @@ exports.updateAvailability = catchAsync(async (req, res, next) => {
 // CLINIC MANAGEMENT
 // ============================================
 
-exports.addClinic = catchAsync(async (req, res, next) => {
-  const clinicData = req.body;
+// exports.addClinic = catchAsync(async (req, res, next) => {
+//   const clinicData = req.body;
 
-  if (!clinicData.clinicfirstName || !clinicData.address) {
-    return next(new AppError('Please provide clinic firstName and address', 400));
+//   // if (!clinicData.clinicfirstName || !clinicData.address) {
+//   //   return next(new AppError('Please provide clinic firstName and address', 400));
+//   // }
+// if (!clinicData.clinicName || !clinicData.address) {
+//   return next(new AppError('Please provide clinic name and address', 400));
+// }
+//   const doctor = await Doctor.findById(req.user?._id || req.user?.id);
+
+//   if (!doctor) {
+//     return next(new AppError('Doctor not found', 404));
+//   }
+
+//   doctor.clinics.push(clinicData);
+//   await doctor.save();
+
+//   res.status(201).json({
+//     success: true,
+//     message: 'Clinic added successfully',
+//     data: { clinics: doctor.clinics }
+//   });
+// });
+
+
+
+
+
+
+exports.addClinic = catchAsync(async (req, res, next) => {
+  const { clinics } = req.body;
+
+  if (!clinics || !Array.isArray(clinics) || clinics.length === 0) {
+    return next(new AppError('Please provide clinics array', 400));
   }
 
   const doctor = await Doctor.findById(req.user?._id || req.user?.id);
@@ -1147,19 +1177,301 @@ exports.addClinic = catchAsync(async (req, res, next) => {
     return next(new AppError('Doctor not found', 404));
   }
 
-  doctor.clinics.push(clinicData);
+  if (!Array.isArray(doctor.clinics)) {
+    doctor.clinics = [];
+  }
+
+  const preparedClinics = [];
+
+  for (const clinic of clinics) {
+    if (!clinic.clinicName || !clinic.address) {
+      return next(
+        new AppError('Each clinic must have clinicName and address', 400)
+      );
+    }
+
+    if (!clinic.cityId) {
+      return next(new AppError('cityId is required for each clinic', 400));
+    }
+
+    if (
+      !clinic.location ||
+      clinic.location.type !== 'Point' ||
+      !Array.isArray(clinic.location.coordinates) ||
+      clinic.location.coordinates.length !== 2
+    ) {
+      return next(
+        new AppError('Each clinic must have valid location coordinates', 400)
+      );
+    }
+
+    const doctorHasCity = doctor.cities.some(
+      (city) => city.toString() === clinic.cityId.toString()
+    );
+
+    if (!doctorHasCity) {
+      return next(
+        new AppError('Doctor is not allowed to add clinic in this city', 403)
+      );
+    }
+
+    // const matchedCity = await City.findOne({
+    //   _id: clinic.cityId,
+    //   isActive: true,
+    //   area: {
+    //     $geoWithin: {
+    //       $geometry: {
+    //         type: 'Point',
+    //         coordinates: clinic.location.coordinates
+    //       }
+    //     }
+    //   }
+    // });
+
+
+
+    // Simply verify that the city exists and is active in your database
+const matchedCity = await City.findOne({
+  _id: clinic.cityId,
+  isActive: true
+});
+
+if (!matchedCity) {
+  return next(
+    new AppError('The selected city is either invalid or inactive', 400)
+  );
+}
+    // if (!matchedCity) {
+    //   return next(
+    //     new AppError('Clinic location is outside the selected city area', 400)
+    //   );
+    // }
+
+    preparedClinics.push({
+      ...clinic,
+      doctorId: doctor._id,
+      cityId: clinic.cityId
+    });
+  }
+
+  doctor.clinics.push(...preparedClinics);
   await doctor.save();
 
   res.status(201).json({
     success: true,
-    message: 'Clinic added successfully',
-    data: { clinics: doctor.clinics }
+    message: 'Clinics added successfully',
+    data: {
+      doctorId: doctor._id,
+      clinics: doctor.clinics
+    }
+  });
+});
+// exports.addClinic = catchAsync(async (req, res, next) => {
+//   const { clinics } = req.body;
+
+//   if (!clinics || !Array.isArray(clinics) || clinics.length === 0) {
+//     return next(new AppError('Please provide clinics array', 400));
+//   }
+
+//   for (const clinic of clinics) {
+//     if (!clinic.clinicName || !clinic.address) {
+//       return next(
+//         new AppError('Each clinic must have clinicName and address', 400)
+//       );
+//     }
+//   }
+
+//   const doctor = await Doctor.findById(req.user?._id || req.user?.id);
+
+//   if (!doctor) {
+//     return next(new AppError('Doctor not found', 404));
+//   }
+
+//   doctor.clinics.push(...clinics);
+
+//   await doctor.save();
+
+//   res.status(201).json({
+//     success: true,
+//     message: 'Clinics added successfully',
+//     data: {
+//       clinics: doctor.clinics
+//     }
+//   });
+// });
+exports.updateClinic = catchAsync(async (req, res, next) => {
+  const { clinicId } = req.params;
+  const { clinics } = req.body;
+
+  const doctor = await Doctor.findById(req.user?._id || req.user?.id);
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  // =========================
+  // MULTIPLE CLINICS UPDATE
+  // =========================
+  if (Array.isArray(clinics) && clinics.length > 0) {
+
+    const updatedClinics = [];
+
+    clinics.forEach((clinicData) => {
+      if (!clinicData._id) {
+        return;
+      }
+
+      const clinic = doctor.clinics.id(clinicData._id);
+
+      if (clinic) {
+        Object.assign(clinic, clinicData);
+        updatedClinics.push(clinic);
+      }
+    });
+
+    await doctor.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Clinics updated successfully',
+      data: {
+        clinics: updatedClinics
+      }
+    });
+  }
+
+  // =========================
+  // SINGLE CLINIC UPDATE
+  // =========================
+  const clinic = doctor.clinics.id(clinicId);
+
+  if (!clinic) {
+    return next(new AppError('Clinic not found', 404));
+  }
+
+  Object.assign(clinic, req.body);
+
+  await doctor.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Clinic updated successfully',
+    data: {
+      clinic
+    }
   });
 });
 
-exports.updateClinic = catchAsync(async (req, res, next) => {
+
+exports.deleteClinic = catchAsync(async (req, res, next) => {
   const { clinicId } = req.params;
-  const updateData = req.body;
+  const { clinicIds } = req.body;
+
+  const doctor = await Doctor.findById(req.user?._id || req.user?.id);
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  // =========================
+  // MULTIPLE CLINICS DELETE
+  // =========================
+  if (Array.isArray(clinicIds) && clinicIds.length > 0) {
+
+    clinicIds.forEach((id) => {
+      doctor.clinics.pull(id);
+    });
+
+    await doctor.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Clinics deleted successfully',
+      data: null
+    });
+  }
+
+  // =========================
+  // SINGLE CLINIC DELETE
+  // =========================
+  doctor.clinics.pull(clinicId);
+
+  await doctor.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Clinic deleted successfully',
+    data: null
+  });
+});
+// exports.updateClinic = catchAsync(async (req, res, next) => {
+//   const { clinicId } = req.params;
+//   const updateData = req.body;
+
+//   const doctor = await Doctor.findById(req.user?._id || req.user?.id);
+
+//   if (!doctor) {
+//     return next(new AppError('Doctor not found', 404));
+//   }
+
+//   const clinic = doctor.clinics.id(clinicId);
+
+//   if (!clinic) {
+//     return next(new AppError('Clinic not found', 404));
+//   }
+
+//   Object.assign(clinic, updateData);
+//   await doctor.save();
+
+//   res.status(200).json({
+//     success: true,
+//     message: 'Clinic updated successfully',
+//     data: { clinic }
+//   });
+// });
+
+// exports.deleteClinic = catchAsync(async (req, res, next) => {
+//   const { clinicId } = req.params;
+
+//   const doctor = await Doctor.findById(req.user?._id || req.user?.id);
+
+//   if (!doctor) {
+//     return next(new AppError('Doctor not found', 404));
+//   }
+
+//   doctor.clinics.pull(clinicId);
+//   await doctor.save();
+
+//   res.status(200).json({
+//     success: true,
+//     message: 'Clinic deleted successfully',
+//     data: null
+//   });
+// });
+
+
+
+exports.getAllClinics = catchAsync(async (req, res, next) => {
+
+  const doctor = await Doctor.findById(req.user?._id || req.user?.id);
+
+  if (!doctor) {
+    return next(new AppError('Doctor not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    results: doctor.clinics.length,
+    data: {
+      clinics: doctor.clinics
+    }
+  });
+});
+
+
+exports.getClinicById = catchAsync(async (req, res, next) => {
+
+  const { clinicId } = req.params;
 
   const doctor = await Doctor.findById(req.user?._id || req.user?.id);
 
@@ -1173,34 +1485,17 @@ exports.updateClinic = catchAsync(async (req, res, next) => {
     return next(new AppError('Clinic not found', 404));
   }
 
-  Object.assign(clinic, updateData);
-  await doctor.save();
-
   res.status(200).json({
     success: true,
-    message: 'Clinic updated successfully',
-    data: { clinic }
+    data: {
+      clinic
+    }
   });
 });
 
-exports.deleteClinic = catchAsync(async (req, res, next) => {
-  const { clinicId } = req.params;
 
-  const doctor = await Doctor.findById(req.user?._id || req.user?.id);
 
-  if (!doctor) {
-    return next(new AppError('Doctor not found', 404));
-  }
 
-  doctor.clinics.pull(clinicId);
-  await doctor.save();
-
-  res.status(200).json({
-    success: true,
-    message: 'Clinic deleted successfully',
-    data: null
-  });
-});
 
 // ============================================
 // VERIFICATION DOCUMENTS

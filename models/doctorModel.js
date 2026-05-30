@@ -841,6 +841,64 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+
+
+const clinicSchema = new mongoose.Schema(
+  {
+    doctorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Doctor',
+      required: true,
+      index: true
+    },
+    cityId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'City',
+      required: true,
+      index: true
+    },
+    clinicName: {
+      type: String,
+      required: [true, 'Clinic name is required'],
+      trim: true
+    },
+    address: {
+      street: String,
+      city: String,
+      state: String,
+      pincode: String
+    },
+    contactInfo: {
+      phone: String,
+      email: String
+    },
+    operatingHours: [{
+      day: {
+        type: String,
+        enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+      },
+      slots: [{
+        startTime: String,
+        endTime: String
+      }]
+    }],
+    images: [String],
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number],
+        required: true
+      }
+    },
+    servicesOffered: [String],
+    paymentMethods: [String]
+  },
+  { timestamps: true }
+);
 const doctorSchema = new mongoose.Schema({
   // Personal Information
   firstName: {
@@ -966,43 +1024,43 @@ const doctorSchema = new mongoose.Schema({
   },
 
   // Clinic Details
-  clinics: [{
-    clinicName: String,
-    address: {
-      street: String,
-      city: String,
-      state: String,
-      pincode: String
-    },
-    contactInfo: {
-      phone: String,
-      email: String
-    },
-    operatingHours: [{
-      day: {
-        type: String,
-        enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-      },
-      slots: [{
-        startTime: String,
-        endTime: String
-      }]
-    }],
-    images: [String],
-    location: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point'
-      },
-      coordinates: {
-        type: [Number],
-        index: '2dsphere'
-      }
-    },
-    servicesOffered: [String],
-    paymentMethods: [String]
-  }],
+  // clinics: [{
+  //   clinicName: String,
+  //   address: {
+  //     street: String,
+  //     city: String,
+  //     state: String,
+  //     pincode: String
+  //   },
+  //   contactInfo: {
+  //     phone: String,
+  //     email: String
+  //   },
+  //   operatingHours: [{
+  //     day: {
+  //       type: String,
+  //       enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  //     },
+  //     slots: [{
+  //       startTime: String,
+  //       endTime: String
+  //     }]
+  //   }],
+  //   images: [String],
+  //   location: {
+  //     type: {
+  //       type: String,
+  //       enum: ['Point'],
+  //       default: 'Point'
+  //     },
+  //     coordinates: {
+  //       type: [Number],
+  //       index: '2dsphere'
+  //     }
+  //   },
+  //   servicesOffered: [String],
+  //   paymentMethods: [String]
+  // }],
 
   services: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -1315,10 +1373,17 @@ doctorSchema.index({ subSpecialties: 1 });
 doctorSchema.index({ consultationFees: 1 });
 doctorSchema.index({ averageRating: -1 });
 doctorSchema.index({ "availability.dailySlots.date": 1 });
+// doctorSchema.index({ 
+//   firstName: 'text', 
+//   lastName: 'text', 
+//   socialHandle: 'text',     // ✅ Text search
+//   specialization: 'text'
+// });
+
 doctorSchema.index({ 
   firstName: 'text', 
   lastName: 'text', 
-  socialHandle: 'text',     // ✅ Text search
+  socialHandle: 'text',
   specialization: 'text'
 });
 

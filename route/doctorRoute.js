@@ -121,6 +121,40 @@ router.put('/bulk-manage-slots',
 );
 
 
+
+// Add Clinic - Doctor Only
+router.post(
+  '/addClinic',
+  protect('doctor'),
+  doctorController.addClinic
+);
+
+// Update Clinic - Doctor Only
+router.put(
+  '/updateClinic/:clinicId',
+  protect('doctor'),
+  doctorController.updateClinic
+);
+
+// Delete Clinic - Doctor Only
+router.delete(
+  '/deleteClinic/:clinicId',
+  protect('doctor'),
+  doctorController.deleteClinic
+);
+
+router.get('/clinics', protect('doctor'), doctorController.getAllClinics);
+
+router.get(
+  '/clinics/:clinicId',
+protect('doctor'),
+  doctorController.getClinicById
+);
+
+
+
+
+
 module.exports = router;
 
 
