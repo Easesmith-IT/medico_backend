@@ -143,10 +143,10 @@ router.delete(
   doctorController.deleteClinic
 );
 
-router.get('/clinics', protect('doctor'), doctorController.getAllClinics);
+router.get('/getAllClinics', protect('doctor'), doctorController.getAllClinics);
 
 router.get(
-  '/clinics/:clinicId',
+  '/getClinicById/:clinicId',
 protect('doctor'),
   doctorController.getClinicById
 );
