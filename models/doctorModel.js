@@ -899,6 +899,7 @@ const clinicSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+module.exports = mongoose.models.Clinic || mongoose.model('Clinic', clinicSchema);
 const doctorSchema = new mongoose.Schema({
   // Personal Information
   firstName: {
@@ -1024,43 +1025,7 @@ const doctorSchema = new mongoose.Schema({
   },
 
   // Clinic Details
-  // clinics: [{
-  //   clinicName: String,
-  //   address: {
-  //     street: String,
-  //     city: String,
-  //     state: String,
-  //     pincode: String
-  //   },
-  //   contactInfo: {
-  //     phone: String,
-  //     email: String
-  //   },
-  //   operatingHours: [{
-  //     day: {
-  //       type: String,
-  //       enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-  //     },
-  //     slots: [{
-  //       startTime: String,
-  //       endTime: String
-  //     }]
-  //   }],
-  //   images: [String],
-  //   location: {
-  //     type: {
-  //       type: String,
-  //       enum: ['Point'],
-  //       default: 'Point'
-  //     },
-  //     coordinates: {
-  //       type: [Number],
-  //       index: '2dsphere'
-  //     }
-  //   },
-  //   servicesOffered: [String],
-  //   paymentMethods: [String]
-  // }],
+  clinics: [clinicSchema],
 
   services: [{
     type: mongoose.Schema.Types.ObjectId,

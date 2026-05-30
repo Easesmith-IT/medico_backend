@@ -13,6 +13,7 @@ const { sendOtp } = require('../utils/otpUtils');
 const jwt = require('jsonwebtoken');
 const City = require('../models/availableCities'); 
 const { getChangedFields, writeProfileAudit } = require('../utils/profileAudit');
+const Clinic = require('../models/doctorModel');
 // Import token utilities (NOT from middleware)
 const {
   generateAccessToken,
@@ -1450,9 +1451,7 @@ exports.deleteClinic = catchAsync(async (req, res, next) => {
 // });
 
 
-
 exports.getAllClinics = catchAsync(async (req, res, next) => {
-
   const doctor = await Doctor.findById(req.user?._id || req.user?.id);
 
   if (!doctor) {
@@ -1461,9 +1460,9 @@ exports.getAllClinics = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    results: doctor.clinics.length,
+    results: doctor.clinics ? doctor.clinics.length : 0,
     data: {
-      clinics: doctor.clinics
+      clinics: doctor.clinics || []
     }
   });
 });
