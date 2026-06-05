@@ -37,6 +37,7 @@ exports.createMedicalRecord = catchAsync(async (req, res, next) => {
     patientId: req.body.patientId,
     doctorId: req.body.doctorId || (role === "doctor" ? getUserId(req) : null),
     bookingId: req.body.bookingId || null,
+    appointmentId: req.body.appointmentId || null,
     treatmentId: req.body.treatmentId || null,
     recordType: req.body.recordType,
     title: req.body.title,
@@ -132,4 +133,29 @@ exports.deleteMedicalRecord = catchAsync(async (req, res, next) => {
   await logAccess(req, record._id, "delete");
 
   res.status(200).json({ success: true, message: "Medical record deleted successfully" });
+});
+
+exports.getRecordsByAppointmentId = catchAsync(async (req, res, next) => {
+  const { appointmentId } = req.params;
+  const role = getRole(req);
+  const userId = String(getUserId(req) || "");
+
+  const filter = { appointmentId, isDeleted: false };
+  if (role === "patient") {
+    filter.patientId = userId;
+  } else if (role === "doctor") {
+    filter.doctorId = userId;
+  } else if (!ADMIN_ROLES.has(role)) {
+    return next(new AppError("Access denied", 403));
+  }
+
+  const records = await MedicalRecord.find(filter).sort({ createdAt: -1 });
+  
+  // Log access for the viewed records
+  await Promise.all(records.map((record) => logAccess(req, record._id, "view")));
+
+  res.status(200).json({
+    success: true,
+    data: records,
+  });
 });

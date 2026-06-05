@@ -20,6 +20,12 @@ const medicalRecordSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    appointmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DoctorAppointment",
+      default: null,
+      index: true,
+    },
     treatmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Treatment",

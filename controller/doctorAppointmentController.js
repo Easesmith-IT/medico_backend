@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const DoctorAppointment = require("../models/doctorAppointmentModel");
 const Doctor = require("../models/doctorModel");
 const Patient = require("../models/patientModel");
+const MedicalRecord = require("../models/medicalRecordModel");
 const City = require("../models/availableCities");
 const { calculateAdjustedFee } = require("../utils/feeCalculator");
 
@@ -664,6 +665,15 @@ exports.getDoctorAppointmentById = async (req, res) => {
         message: "Doctor appointment not found",
       });
     }
+
+    // Fetch associated prescriptions and consultation notes
+    const medicalRecords = await MedicalRecord.find({
+      appointmentId,
+      isDeleted: false
+    }).lean();
+
+    appointment.prescriptions = medicalRecords.filter(r => r.recordType === 'prescription');
+    appointment.consultationNotes = medicalRecords.filter(r => r.recordType === 'caseHistory');
 
     return res.status(200).json({
       success: true,
