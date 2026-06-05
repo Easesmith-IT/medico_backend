@@ -1840,6 +1840,7 @@ exports.toggleFollowDoctor = async (req, res, next) => {
     if (!social) {
       social = new Post({
         doctor: targetDoctorId,
+        type: 'TEXT',
         follows: [],
         stats: { followers: 0 },
       });
@@ -1898,8 +1899,12 @@ exports.toggleFollowDoctor = async (req, res, next) => {
     if (userRole === "patient") {
       const patient = await Patient.findById(userId);
       if (patient) {
+        if (!Array.isArray(patient.following)) {
+          patient.following = [];
+        }
+
         const alreadyFollowing = patient.following.some(
-          (doctorId) => doctorId.toString() === targetDoctorId.toString()
+          (doctorId) => doctorId && doctorId.toString() === targetDoctorId.toString()
         );
 
         if (following && !alreadyFollowing) {
@@ -1908,7 +1913,7 @@ exports.toggleFollowDoctor = async (req, res, next) => {
 
         if (!following && alreadyFollowing) {
           patient.following = patient.following.filter(
-            (doctorId) => doctorId.toString() !== targetDoctorId.toString()
+            (doctorId) => doctorId && doctorId.toString() !== targetDoctorId.toString()
           );
         }
 
