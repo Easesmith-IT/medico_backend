@@ -975,7 +975,53 @@ const doctorSchema = new mongoose.Schema({
   },
   consultationFees: {
     type: Number,
-    default: 0
+    default: 0,
+    set: function(val) {
+      if (typeof val === 'number') return val;
+      if (typeof val !== 'string') return val;
+      const cleaned = val.replace(/[$\u20B9€£\s,]/g, '');
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+  },
+  currency: {
+    type: String,
+    enum: ['USD', 'INR', 'EUR', 'GBP'],
+    default: 'INR'
+  },
+  feeAdjustments: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    rules: [{
+      adjustmentType: {
+        type: String,
+        enum: ['weekend', 'peak-hours', 'low-availability', 'custom-date'],
+        required: true
+      },
+      valueType: {
+        type: String,
+        enum: ['percentage', 'absolute'],
+        required: true
+      },
+      value: {
+        type: Number,
+        required: true
+      },
+      startTime: {
+        type: String
+      },
+      endTime: {
+        type: String
+      },
+      thresholdSlots: {
+        type: Number
+      },
+      customDate: {
+        type: Date
+      }
+    }]
   },
 
   // Educational Qualifications
@@ -1351,6 +1397,20 @@ doctorSchema.index({
   socialHandle: 'text',
   specialization: 'text'
 });
+
+doctorSchema.virtual('formattedConsultationFees').get(function() {
+  const symbolMap = {
+    'USD': '$',
+    'INR': '₹',
+    'EUR': '€',
+    'GBP': '£'
+  };
+  const symbol = symbolMap[this.currency || 'INR'] || '₹';
+  return `${symbol}${(this.consultationFees || 0).toLocaleString()}`;
+});
+
+doctorSchema.set('toJSON', { virtuals: true });
+doctorSchema.set('toObject', { virtuals: true });
 
 const Doctor = mongoose.model('Doctor', doctorSchema);
 

@@ -7,6 +7,7 @@
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const Doctor = require('../models/doctorModel');
+const { parseFeesAndCurrency, calculateAdjustedFee } = require('../utils/feeCalculator');
 const Otp = require('../models/otpModel');
 const mongoose = require("mongoose");
 const { sendOtp } = require('../utils/otpUtils');
@@ -347,6 +348,8 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
 
   console.log(`✅ Valid city found: ${city.name} (ID: ${city._id}) - Status: ${city.isActive ? 'Active' : 'Inactive'}`);
 
+  const parsedFee = parseFeesAndCurrency(consultationFees);
+
   // Create new doctor with city reference
   const newDoctor = new Doctor({
     firstName,
@@ -360,7 +363,8 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
     gender,
     address,
     yearsOfExperience: yearsOfExperience || 0,
-    consultationFees: consultationFees || 0,
+    consultationFees: parsedFee.fees,
+    currency: parsedFee.currency || req.body.currency || 'INR',
     degrees: degrees || [],
     university,
     graduationYear,
@@ -858,6 +862,14 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
 
   const doctorId = req.user?._id || req.user?.id;
   const beforeDoctor = await Doctor.findById(doctorId).select('-password -tokenVersion');
+
+  if (updateData.consultationFees !== undefined) {
+    const parsedFee = parseFeesAndCurrency(updateData.consultationFees);
+    updateData.consultationFees = parsedFee.fees;
+    if (parsedFee.currency) {
+      updateData.currency = parsedFee.currency;
+    }
+  }
 
   const updatedDoctor = await Doctor.findByIdAndUpdate(
     doctorId,
@@ -2118,7 +2130,7 @@ exports.getAvailableSlots = async (req, res) => {
     const { startDate, endDate } = req.query;
 
     const doctor = await Doctor.findById(doctorId)
-      .select('firstName specialization availability averageRating consultationFees');
+      .select('firstName specialization availability averageRating consultationFees currency feeAdjustments');
     
     if (!doctor) {
       return res.status(404).json({
@@ -2148,6 +2160,33 @@ exports.getAvailableSlots = async (req, res) => {
       }));
     }
 
+    // Enrich all slots with dynamically adjusted fees
+    const symbolMap = {
+      'USD': '$',
+      'INR': '₹',
+      'EUR': '€',
+      'GBP': '£'
+    };
+    const symbol = symbolMap[doctor.currency || 'INR'] || '₹';
+
+    availableSlots = availableSlots.map((d) => {
+      const enrichedSlots = (d.slots || []).map((s) => {
+        const adjustedFee = calculateAdjustedFee(doctor, d.date, s.startTime, d);
+        const slotObj = typeof s.toObject === 'function' ? s.toObject() : s;
+        return {
+          ...slotObj,
+          price: adjustedFee,
+          currency: doctor.currency || 'INR',
+          formattedPrice: `${symbol}${adjustedFee.toLocaleString()}`
+        };
+      });
+      return {
+        date: d.date,
+        dayOfWeek: d.dayOfWeek,
+        slots: enrichedSlots
+      };
+    });
+
     res.status(200).json({
       success: true,
       doctor: {
@@ -2155,7 +2194,9 @@ exports.getAvailableSlots = async (req, res) => {
         name: doctor.firstName,
         specialization: doctor.specialization,
         rating: doctor.averageRating,
-        fees: doctor.consultationFees
+        fees: doctor.consultationFees,
+        currency: doctor.currency || 'INR',
+        formattedFees: doctor.formattedConsultationFees || `${symbol}${doctor.consultationFees.toLocaleString()}`
       },
       availableSlots
     });

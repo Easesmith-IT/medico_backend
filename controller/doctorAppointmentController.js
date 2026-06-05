@@ -3,6 +3,7 @@ const DoctorAppointment = require("../models/doctorAppointmentModel");
 const Doctor = require("../models/doctorModel");
 const Patient = require("../models/patientModel");
 const City = require("../models/availableCities");
+const { calculateAdjustedFee } = require("../utils/feeCalculator");
 
 const ACTIVE_STATUSES = [
   "Pending",
@@ -431,7 +432,7 @@ exports.createDoctorAppointment = async (req, res) => {
       });
     }
 
-    const dayRange = getDayRange(appointmentDate);
+        const dayRange = getDayRange(appointmentDate);
     if (!dayRange) {
       return res.status(400).json({
         success: false,
@@ -451,7 +452,7 @@ exports.createDoctorAppointment = async (req, res) => {
     const [patient, doctor] = await Promise.all([
       Patient.findById(patientId).select("firstName lastName phone address.cityId"),
       Doctor.findById(doctorId).select(
-        "firstName lastName email phone specialization consultationFees isActive availability"
+        "firstName lastName email phone specialization consultationFees isActive availability currency feeAdjustments"
       ),
     ]);
 
@@ -521,6 +522,11 @@ exports.createDoctorAppointment = async (req, res) => {
       }
     }
 
+    const dailySlot = doctor.availability?.dailySlots?.find(
+      ds => new Date(ds.date).toDateString() === new Date(appointmentDate).toDateString()
+    );
+    const finalFees = calculateAdjustedFee(doctor, appointmentDate, startTime, dailySlot);
+
     const appointmentDuration = resolveDuration(startTime, endTime, duration);
     const reservedDoctor = await reserveSlotForAppointment({
       doctorId,
@@ -545,7 +551,8 @@ exports.createDoctorAppointment = async (req, res) => {
       duration: appointmentDuration,
       serviceType: serviceType || "",
       mode: mode || "",
-      consultationFees: Number(doctor.consultationFees || 0),
+      consultationFees: Number(finalFees || 0),
+      currency: doctor.currency || "INR",
       status: "Pending",
       notes: notes || "",
       city: bookingCity?._id || null,

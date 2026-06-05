@@ -55,6 +55,10 @@ const doctorAppointmentSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    currency: {
+      type: String,
+      default: "INR",
+    },
     status: {
       type: String,
       enum: [

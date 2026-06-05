@@ -6,6 +6,7 @@
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const Doctor = require('../models/doctorModel');
+const { parseFeesAndCurrency } = require('../utils/feeCalculator');
 const Otp = require('../models/otpModel');
 const { sendOtp } = require('../utils/otpUtils');
 const jwt = require('jsonwebtoken');
@@ -89,6 +90,8 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
     }
   }
 
+  const parsedFee = parseFeesAndCurrency(consultationFees);
+
   const newDoctor = new Doctor({
     name,
     email,
@@ -100,7 +103,8 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
     gender,
     address,
     yearsOfExperience: yearsOfExperience || 0,
-    consultationFees: consultationFees || 0,
+    consultationFees: parsedFee.fees,
+    currency: parsedFee.currency || req.body.currency || 'INR',
     degrees: degrees || [],
     university,
     graduationYear,
