@@ -5,13 +5,7 @@ const postCtrl = require('../controller/socialmediaController');
 const postUpload = require('../middleware/multerConfig');
 const { protect } = require('../middleware/auth');
  const {verifyAccessToken}= require('../middleware/auth')
-// router.post('/createPost', postCtrl.createPost);
-// router.post('/createPost', protect('doctor'), postCtrl.createPost);
-// router.post('/createPost', 
-//   protect('doctor'), 
-//   postUpload.single('image'), 
-//   postCtrl.createPost
-// );
+
 
 
 router.post(

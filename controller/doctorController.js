@@ -1182,6 +1182,10 @@ exports.addClinic = catchAsync(async (req, res, next) => {
     doctor.clinics = [];
   }
 
+  if (!Array.isArray(doctor.cities)) {
+    doctor.cities = [];
+  }
+
   const preparedClinics = [];
 
   for (const clinic of clinics) {
@@ -1206,8 +1210,25 @@ exports.addClinic = catchAsync(async (req, res, next) => {
       );
     }
 
+    const [lng, lat] = clinic.location.coordinates;
+    const lngNum = Number(lng);
+    const latNum = Number(lat);
+
+    if (
+      isNaN(lngNum) ||
+      isNaN(latNum) ||
+      lngNum < -180 ||
+      lngNum > 180 ||
+      latNum < -90 ||
+      latNum > 90
+    ) {
+      return next(
+        new AppError('Invalid coordinates. Longitude must be between -180 and 180, and Latitude must be between -90 and 90.', 400)
+      );
+    }
+
     const doctorHasCity = doctor.cities.some(
-      (city) => city.toString() === clinic.cityId.toString()
+      (city) => city && city.toString() === clinic.cityId.toString()
     );
 
     if (!doctorHasCity) {
@@ -1216,37 +1237,17 @@ exports.addClinic = catchAsync(async (req, res, next) => {
       );
     }
 
-    // const matchedCity = await City.findOne({
-    //   _id: clinic.cityId,
-    //   isActive: true,
-    //   area: {
-    //     $geoWithin: {
-    //       $geometry: {
-    //         type: 'Point',
-    //         coordinates: clinic.location.coordinates
-    //       }
-    //     }
-    //   }
-    // });
-
-
-
     // Simply verify that the city exists and is active in your database
-const matchedCity = await City.findOne({
-  _id: clinic.cityId,
-  isActive: true
-});
+    const matchedCity = await City.findOne({
+      _id: clinic.cityId,
+      isActive: true
+    });
 
-if (!matchedCity) {
-  return next(
-    new AppError('The selected city is either invalid or inactive', 400)
-  );
-}
-    // if (!matchedCity) {
-    //   return next(
-    //     new AppError('Clinic location is outside the selected city area', 400)
-    //   );
-    // }
+    if (!matchedCity) {
+      return next(
+        new AppError('The selected city is either invalid or inactive', 400)
+      );
+    }
 
     preparedClinics.push({
       ...clinic,
