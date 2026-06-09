@@ -1,5 +1,6 @@
 // controllers/post.controller.js
 const Post = require('../models/socialPostModel');
+const SocialPostReport = require('../models/socialPostReportModel');
 const mongoose = require('mongoose');
 const { verifyToken } = require("../utils/tokenUtils");
 const jwt = require('jsonwebtoken');
@@ -3031,3 +3032,236 @@ exports.searchSocialPosts = async (req, res) => {
 //     }
 //   } catch (err) { next(err); }
 // };
+
+// REPORT POST
+exports.reportPost = async (req, res, next) => {
+  try {
+    const postId = req.params.id;
+    const { userId, userRole } = normalizeUser(req);
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reason for reporting is required'
+      });
+    }
+
+    // Check if post exists
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    // Check if duplicate report
+    const existingReport = await SocialPostReport.findOne({ postId, reporterId: userId });
+    if (existingReport) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reported this post'
+      });
+    }
+
+    // Create report
+    const report = new SocialPostReport({
+      postId,
+      reporterId: userId,
+      reporterRole: userRole,
+      reason
+    });
+
+    await report.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Post reported successfully',
+      data: report
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET FLAGGED POSTS QUEUE (Admin review queue)
+exports.getFlaggedPosts = async (req, res, next) => {
+  try {
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || '';
+    const userRole = rawRole.toLowerCase();
+
+    const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(userRole);
+    if (!isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin privileges required.'
+      });
+    }
+
+    const { status } = req.query;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
+    const skip = (page - 1) * limit;
+
+    const query = {};
+    if (status) {
+      query.status = status;
+    }
+
+    const [reports, total] = await Promise.all([
+      SocialPostReport.find(query)
+        .populate({
+          path: 'postId',
+          populate: {
+            path: 'doctor',
+            select: 'firstName lastName email profilePhoto specialization'
+          }
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      SocialPostReport.countDocuments(query)
+    ]);
+
+    // Batch resolve reporter details
+    const reporterIds = reports.map(r => r.reporterId);
+    const [doctors, patients, admins] = await Promise.all([
+      Doctor.find({ _id: { $in: reporterIds } }).select('firstName lastName email profilePhoto').lean(),
+      Patient.find({ _id: { $in: reporterIds } }).select('firstName lastName email profilePhoto').lean(),
+      Admin.find({ _id: { $in: reporterIds } }).select('firstName lastName email').lean()
+    ]);
+
+    const doctorMap = new Map(doctors.map(d => [d._id.toString(), d]));
+    const patientMap = new Map(patients.map(p => [p._id.toString(), p]));
+    const adminMap = new Map(admins.map(a => [a._id.toString(), a]));
+
+    const reportsWithReporters = reports.map(report => {
+      const reportObj = report.toObject();
+      let reporter = null;
+      const role = (report.reporterRole || '').toLowerCase();
+      const idStr = report.reporterId.toString();
+
+      if (role === 'doctor') {
+        const doc = doctorMap.get(idStr);
+        if (doc) {
+          reporter = {
+            _id: doc._id,
+            name: [doc.firstName, doc.lastName].filter(Boolean).join(' '),
+            email: doc.email,
+            profilePhoto: doc.profilePhoto || null,
+            role: 'doctor'
+          };
+        }
+      } else if (role === 'patient') {
+        const pat = patientMap.get(idStr);
+        if (pat) {
+          reporter = {
+            _id: pat._id,
+            name: [pat.firstName, pat.lastName].filter(Boolean).join(' '),
+            email: pat.email,
+            profilePhoto: pat.profilePhoto || null,
+            role: 'patient'
+          };
+        }
+      } else if (['admin', 'superadmin', 'subadmin'].includes(role)) {
+        const adm = adminMap.get(idStr);
+        if (adm) {
+          reporter = {
+            _id: adm._id,
+            name: [adm.firstName, adm.lastName].filter(Boolean).join(' ') || 'Admin',
+            email: adm.email,
+            role: role
+          };
+        }
+      }
+
+      if (!reporter) {
+        reporter = {
+          _id: report.reporterId,
+          name: 'Unknown User',
+          role: report.reporterRole
+        };
+      }
+
+      reportObj.reporter = reporter;
+      return reportObj;
+    });
+
+    res.json({
+      success: true,
+      data: reportsWithReporters,
+      pagination: {
+        page,
+        limit,
+        total
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// RESOLVE/DISMISS POST REPORT
+exports.resolvePostReport = async (req, res, next) => {
+  try {
+    const user = req.user || {};
+    const rawRole = user.role || user.userRole || '';
+    const userRole = rawRole.toLowerCase();
+    const adminIdRaw = user._id || user.id || user.userId || '';
+    const adminId = adminIdRaw ? adminIdRaw.toString() : null;
+
+    const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(userRole);
+    if (!isAdmin || !adminId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin privileges required.'
+      });
+    }
+
+    const { reportId } = req.params;
+    const { status, resolutionNotes, hidePost } = req.body;
+
+    if (!['resolved', 'dismissed'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status must be resolved or dismissed'
+      });
+    }
+
+    const report = await SocialPostReport.findById(reportId);
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        message: 'Report not found'
+      });
+    }
+
+    report.status = status;
+    report.resolutionNotes = resolutionNotes || '';
+    report.reviewedBy = adminId;
+    report.reviewedAt = new Date();
+
+    await report.save();
+
+    // If requested, hide the post
+    if (status === 'resolved' && hidePost) {
+      const post = await Post.findById(report.postId);
+      if (post && !post.isHidden) {
+        post.isHidden = true;
+        post.hiddenAt = new Date();
+        post.hiddenBy = adminId;
+        await post.save();
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Report marked as ${status} successfully`,
+      data: report
+    });
+  } catch (err) {
+    next(err);
+  }
+};

@@ -92,4 +92,23 @@ router.get(
 
 
 router.get('/search', postCtrl.searchSocialPosts); 
+
+router.post(
+  '/posts/:id/report',
+  protect(['doctor', 'patient', 'admin', 'superadmin', 'subadmin']),
+  postCtrl.reportPost
+);
+
+router.get(
+  '/admin/flagged-posts',
+  protect(['admin', 'superadmin', 'subadmin']),
+  postCtrl.getFlaggedPosts
+);
+
+router.patch(
+  '/reports/:reportId/resolve',
+  protect(['admin', 'superadmin', 'subadmin']),
+  postCtrl.resolvePostReport
+);
+
 module.exports = router;
