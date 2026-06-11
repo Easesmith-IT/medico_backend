@@ -2398,67 +2398,111 @@ exports.getMyFollowStats = async (req, res, next) => {
     const userIdRaw = user._id || user.id || user.userId || '';
     const userId = userIdRaw ? userIdRaw.toString() : '';
 
-    if (!userId || userRole !== 'doctor') {
+    if (!userId || (userRole !== 'doctor' && userRole !== 'patient')) {
       return res.status(403).json({
         success: false,
-        message: 'Only doctors can view follow stats for themselves'
+        message: 'Only doctors and patients can view follow stats'
       });
     }
 
-    // 1) Followers: any Post doc where doctor = me and follows.followingId = me
-    const followerPosts = await Post.find({
-      doctor: userId,
-      'follows.followingId': userId
-    }).select('follows');
+    let followers = [];
+    let following = [];
 
-    const followerIdsSet = new Set();
+    if (userRole === 'doctor') {
+      // 1) Followers of this doctor: any Post doc where doctor = doctorId and follows.followingId = doctorId
+      const followerPosts = await Post.find({
+        doctor: userId,
+        'follows.followingId': userId
+      }).select('follows');
 
-    followerPosts.forEach(p => {
-      (p.follows || []).forEach(f => {
-        if (
-          f.followingId?.toString() === userId &&
-          f.followerId
-        ) {
-          followerIdsSet.add(f.followerId.toString());
-        }
+      const followerIdsSet = new Set();
+      const patientFollowerIdsSet = new Set();
+
+      followerPosts.forEach(p => {
+        (p.follows || []).forEach(f => {
+          if (f.followingId?.toString() === userId && f.followerId) {
+            const fId = f.followerId.toString();
+            const fRole = (f.followerRole || '').toLowerCase();
+            if (fRole === 'patient') {
+              patientFollowerIdsSet.add(fId);
+            } else {
+              followerIdsSet.add(fId);
+            }
+          }
+        });
       });
-    });
 
-    const followerIds = Array.from(followerIdsSet);
+      const [doctorFollowers, patientFollowers] = await Promise.all([
+        Doctor.find({ _id: { $in: Array.from(followerIdsSet) } })
+          .select('firstName lastName profilePhoto specialization'),
+        Patient.find({ _id: { $in: Array.from(patientFollowerIdsSet) } })
+          .select('firstName lastName profilePhoto')
+      ]);
 
-    const followers = await Doctor.find({ _id: { $in: followerIds } })
-      .select('firstName lastName profilePhoto specialization');
+      // Combine followers info
+      followers = [
+        ...doctorFollowers.map(d => ({ ...d.toObject ? d.toObject() : d, role: 'doctor' })),
+        ...patientFollowers.map(p => ({ ...p.toObject ? p.toObject() : p, role: 'patient' }))
+      ];
 
-    // 2) Following: any Post doc where some follows.followerId = me
-    const followingPosts = await Post.find({
-      'follows.followerId': userId,
-      'follows.followerRole': 'doctor'
-    }).select('doctor follows');
+      // 2) Following (doctors this doctor follows): any Post doc where follows.followerId = doctorId
+      const followingPosts = await Post.find({
+        'follows.followerId': userId,
+        'follows.followerRole': 'doctor'
+      }).select('doctor follows');
 
-    const followingIdsSet = new Set();
-
-    followingPosts.forEach(p => {
-      (p.follows || []).forEach(f => {
-        if (
-          f.followerId?.toString() === userId &&
-          f.followerRole === 'doctor' &&
-          f.followingId
-        ) {
-          followingIdsSet.add(f.followingId.toString());
-        }
+      const followingIdsSet = new Set();
+      followingPosts.forEach(p => {
+        (p.follows || []).forEach(f => {
+          if (
+            f.followerId?.toString() === userId &&
+            f.followerRole === 'doctor' &&
+            f.followingId
+          ) {
+            followingIdsSet.add(f.followingId.toString());
+          }
+        });
       });
-    });
 
-    const followingIds = Array.from(followingIdsSet);
+      const followingDoctors = await Doctor.find({ _id: { $in: Array.from(followingIdsSet) } })
+        .select('firstName lastName profilePhoto specialization');
+      
+      following = followingDoctors.map(d => ({ ...d.toObject ? d.toObject() : d, role: 'doctor' }));
 
-    const following = await Doctor.find({ _id: { $in: followingIds } })
-      .select('firstName lastName profilePhoto specialization');
+    } else if (userRole === 'patient') {
+      // Patients have no followers in this model (only doctors can be followed)
+      followers = [];
+
+      // Following (doctors this patient follows): any Post doc where follows.followerId = patientId
+      const followingPosts = await Post.find({
+        'follows.followerId': userId,
+        'follows.followerRole': 'patient'
+      }).select('doctor follows');
+
+      const followingIdsSet = new Set();
+      followingPosts.forEach(p => {
+        (p.follows || []).forEach(f => {
+          if (
+            f.followerId?.toString() === userId &&
+            f.followerRole === 'patient' &&
+            f.followingId
+          ) {
+            followingIdsSet.add(f.followingId.toString());
+          }
+        });
+      });
+
+      const followingDoctors = await Doctor.find({ _id: { $in: Array.from(followingIdsSet) } })
+        .select('firstName lastName profilePhoto specialization');
+      
+      following = followingDoctors.map(d => ({ ...d.toObject ? d.toObject() : d, role: 'doctor' }));
+    }
 
     return res.json({
       success: true,
       data: {
-        followersCount: followerIds.length,
-        followingCount: followingIds.length,
+        followersCount: followers.length,
+        followingCount: following.length,
         followers,
         following
       }
