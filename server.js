@@ -73,9 +73,11 @@ app.get("/api/test-cookies", (req, res) => {
 });
 // app.use("/invoices", express.static(path.join(__dirname, "invoices")));
 
+const imagesDir = path.join(__dirname, "images");
+const uploadsDir = path.join(__dirname, "uploads");
+
 try {
   const fs = require("fs");
-  const imagesDir = path.join(__dirname, "images");
   if (!fs.existsSync(imagesDir)) {
     fs.mkdirSync(imagesDir, { recursive: true });
   }
@@ -84,7 +86,6 @@ try {
     fs.mkdirSync(nestedImagesDir, { recursive: true });
   }
 
-  const uploadsDir = path.join(__dirname, "uploads");
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
