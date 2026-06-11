@@ -73,19 +73,23 @@ app.get("/api/test-cookies", (req, res) => {
 });
 // app.use("/invoices", express.static(path.join(__dirname, "invoices")));
 
-const fs = require("fs");
-const imagesDir = path.join(__dirname, "images");
-if (!fs.existsSync(imagesDir)) {
-  fs.mkdirSync(imagesDir, { recursive: true });
-}
-const nestedImagesDir = path.join(imagesDir, "images");
-if (!fs.existsSync(nestedImagesDir)) {
-  fs.mkdirSync(nestedImagesDir, { recursive: true });
-}
+try {
+  const fs = require("fs");
+  const imagesDir = path.join(__dirname, "images");
+  if (!fs.existsSync(imagesDir)) {
+    fs.mkdirSync(imagesDir, { recursive: true });
+  }
+  const nestedImagesDir = path.join(imagesDir, "images");
+  if (!fs.existsSync(nestedImagesDir)) {
+    fs.mkdirSync(nestedImagesDir, { recursive: true });
+  }
 
-const uploadsDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+  const uploadsDir = path.join(__dirname, "uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn("Directory creation skipped (expected in read-only serverless environments like Vercel):", err.message);
 }
 
 app.use("/images", express.static(imagesDir));
