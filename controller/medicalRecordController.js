@@ -159,3 +159,29 @@ exports.getRecordsByAppointmentId = catchAsync(async (req, res, next) => {
     data: records,
   });
 });
+
+exports.getPrescriptionsByAppointmentId = catchAsync(async (req, res, next) => {
+  const { appointmentId } = req.params;
+  const role = getRole(req);
+  const userId = String(getUserId(req) || "");
+
+  const filter = { appointmentId, recordType: "prescription", isDeleted: false };
+  if (role === "patient") {
+    filter.patientId = userId;
+  } else if (role === "doctor") {
+    filter.doctorId = userId;
+  } else if (!ADMIN_ROLES.has(role)) {
+    return next(new AppError("Access denied", 403));
+  }
+
+  const records = await MedicalRecord.find(filter).sort({ createdAt: -1 });
+  
+  // Log access for the viewed records
+  await Promise.all(records.map((record) => logAccess(req, record._id, "view")));
+
+  res.status(200).json({
+    success: true,
+    data: records,
+  });
+});
+

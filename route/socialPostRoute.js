@@ -22,7 +22,7 @@ router.get('/getPosts',protect('doctor', 'admin', 'superadmin', 'subadmin','pati
 
 
 // router.post('/likePost/:id/toggle', protect(['doctor', 'patient']),  postCtrl.toggleLikePost);
-router.post('/commentPost/:id', protect(['doctor', 'admin', 'superadmin', 'subadmin']),  postCtrl.addComment);
+router.post('/commentPost/:id', protect(['doctor', 'admin', 'patient','superadmin', 'subadmin']),  postCtrl.addComment);
 // router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']),  postCtrl.toggleFollowDoctor); // Follow doctor
 router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']), postCtrl.toggleFollowDoctor);
 
@@ -80,7 +80,7 @@ router.delete(
 );
 router.get(
   '/follow-stats/me',
-  protect(['doctor']),
+  protect(['doctor', 'patient']),
   postCtrl.getMyFollowStats
 );
 router.get(
