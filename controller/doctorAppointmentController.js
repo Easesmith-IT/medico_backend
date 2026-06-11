@@ -641,6 +641,26 @@ exports.getMyDoctorAppointments = async (req, res) => {
   }
 };
 
+const processFilesArray = (files) => {
+  if (!files || !Array.isArray(files)) return [];
+  return files.map(file => {
+    if (file && file.url) {
+      const isLocalPath = file.url.startsWith('/data/') || file.url.includes('cache/') || file.url.includes('com.rehabmedico');
+      const isImage = /\.(jpe?g|png|gif|webp)$/i.test(file.name || file.url);
+      
+      if (isLocalPath || isImage) {
+        const parts = file.url.split(/[/\\]/);
+        const fileName = parts[parts.length - 1];
+        return {
+          ...file,
+          url: `/images/images/${fileName}`
+        };
+      }
+    }
+    return file;
+  });
+};
+
 exports.getDoctorAppointmentById = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
@@ -672,8 +692,15 @@ exports.getDoctorAppointmentById = async (req, res) => {
       isDeleted: false
     }).lean();
 
-    appointment.prescriptions = medicalRecords.filter(r => r.recordType === 'prescription');
-    appointment.consultationNotes = medicalRecords.filter(r => r.recordType === 'caseHistory');
+    const processedRecords = medicalRecords.map(r => {
+      if (r.files) {
+        r.files = processFilesArray(r.files);
+      }
+      return r;
+    });
+
+    appointment.prescriptions = processedRecords.filter(r => r.recordType === 'prescription');
+    appointment.consultationNotes = processedRecords.filter(r => r.recordType === 'caseHistory');
 
     return res.status(200).json({
       success: true,

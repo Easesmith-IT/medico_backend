@@ -4,6 +4,7 @@ const SocialPostReport = require('../models/socialPostReportModel');
 const mongoose = require('mongoose');
 const { verifyToken } = require("../utils/tokenUtils");
 const jwt = require('jsonwebtoken');
+const uploadFile = require('../utils/uploadFile');
 // exports.createPost = async (req, res, next) => {
 //   try {
 //     const post = new Post({
@@ -403,12 +404,22 @@ exports.createPost = async (req, res, next) => {
         : []);
 
     // 6) COMPLETE Post Data (ALL REQUIRED FIELDS)
+    let mediaUrls = [];
+    if (req.file) {
+      const url = await uploadFile(req.file);
+      mediaUrls = [url];
+    } else if (req.body.mediaUrls) {
+      mediaUrls = Array.isArray(req.body.mediaUrls)
+        ? req.body.mediaUrls
+        : [req.body.mediaUrls];
+    }
+
     const postData = {
       doctor: userId,
       city: cityId,
       type,
       content: req.body.content || '',
-      mediaUrls: req.file ? [`/images/${req.file.filename}`] : [],
+      mediaUrls,
       hashtags,
       mentions,
       isHidden: false

@@ -73,7 +73,24 @@ app.get("/api/test-cookies", (req, res) => {
 });
 // app.use("/invoices", express.static(path.join(__dirname, "invoices")));
 
+const fs = require("fs");
+const imagesDir = path.join(__dirname, "images");
+if (!fs.existsSync(imagesDir)) {
+  fs.mkdirSync(imagesDir, { recursive: true });
+}
+const nestedImagesDir = path.join(imagesDir, "images");
+if (!fs.existsSync(nestedImagesDir)) {
+  fs.mkdirSync(nestedImagesDir, { recursive: true });
+}
 
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+app.use("/images", express.static(imagesDir));
+app.use("/images/images", express.static(imagesDir));
+app.use("/uploads", express.static(uploadsDir));
 app.use("/temp", express.static(path.join(__dirname, "temp")));
 // Mount all API routes
 app.use("/api/v1", routes);

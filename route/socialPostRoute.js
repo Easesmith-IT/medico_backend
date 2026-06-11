@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const postCtrl = require('../controller/socialmediaController');
-const postUpload = require('../middleware/multerConfig');
+const { createUpload } = require('../middleware/gcpUploadMiddleware');
 const { protect } = require('../middleware/auth');
  const {verifyAccessToken}= require('../middleware/auth')
 
@@ -11,7 +11,7 @@ const { protect } = require('../middleware/auth');
 router.post(
   '/createPost',
   protect('doctor', 'admin', 'superadmin', 'subadmin'),
-  postUpload.single('image'),
+  createUpload({ single: 'image' }),
   postCtrl.createPost
 );
 

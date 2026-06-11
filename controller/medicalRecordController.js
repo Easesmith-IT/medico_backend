@@ -8,6 +8,26 @@ const ADMIN_ROLES = new Set(["admin", "superadmin", "subadmin"]);
 const getRole = (req) => String(req.user?.role || "").toLowerCase();
 const getUserId = (req) => req.user?.id || req.user?._id;
 
+const processFilesArray = (files) => {
+  if (!files || !Array.isArray(files)) return [];
+  return files.map(file => {
+    if (file && file.url) {
+      const isLocalPath = file.url.startsWith('/data/') || file.url.includes('cache/') || file.url.includes('com.rehabmedico');
+      const isImage = /\.(jpe?g|png|gif|webp)$/i.test(file.name || file.url);
+      
+      if (isLocalPath || isImage) {
+        const parts = file.url.split(/[/\\]/);
+        const fileName = parts[parts.length - 1];
+        return {
+          ...file,
+          url: `/images/images/${fileName}`
+        };
+      }
+    }
+    return file;
+  });
+};
+
 const logAccess = (req, recordId, action) =>
   MedicalRecordAccessLog.create({
     recordId,
@@ -42,7 +62,7 @@ exports.createMedicalRecord = catchAsync(async (req, res, next) => {
     recordType: req.body.recordType,
     title: req.body.title,
     notes: req.body.notes || "",
-    files: req.body.files || [],
+    files: processFilesArray(req.body.files || []),
     visibility: req.body.visibility || "patient",
     uploadedBy: {
       userId: getUserId(req),
@@ -56,6 +76,8 @@ exports.createMedicalRecord = catchAsync(async (req, res, next) => {
 
   const record = await MedicalRecord.create(payload);
   await logAccess(req, record._id, "create");
+
+  record.files = processFilesArray(record.files);
 
   res.status(201).json({ success: true, data: { record } });
 });
@@ -71,7 +93,12 @@ exports.getPatientRecords = catchAsync(async (req, res, next) => {
   const allowed = records.filter((record) => canAccessRecord(req, record));
   await Promise.all(allowed.map((record) => logAccess(req, record._id, "view")));
 
-  res.status(200).json({ success: true, data: allowed });
+  const formatted = allowed.map(rec => {
+    rec.files = processFilesArray(rec.files);
+    return rec;
+  });
+
+  res.status(200).json({ success: true, data: formatted });
 });
 
 exports.getMyRecords = catchAsync(async (req, res) => {
@@ -85,7 +112,12 @@ exports.getMyRecords = catchAsync(async (req, res) => {
   const allowed = records.filter((record) => canAccessRecord(req, record));
   await Promise.all(allowed.map((record) => logAccess(req, record._id, "view")));
 
-  res.status(200).json({ success: true, data: allowed });
+  const formatted = allowed.map(rec => {
+    rec.files = processFilesArray(rec.files);
+    return rec;
+  });
+
+  res.status(200).json({ success: true, data: formatted });
 });
 
 exports.updateMedicalRecord = catchAsync(async (req, res, next) => {
@@ -93,11 +125,16 @@ exports.updateMedicalRecord = catchAsync(async (req, res, next) => {
   if (!record || record.isDeleted) return next(new AppError("Medical record not found", 404));
   if (!canAccessRecord(req, record)) return next(new AppError("Not allowed", 403));
 
-  ["recordType", "title", "notes", "files", "visibility"].forEach((field) => {
+  ["recordType", "title", "notes", "visibility"].forEach((field) => {
     if (field in req.body) record[field] = req.body[field];
   });
+  if ("files" in req.body) {
+    record.files = processFilesArray(req.body.files || []);
+  }
   await record.save();
   await logAccess(req, record._id, "update");
+
+  record.files = processFilesArray(record.files);
 
   res.status(200).json({ success: true, data: { record } });
 });
@@ -119,6 +156,8 @@ exports.shareMedicalRecord = catchAsync(async (req, res, next) => {
   record.visibility = "shared";
   await record.save();
   await logAccess(req, record._id, "share");
+
+  record.files = processFilesArray(record.files);
 
   res.status(200).json({ success: true, data: { record } });
 });
@@ -154,9 +193,14 @@ exports.getRecordsByAppointmentId = catchAsync(async (req, res, next) => {
   // Log access for the viewed records
   await Promise.all(records.map((record) => logAccess(req, record._id, "view")));
 
+  const formatted = records.map(rec => {
+    rec.files = processFilesArray(rec.files);
+    return rec;
+  });
+
   res.status(200).json({
     success: true,
-    data: records,
+    data: formatted,
   });
 });
 
@@ -179,9 +223,14 @@ exports.getPrescriptionsByAppointmentId = catchAsync(async (req, res, next) => {
   // Log access for the viewed records
   await Promise.all(records.map((record) => logAccess(req, record._id, "view")));
 
+  const formatted = records.map(rec => {
+    rec.files = processFilesArray(rec.files);
+    return rec;
+  });
+
   res.status(200).json({
     success: true,
-    data: records,
+    data: formatted,
   });
 });
 
