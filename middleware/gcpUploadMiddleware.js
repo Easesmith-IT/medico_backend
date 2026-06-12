@@ -32,7 +32,7 @@ const getFileFilter = (fileTypes) => {
       .replace(".", "");
     const mime = file.mimetype || "";
 
-    const imageOk = allowImage && MIME_IMAGE.test(ext) && MIME_IMAGE.test(mime);
+    const imageOk = allowImage && (MIME_IMAGE.test(ext) || MIME_IMAGE.test(mime));
     const pdfOk =
       allowPdf && (MIME_PDF.test(ext) || mime === "application/pdf");
 
