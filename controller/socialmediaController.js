@@ -62,6 +62,113 @@ const normalizeUser = (req) => {
   return { userId, userRole };
 };
 
+const populateCommentsForPosts = async (postsOrPost) => {
+  if (!postsOrPost) return postsOrPost;
+  const isArray = Array.isArray(postsOrPost);
+  const posts = isArray ? postsOrPost : [postsOrPost];
+
+  const doctorIds = new Set();
+  const patientIds = new Set();
+  const adminIds = new Set();
+
+  posts.forEach((post) => {
+    if (post && post.comments && Array.isArray(post.comments)) {
+      post.comments.forEach((comment) => {
+        if (comment && comment.userId) {
+          const role = (comment.userRole || '').toLowerCase();
+          const idStr = comment.userId.toString();
+          if (role === 'doctor') {
+            doctorIds.add(idStr);
+          } else if (role === 'patient') {
+            patientIds.add(idStr);
+          } else if (['admin', 'superadmin', 'subadmin'].includes(role)) {
+            adminIds.add(idStr);
+          }
+        }
+      });
+    }
+  });
+
+  const [doctors, patients, admins] = await Promise.all([
+    doctorIds.size > 0
+      ? Doctor.find({ _id: { $in: Array.from(doctorIds) } })
+          .select('firstName lastName profilePhoto specialization')
+          .lean()
+      : [],
+    patientIds.size > 0
+      ? Patient.find({ _id: { $in: Array.from(patientIds) } })
+          .select('firstName lastName profilePhoto')
+          .lean()
+      : [],
+    adminIds.size > 0
+      ? Admin.find({ _id: { $in: Array.from(adminIds) } })
+          .select('firstName lastName role')
+          .lean()
+      : [],
+  ]);
+
+  const userMap = {};
+  doctors.forEach((d) => {
+    userMap[d._id.toString()] = {
+      _id: d._id,
+      firstName: d.firstName,
+      lastName: d.lastName,
+      name: [d.firstName, d.lastName].filter(Boolean).join(' '),
+      profilePhoto: d.profilePhoto || null,
+      specialization: d.specialization || 'Doctor',
+      role: 'doctor',
+    };
+  });
+  patients.forEach((p) => {
+    userMap[p._id.toString()] = {
+      _id: p._id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      name: [p.firstName, p.lastName].filter(Boolean).join(' '),
+      profilePhoto: p.profilePhoto || null,
+      role: 'patient',
+    };
+  });
+  admins.forEach((a) => {
+    userMap[a._id.toString()] = {
+      _id: a._id,
+      firstName: a.firstName,
+      lastName: a.lastName,
+      name: [a.firstName, a.lastName].filter(Boolean).join(' '),
+      profilePhoto: null,
+      role: a.role || 'admin',
+    };
+  });
+
+  const result = posts.map((post) => {
+    const postObj = typeof post.toObject === 'function' ? post.toObject() : post;
+    if (postObj.comments && Array.isArray(postObj.comments)) {
+      postObj.comments = postObj.comments.map((comment) => {
+        const commentObj = typeof comment.toObject === 'function' ? comment.toObject() : comment;
+        if (commentObj.userId) {
+          const userMeta = userMap[commentObj.userId.toString()];
+          if (userMeta) {
+            commentObj.userId = userMeta;
+          } else {
+            commentObj.userId = {
+              _id: commentObj.userId,
+              firstName: 'Deleted',
+              lastName: 'User',
+              name: 'Deleted User',
+              profilePhoto: null,
+              role: commentObj.userRole,
+            };
+          }
+        }
+        return commentObj;
+      });
+    }
+    return postObj;
+  });
+
+  return isArray ? result : result[0];
+};
+
 const isPostVisible = (post) => !post.isHidden && !post.hiddenAt;
 
 const clamp = (value, min = 0, max = 1) => Math.min(Math.max(value, min), max);
@@ -706,7 +813,8 @@ exports.getPosts = async (req, res, next) => {
       })
     );
 
-    res.json(postsWithCreators);
+    const postsWithCreatorsAndComments = await populateCommentsForPosts(postsWithCreators);
+    res.json(postsWithCreatorsAndComments);
   } catch (err) {
     next(err);
   }
@@ -1346,7 +1454,8 @@ exports.getPostById = async (req, res, next) => {
       isFollowed,
     };
 
-    return res.json(postWithCreator);
+    const postWithComments = await populateCommentsForPosts(postWithCreator);
+    return res.json(postWithComments);
   } catch (err) {
     next(err);
   }
@@ -2050,7 +2159,8 @@ exports.getPostByIdByAdmin = async (req, res, next) => {
       isHidden: post.isHidden || false, // <-- sync with toggleHidePost
     };
 
-    return res.json(postWithCreator);
+    const postWithComments = await populateCommentsForPosts(postWithCreator);
+    return res.json(postWithComments);
   } catch (err) {
     next(err);
   }
@@ -2176,13 +2286,64 @@ exports.addComment = async (req, res, next) => {
 
     // Populate just the new comment for response
     const newComment = post.comments[post.comments.length - 1];
-    await post.populate('comments.userId', 'firstName lastName profilePhoto role');
-    const populatedNewComment = post.comments[post.comments.length - 1];
+    const rawRole = req.user.role || req.user.userRole || '';
+    const userRoleLower = rawRole.toLowerCase();
+    const userIdStr = (req.user._id || req.user.id || req.user.userId || '').toString();
+    
+    let userMeta = null;
+    if (userRoleLower === 'doctor') {
+      const d = await Doctor.findById(userIdStr).select('firstName lastName profilePhoto specialization').lean();
+      if (d) {
+        userMeta = {
+          _id: d._id,
+          firstName: d.firstName,
+          lastName: d.lastName,
+          name: [d.firstName, d.lastName].filter(Boolean).join(' '),
+          profilePhoto: d.profilePhoto || null,
+          specialization: d.specialization || 'Doctor',
+          role: 'doctor'
+        };
+      }
+    } else if (userRoleLower === 'patient') {
+      const p = await Patient.findById(userIdStr).select('firstName lastName profilePhoto').lean();
+      if (p) {
+        userMeta = {
+          _id: p._id,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          name: [p.firstName, p.lastName].filter(Boolean).join(' '),
+          profilePhoto: p.profilePhoto || null,
+          role: 'patient'
+        };
+      }
+    } else if (['admin', 'superadmin', 'subadmin'].includes(userRoleLower)) {
+      const a = await Admin.findById(userIdStr).select('firstName lastName role').lean();
+      if (a) {
+        userMeta = {
+          _id: a._id,
+          firstName: a.firstName,
+          lastName: a.lastName,
+          name: [a.firstName, a.lastName].filter(Boolean).join(' '),
+          profilePhoto: null,
+          role: a.role || 'admin'
+        };
+      }
+    }
+
+    const commentObj = newComment.toObject ? newComment.toObject() : newComment;
+    commentObj.userId = userMeta || {
+      _id: userIdStr,
+      firstName: 'Unknown',
+      lastName: 'User',
+      name: 'Unknown User',
+      profilePhoto: null,
+      role: rawRole
+    };
 
     res.json({ 
       success: true, 
       totalComments: post.stats.comments,
-      newComment: populatedNewComment 
+      newComment: commentObj 
     });
   } catch (err) {
     next(err);
@@ -2259,9 +2420,11 @@ exports.getSocialFeed = async (req, res, next) => {
       };
     });
 
+    const feedWithComments = await populateCommentsForPosts(feed);
+
     res.json({
       success: true,
-      data: feed,
+      data: feedWithComments,
       pagination: {
         page,
         limit,
@@ -2357,6 +2520,12 @@ exports.getSavedPosts = async (req, res, next) => {
     const data = (patient.savedPosts || [])
       .filter((item) => item.postId)
       .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+
+    const posts = data.map((item) => item.postId);
+    const populatedPosts = await populateCommentsForPosts(posts);
+    data.forEach((item, index) => {
+      item.postId = populatedPosts[index];
+    });
 
     res.json({ success: true, data });
   } catch (err) {

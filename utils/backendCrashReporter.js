@@ -36,10 +36,16 @@ module.exports = async function reportBackendCrash(err, req) {
 
       // Auth context
       userId: req.user?.id || null,
-      userType:
-        req.user?.role === "superadmin" || req.user?.role === "subadmin"
-          ? "Admin"
-          : req.user?.role || null,
+      userType: (() => {
+        const role = (req.user?.role || '').toLowerCase();
+        if (role === 'doctor') return 'Doctor';
+        if (role === 'patient') return 'Patient';
+        if (['admin', 'superadmin', 'subadmin'].includes(role)) return 'Admin';
+        if (role === 'serviceprovider') return 'ServiceProvider';
+        if (role === 'hospital') return 'Hospital';
+        if (role === 'medicalstudent') return 'MedicalStudent';
+        return 'Patient'; // fallback
+      })(),
     });
   } catch (e) {
     // Never crash the app because crash reporting failed
