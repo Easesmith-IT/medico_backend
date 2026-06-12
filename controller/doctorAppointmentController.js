@@ -5,6 +5,7 @@ const Patient = require("../models/patientModel");
 const MedicalRecord = require("../models/medicalRecordModel");
 const City = require("../models/availableCities");
 const { calculateAdjustedFee } = require("../utils/feeCalculator");
+const bucket = require("../config/gcpStorage");
 
 const ACTIVE_STATUSES = [
   "Pending",
@@ -643,17 +644,18 @@ exports.getMyDoctorAppointments = async (req, res) => {
 
 const processFilesArray = (files) => {
   if (!files || !Array.isArray(files)) return [];
+  const bucketName = bucket?.name || process.env.GCP_BUCKET_NAME || "medico_health_tech";
   return files.map(file => {
     if (file && file.url) {
-      const isLocalPath = file.url.startsWith('/data/') || file.url.includes('cache/') || file.url.includes('com.rehabmedico');
-      const isImage = /\.(jpe?g|png|gif|webp)$/i.test(file.name || file.url);
+      const isWebUrl = /^https?:\/\//i.test(file.url);
+      const isLocalDevicePath = file.url.startsWith('file:') || file.url.startsWith('/data/') || file.url.includes('cache/') || file.url.includes('com.rehabmedico');
       
-      if (isLocalPath || isImage) {
+      if (isLocalDevicePath || (!isWebUrl && !file.url.startsWith('/images/') && !file.url.startsWith('/uploads/'))) {
         const parts = file.url.split(/[/\\]/);
         const fileName = parts[parts.length - 1];
         return {
           ...file,
-          url: `/images/images/${fileName}`
+          url: bucketName ? `https://storage.googleapis.com/${bucketName}/${fileName}` : `/images/images/${fileName}`
         };
       }
     }

@@ -10,6 +10,7 @@ const {
   deleteFromCloudinary,
   uploadMultipleImagesToCloudinary
 } = require('../config/cloudinaryConfig');
+const uploadFile = require('../utils/uploadFile');
 
 // const createArticle = async (req, res, next) => {
 //   try {
@@ -234,17 +235,12 @@ const createArticle = async (req, res, next) => {
         return next(new AppError('Video file is required for video type', 400));
       }
       
-      const videoResult = await uploadVideoToCloudinary(
-        req.file.buffer,
-        req.file.originalname
-      );
+      const videoUrl = await uploadFile(req.file);
       
       articleData.content.video = {
-        url: videoResult.secure_url,
-        publicId: videoResult.public_id,
+        url: videoUrl,
         filename: req.file.originalname,
-        size: req.file.size,
-        duration: videoResult.duration || null
+        size: req.file.size
       };
     } 
     else if (articleType.toLowerCase() === 'image') {
@@ -252,18 +248,13 @@ const createArticle = async (req, res, next) => {
         return next(new AppError('At least one image file is required for image type', 400));
       }
       
-      const imageResults = await uploadMultipleImagesToCloudinary(
-        req.files.map(f => f.buffer),
-        req.files.map(f => f.originalname)
-      );
+      const uploadPromises = req.files.map(f => uploadFile(f));
+      const imageUrls = await Promise.all(uploadPromises);
       
-      articleData.content.images = imageResults.map((result, index) => ({
-        url: result.secure_url,
-        publicId: result.public_id,
+      articleData.content.images = imageUrls.map((url, index) => ({
+        url: url,
         filename: req.files[index].originalname,
-        size: req.files[index].size,
-        width: result.width,
-        height: result.height
+        size: req.files[index].size
       }));
     }
 
@@ -587,13 +578,23 @@ const deleteArticle = async (req, res, next) => {
     }
 
     if (article.content.video?.publicId) {
-      await deleteFromCloudinary(article.content.video.publicId, 'video');
+      try {
+        await deleteFromCloudinary(article.content.video.publicId, 'video');
+      } catch (err) {
+        console.warn('Failed to delete video from Cloudinary:', err.message);
+      }
     }
 
     if (article.content.images?.length > 0) {
-      const deletePromises = article.content.images.map(img =>
-        deleteFromCloudinary(img.publicId, 'image')
-      );
+      const deletePromises = article.content.images.map(async (img) => {
+        if (img.publicId) {
+          try {
+            await deleteFromCloudinary(img.publicId, 'image');
+          } catch (err) {
+            console.warn('Failed to delete image from Cloudinary:', err.message);
+          }
+        }
+      });
       await Promise.all(deletePromises);
     }
 

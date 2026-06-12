@@ -31,43 +31,27 @@
 
 const multer = require("multer");
 const path = require("path");
-const crypto = require("crypto");
-const fs = require("fs");
 
-// 1. Define local storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, "temp");
-    // Ensure the local 'temp' folder exists
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    // Generates a unique name: fieldname-timestamp-randomhex.extension
-    const uniqueSuffix = Date.now() + "-" + crypto.randomBytes(4).toString("hex");
-    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
-  },
-});
+// 1. Use memory storage to capture file buffers for cloud uploads
+const storage = multer.memoryStorage();
 
-// 2. Setup file filter for security
+// 2. Setup file filter for security (allowing images, PDFs, and videos)
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|pdf|webp/;
+  const allowedTypes = /jpeg|jpg|png|gif|pdf|webp|mp4|avi|mov|mkv/i;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+  const mimetype = /image|pdf|video/i.test(file.mimetype);
 
   if (extname && mimetype) {
     return cb(null, true);
   } else {
-    cb(new Error("Only images (jpeg, png, webp) and PDFs are allowed!"));
+    cb(new Error("Only images (jpeg, png, webp), PDFs, and videos (mp4, avi, mov, mkv) are allowed!"));
   }
 };
 
 // 3. Initialize Multer
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // Limit to 10MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // Limit to 100MB (for video uploads)
   fileFilter: fileFilter,
 });
 
