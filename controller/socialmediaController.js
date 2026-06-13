@@ -2273,14 +2273,6 @@ exports.getPostByIdByAdmin = async (req, res, next) => {
 // };
 exports.addComment = async (req, res, next) => {
   try {
-    const { userRole } = normalizeUser(req);
-    if (userRole === "patient") {
-      return res.status(403).json({
-        success: false,
-        message: "Patients are not allowed to comment on social posts",
-      });
-    }
-
     const { text } = req.body;
     const { id } = req.params;
 
