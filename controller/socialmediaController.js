@@ -447,13 +447,32 @@ const notifyFollowersForPost = async (doctor, post) => {
 exports.createPost = async (req, res, next) => {
   try {
     console.log('Request body:', req.body);
+    console.log('Files:', req.files);
     console.log('File:', req.file);
     console.log('User:', req.user);
 
+    // Collect all uploaded files from req.file or req.files (either array or fields format)
+    let uploadedFiles = [];
+    if (req.files) {
+      if (Array.isArray(req.files)) {
+        uploadedFiles = req.files;
+      } else {
+        if (req.files.image && req.files.image.length > 0) {
+          uploadedFiles.push(...req.files.image);
+        }
+        if (req.files.images && req.files.images.length > 0) {
+          uploadedFiles.push(...req.files.images);
+        }
+      }
+    } else if (req.file) {
+      uploadedFiles.push(req.file);
+    }
+
     // 1) Post type
     let type;
-    if (req.file) {
-      const isImage = req.file.mimetype.startsWith('image/');
+    if (uploadedFiles.length > 0) {
+      const sampleFile = uploadedFiles[0];
+      const isImage = sampleFile.mimetype.startsWith('image/');
       type = isImage ? 'GALLERY' : 'REEL';
     } else {
       const requestedType = (req.body.type || 'TEXT').toUpperCase();
@@ -512,9 +531,9 @@ exports.createPost = async (req, res, next) => {
 
     // 6) COMPLETE Post Data (ALL REQUIRED FIELDS)
     let mediaUrls = [];
-    if (req.file) {
-      const url = await uploadFile(req.file);
-      mediaUrls = [url];
+    if (uploadedFiles.length > 0) {
+      const uploadPromises = uploadedFiles.map(file => uploadFile(file));
+      mediaUrls = await Promise.all(uploadPromises);
     } else if (req.body.mediaUrls) {
       mediaUrls = Array.isArray(req.body.mediaUrls)
         ? req.body.mediaUrls
