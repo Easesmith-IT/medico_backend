@@ -41,12 +41,12 @@ router.post(
 );
 router.post(
   '/savePost/:id/toggle',
-  protect('patient'),
+  protect('patient', 'doctor', 'serviceprovider'),
   postCtrl.toggleSavePost
 );
 router.get(
   '/savedPosts',
-  protect('patient'),
+  protect('patient', 'doctor', 'serviceprovider'),
   postCtrl.getSavedPosts
 );
 router.get(
@@ -54,7 +54,7 @@ router.get(
   protect('patient'),
   postCtrl.getMySocialNotifications
 );
-router.get('/feed', protect('patient','doctor'), postCtrl.getSocialFeed);
+router.get('/feed', protect('patient', 'doctor', 'serviceprovider'), postCtrl.getSocialFeed);
 // router.get('/getPostById/:id', postCtrl.getPostById);
 router.get(
   '/getPostById/:id',

@@ -181,8 +181,8 @@ const incrementMap = (map, key, amount = 1) => {
 const getPostIdSet = (items = []) =>
   new Set(items.map((item) => item.postId?.toString()).filter(Boolean));
 
-const buildPatientInterestProfile = async (patient, userId) => {
-  const savedPostIds = getPostIdSet(patient.savedPosts || []);
+const buildPatientInterestProfile = async (userDoc, userId, userRole) => {
+  const savedPostIds = getPostIdSet(userDoc.savedPosts || []);
   const savedPosts = savedPostIds.size
     ? await Post.find({ _id: { $in: Array.from(savedPostIds) } })
         .select("doctor type hashtags")
@@ -191,7 +191,7 @@ const buildPatientInterestProfile = async (patient, userId) => {
 
   const likedPosts = await Post.find({
     "likes.userId": userId,
-    "likes.userRole": "patient",
+    "likes.userRole": userRole,
   })
     .select("doctor type hashtags")
     .sort({ updatedAt: -1 })
@@ -2036,29 +2036,34 @@ exports.toggleFollowDoctor = async (req, res, next) => {
 
     await social.save();
 
-    if (userRole === "patient") {
-      const patient = await Patient.findById(userId);
-      if (patient) {
-        if (!Array.isArray(patient.following)) {
-          patient.following = [];
+    if (["patient", "doctor", "serviceprovider"].includes(userRole)) {
+      let userModel;
+      if (userRole === "patient") userModel = Patient;
+      else if (userRole === "doctor") userModel = Doctor;
+      else if (userRole === "serviceprovider") userModel = ServiceProvider;
+
+      const dbUser = await userModel.findById(userId);
+      if (dbUser) {
+        if (!Array.isArray(dbUser.following)) {
+          dbUser.following = [];
         }
 
-        const alreadyFollowing = patient.following.some(
+        const alreadyFollowing = dbUser.following.some(
           (doctorId) => doctorId && doctorId.toString() === targetDoctorId.toString()
         );
 
         if (following && !alreadyFollowing) {
-          patient.following.push(targetDoctorId);
+          dbUser.following.push(targetDoctorId);
         }
 
         if (!following && alreadyFollowing) {
-          patient.following = patient.following.filter(
+          dbUser.following = dbUser.following.filter(
             (doctorId) => doctorId && doctorId.toString() !== targetDoctorId.toString()
           );
         }
 
-        patient.followingCount = patient.following.length;
-        await patient.save();
+        dbUser.followingCount = dbUser.following.length;
+        await dbUser.save({ validateBeforeSave: false });
 
         if (following && !alreadyFollowing) {
           await Doctor.findByIdAndUpdate(targetDoctorId, {
@@ -2370,19 +2375,24 @@ exports.getSocialFeed = async (req, res, next) => {
       ? req.query.sort
       : "recommended";
 
-    if (!userId || userRole !== "patient") {
+    if (!userId || !["patient", "doctor", "serviceprovider"].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: "Only patients can view personalized feed",
+        message: "Only patients, doctors, and service providers can view personalized feed",
       });
     }
 
-    const patient = await Patient.findById(userId).select("following savedPosts").lean();
-    if (!patient) {
-      return res.status(404).json({ success: false, message: "Patient not found" });
+    let userModel;
+    if (userRole === "patient") userModel = Patient;
+    else if (userRole === "doctor") userModel = Doctor;
+    else if (userRole === "serviceprovider") userModel = ServiceProvider;
+
+    const dbUser = await userModel.findById(userId).select("following savedPosts").lean();
+    if (!dbUser) {
+      return res.status(404).json({ success: false, message: `${userRole} not found` });
     }
 
-    const followedDoctorIds = patient.following || [];
+    const followedDoctorIds = dbUser.following || [];
     if (!followedDoctorIds.length) {
       return res.json({
         success: true,
@@ -2400,7 +2410,7 @@ exports.getSocialFeed = async (req, res, next) => {
       });
     }
 
-    const profile = await buildPatientInterestProfile(patient, userId);
+    const profile = await buildPatientInterestProfile(dbUser, userId, userRole);
     const candidateLimit = Math.min(Math.max(page * limit * 5, limit), 250);
     const postQuery = {
       doctor: { $in: followedDoctorIds },
@@ -2454,10 +2464,10 @@ exports.getSocialFeed = async (req, res, next) => {
 exports.toggleSavePost = async (req, res, next) => {
   try {
     const { userId, userRole } = normalizeUser(req);
-    if (!userId || userRole !== "patient") {
+    if (!userId || !["patient", "doctor", "serviceprovider"].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: "Only patients can save posts",
+        message: "Only patients, doctors, and service providers can save posts",
       });
     }
 
@@ -2473,28 +2483,33 @@ exports.toggleSavePost = async (req, res, next) => {
       });
     }
 
-    const patient = await Patient.findById(userId);
-    if (!patient) {
-      return res.status(404).json({ success: false, message: "Patient not found" });
+    let userModel;
+    if (userRole === "patient") userModel = Patient;
+    else if (userRole === "doctor") userModel = Doctor;
+    else if (userRole === "serviceprovider") userModel = ServiceProvider;
+
+    const dbUser = await userModel.findById(userId);
+    if (!dbUser) {
+      return res.status(404).json({ success: false, message: `${userRole} not found` });
     }
 
-    patient.savedPosts = Array.isArray(patient.savedPosts) ? patient.savedPosts : [];
-    const existingIndex = patient.savedPosts.findIndex(
+    dbUser.savedPosts = Array.isArray(dbUser.savedPosts) ? dbUser.savedPosts : [];
+    const existingIndex = dbUser.savedPosts.findIndex(
       (item) => item.postId?.toString() === post._id.toString()
     );
 
     const isSaved = existingIndex === -1;
     if (isSaved) {
-      patient.savedPosts.push({ postId: post._id, savedAt: new Date() });
+      dbUser.savedPosts.push({ postId: post._id, savedAt: new Date() });
       post.stats = post.stats || {};
       post.stats.saves = Number(post.stats.saves || 0) + 1;
     } else {
-      patient.savedPosts.splice(existingIndex, 1);
+      dbUser.savedPosts.splice(existingIndex, 1);
       post.stats = post.stats || {};
       post.stats.saves = Math.max(Number(post.stats.saves || 0) - 1, 0);
     }
 
-    await Promise.all([patient.save(), post.save()]);
+    await Promise.all([dbUser.save({ validateBeforeSave: false }), post.save()]);
 
     res.json({
       success: true,
@@ -2509,14 +2524,19 @@ exports.toggleSavePost = async (req, res, next) => {
 exports.getSavedPosts = async (req, res, next) => {
   try {
     const { userId, userRole } = normalizeUser(req);
-    if (!userId || userRole !== "patient") {
+    if (!userId || !["patient", "doctor", "serviceprovider"].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: "Only patients can view saved posts",
+        message: "Only patients, doctors, and service providers can view saved posts",
       });
     }
 
-    const patient = await Patient.findById(userId)
+    let userModel;
+    if (userRole === "patient") userModel = Patient;
+    else if (userRole === "doctor") userModel = Doctor;
+    else if (userRole === "serviceprovider") userModel = ServiceProvider;
+
+    const dbUser = await userModel.findById(userId)
       .select("savedPosts")
       .populate({
         path: "savedPosts.postId",
@@ -2524,11 +2544,11 @@ exports.getSavedPosts = async (req, res, next) => {
         populate: { path: "doctor", select: "firstName lastName profilePhoto specialization" },
       });
 
-    if (!patient) {
-      return res.status(404).json({ success: false, message: "Patient not found" });
+    if (!dbUser) {
+      return res.status(404).json({ success: false, message: `${userRole} not found` });
     }
 
-    const data = (patient.savedPosts || [])
+    const data = (dbUser.savedPosts || [])
       .filter((item) => item.postId)
       .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
 

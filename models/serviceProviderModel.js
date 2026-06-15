@@ -718,6 +718,25 @@ const serviceProviderSchema = new mongoose.Schema({
     maxlength: 500
   },
 
+  following: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Doctor'
+  }],
+  followingCount: {
+    type: Number,
+    default: 0
+  },
+  savedPosts: [{
+    postId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Post'
+    },
+    savedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
   // Soft Delete
   isDeleted: {
     type: Boolean,

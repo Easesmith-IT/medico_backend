@@ -1203,6 +1203,25 @@ socialHandle: {
   trim: true
 },
 
+  following: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Doctor'
+  }],
+  followingCount: {
+    type: Number,
+    default: 0
+  },
+  savedPosts: [{
+    postId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Post'
+    },
+    savedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
   // Status
   isActive: {
     type: Boolean,
