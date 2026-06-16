@@ -3520,3 +3520,237 @@ exports.resolvePostReport = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getPostsByDoctorId = async (req, res, next) => {
+  try {
+    const { doctorId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid doctor ID'
+      });
+    }
+
+    const { userId, userRole } = normalizeUser(req);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
+    const skip = (page - 1) * limit;
+
+    const query = { doctor: doctorId, isHidden: { $ne: true } };
+
+    const [posts, total] = await Promise.all([
+      Post.find(query)
+        .populate({
+          path: 'doctor',
+          select: 'firstName lastName address cities specialization profilePhoto clinics',
+          populate: { path: 'cities', select: 'name' }
+        })
+        .populate('mentions', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Post.countDocuments(query)
+    ]);
+
+    const followedDoctorIds = new Set();
+    if (userId && ['patient', 'doctor', 'serviceprovider'].includes(userRole)) {
+      let userModel;
+      if (userRole === 'patient') userModel = Patient;
+      else if (userRole === 'doctor') userModel = Doctor;
+      else if (userRole === 'serviceprovider') userModel = ServiceProvider;
+
+      if (userModel) {
+        const dbUser = await userModel.findById(userId).select('following').lean();
+        if (dbUser && Array.isArray(dbUser.following)) {
+          dbUser.following.forEach(id => {
+            if (id) followedDoctorIds.add(id.toString());
+          });
+        }
+      }
+    }
+
+    const postsWithCreators = posts.map(post => {
+      const doctor = post.doctor;
+
+      const name = doctor
+        ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+        : 'Admin';
+
+      let city = 'Not specified';
+
+      if (doctor) {
+        if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+          city = doctor.cities[0].name;
+        } else if (doctor.address?.city) {
+          city = doctor.address.city;
+        } else if (
+          doctor.clinics &&
+          doctor.clinics.length &&
+          doctor.clinics[0]?.address?.city
+        ) {
+          city = doctor.clinics[0].address.city;
+        }
+      }
+
+      const position = doctor?.specialization || 'Doctor';
+
+      const isLiked = !!post.likes?.some(
+        (like) =>
+          like.userId?.toString() === userId &&
+          (like.userRole || '').toLowerCase() === userRole
+      );
+      const isFollowed = doctor?._id
+        ? followedDoctorIds.has(doctor._id.toString())
+        : false;
+
+      return {
+        ...post.toObject(),
+        creator: {
+          _id: doctor?._id || post.doctor,
+          name,
+          location: city,
+          position,
+          profilePhoto: doctor?.profilePhoto || null,
+          role: doctor ? 'doctor' : 'admin'
+        },
+        isLiked,
+        isFollowed
+      };
+    });
+
+    const postsWithCreatorsAndComments = await populateCommentsForPosts(postsWithCreators);
+
+    res.json({
+      success: true,
+      data: postsWithCreatorsAndComments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getPhotosOnlyPostsByDoctorId = async (req, res, next) => {
+  try {
+    const { doctorId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid doctor ID'
+      });
+    }
+
+    const { userId, userRole } = normalizeUser(req);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 9, 1), 50); // Default to 9 for 3x3 grid
+    const skip = (page - 1) * limit;
+
+    const query = {
+      doctor: doctorId,
+      isHidden: { $ne: true },
+      type: 'GALLERY',
+      mediaUrls: { $exists: true, $ne: [] }
+    };
+
+    const [posts, total] = await Promise.all([
+      Post.find(query)
+        .populate({
+          path: 'doctor',
+          select: 'firstName lastName address cities specialization profilePhoto clinics',
+          populate: { path: 'cities', select: 'name' }
+        })
+        .populate('mentions', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Post.countDocuments(query)
+    ]);
+
+    const followedDoctorIds = new Set();
+    if (userId && ['patient', 'doctor', 'serviceprovider'].includes(userRole)) {
+      let userModel;
+      if (userRole === 'patient') userModel = Patient;
+      else if (userRole === 'doctor') userModel = Doctor;
+      else if (userRole === 'serviceprovider') userModel = ServiceProvider;
+
+      if (userModel) {
+        const dbUser = await userModel.findById(userId).select('following').lean();
+        if (dbUser && Array.isArray(dbUser.following)) {
+          dbUser.following.forEach(id => {
+            if (id) followedDoctorIds.add(id.toString());
+          });
+        }
+      }
+    }
+
+    const postsWithCreators = posts.map(post => {
+      const doctor = post.doctor;
+
+      const name = doctor
+        ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+        : 'Admin';
+
+      let city = 'Not specified';
+
+      if (doctor) {
+        if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+          city = doctor.cities[0].name;
+        } else if (doctor.address?.city) {
+          city = doctor.address.city;
+        } else if (
+          doctor.clinics &&
+          doctor.clinics.length &&
+          doctor.clinics[0]?.address?.city
+        ) {
+          city = doctor.clinics[0].address.city;
+        }
+      }
+
+      const position = doctor?.specialization || 'Doctor';
+
+      const isLiked = !!post.likes?.some(
+        (like) =>
+          like.userId?.toString() === userId &&
+          (like.userRole || '').toLowerCase() === userRole
+      );
+      const isFollowed = doctor?._id
+        ? followedDoctorIds.has(doctor._id.toString())
+        : false;
+
+      return {
+        ...post.toObject(),
+        creator: {
+          _id: doctor?._id || post.doctor,
+          name,
+          location: city,
+          position,
+          profilePhoto: doctor?.profilePhoto || null,
+          role: doctor ? 'doctor' : 'admin'
+        },
+        isLiked,
+        isFollowed
+      };
+    });
+
+    const postsWithCreatorsAndComments = await populateCommentsForPosts(postsWithCreators);
+
+    res.json({
+      success: true,
+      data: postsWithCreatorsAndComments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

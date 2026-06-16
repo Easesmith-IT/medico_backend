@@ -111,4 +111,17 @@ router.patch(
   postCtrl.resolvePostReport
 );
 
+router.get(
+  '/doctor/:doctorId',
+  protect('doctor', 'patient', 'admin', 'superadmin', 'subadmin', 'serviceprovider'),
+  postCtrl.getPostsByDoctorId
+);
+
+router.get(
+  '/doctor/:doctorId/photos',
+  protect('doctor', 'patient', 'admin', 'superadmin', 'subadmin', 'serviceprovider'),
+  postCtrl.getPhotosOnlyPostsByDoctorId
+);
+
 module.exports = router;
+
