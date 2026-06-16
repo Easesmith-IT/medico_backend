@@ -470,15 +470,22 @@ exports.createPost = async (req, res, next) => {
 
     // 1) Post type
     let type;
-    if (uploadedFiles.length > 0) {
+    if (req.body.type && ['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes(req.body.type.toUpperCase())) {
+      type = req.body.type.toUpperCase();
+    } else if (uploadedFiles.length > 0) {
       const sampleFile = uploadedFiles[0];
-      const isImage = sampleFile.mimetype.startsWith('image/');
-      type = isImage ? 'GALLERY' : 'REEL';
+      const mime = sampleFile.mimetype || '';
+      if (mime.startsWith('image/')) {
+        type = 'GALLERY';
+      } else if (mime.startsWith('video/')) {
+        type = 'REEL';
+      } else if (mime === 'application/pdf' || mime.includes('pdf')) {
+        type = 'ARTICLE';
+      } else {
+        type = 'GALLERY';
+      }
     } else {
-      const requestedType = (req.body.type || 'TEXT').toUpperCase();
-      type = ['TEXT', 'GALLERY', 'REEL', 'ARTICLE'].includes(requestedType)
-        ? requestedType
-        : 'TEXT';
+      type = 'TEXT';
     }
 
     // 2) Get USER ID from JWT
@@ -742,7 +749,14 @@ exports.getPosts = async (req, res, next) => {
 
     const query = { isHidden: { $ne: true } };
 
-    const [posts, total, followDocs] = await Promise.all([
+    let userModel = null;
+    if (userId && ['patient', 'doctor', 'serviceprovider'].includes(userRole)) {
+      if (userRole === 'patient') userModel = Patient;
+      else if (userRole === 'doctor') userModel = Doctor;
+      else if (userRole === 'serviceprovider') userModel = ServiceProvider;
+    }
+
+    const [posts, total, followDocs, dbUser] = await Promise.all([
       Post.find(query)
       .populate({
         path: 'doctor',
@@ -760,7 +774,10 @@ exports.getPosts = async (req, res, next) => {
             'follows.followerId': userId,
             'follows.followerRole': userRole
           }).select('doctor follows')
-        : []
+        : [],
+      userModel
+        ? userModel.findById(userId).select('savedPosts').lean()
+        : null
     ]);
 
     const followedDoctorIds = new Set();
@@ -774,6 +791,13 @@ exports.getPosts = async (req, res, next) => {
         }
       });
     });
+
+    const savedPostIds = new Set();
+    if (dbUser && Array.isArray(dbUser.savedPosts)) {
+      dbUser.savedPosts.forEach((item) => {
+        if (item && item.postId) savedPostIds.add(item.postId.toString());
+      });
+    }
 
     const postsWithCreators = await Promise.all(
       posts.map(async post => {
@@ -815,6 +839,7 @@ exports.getPosts = async (req, res, next) => {
         const isFollowed = doctor?._id
           ? followedDoctorIds.has(doctor._id.toString())
           : false;
+        const isSaved = savedPostIds.has(post._id.toString());
 
         return {
           ...post.toObject(),
@@ -827,7 +852,8 @@ exports.getPosts = async (req, res, next) => {
             role: doctor ? 'doctor' : 'admin'
           },
           isLiked,
-          isFollowed
+          isFollowed,
+          isSaved
         };
       })
     );
@@ -1458,6 +1484,24 @@ exports.getPostById = async (req, res, next) => {
       }
     }
 
+    // 4) isSaved from user's savedPosts
+    let isSaved = false;
+    if (userId && ["patient", "doctor", "serviceprovider"].includes(userRole)) {
+      let userModel;
+      if (userRole === "patient") userModel = Patient;
+      else if (userRole === "doctor") userModel = Doctor;
+      else if (userRole === "serviceprovider") userModel = ServiceProvider;
+
+      if (userModel) {
+        const dbUser = await userModel.findById(userId).select("savedPosts").lean();
+        if (dbUser && Array.isArray(dbUser.savedPosts)) {
+          isSaved = dbUser.savedPosts.some(
+            (item) => item.postId?.toString() === post._id.toString()
+          );
+        }
+      }
+    }
+
     const postWithCreator = {
       ...post.toObject(),
       creator: {
@@ -1471,6 +1515,7 @@ exports.getPostById = async (req, res, next) => {
       doctorId: doctor?._id || post.doctor, // <- explicit doctor id
       isLiked,
       isFollowed,
+      isSaved
     };
 
     const postWithComments = await populateCommentsForPosts(postWithCreator);
@@ -2420,24 +2465,67 @@ exports.getSocialFeed = async (req, res, next) => {
 
     const [socials, total] = await Promise.all([
       Post.find(postQuery)
-      .populate('doctor', 'firstName lastName profilePhoto specialization')
+      .populate({
+        path: 'doctor',
+        select: 'firstName lastName address cities specialization profilePhoto clinics',
+        populate: { path: 'cities', select: 'name' }
+      })
       .sort({ createdAt: -1 })
       .limit(candidateLimit),
       Post.countDocuments(postQuery),
     ]);
 
+    const followedDoctorIdsSet = new Set(followedDoctorIds.map(id => id.toString()));
     const rankedPosts = rankSocialPosts(socials, profile, sort);
     const paginatedPosts = rankedPosts.slice((page - 1) * limit, page * limit);
 
     const feed = paginatedPosts.map((postObject) => {
+      const doctor = postObject.doctor;
+
+      const name = doctor
+        ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+        : 'Admin';
+
+      let city = 'Not specified';
+      if (doctor) {
+        if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+          city = doctor.cities[0].name;
+        } else if (doctor.address?.city) {
+          city = doctor.address.city;
+        } else if (
+          doctor.clinics &&
+          doctor.clinics.length &&
+          doctor.clinics[0]?.address?.city
+        ) {
+          city = doctor.clinics[0].address.city;
+        }
+      }
+
+      const position = doctor?.specialization || 'Doctor';
+
+      const isLiked = !!postObject.likes?.some((like) => {
+        const likeUserId = like.userId?.toString();
+        const likeUserRole = (like.userRole || "").toLowerCase();
+        return likeUserId === userId && likeUserRole === userRole;
+      });
+
+      const isFollowed = doctor?._id
+        ? followedDoctorIdsSet.has(doctor._id.toString())
+        : false;
+
       return {
         ...postObject,
-        isLiked: !!postObject.likes?.some((like) => {
-          const likeUserId = like.userId?.toString();
-          const likeUserRole = (like.userRole || "").toLowerCase();
-          return likeUserId === userId && likeUserRole === userRole;
-        }),
+        creator: {
+          _id: doctor?._id || postObject.doctor,
+          name,
+          location: city,
+          position,
+          profilePhoto: doctor?.profilePhoto || null,
+          role: doctor ? 'doctor' : 'admin'
+        },
+        isLiked,
         isSaved: profile.savedPostIds.has(postObject._id.toString()),
+        isFollowed
       };
     });
 
@@ -2537,11 +2625,15 @@ exports.getSavedPosts = async (req, res, next) => {
     else if (userRole === "serviceprovider") userModel = ServiceProvider;
 
     const dbUser = await userModel.findById(userId)
-      .select("savedPosts")
+      .select("savedPosts following")
       .populate({
         path: "savedPosts.postId",
         match: { isHidden: false, hiddenAt: null },
-        populate: { path: "doctor", select: "firstName lastName profilePhoto specialization" },
+        populate: {
+          path: "doctor",
+          select: "firstName lastName address cities specialization profilePhoto clinics",
+          populate: { path: "cities", select: "name" }
+        },
       });
 
     if (!dbUser) {
@@ -2552,13 +2644,68 @@ exports.getSavedPosts = async (req, res, next) => {
       .filter((item) => item.postId)
       .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
 
+    const followedDoctorIds = dbUser.following || [];
+    const followedDoctorIdsSet = new Set(followedDoctorIds.map(id => id.toString()));
+
     const posts = data.map((item) => item.postId);
     const populatedPosts = await populateCommentsForPosts(posts);
-    data.forEach((item, index) => {
-      item.postId = populatedPosts[index];
+
+    const formattedData = data.map((item, index) => {
+      const post = populatedPosts[index];
+      const postObj = typeof post.toObject === 'function' ? post.toObject() : post;
+      const doctor = postObj.doctor;
+
+      const name = doctor
+        ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
+        : 'Admin';
+
+      let city = 'Not specified';
+      if (doctor) {
+        if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+          city = doctor.cities[0].name;
+        } else if (doctor.address?.city) {
+          city = doctor.address.city;
+        } else if (
+          doctor.clinics &&
+          doctor.clinics.length &&
+          doctor.clinics[0]?.address?.city
+        ) {
+          city = doctor.clinics[0].address.city;
+        }
+      }
+
+      const position = doctor?.specialization || 'Doctor';
+
+      const isLiked = !!postObj.likes?.some(
+        (like) =>
+          like.userId?.toString() === userId &&
+          (like.userRole || '').toLowerCase() === userRole
+      );
+      const isFollowed = doctor?._id
+        ? followedDoctorIdsSet.has(doctor._id.toString())
+        : false;
+
+      return {
+        _id: item._id,
+        savedAt: item.savedAt,
+        postId: {
+          ...postObj,
+          creator: {
+            _id: doctor?._id || postObj.doctor,
+            name,
+            location: city,
+            position,
+            profilePhoto: doctor?.profilePhoto || null,
+            role: doctor ? 'doctor' : 'admin'
+          },
+          isLiked,
+          isSaved: true,
+          isFollowed
+        }
+      };
     });
 
-    res.json({ success: true, data });
+    res.json({ success: true, data: formattedData });
   } catch (err) {
     next(err);
   }
@@ -3537,8 +3684,14 @@ exports.getPostsByDoctorId = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const query = { doctor: doctorId, isHidden: { $ne: true } };
+    let userModel = null;
+    if (userId && ['patient', 'doctor', 'serviceprovider'].includes(userRole)) {
+      if (userRole === 'patient') userModel = Patient;
+      else if (userRole === 'doctor') userModel = Doctor;
+      else if (userRole === 'serviceprovider') userModel = ServiceProvider;
+    }
 
-    const [posts, total] = await Promise.all([
+    const [posts, total, dbUser] = await Promise.all([
       Post.find(query)
         .populate({
           path: 'doctor',
@@ -3549,24 +3702,24 @@ exports.getPostsByDoctorId = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      Post.countDocuments(query)
+      Post.countDocuments(query),
+      userModel
+        ? userModel.findById(userId).select('following savedPosts').lean()
+        : null
     ]);
 
     const followedDoctorIds = new Set();
-    if (userId && ['patient', 'doctor', 'serviceprovider'].includes(userRole)) {
-      let userModel;
-      if (userRole === 'patient') userModel = Patient;
-      else if (userRole === 'doctor') userModel = Doctor;
-      else if (userRole === 'serviceprovider') userModel = ServiceProvider;
+    if (dbUser && Array.isArray(dbUser.following)) {
+      dbUser.following.forEach(id => {
+        if (id) followedDoctorIds.add(id.toString());
+      });
+    }
 
-      if (userModel) {
-        const dbUser = await userModel.findById(userId).select('following').lean();
-        if (dbUser && Array.isArray(dbUser.following)) {
-          dbUser.following.forEach(id => {
-            if (id) followedDoctorIds.add(id.toString());
-          });
-        }
-      }
+    const savedPostIds = new Set();
+    if (dbUser && Array.isArray(dbUser.savedPosts)) {
+      dbUser.savedPosts.forEach((item) => {
+        if (item && item.postId) savedPostIds.add(item.postId.toString());
+      });
     }
 
     const postsWithCreators = posts.map(post => {
@@ -3602,6 +3755,7 @@ exports.getPostsByDoctorId = async (req, res, next) => {
       const isFollowed = doctor?._id
         ? followedDoctorIds.has(doctor._id.toString())
         : false;
+      const isSaved = savedPostIds.has(post._id.toString());
 
       return {
         ...post.toObject(),
@@ -3614,7 +3768,8 @@ exports.getPostsByDoctorId = async (req, res, next) => {
           role: doctor ? 'doctor' : 'admin'
         },
         isLiked,
-        isFollowed
+        isFollowed,
+        isSaved
       };
     });
 
@@ -3657,7 +3812,14 @@ exports.getPhotosOnlyPostsByDoctorId = async (req, res, next) => {
       mediaUrls: { $exists: true, $ne: [] }
     };
 
-    const [posts, total] = await Promise.all([
+    let userModel = null;
+    if (userId && ['patient', 'doctor', 'serviceprovider'].includes(userRole)) {
+      if (userRole === 'patient') userModel = Patient;
+      else if (userRole === 'doctor') userModel = Doctor;
+      else if (userRole === 'serviceprovider') userModel = ServiceProvider;
+    }
+
+    const [posts, total, dbUser] = await Promise.all([
       Post.find(query)
         .populate({
           path: 'doctor',
@@ -3668,24 +3830,24 @@ exports.getPhotosOnlyPostsByDoctorId = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      Post.countDocuments(query)
+      Post.countDocuments(query),
+      userModel
+        ? userModel.findById(userId).select('following savedPosts').lean()
+        : null
     ]);
 
     const followedDoctorIds = new Set();
-    if (userId && ['patient', 'doctor', 'serviceprovider'].includes(userRole)) {
-      let userModel;
-      if (userRole === 'patient') userModel = Patient;
-      else if (userRole === 'doctor') userModel = Doctor;
-      else if (userRole === 'serviceprovider') userModel = ServiceProvider;
+    if (dbUser && Array.isArray(dbUser.following)) {
+      dbUser.following.forEach(id => {
+        if (id) followedDoctorIds.add(id.toString());
+      });
+    }
 
-      if (userModel) {
-        const dbUser = await userModel.findById(userId).select('following').lean();
-        if (dbUser && Array.isArray(dbUser.following)) {
-          dbUser.following.forEach(id => {
-            if (id) followedDoctorIds.add(id.toString());
-          });
-        }
-      }
+    const savedPostIds = new Set();
+    if (dbUser && Array.isArray(dbUser.savedPosts)) {
+      dbUser.savedPosts.forEach((item) => {
+        if (item && item.postId) savedPostIds.add(item.postId.toString());
+      });
     }
 
     const postsWithCreators = posts.map(post => {
@@ -3721,6 +3883,7 @@ exports.getPhotosOnlyPostsByDoctorId = async (req, res, next) => {
       const isFollowed = doctor?._id
         ? followedDoctorIds.has(doctor._id.toString())
         : false;
+      const isSaved = savedPostIds.has(post._id.toString());
 
       return {
         ...post.toObject(),
@@ -3733,7 +3896,8 @@ exports.getPhotosOnlyPostsByDoctorId = async (req, res, next) => {
           role: doctor ? 'doctor' : 'admin'
         },
         isLiked,
-        isFollowed
+        isFollowed,
+        isSaved
       };
     });
 

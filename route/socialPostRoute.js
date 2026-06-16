@@ -11,7 +11,10 @@ const { protect } = require('../middleware/auth');
 router.post(
   '/createPost',
   protect('doctor', 'admin', 'superadmin', 'subadmin'),
-  createUpload({ fields: [{ name: 'image', maxCount: 10 }, { name: 'images', maxCount: 10 }] }),
+  createUpload({
+    fields: [{ name: 'image', maxCount: 10 }, { name: 'images', maxCount: 10 }],
+    fileTypes: 'imageAndPdfAndVideo'
+  }),
   postCtrl.createPost
 );
 

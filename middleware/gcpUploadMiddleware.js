@@ -19,11 +19,13 @@ const path = require("path");
 
 const MIME_IMAGE = /jpeg|jpg|png|gif|webp/i;
 const MIME_PDF = /pdf/i;
+const MIME_VIDEO = /mp4|mov|avi|mkv|webm|quicktime/i;
 
 const getFileFilter = (fileTypes) => {
   const types = Array.isArray(fileTypes) ? fileTypes : [fileTypes];
-  const allowImage = types.includes("image") || types.includes("imageAndPdf");
-  const allowPdf = types.includes("pdf") || types.includes("imageAndPdf");
+  const allowImage = types.includes("image") || types.includes("imageAndPdf") || types.includes("imageAndPdfAndVideo");
+  const allowPdf = types.includes("pdf") || types.includes("imageAndPdf") || types.includes("imageAndPdfAndVideo");
+  const allowVideo = types.includes("video") || types.includes("imageAndPdfAndVideo");
 
   return (req, file, cb) => {
     const ext = path
@@ -35,14 +37,17 @@ const getFileFilter = (fileTypes) => {
     const imageOk = allowImage && (MIME_IMAGE.test(ext) || MIME_IMAGE.test(mime));
     const pdfOk =
       allowPdf && (MIME_PDF.test(ext) || mime === "application/pdf");
+    const videoOk =
+      allowVideo && (MIME_VIDEO.test(ext) || MIME_VIDEO.test(mime));
 
-    if (imageOk || pdfOk) {
+    if (imageOk || pdfOk || videoOk) {
       return cb(null, true);
     }
     const allowed = [];
     if (allowImage) allowed.push("images (jpeg, png, gif, webp)");
     if (allowPdf) allowed.push("PDF");
-    cb(new Error(`Only ${allowed.join(" and ")} are allowed.`), false);
+    if (allowVideo) allowed.push("video (mp4, mov, avi, mkv, webm)");
+    cb(new Error(`Only ${allowed.join(", ")} are allowed.`), false);
   };
 };
 
@@ -51,7 +56,7 @@ const createUpload = (options = {}) => {
     fields,
     single,
     array,
-    fileTypes = "imageAndPdf",
+    fileTypes = "imageAndPdfAndVideo",
     maxFileSize = 10 * 1024 * 1024,
   } = options;
 
