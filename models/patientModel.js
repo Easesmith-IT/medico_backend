@@ -333,6 +333,10 @@ const patientSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  fcmToken: {
+    type: String,
+    default: null
+  },
 
   // OTP Fields
   signupOtp: {

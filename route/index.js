@@ -57,6 +57,7 @@ const medicalRecordRoute = require("../route/medicalRecordRoute");
 const reviewRoute = require("../route/reviewRoute");
 const supportRoute = require("../route/supportRoute");
 const doctorAppointmentRoute = require("../route/doctorAppointmentRoute");
+const chatRoute = require("../route/chatRoute");
 
 const router = express.Router();
 
@@ -83,5 +84,6 @@ router.use('/medical-records', medicalRecordRoute);
 router.use('/reviews', reviewRoute);
 router.use('/support', supportRoute);
 router.use('/doctor-appointments', doctorAppointmentRoute);
-router.use('/seperatepatientAddress', seperatePatientAddressRoute)
+router.use('/seperatepatientAddress', seperatePatientAddressRoute);
+router.use('/chats', chatRoute);
 module.exports = router;

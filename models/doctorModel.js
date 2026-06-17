@@ -1227,6 +1227,10 @@ socialHandle: {
     type: Boolean,
     default: true
   },
+  fcmToken: {
+    type: String,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

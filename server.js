@@ -10,6 +10,7 @@ const routes = require("./route");
 const AppError = require("./utils/appError");
 const errorMiddleware = require("./middleware/errorMiddleware");
 const razorpay = require("./config/razorpay");
+const { initSocket } = require("./utils/socket");
 const app = express();
 
 app.set("trust proxy", 1);
@@ -195,6 +196,9 @@ const server = app.listen(PORT, () => {
   console.log("=".repeat(70));
   console.log("");
 });
+
+// Initialize Socket.IO
+initSocket(server);
 
 // ============================================
 // ERROR HANDLING
