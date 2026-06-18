@@ -14,7 +14,11 @@ function initSocket(server) {
       origin: "*", // Allow all origins, matched with server CORS
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
       credentials: true
-    }
+    },
+    transports: ["websocket", "polling"],
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    connectTimeout: 45000
   });
 
   io.on('connection', (socket) => {
