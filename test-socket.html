@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medico Socket.IO Live Tester</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Socket.IO Client CDN -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+    }
+
+    main {
+      width: 100%;
+      max-width: 1100px;
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+      color: #cbd5e1;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-group input, .form-group select {
+      width: 100%;
+      background-color: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--primary);
+    }
+
+    .btn {
+      width: 100%;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-success {
+      background-color: var(--success);
+    }
+
+    .btn-success:hover {
+      background-color: #059669;
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background-color: #dc2626;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-left: 0.5rem;
+    }
+
+    .status-disconnected {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+    }
+
+    .status-connecting {
+      background-color: rgba(245, 158, 11, 0.2);
+      color: #f59e0b;
+    }
+
+    .status-connected {
+      background-color: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+    }
+
+    .console-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+    }
+
+    .console-logs {
+      flex-grow: 1;
+      background-color: #020617;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .log-entry {
+      margin-bottom: 0.75rem;
+      line-height: 1.4;
+      border-left: 3px solid #64748b;
+      padding-left: 0.5rem;
+    }
+
+    .log-time {
+      color: var(--text-muted);
+      margin-right: 0.5rem;
+    }
+
+    .log-info {
+      border-left-color: var(--primary);
+      color: #cbd5e1;
+    }
+
+    .log-success {
+      border-left-color: var(--success);
+      color: #a7f3d0;
+    }
+
+    .log-error {
+      border-left-color: var(--danger);
+      color: #fca5a5;
+    }
+
+    .log-incoming {
+      border-left-color: #f59e0b;
+      color: #fde68a;
+    }
+
+    .log-outgoing {
+      border-left-color: #a855f7;
+      color: #e9d5ff;
+    }
+
+    .flex-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .chat-controls {
+      margin-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+      display: none;
+    }
+
+    .chat-controls.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Medico Socket.IO Live Tester</h1>
+    <p>Test real-time events, websocket upgrade, and chat messaging live.</p>
+  </header>
+
+  <main>
+    <!-- Left Panel: Connection Settings & Triggers -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <div class="card">
+        <h2>Connection Settings <span id="statusBadge" class="status-badge status-disconnected">Disconnected</span></h2>
+        
+        <div class="form-group">
+          <label for="socketUrl">Socket Server URL</label>
+          <input type="text" id="socketUrl" value="https://medico-sockets.onrender.com">
+        </div>
+
+        <div class="form-group">
+          <label for="userId">User ID (Database ID)</label>
+          <input type="text" id="userId" value="6a22cc13dcce2ce0b2f29769">
+        </div>
+
+        <div class="form-group">
+          <label for="role">User Role</label>
+          <select id="role">
+            <option value="doctor">Doctor</option>
+            <option value="patient">Patient</option>
+          </select>
+        </div>
+
+        <button id="connectBtn" class="btn">Connect Socket</button>
+      </div>
+
+      <div class="card chat-controls" id="chatCard">
+        <h2>Send Events</h2>
+
+        <div class="form-group">
+          <label for="roomId">Room ID</label>
+          <input type="text" id="roomId" value="test_room_123">
+        </div>
+
+        <div class="flex-row">
+          <button id="joinBtn" class="btn" style="flex: 1;">Join Room</button>
+          <button id="leaveBtn" class="btn btn-danger" style="flex: 1;">Leave Room</button>
+        </div>
+
+        <div class="form-group" style="margin-top: 1.5rem;">
+          <label for="messageText">Message Body</label>
+          <input type="text" id="messageText" value="Hello! This is a real-time message from the Web Tester.">
+        </div>
+
+        <button id="sendBtn" class="btn btn-success">Send Message</button>
+
+        <button id="seenBtn" class="btn" style="margin-top: 0.75rem; background-color: #475569;">Mark Room Seen</button>
+      </div>
+    </div>
+
+    <!-- Right Panel: Live Console Logs -->
+    <div class="card console-wrapper">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2>Event Console Logs</h2>
+        <button id="clearLogsBtn" style="background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.875rem; font-weight: 600;">Clear Console</button>
+      </div>
+      <div class="console-logs" id="consoleLogs"></div>
+    </div>
+  </main>
+
+  <script>
+    let socket = null;
+    const socketUrlInput = document.getElementById('socketUrl');
+    const userIdInput = document.getElementById('userId');
+    const roleInput = document.getElementById('role');
+    const connectBtn = document.getElementById('connectBtn');
+    const statusBadge = document.getElementById('statusBadge');
+    const consoleLogs = document.getElementById('consoleLogs');
+    const clearLogsBtn = document.getElementById('clearLogsBtn');
+
+    const chatCard = document.getElementById('chatCard');
+    const roomIdInput = document.getElementById('roomId');
+    const joinBtn = document.getElementById('joinBtn');
+    const leaveBtn = document.getElementById('leaveBtn');
+    const messageTextInput = document.getElementById('messageText');
+    const sendBtn = document.getElementById('sendBtn');
+    const seenBtn = document.getElementById('seenBtn');
+
+    // Utility Logger
+    function log(message, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'log-time';
+      timeSpan.innerText = new Date().toLocaleTimeString();
+
+      const textNode = document.createTextNode(
+        typeof message === 'object' ? JSON.stringify(message, null, 2) : message
+      );
+
+      entry.appendChild(timeSpan);
+      entry.appendChild(textNode);
+      consoleLogs.appendChild(entry);
+      consoleLogs.scrollTop = consoleLogs.scrollHeight;
+    }
+
+    clearLogsBtn.addEventListener('click', () => {
+      consoleLogs.innerHTML = '';
+      log('Console logs cleared.');
+    });
+
+    // Update UI Status
+    function setStatus(status) {
+      statusBadge.className = `status-badge status-${status}`;
+      statusBadge.innerText = status;
+
+      if (status === 'connected') {
+        connectBtn.innerText = 'Disconnect Socket';
+        connectBtn.className = 'btn btn-danger';
+        chatCard.classList.add('active');
+      } else if (status === 'connecting') {
+        connectBtn.innerText = 'Connecting...';
+        connectBtn.className = 'btn';
+        chatCard.classList.remove('active');
+      } else {
+        connectBtn.innerText = 'Connect Socket';
+        connectBtn.className = 'btn';
+        chatCard.classList.remove('active');
+      }
+    }
+
+    // Connect/Disconnect Handler
+    connectBtn.addEventListener('click', () => {
+      if (socket && socket.connected) {
+        log('🔌 Manually disconnecting socket...', 'info');
+        socket.disconnect();
+        return;
+      }
+
+      const url = socketUrlInput.value.trim();
+      const userId = userIdInput.value.trim();
+      const role = roleInput.value;
+
+      if (!url) {
+        log('❌ Error: Socket Server URL is required.', 'error');
+        return;
+      }
+
+      log(`🔌 Attempting to connect to ${url}...`, 'info');
+      setStatus('connecting');
+
+      // Initialize Socket.IO Client
+      socket = io(url, {
+        query: { userId, role },
+        transports: ['websocket'], // Forces websocket, avoiding HTTP polling timeouts
+        forceNew: true
+      });
+
+      // --- Bind Socket events ---
+
+      socket.on('connect', () => {
+        setStatus('connected');
+        log(`✅ Successfully connected! Socket ID: ${socket.id}`, 'success');
+      });
+
+      socket.on('disconnect', (reason) => {
+        setStatus('disconnected');
+        log(`🔌 Socket disconnected. Reason: ${reason}`, 'error');
+      });
+
+      socket.on('connect_error', (error) => {
+        setStatus('disconnected');
+        log(`❌ Connection error: ${error.message}`, 'error');
+      });
+
+      // Live Chat custom events
+      socket.on('message_sent', (message) => {
+        log(`📩 [Received: message_sent] Message sent confirmation:`, 'incoming');
+        log(message, 'info');
+      });
+
+      socket.on('messages_seen', (data) => {
+        log(`📩 [Received: messages_seen] Room read notification:`, 'incoming');
+        log(data, 'info');
+      });
+
+      socket.on('message_error', (error) => {
+        log(`❌ [Received: message_error] Error message:`, 'error');
+        log(error, 'info');
+      });
+    });
+
+    // Join Room Event Trigger
+    joinBtn.addEventListener('click', () => {
+      const roomId = roomIdInput.value.trim();
+      if (!roomId) {
+        log('❌ Error: Room ID is required.', 'error');
+        return;
+      }
+      log(`📤 [Emitted: join_room] Joining room ID: ${roomId}`, 'outgoing');
+      socket.emit('join_room', { roomId });
+    });
+
+    // Leave Room Event Trigger
+    leaveBtn.addEventListener('click', () => {
+      const roomId = roomIdInput.value.trim();
+      if (!roomId) {
+        log('❌ Error: Room ID is required.', 'error');
+        return;
+      }
+      log(`📤 [Emitted: leave_room] Leaving room ID: ${roomId}`, 'outgoing');
+      socket.emit('leave_room', { roomId });
+    });
+
+    // Send Message Event Trigger
+    sendBtn.addEventListener('click', () => {
+      const roomId = roomIdInput.value.trim();
+      const text = messageTextInput.value.trim();
+
+      if (!roomId || !text) {
+        log('❌ Error: Room ID and Message text are required.', 'error');
+        return;
+      }
+
+      log(`📤 [Emitted: send_message] Sending message to room ${roomId}: "${text}"`, 'outgoing');
+      socket.emit('send_message', { roomId, text });
+    });
+
+    // Mark Seen Event Trigger
+    seenBtn.addEventListener('click', () => {
+      const roomId = roomIdInput.value.trim();
+      if (!roomId) {
+        log('❌ Error: Room ID is required.', 'error');
+        return;
+      }
+      log(`📤 [Emitted: mark_seen] Marking messages in room ${roomId} as seen`, 'outgoing');
+      socket.emit('mark_seen', { roomId });
+    });
+
+  </script>
+</body>
+</html>
