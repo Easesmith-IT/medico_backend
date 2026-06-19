@@ -1,4 +1,6 @@
 const { Server } = require('socket.io');
+const Doctor = require('../models/doctorModel');
+const Patient = require('../models/patientModel');
 
 let io;
 const activeSockets = new Map(); // userId -> socketId
@@ -14,82 +16,97 @@ function initSocket(server) {
       origin: "*", // Allow all origins, matched with server CORS
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
       credentials: true
-    },
-    transports: ["websocket", "polling"],
-    pingTimeout: 60000,
-    pingInterval: 25000,
-    connectTimeout: 45000
+    }
   });
 
   io.on('connection', (socket) => {
     const userId = socket.handshake.query.userId;
-    const role = socket.handshake.query.role; // 'doctor' or 'patient'
+    const handshakeRole = socket.handshake.query.role; // 'doctor' or 'patient'
 
     if (userId) {
       activeSockets.set(userId.toString(), socket.id);
-      console.log(`🔌 User connected: ${userId} (${role || 'unknown role'}) | Socket ID: ${socket.id}`);
+      console.log(`🔌 User connected: ${userId} (${handshakeRole || 'unknown role'}) | Socket ID: ${socket.id}`);
     } else {
       console.log(`🔌 Anonymous client connected | Socket ID: ${socket.id}`);
     }
 
-    // Join a chat room
-    socket.on('join_room', ({ roomId }) => {
-      if (!roomId) return;
+    // Join a chat room (supports both string and object payload)
+    socket.on('join_room', (data) => {
+      let roomId;
+      if (typeof data === 'string') {
+        roomId = data;
+      } else if (data && data.roomId) {
+        roomId = data.roomId;
+      }
+
+      if (!roomId) {
+        console.warn(`⚠️ join_room failed: No roomId provided by socket ${socket.id}`);
+        return;
+      }
+
       socket.join(roomId.toString());
-      console.log(`🚪 Socket ${socket.id} joined room ${roomId}`);
+      console.log(`🚪 Socket ${socket.id} (User: ${userId}) joined room ${roomId}`);
     });
 
-    // Leave a chat room
-    socket.on('leave_room', ({ roomId }) => {
+    // Leave a chat room (supports both string and object payload)
+    socket.on('leave_room', (data) => {
+      let roomId;
+      if (typeof data === 'string') {
+        roomId = data;
+      } else if (data && data.roomId) {
+        roomId = data.roomId;
+      }
+
       if (!roomId) return;
       socket.leave(roomId.toString());
       console.log(`🚪 Socket ${socket.id} left room ${roomId}`);
     });
 
-    // Handle real-time messaging
-    socket.on('send_message', async (payload) => {
-      const { roomId, text, messageType = 'text', mediaUrl, mediaName, mediaSize } = payload || {};
+    // Handle real-time messaging (supports both object and multi-argument payload)
+    socket.on('send_message', async (data, arg2) => {
+      let roomId;
+      let text;
+
+      if (typeof data === 'object' && data !== null) {
+        roomId = data.roomId;
+        text = data.text;
+      } else {
+        roomId = data;
+        text = arg2;
+      }
 
       if (!userId) {
         socket.emit('message_error', { message: 'Authentication required. No userId provided.' });
         return;
       }
-      if (!roomId) {
-        socket.emit('message_error', { message: 'Room ID is required' });
-        return;
-      }
-
-      if (messageType === 'text' && (!text || !text.trim())) {
-        socket.emit('message_error', { roomId, message: 'Invalid message payload: text is required for text message type' });
-        return;
-      }
-
-      if (messageType !== 'text' && !mediaUrl) {
-        socket.emit('message_error', { roomId, message: 'Invalid message payload: mediaUrl is required for media message type' });
+      if (!roomId || !text || !text.trim()) {
+        socket.emit('message_error', { roomId, message: 'Invalid message payload' });
         return;
       }
 
       try {
         const chatController = require('../controller/chatController');
         
-        // Capitalize role for Mongoose refPath
+        // Robustly determine senderModel from DB check
         let senderModel = 'Patient';
-        if (role && role.toLowerCase() === 'doctor') {
+        const isDoctor = await Doctor.exists({ _id: userId });
+        if (isDoctor) {
           senderModel = 'Doctor';
+        } else {
+          const isPatient = await Patient.exists({ _id: userId });
+          if (isPatient) {
+            senderModel = 'Patient';
+          } else if (handshakeRole && handshakeRole.toLowerCase() === 'doctor') {
+            senderModel = 'Doctor';
+          }
         }
 
-        // Process message sending (booking check, DB save, unread counts, Socket emit, FCM offline notify)
+        // Process message sending
         const message = await chatController.processMessageSending(
           roomId, 
           userId, 
           senderModel, 
-          {
-            text,
-            messageType,
-            mediaUrl,
-            mediaName,
-            mediaSize
-          }
+          text
         );
 
         // Acknowledge sending back to client
@@ -100,8 +117,15 @@ function initSocket(server) {
       }
     });
 
-    // Handle marking messages as seen in real-time
-    socket.on('mark_seen', async ({ roomId }) => {
+    // Handle marking messages as seen in real-time (supports both string and object payload)
+    socket.on('mark_seen', async (data) => {
+      let roomId;
+      if (typeof data === 'string') {
+        roomId = data;
+      } else if (data && data.roomId) {
+        roomId = data.roomId;
+      }
+
       if (!userId || !roomId) return;
 
       try {
