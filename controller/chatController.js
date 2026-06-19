@@ -37,7 +37,7 @@ const verifyBookingExists = async (doctorId, patientId) => {
 /**
  * Shared helper to process message creation, socket emission, and FCM trigger
  */
-const processMessageSending = async (roomId, senderId, senderModel, text) => {
+const processMessageSending = async (roomId, senderId, senderModel, textOrPayload) => {
   const room = await ChatRoom.findById(roomId);
   if (!room) {
     throw new AppError('Chat room not found', 404);
@@ -56,12 +56,32 @@ const processMessageSending = async (roomId, senderId, senderModel, text) => {
     }
   }
 
+  let text = '';
+  let messageType = 'text';
+  let mediaUrl = null;
+  let mediaName = null;
+  let mediaSize = null;
+
+  if (typeof textOrPayload === 'string') {
+    text = textOrPayload;
+  } else if (textOrPayload && typeof textOrPayload === 'object') {
+    text = textOrPayload.text || '';
+    messageType = textOrPayload.messageType || 'text';
+    mediaUrl = textOrPayload.mediaUrl || null;
+    mediaName = textOrPayload.mediaName || null;
+    mediaSize = textOrPayload.mediaSize || null;
+  }
+
   // Save message to database
   const message = await Message.create({
     chatRoomId: roomId,
     senderId,
     senderModel,
-    text
+    text,
+    messageType,
+    mediaUrl,
+    mediaName,
+    mediaSize
   });
 
   // Find recipient
@@ -114,7 +134,17 @@ const processMessageSending = async (roomId, senderId, senderModel, text) => {
         
         const senderName = senderUser ? (senderUser.firstName || senderUser.name) : 'User';
         const notificationTitle = `New message from ${senderName}`;
-        const notificationBody = text.length > 60 ? `${text.substring(0, 60)}...` : text;
+        
+        let notificationBody = text;
+        if (messageType === 'image') {
+          notificationBody = text ? `📷 Image: ${text}` : '📷 Sent an image';
+        } else if (messageType === 'document') {
+          notificationBody = text ? `📄 Document: ${text}` : `📄 Sent a document: ${mediaName || 'file'}`;
+        }
+
+        if (notificationBody && notificationBody.length > 60) {
+          notificationBody = `${notificationBody.substring(0, 60)}...`;
+        }
         
         await fcm.sendPushNotification(
           recipientUser.fcmToken,
@@ -236,6 +266,10 @@ exports.getChats = catchAsync(async (req, res, next) => {
       lastMessage: room.lastMessage ? {
         _id: room.lastMessage._id,
         text: room.lastMessage.text,
+        messageType: room.lastMessage.messageType || 'text',
+        mediaUrl: room.lastMessage.mediaUrl || null,
+        mediaName: room.lastMessage.mediaName || null,
+        mediaSize: room.lastMessage.mediaSize || null,
         senderId: room.lastMessage.senderId,
         seen: room.lastMessage.seen,
         createdAt: room.lastMessage.createdAt
@@ -311,14 +345,26 @@ exports.getChatMessages = catchAsync(async (req, res, next) => {
  */
 exports.sendMessage = catchAsync(async (req, res, next) => {
   const { roomId } = req.params;
-  const { text } = req.body;
+  const { text, messageType, mediaUrl, mediaName, mediaSize } = req.body;
 
-  if (!text || !text.trim()) {
+  const msgType = messageType || 'text';
+
+  if (msgType === 'text' && (!text || !text.trim())) {
     return next(new AppError('Please provide message text', 400));
   }
 
+  if (msgType !== 'text' && !mediaUrl) {
+    return next(new AppError('Please provide media URL', 400));
+  }
+
   const senderModel = capitalizeModel(req.user.role);
-  const populatedMessage = await processMessageSending(roomId, req.user.id, senderModel, text);
+  const populatedMessage = await processMessageSending(roomId, req.user.id, senderModel, {
+    text,
+    messageType: msgType,
+    mediaUrl,
+    mediaName,
+    mediaSize
+  });
 
   res.status(201).json({
     status: 'success',

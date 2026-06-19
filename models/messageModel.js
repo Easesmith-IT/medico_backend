@@ -19,8 +19,30 @@ const messageSchema = new mongoose.Schema({
   },
   text: {
     type: String,
-    required: true,
+    required: function() {
+      return this.messageType === 'text';
+    },
     trim: true
+  },
+  messageType: {
+    type: String,
+    enum: ['text', 'image', 'document'],
+    default: 'text'
+  },
+  mediaUrl: {
+    type: String,
+    required: function() {
+      return this.messageType !== 'text';
+    },
+    default: null
+  },
+  mediaName: {
+    type: String,
+    default: null
+  },
+  mediaSize: {
+    type: Number,
+    default: null
   },
   seen: {
     type: Boolean,

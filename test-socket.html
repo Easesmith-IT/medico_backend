@@ -300,8 +300,32 @@
         </div>
 
         <div class="form-group" style="margin-top: 1.5rem;">
-          <label for="messageText">Message Body</label>
+          <label for="messageType">Message Type</label>
+          <select id="messageType">
+            <option value="text">Text Only</option>
+            <option value="image">Image Attachment</option>
+            <option value="document">Document Attachment</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="messageText">Message Text / Caption</label>
           <input type="text" id="messageText" value="Hello! This is a real-time message from the Web Tester.">
+        </div>
+
+        <div id="mediaFields" style="display: none;">
+          <div class="form-group">
+            <label for="mediaUrl">Media URL</label>
+            <input type="text" id="mediaUrl" value="https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80">
+          </div>
+          <div class="form-group">
+            <label for="mediaName">Media Name</label>
+            <input type="text" id="mediaName" value="xray_report.jpg">
+          </div>
+          <div class="form-group">
+            <label for="mediaSize">Media Size (Bytes)</label>
+            <input type="number" id="mediaSize" value="102456">
+          </div>
         </div>
 
         <button id="sendBtn" class="btn btn-success">Send Message</button>
@@ -337,6 +361,20 @@
     const messageTextInput = document.getElementById('messageText');
     const sendBtn = document.getElementById('sendBtn');
     const seenBtn = document.getElementById('seenBtn');
+
+    const messageTypeInput = document.getElementById('messageType');
+    const mediaFields = document.getElementById('mediaFields');
+    const mediaUrlInput = document.getElementById('mediaUrl');
+    const mediaNameInput = document.getElementById('mediaName');
+    const mediaSizeInput = document.getElementById('mediaSize');
+
+    messageTypeInput.addEventListener('change', () => {
+      if (messageTypeInput.value === 'text') {
+        mediaFields.style.display = 'none';
+      } else {
+        mediaFields.style.display = 'block';
+      }
+    });
 
     // Utility Logger
     function log(message, type = 'info') {
@@ -469,14 +507,38 @@
     sendBtn.addEventListener('click', () => {
       const roomId = roomIdInput.value.trim();
       const text = messageTextInput.value.trim();
+      const messageType = messageTypeInput.value;
+      const mediaUrl = mediaUrlInput.value.trim();
+      const mediaName = mediaNameInput.value.trim();
+      const mediaSize = parseInt(mediaSizeInput.value.trim(), 10) || null;
 
-      if (!roomId || !text) {
-        log('❌ Error: Room ID and Message text are required.', 'error');
+      if (!roomId) {
+        log('❌ Error: Room ID is required.', 'error');
         return;
       }
 
-      log(`📤 [Emitted: send_message] Sending message to room ${roomId}: "${text}"`, 'outgoing');
-      socket.emit('send_message', { roomId, text });
+      if (messageType === 'text' && !text) {
+        log('❌ Error: Message text is required for text messages.', 'error');
+        return;
+      }
+
+      if (messageType !== 'text' && !mediaUrl) {
+        log('❌ Error: Media URL is required for media messages.', 'error');
+        return;
+      }
+
+      const payload = {
+        roomId,
+        text,
+        messageType,
+        mediaUrl: messageType !== 'text' ? mediaUrl : undefined,
+        mediaName: messageType !== 'text' ? mediaName : undefined,
+        mediaSize: messageType !== 'text' ? mediaSize : undefined
+      };
+
+      log(`📤 [Emitted: send_message] Sending message to room ${roomId}:`, 'outgoing');
+      log(payload, 'info');
+      socket.emit('send_message', payload);
     });
 
     // Mark Seen Event Trigger

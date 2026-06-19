@@ -47,13 +47,25 @@ function initSocket(server) {
     });
 
     // Handle real-time messaging
-    socket.on('send_message', async ({ roomId, text }) => {
+    socket.on('send_message', async (payload) => {
+      const { roomId, text, messageType = 'text', mediaUrl, mediaName, mediaSize } = payload || {};
+
       if (!userId) {
         socket.emit('message_error', { message: 'Authentication required. No userId provided.' });
         return;
       }
-      if (!roomId || !text || !text.trim()) {
-        socket.emit('message_error', { roomId, message: 'Invalid message payload' });
+      if (!roomId) {
+        socket.emit('message_error', { message: 'Room ID is required' });
+        return;
+      }
+
+      if (messageType === 'text' && (!text || !text.trim())) {
+        socket.emit('message_error', { roomId, message: 'Invalid message payload: text is required for text message type' });
+        return;
+      }
+
+      if (messageType !== 'text' && !mediaUrl) {
+        socket.emit('message_error', { roomId, message: 'Invalid message payload: mediaUrl is required for media message type' });
         return;
       }
 
@@ -71,7 +83,13 @@ function initSocket(server) {
           roomId, 
           userId, 
           senderModel, 
-          text
+          {
+            text,
+            messageType,
+            mediaUrl,
+            mediaName,
+            mediaSize
+          }
         );
 
         // Acknowledge sending back to client
