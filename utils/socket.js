@@ -65,23 +65,48 @@ function initSocket(server) {
     // Handle real-time messaging (supports both object and multi-argument payload)
     socket.on('send_message', async (data, arg2) => {
       let roomId;
-      let text;
+      let textOrPayload;
 
       if (typeof data === 'object' && data !== null) {
         roomId = data.roomId;
-        text = data.text;
+        textOrPayload = data;
       } else {
         roomId = data;
-        text = arg2;
+        textOrPayload = arg2;
       }
 
       if (!userId) {
         socket.emit('message_error', { message: 'Authentication required. No userId provided.' });
         return;
       }
-      if (!roomId || !text || !text.trim()) {
-        socket.emit('message_error', { roomId, message: 'Invalid message payload' });
+      if (!roomId) {
+        socket.emit('message_error', { roomId, message: 'Invalid message payload: roomId is required.' });
         return;
+      }
+
+      // Validate message payload based on message type
+      if (typeof textOrPayload === 'object' && textOrPayload !== null) {
+        const msgType = textOrPayload.messageType || 'text';
+        if (msgType === 'text') {
+          if (!textOrPayload.text || !textOrPayload.text.trim()) {
+            socket.emit('message_error', { roomId, message: 'Invalid message payload: text is required for text messages.' });
+            return;
+          }
+        } else if (msgType === 'image' || msgType === 'document') {
+          if (!textOrPayload.mediaUrl || !textOrPayload.mediaUrl.trim()) {
+            socket.emit('message_error', { roomId, message: `Invalid message payload: mediaUrl is required for '${msgType}' type.` });
+            return;
+          }
+        } else {
+          socket.emit('message_error', { roomId, message: `Invalid message payload: unsupported messageType '${msgType}'.` });
+          return;
+        }
+      } else {
+        // Simple string format (must be a text message)
+        if (!textOrPayload || typeof textOrPayload !== 'string' || !textOrPayload.trim()) {
+          socket.emit('message_error', { roomId, message: 'Invalid message payload: message text is required.' });
+          return;
+        }
       }
 
       try {
@@ -106,7 +131,7 @@ function initSocket(server) {
           roomId, 
           userId, 
           senderModel, 
-          text
+          textOrPayload
         );
 
         // Acknowledge sending back to client
