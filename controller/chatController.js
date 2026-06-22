@@ -109,12 +109,12 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
     io.to(roomId.toString()).emit('new_message', populatedMessage);
   }
 
-  // Check if recipient is offline to trigger FCM notification
+  // Check if recipient is not active in the room to trigger FCM notification
   if (recipientPart) {
     const recipientId = recipientPart.userId.toString();
-    const isOnline = socketUtil.getActiveSockets().has(recipientId);
+    const isRoomActive = socketUtil.isUserInRoom(recipientId, roomId);
     
-    if (!isOnline) {
+    if (!isRoomActive) {
       // Fetch recipient to retrieve fcmToken
       let recipientUser;
       if (recipientPart.userModel === 'Doctor') {

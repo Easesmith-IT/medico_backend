@@ -208,8 +208,25 @@ function getActiveSockets() {
   return activeSockets;
 }
 
+/**
+ * Checks if a specific user is currently active inside a socket room
+ * @param {string} userId - ID of the user
+ * @param {string} roomId - ID of the room
+ * @returns {boolean} True if user is in room, false otherwise
+ */
+function isUserInRoom(userId, roomId) {
+  if (!io || !userId || !roomId) return false;
+  const socketId = activeSockets.get(userId.toString());
+  if (!socketId) return false;
+
+  const roomSockets = io.sockets.adapter.rooms.get(roomId.toString());
+  return !!(roomSockets && roomSockets.has(socketId));
+}
+
 module.exports = {
   initSocket,
   getIo,
-  getActiveSockets
+  getActiveSockets,
+  isUserInRoom
 };
+
