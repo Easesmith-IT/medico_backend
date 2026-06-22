@@ -4,7 +4,7 @@ const path = require('path');
 // Check if already initialized
 if (admin.apps.length === 0) {
   try {
-    const serviceAccountPath = path.join(__dirname, 'medico-doctor-9f3aa-firebase-adminsdk-fbsvc-d5a26cb8e9.json');
+    const serviceAccountPath = path.join(__dirname, 'gcpbucket.json');
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccountPath),
     });
