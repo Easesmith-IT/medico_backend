@@ -156,7 +156,8 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
             senderId: senderId.toString(),
             senderRole: senderModel.toLowerCase(),
             type: 'chat_message'
-          }
+          },
+          recipientPart.userModel.toLowerCase()
         );
       }
     }
@@ -406,6 +407,43 @@ exports.markAsSeen = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     message: 'Messages marked as seen'
+  });
+});
+
+/**
+ * Update FCM token for the logged-in user (Doctor or Patient)
+ */
+exports.updateFcmToken = catchAsync(async (req, res, next) => {
+  const { fcmToken } = req.body;
+
+  if (fcmToken === undefined) {
+    return next(new AppError('Please provide an fcmToken in the request body', 400));
+  }
+
+  const userId = req.user.id;
+  const role = req.user.role?.toLowerCase();
+
+  let user;
+  if (role === 'doctor') {
+    user = await Doctor.findByIdAndUpdate(userId, { fcmToken }, { new: true, runValidators: true });
+  } else if (role === 'patient') {
+    user = await Patient.findByIdAndUpdate(userId, { fcmToken }, { new: true, runValidators: true });
+  } else {
+    return next(new AppError('Invalid user role. FCM token can only be updated for Doctors or Patients.', 400));
+  }
+
+  if (!user) {
+    return next(new AppError('User not found', 404));
+  }
+
+  res.status(200).json({
+    status: 'success',
+    message: 'FCM token updated successfully',
+    data: {
+      userId: user._id,
+      role,
+      fcmToken: user.fcmToken
+    }
   });
 });
 

@@ -7,6 +7,8 @@ const router = express.Router();
 // All chat routes are protected - user must be logged in (can be Doctor or Patient)
 router.use(protect('doctor', 'patient'));
 
+router.patch('/fcm-token', chatController.updateFcmToken);
+
 router.route('/')
   .post(chatController.createOrGetRoom)
   .get(chatController.getChats);

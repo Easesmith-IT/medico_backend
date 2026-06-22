@@ -1531,7 +1531,8 @@ exports.updatePatient = catchAsync(async (req, res, next) => {
     'gender',
     'address',
     'bloodGroup',
-    'emergencyContact'
+    'emergencyContact',
+    'fcmToken'
   ];
 
   const fieldsToUpdate = Object.keys(updateData).filter(field => allowedFields.includes(field));
