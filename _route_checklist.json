@@ -1,9 +1,23 @@
 {
-  "generatedAt": "2026-05-09T21:36:51.803Z",
-  "total": 186,
-  "mounted": 186,
-  "unmounted": 0,
+  "generatedAt": "2026-06-23T07:39:43.946Z",
+  "total": 291,
+  "mounted": 286,
+  "unmounted": 5,
   "routes": [
+    {
+      "method": "POST",
+      "routePath": "/api/v1/addPatientAddress",
+      "routeFile": "route/seperatePatientAddressRoute.js",
+      "controllerRef": "controller/seperateAddressPatient.js#addPatientAddress",
+      "mounted": false
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/actions/logs",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminOpsController.js#listAdminActionLogs",
+      "mounted": true
+    },
     {
       "method": "POST",
       "routePath": "/api/v1/admin/addEquipments",
@@ -51,6 +65,27 @@
       "routePath": "/api/v1/admin/admin/doctor/update-cities",
       "routeFile": "route/adminRoute.js",
       "controllerRef": "controller/adminController.js#updateDoctorCities",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/audit-logs",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#getAuditLogs",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/audit-logs/export",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#exportAuditLogs",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/audit/profile-changes",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/profileAuditController.js#listProfileChanges",
       "mounted": true
     },
     {
@@ -131,10 +166,31 @@
       "mounted": true
     },
     {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/doctors/:id/verification-review",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/doctorVerificationController.js#reviewDoctorVerification",
+      "mounted": true
+    },
+    {
       "method": "POST",
       "routePath": "/api/v1/admin/doctors/create",
       "routeFile": "route/adminRoute.js",
       "controllerRef": "controller/adminController.js#createDoctor",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/doctors/verification-expiring",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/doctorVerificationController.js#getExpiringVerificationDocs",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/doctors/verification-queue",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/doctorVerificationController.js#getVerificationQueue",
       "mounted": true
     },
     {
@@ -163,6 +219,34 @@
       "routePath": "/api/v1/admin/me",
       "routeFile": "route/adminRoute.js",
       "controllerRef": "controller/adminController.js#getMyProfile",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/mfa/disable",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#disableMfa",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/mfa/setup",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#setupMfa",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/mfa/verify",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#verifyMfa",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/ops/queues",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminOpsController.js#getOpsQueues",
       "mounted": true
     },
     {
@@ -215,6 +299,13 @@
       "mounted": true
     },
     {
+      "method": "GET",
+      "routePath": "/api/v1/admin/patients/:patientId/treatments",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminController.js#getPatientTreatmentsForBooking",
+      "mounted": true
+    },
+    {
       "method": "POST",
       "routePath": "/api/v1/admin/patients/create",
       "routeFile": "route/adminRoute.js",
@@ -237,6 +328,132 @@
     },
     {
       "method": "GET",
+      "routePath": "/api/v1/admin/payments/disputes",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#listDisputes",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/payments/disputes",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#createDisputeCase",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/payments/disputes/:disputeId/status",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#updateDisputeStatus",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/payments/export",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#exportPaymentsData",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/payments/ledgers",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#listPaymentLedgers",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/payments/ledgers/:paymentId",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#getPaymentLedgerDetail",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/payments/refunds",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#listRefunds",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/payments/settlements",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#listSettlementRequests",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/payments/settlements",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#createSettlementRequest",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/payments/settlements/:id",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#updateSettlementStatus",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/payments/settlements/:settlementId/status",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#updateSettlementStatus",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/payments/summary",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#getPaymentsSummary",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/payments/transactions",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#listTransactions",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/payments/treatments/:treatmentId/manual-collection",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#adminManualCollection",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/payments/treatments/:treatmentId/refunds/manual",
+      "routeFile": "route/adminPaymentRoute.js",
+      "controllerRef": "controller/adminPaymentController.js#adminManualRefund",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/profile/password",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#updateMyPassword",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/reports/command-center",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminReportController.js#getCommandCenterReport",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/reports/command-center/export",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminReportController.js#exportCommandCenterReport",
+      "mounted": true
+    },
+    {
+      "method": "GET",
       "routePath": "/api/v1/admin/reports/dashboard",
       "routeFile": "route/adminRoute.js",
       "controllerRef": "controller/adminController.js#getDashboardStats",
@@ -247,6 +464,76 @@
       "routePath": "/api/v1/admin/reports/doctors",
       "routeFile": "route/adminRoute.js",
       "controllerRef": "controller/adminController.js#getDoctorStats",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/reports/filter-options",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminReportController.js#getCommandCenterFilterOptions",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/reports/runs",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminReportController.js#listReportRuns",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/reports/runs/:runId/download",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminReportController.js#downloadReportRun",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/reports/schedules",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminReportController.js#listReportSchedules",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/reports/schedules",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminReportController.js#createReportSchedule",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/reports/schedules/:scheduleId",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminReportController.js#updateReportSchedule",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/reports/schedules/:scheduleId/run",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminReportController.js#runReportSchedule",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/reports/schedules/run-due",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminReportController.js#runDueReportSchedules",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/reviews/:id/moderation",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/reviewController.js#moderateReview",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/security-policy",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#updateSecurityPolicy",
       "mounted": true
     },
     {
@@ -264,6 +551,27 @@
       "mounted": true
     },
     {
+      "method": "DELETE",
+      "routePath": "/api/v1/admin/sessions/:sessionId",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#revokeMySessionById",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/sessions/me",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#getMySessions",
+      "mounted": true
+    },
+    {
+      "method": "DELETE",
+      "routePath": "/api/v1/admin/sessions/me/all",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#revokeMyAllSessions",
+      "mounted": true
+    },
+    {
       "method": "POST",
       "routePath": "/api/v1/admin/signup",
       "routeFile": "route/adminRoute.js",
@@ -278,10 +586,80 @@
       "mounted": true
     },
     {
+      "method": "DELETE",
+      "routePath": "/api/v1/admin/subadmins/:id",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminController.js#deleteSubAdmin",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/subadmins/:id",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminController.js#getSubAdminById",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/subadmins/:id",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminController.js#updateSubAdmin",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/subadmins/:id/force-logout",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminGovernanceController.js#forceLogoutSubAdmin",
+      "mounted": true
+    },
+    {
       "method": "PATCH",
       "routePath": "/api/v1/admin/subadmins/:id/toggle-status",
       "routeFile": "route/adminRoute.js",
       "controllerRef": "controller/adminController.js#toggleSubAdminStatus",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/support/tickets",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/supportController.js#listTickets",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/support/tickets/:id",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/supportController.js#updateTicket",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/treatments",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminTreatmentController.js#listTreatments",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/admin/treatments/:treatmentId",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminTreatmentController.js#getTreatmentDetail",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/admin/treatments/:treatmentId/complete",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminTreatmentController.js#completeTreatment",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/admin/treatments/:treatmentId/status",
+      "routeFile": "route/adminRoute.js",
+      "controllerRef": "controller/adminTreatmentController.js#updateTreatmentStatus",
       "mounted": true
     },
     {
@@ -453,6 +831,20 @@
       "mounted": true
     },
     {
+      "method": "PATCH",
+      "routePath": "/api/v1/chats/:roomId/seen",
+      "routeFile": "route/chatRoute.js",
+      "controllerRef": "controller/chatController.js#markAsSeen",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/chats/fcm-token",
+      "routeFile": "route/chatRoute.js",
+      "controllerRef": "controller/chatController.js#updateFcmToken",
+      "mounted": true
+    },
+    {
       "method": "GET",
       "routePath": "/api/v1/check-status",
       "routeFile": "route/authRoutes.js",
@@ -537,10 +929,80 @@
       "mounted": true
     },
     {
+      "method": "DELETE",
+      "routePath": "/api/v1/deletePatientAddress/:addressId",
+      "routeFile": "route/seperatePatientAddressRoute.js",
+      "controllerRef": "controller/seperateAddressPatient.js#deletePatientAddress",
+      "mounted": false
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/doctor-appointments/:appointmentId",
+      "routeFile": "route/doctorAppointmentRoute.js",
+      "controllerRef": "controller/doctorAppointmentController.js#getDoctorAppointmentById",
+      "mounted": true
+    },
+    {
+      "method": "PUT",
+      "routePath": "/api/v1/doctor-appointments/:appointmentId/cancel",
+      "routeFile": "route/doctorAppointmentRoute.js",
+      "controllerRef": "controller/doctorAppointmentController.js#cancelMyDoctorAppointment",
+      "mounted": true
+    },
+    {
+      "method": "PUT",
+      "routePath": "/api/v1/doctor-appointments/:appointmentId/reschedule",
+      "routeFile": "route/doctorAppointmentRoute.js",
+      "controllerRef": "controller/doctorAppointmentController.js#rescheduleDoctorAppointment",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/doctor-appointments/:appointmentId/status",
+      "routeFile": "route/doctorAppointmentRoute.js",
+      "controllerRef": "controller/doctorAppointmentController.js#updateDoctorAppointmentStatus",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/doctor-appointments/create",
+      "routeFile": "route/doctorAppointmentRoute.js",
+      "controllerRef": "controller/doctorAppointmentController.js#createDoctorAppointment",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/doctor-appointments/doctor/my-appointments",
+      "routeFile": "route/doctorAppointmentRoute.js",
+      "controllerRef": "controller/doctorAppointmentController.js#getMyDoctorAppointments",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/doctor-appointments/my-appointments",
+      "routeFile": "route/doctorAppointmentRoute.js",
+      "controllerRef": "controller/doctorAppointmentController.js#getMyPatientDoctorAppointments",
+      "mounted": true
+    },
+    {
       "method": "GET",
       "routePath": "/api/v1/doctor/:doctorId/service-availability",
       "routeFile": "route/doctorRoute.js",
       "controllerRef": "controller/doctorController.js#getServiceAvailability",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/doctor/:id/public-profile",
+      "routeFile": "route/doctorRoute.js",
+      "controllerRef": "controller/doctorDiscoveryController.js#getPublicProfile",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/doctor/addClinic",
+      "routeFile": "route/doctorRoute.js",
+      "controllerRef": "controller/doctorController.js#addClinic",
       "mounted": true
     },
     {
@@ -607,6 +1069,13 @@
       "mounted": true
     },
     {
+      "method": "DELETE",
+      "routePath": "/api/v1/doctor/deleteClinic/:clinicId",
+      "routeFile": "route/doctorRoute.js",
+      "controllerRef": "controller/doctorController.js#deleteClinic",
+      "mounted": true
+    },
+    {
       "method": "GET",
       "routePath": "/api/v1/doctor/doctor/cities/by-name/:doctorId/:cityName",
       "routeFile": "route/doctorRoute.js",
@@ -629,9 +1098,23 @@
     },
     {
       "method": "GET",
+      "routePath": "/api/v1/doctor/getAllClinics",
+      "routeFile": "route/doctorRoute.js",
+      "controllerRef": "controller/doctorController.js#getAllClinics",
+      "mounted": true
+    },
+    {
+      "method": "GET",
       "routePath": "/api/v1/doctor/getAllDoctors",
       "routeFile": "route/doctorRoute.js",
       "controllerRef": "controller/doctorController.js#getAllDoctors",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/doctor/getClinicById/:clinicId",
+      "routeFile": "route/doctorRoute.js",
+      "controllerRef": "controller/doctorController.js#getClinicById",
       "mounted": true
     },
     {
@@ -691,6 +1174,13 @@
       "mounted": true
     },
     {
+      "method": "GET",
+      "routePath": "/api/v1/doctor/search",
+      "routeFile": "route/doctorRoute.js",
+      "controllerRef": "controller/doctorDiscoveryController.js#searchDoctors",
+      "mounted": true
+    },
+    {
       "method": "PUT",
       "routePath": "/api/v1/doctor/service-availability",
       "routeFile": "route/doctorRoute.js",
@@ -734,6 +1224,13 @@
     },
     {
       "method": "PUT",
+      "routePath": "/api/v1/doctor/updateClinic/:clinicId",
+      "routeFile": "route/doctorRoute.js",
+      "controllerRef": "controller/doctorController.js#updateClinic",
+      "mounted": true
+    },
+    {
+      "method": "PUT",
       "routePath": "/api/v1/doctor/updateProfile",
       "routeFile": "route/doctorRoute.js",
       "controllerRef": "controller/doctorController.js#updateProfile",
@@ -743,7 +1240,14 @@
       "method": "POST",
       "routePath": "/api/v1/doctor/verification-documents",
       "routeFile": "route/doctorRoute.js",
-      "controllerRef": "controller/doctorController.js#uploadVerificationDocuments",
+      "controllerRef": "controller/doctorVerificationController.js#uploadVerificationDocuments",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/doctor/verification/submit",
+      "routeFile": "route/doctorRoute.js",
+      "controllerRef": "controller/doctorVerificationController.js#submitVerification",
       "mounted": true
     },
     {
@@ -766,6 +1270,13 @@
       "routeFile": "route/geoRoutes.js",
       "controllerRef": "controller/geoController.js#checkAddressInPolygon",
       "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/getMyAddress",
+      "routeFile": "route/seperatePatientAddressRoute.js",
+      "controllerRef": "controller/seperateAddressPatient.js#getMyAddresses",
+      "mounted": false
     },
     {
       "method": "GET",
@@ -852,6 +1363,55 @@
       "mounted": true
     },
     {
+      "method": "POST",
+      "routePath": "/api/v1/medical-records/createMedicalRecord",
+      "routeFile": "route/medicalRecordRoute.js",
+      "controllerRef": "controller/medicalRecordController.js#createMedicalRecord",
+      "mounted": true
+    },
+    {
+      "method": "DELETE",
+      "routePath": "/api/v1/medical-records/deleteMedicalRecord/:id",
+      "routeFile": "route/medicalRecordRoute.js",
+      "controllerRef": "controller/medicalRecordController.js#deleteMedicalRecord",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/medical-records/getMyRecords",
+      "routeFile": "route/medicalRecordRoute.js",
+      "controllerRef": "controller/medicalRecordController.js#getMyRecords",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/medical-records/getPatientRecords/:patientId",
+      "routeFile": "route/medicalRecordRoute.js",
+      "controllerRef": "controller/medicalRecordController.js#getPatientRecords",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/medical-records/prescriptions/appointment/:appointmentId",
+      "routeFile": "route/medicalRecordRoute.js",
+      "controllerRef": "controller/medicalRecordController.js#getPrescriptionsByAppointmentId",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/medical-records/shareMedicalRecord/:id/share",
+      "routeFile": "route/medicalRecordRoute.js",
+      "controllerRef": "controller/medicalRecordController.js#shareMedicalRecord",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/medical-records/updateMedicalRecord/:id",
+      "routeFile": "route/medicalRecordRoute.js",
+      "controllerRef": "controller/medicalRecordController.js#updateMedicalRecord",
+      "mounted": true
+    },
+    {
       "method": "DELETE",
       "routePath": "/api/v1/patient/allergies",
       "routeFile": "route/patientRoute.js",
@@ -877,6 +1437,13 @@
       "routePath": "/api/v1/patient/follow/:doctorId",
       "routeFile": "route/patientRoute.js",
       "controllerRef": "controller/patientController.js#followDoctor",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/patient/getAllPatients",
+      "routeFile": "route/patientRoute.js",
+      "controllerRef": "controller/patientController.js#getAllPatients",
       "mounted": true
     },
     {
@@ -999,6 +1566,41 @@
       "mounted": true
     },
     {
+      "method": "POST",
+      "routePath": "/api/v1/payments/booking/:bookingId/advance/order",
+      "routeFile": "route/paymentRoute.js",
+      "controllerRef": "controller/payController.js#createBookingAdvanceOrderCompat",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/payments/getlistMySettlements",
+      "routeFile": "route/paymentRoute.js",
+      "controllerRef": "controller/payController.js#listMySettlements",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/payments/qr/generate",
+      "routeFile": "route/paymentRoute.js",
+      "controllerRef": "controller/payController.js#generateQrPaymentIntent",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/payments/qr/verify",
+      "routeFile": "route/paymentRoute.js",
+      "controllerRef": "controller/payController.js#verifyQrPaymentIntent",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/payments/settlements/request",
+      "routeFile": "route/paymentRoute.js",
+      "controllerRef": "controller/payController.js#requestSettlement",
+      "mounted": true
+    },
+    {
       "method": "GET",
       "routePath": "/api/v1/payments/treatments/:treatmentId/ledger",
       "routeFile": "route/paymentRoute.js",
@@ -1031,6 +1633,41 @@
       "routePath": "/api/v1/payments/treatments/:treatmentId/refunds/manual",
       "routeFile": "route/paymentRoute.js",
       "controllerRef": "controller/payController.js#recordManualRefund",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/reviews/admin/:id/moderation",
+      "routeFile": "route/reviewRoute.js",
+      "controllerRef": "controller/reviewController.js#moderateReview",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/reviews/createReview",
+      "routeFile": "route/reviewRoute.js",
+      "controllerRef": "controller/reviewController.js#createReview",
+      "mounted": true
+    },
+    {
+      "method": "DELETE",
+      "routePath": "/api/v1/reviews/deleteReview/:id",
+      "routeFile": "route/reviewRoute.js",
+      "controllerRef": "controller/reviewController.js#deleteReview",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/reviews/getlistReviews",
+      "routeFile": "route/reviewRoute.js",
+      "controllerRef": "controller/reviewController.js#listReviews",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/reviews/updateReview/:id",
+      "routeFile": "route/reviewRoute.js",
+      "controllerRef": "controller/reviewController.js#updateReview",
       "mounted": true
     },
     {
@@ -1188,6 +1825,13 @@
       "mounted": true
     },
     {
+      "method": "PATCH",
+      "routePath": "/api/v1/serviceProvider/service-provider/:id/workflow",
+      "routeFile": "route/serviceProvider.js",
+      "controllerRef": "controller/providerController.js#updateServiceProviderWorkflow",
+      "mounted": true
+    },
+    {
       "method": "GET",
       "routePath": "/api/v1/serviceProvider/service-provider/appointments",
       "routeFile": "route/serviceProvider.js",
@@ -1209,10 +1853,24 @@
       "mounted": true
     },
     {
+      "method": "PATCH",
+      "routePath": "/api/v1/setPrimaryAddress/:addressId/set-primary",
+      "routeFile": "route/seperatePatientAddressRoute.js",
+      "controllerRef": "controller/seperateAddressPatient.js#setPrimaryAddress",
+      "mounted": false
+    },
+    {
       "method": "POST",
       "routePath": "/api/v1/socialPost/addComment/:id",
       "routeFile": "route/socialPostRoute.js",
       "controllerRef": "controller/socialmediaController.js#addComment",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/socialPost/admin/flagged-posts",
+      "routeFile": "route/socialPostRoute.js",
+      "controllerRef": "controller/socialmediaController.js#getFlaggedPosts",
       "mounted": true
     },
     {
@@ -1226,7 +1884,21 @@
       "method": "POST",
       "routePath": "/api/v1/socialPost/createPost",
       "routeFile": "route/socialPostRoute.js",
-      "controllerRef": null,
+      "controllerRef": "controller/socialmediaController.js#createPost",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/socialPost/doctor/:doctorId",
+      "routeFile": "route/socialPostRoute.js",
+      "controllerRef": "controller/socialmediaController.js#getPostsByDoctorId",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/socialPost/doctor/:doctorId/photos",
+      "routeFile": "route/socialPostRoute.js",
+      "controllerRef": "controller/socialmediaController.js#getPhotosOnlyPostsByDoctorId",
       "mounted": true
     },
     {
@@ -1279,6 +1951,13 @@
       "mounted": true
     },
     {
+      "method": "GET",
+      "routePath": "/api/v1/socialPost/notifications",
+      "routeFile": "route/socialPostRoute.js",
+      "controllerRef": "controller/socialmediaController.js#getMySocialNotifications",
+      "mounted": true
+    },
+    {
       "method": "DELETE",
       "routePath": "/api/v1/socialPost/posts/:id",
       "routeFile": "route/socialPostRoute.js",
@@ -1293,11 +1972,67 @@
       "mounted": true
     },
     {
+      "method": "POST",
+      "routePath": "/api/v1/socialPost/posts/:id/report",
+      "routeFile": "route/socialPostRoute.js",
+      "controllerRef": "controller/socialmediaController.js#reportPost",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/socialPost/reports/:reportId/resolve",
+      "routeFile": "route/socialPostRoute.js",
+      "controllerRef": "controller/socialmediaController.js#resolvePostReport",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/socialPost/savedPosts",
+      "routeFile": "route/socialPostRoute.js",
+      "controllerRef": "controller/socialmediaController.js#getSavedPosts",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/socialPost/savePost/:id/toggle",
+      "routeFile": "route/socialPostRoute.js",
+      "controllerRef": "controller/socialmediaController.js#toggleSavePost",
+      "mounted": true
+    },
+    {
       "method": "GET",
       "routePath": "/api/v1/socialPost/search",
       "routeFile": "route/socialPostRoute.js",
       "controllerRef": "controller/socialmediaController.js#searchSocialPosts",
       "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/support/addMessageTickets/:id",
+      "routeFile": "route/supportRoute.js",
+      "controllerRef": "controller/supportController.js#addMessage",
+      "mounted": true
+    },
+    {
+      "method": "POST",
+      "routePath": "/api/v1/support/createTicket",
+      "routeFile": "route/supportRoute.js",
+      "controllerRef": "controller/supportController.js#createTicket",
+      "mounted": true
+    },
+    {
+      "method": "GET",
+      "routePath": "/api/v1/support/getMyTickets",
+      "routeFile": "route/supportRoute.js",
+      "controllerRef": "controller/supportController.js#getMyTickets",
+      "mounted": true
+    },
+    {
+      "method": "PATCH",
+      "routePath": "/api/v1/updatePatientAddress/:addressId",
+      "routeFile": "route/seperatePatientAddressRoute.js",
+      "controllerRef": "controller/seperateAddressPatient.js#updatePatientAddress",
+      "mounted": false
     },
     {
       "method": "POST",

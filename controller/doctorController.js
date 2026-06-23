@@ -450,7 +450,7 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   if (fcmToken) {
     doctor.fcmToken = fcmToken;
   }
-  await doctor.save();
+  await doctor.save({ validateBeforeSave: false });
 
   console.log('VERIFY - After update, isPhoneVerified:', doctor.isPhoneVerified);
 
@@ -470,7 +470,7 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   );
 
   doctor.refreshToken = refreshToken;
-  await doctor.save();
+  await doctor.save({ validateBeforeSave: false });
 
   const tokens = setAuthCookies(res, accessToken, refreshToken);
 
@@ -737,7 +737,7 @@ exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
   if (fcmToken) {
     doctor.fcmToken = fcmToken;
   }
-  await doctor.save();
+  await doctor.save({ validateBeforeSave: false });
 
   // 10. Set Authentication Cookies
   const tokens = setAuthCookies(res, accessToken, refreshToken);
