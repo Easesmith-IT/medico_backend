@@ -393,7 +393,15 @@ mediaFiles: [{
   uploadedAt: { type: Date, default: Date.now },
   uploadedBy: String  // doctor/patient name
 }],
-
+fcmToken: {
+  type: String,
+  default: null
+},
+fcmProject: {
+  type: String,
+  enum: ['doctor', 'patient', null],
+  default: null
+},
 
   // Timestamps
   createdAt: {

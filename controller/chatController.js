@@ -155,19 +155,39 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
       
       console.log(`[FCM Trigger] Sending push notification to ${recipientPart.userModel.toLowerCase()}: "${notificationTitle}" - "${notificationBody}"`);
       
-      const response = await fcm.sendPushNotification(
-        recipientUser.fcmToken,
-        notificationTitle,
-        notificationBody,
-        {
-          roomId: roomId.toString(),
-          messageId: message._id.toString(),
-          senderId: senderId.toString(),
-          senderRole: senderModel.toLowerCase(),
-          type: 'chat_message'
-        },
-        recipientPart.userModel.toLowerCase()
-      );
+      // const response = await fcm.sendPushNotification(
+
+
+
+      //   recipientUser.fcmToken,
+      //   notificationTitle,
+      //   notificationBody,
+      //   {
+      //     roomId: roomId.toString(),
+      //     messageId: message._id.toString(),
+      //     senderId: senderId.toString(),
+      //     senderRole: senderModel.toLowerCase(),
+      //     type: 'chat_message'
+      //   },
+      //   recipientPart.userModel.toLowerCase()
+      // );
+
+
+const response = await fcm.sendPushNotification(
+  recipientUser.fcmToken,
+  notificationTitle,
+  notificationBody,
+  {
+    roomId: roomId.toString(),
+    messageId: message._id.toString(),
+    senderId: senderId.toString(),
+    senderRole: senderModel.toLowerCase(),
+    type: 'chat_message'
+  },
+  recipientPart.userModel.toLowerCase(),
+  recipientUser.fcmProject || null
+);
+      
       console.log(`[FCM Trigger] Notification dispatch result: ${response ? 'Success' : 'Failed/Skipped'}`);
     } else {
       console.log(`[FCM Trigger] Skipped: Recipient user has no FCM token saved.`);
@@ -425,7 +445,9 @@ exports.markAsSeen = catchAsync(async (req, res, next) => {
  * Update FCM token for the logged-in user (Doctor or Patient)
  */
 exports.updateFcmToken = catchAsync(async (req, res, next) => {
-  const { fcmToken } = req.body;
+  // const { fcmToken } = req.body;
+
+  const { fcmToken, fcmProject } = req.body;
 
   if (fcmToken === undefined) {
     return next(new AppError('Please provide an fcmToken in the request body', 400));

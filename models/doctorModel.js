@@ -1231,6 +1231,16 @@ socialHandle: {
     type: String,
     default: null
   },
+
+  fcmToken: {
+  type: String,
+  default: null
+},
+fcmProject: {
+  type: String,
+  enum: ['doctor', 'patient', null],
+  default: null
+},
   createdAt: {
     type: Date,
     default: Date.now
