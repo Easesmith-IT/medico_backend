@@ -109,71 +109,68 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
     io.to(roomId.toString()).emit('new_message', populatedMessage);
   }
 
-  // Check if recipient is not active in the room to trigger FCM notification
+  // Trigger FCM push notification to guarantee delivery.
+  // We send the notification even if the socket room check is active, because
+  // mobile apps can keep socket connections alive in the background (stale room status).
+  // The frontend app will suppress the visible banner if the user is actively viewing the chat room.
   if (recipientPart) {
     const recipientId = recipientPart.userId.toString();
     console.log(`[FCM Trigger] Checking notification for recipient ${recipientId} in room ${roomId}`);
-    const isRoomActive = socketUtil.isUserInRoom(recipientId, roomId);
-    console.log(`[FCM Trigger] isRoomActive = ${isRoomActive}`);
     
-    if (!isRoomActive) {
-      // Fetch recipient to retrieve fcmToken
-      let recipientUser;
-      if (recipientPart.userModel === 'Doctor') {
-        recipientUser = await Doctor.findById(recipientId);
-      } else {
-        recipientUser = await Patient.findById(recipientId);
-      }
-
-      console.log(`[FCM Trigger] Recipient user found in DB: ${!!recipientUser}`);
-      if (recipientUser) {
-        console.log(`[FCM Trigger] Recipient FCM Token: "${recipientUser.fcmToken || 'none/null'}"`);
-      }
-
-      if (recipientUser && recipientUser.fcmToken) {
-        // Fetch sender to include name in notification
-        let senderUser;
-        if (senderModel === 'Doctor') {
-          senderUser = await Doctor.findById(senderId);
-        } else {
-          senderUser = await Patient.findById(senderId);
-        }
-        
-        const senderName = senderUser ? (senderUser.firstName || senderUser.name) : 'User';
-        const notificationTitle = `New message from ${senderName}`;
-        
-        let notificationBody = text;
-        if (messageType === 'image') {
-          notificationBody = text ? `📷 Image: ${text}` : '📷 Sent an image';
-        } else if (messageType === 'document') {
-          notificationBody = text ? `📄 Document: ${text}` : `📄 Sent a document: ${mediaName || 'file'}`;
-        }
-
-        if (notificationBody && notificationBody.length > 60) {
-          notificationBody = `${notificationBody.substring(0, 60)}...`;
-        }
-        
-        console.log(`[FCM Trigger] Sending push notification to ${recipientPart.userModel.toLowerCase()}: "${notificationTitle}" - "${notificationBody}"`);
-        
-        const response = await fcm.sendPushNotification(
-          recipientUser.fcmToken,
-          notificationTitle,
-          notificationBody,
-          {
-            roomId: roomId.toString(),
-            messageId: message._id.toString(),
-            senderId: senderId.toString(),
-            senderRole: senderModel.toLowerCase(),
-            type: 'chat_message'
-          },
-          recipientPart.userModel.toLowerCase()
-        );
-        console.log(`[FCM Trigger] Notification dispatch result: ${response ? 'Success' : 'Failed/Skipped'}`);
-      } else {
-        console.log(`[FCM Trigger] Skipped: Recipient user has no FCM token saved.`);
-      }
+    // Fetch recipient to retrieve fcmToken
+    let recipientUser;
+    if (recipientPart.userModel === 'Doctor') {
+      recipientUser = await Doctor.findById(recipientId);
     } else {
-      console.log(`[FCM Trigger] Skipped: Recipient is active in the socket room.`);
+      recipientUser = await Patient.findById(recipientId);
+    }
+
+    console.log(`[FCM Trigger] Recipient user found in DB: ${!!recipientUser}`);
+    if (recipientUser) {
+      console.log(`[FCM Trigger] Recipient FCM Token: "${recipientUser.fcmToken || 'none/null'}"`);
+    }
+
+    if (recipientUser && recipientUser.fcmToken) {
+      // Fetch sender to include name in notification
+      let senderUser;
+      if (senderModel === 'Doctor') {
+        senderUser = await Doctor.findById(senderId);
+      } else {
+        senderUser = await Patient.findById(senderId);
+      }
+      
+      const senderName = senderUser ? (senderUser.firstName || senderUser.name) : 'User';
+      const notificationTitle = `New message from ${senderName}`;
+      
+      let notificationBody = text;
+      if (messageType === 'image') {
+        notificationBody = text ? `📷 Image: ${text}` : '📷 Sent an image';
+      } else if (messageType === 'document') {
+        notificationBody = text ? `📄 Document: ${text}` : `📄 Sent a document: ${mediaName || 'file'}`;
+      }
+
+      if (notificationBody && notificationBody.length > 60) {
+        notificationBody = `${notificationBody.substring(0, 60)}...`;
+      }
+      
+      console.log(`[FCM Trigger] Sending push notification to ${recipientPart.userModel.toLowerCase()}: "${notificationTitle}" - "${notificationBody}"`);
+      
+      const response = await fcm.sendPushNotification(
+        recipientUser.fcmToken,
+        notificationTitle,
+        notificationBody,
+        {
+          roomId: roomId.toString(),
+          messageId: message._id.toString(),
+          senderId: senderId.toString(),
+          senderRole: senderModel.toLowerCase(),
+          type: 'chat_message'
+        },
+        recipientPart.userModel.toLowerCase()
+      );
+      console.log(`[FCM Trigger] Notification dispatch result: ${response ? 'Success' : 'Failed/Skipped'}`);
+    } else {
+      console.log(`[FCM Trigger] Skipped: Recipient user has no FCM token saved.`);
     }
   }
 
