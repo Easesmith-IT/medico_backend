@@ -147,7 +147,7 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
 });
 
 exports.verifySignupOtp = catchAsync(async (req, res, next) => {
-  const { phone, otp } = req.body;
+  const { phone, otp, fcmToken } = req.body;
 
   if (!phone || !otp) {
     return next(new AppError('Phone number and OTP are required', 400));
@@ -203,6 +203,9 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   );
 
   doctor.refreshToken = refreshToken;
+  if (fcmToken) {
+    doctor.fcmToken = fcmToken;
+  }
   await doctor.save();
 
   const tokens = setAuthCookies(res, accessToken, refreshToken);
@@ -319,7 +322,7 @@ exports.doctorLogin = catchAsync(async (req, res, next) => {
 });
 
 exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
-  const { phone, otp } = req.body;
+  const { phone, otp, fcmToken } = req.body;
 
   if (!phone || !otp) {
     return next(new AppError('Phone number and OTP are required', 400));
@@ -373,6 +376,9 @@ exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
   );
 
   doctor.refreshToken = refreshToken;
+  if (fcmToken) {
+    doctor.fcmToken = fcmToken;
+  }
   await doctor.save();
 
   const tokens = setAuthCookies(res, accessToken, refreshToken);

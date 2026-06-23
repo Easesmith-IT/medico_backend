@@ -410,7 +410,7 @@ exports.doctorSignup = catchAsync(async (req, res, next) => {
 });
 
 exports.verifySignupOtp = catchAsync(async (req, res, next) => {
-  const { phone, otp } = req.body;
+  const { phone, otp, fcmToken } = req.body;
 
   if (!phone || !otp) {
     return next(new AppError('Phone number and OTP are required', 400));
@@ -447,6 +447,9 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
 
   doctor.isPhoneVerified = true;
   doctor.verificationStatus = 'approved';
+  if (fcmToken) {
+    doctor.fcmToken = fcmToken;
+  }
   await doctor.save();
 
   console.log('VERIFY - After update, isPhoneVerified:', doctor.isPhoneVerified);
@@ -662,7 +665,7 @@ exports.doctorLogin = catchAsync(async (req, res, next) => {
 //   });
 // });
 exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
-  const { phone, otp } = req.body;
+  const { phone, otp, fcmToken } = req.body;
 
   // 1. Basic Validation
   if (!phone || !otp) {
@@ -731,6 +734,9 @@ exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
 
   // 9. Update Doctor's refresh token and persist
   doctor.refreshToken = refreshToken;
+  if (fcmToken) {
+    doctor.fcmToken = fcmToken;
+  }
   await doctor.save();
 
   // 10. Set Authentication Cookies

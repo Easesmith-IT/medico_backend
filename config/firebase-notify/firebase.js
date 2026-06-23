@@ -10,13 +10,21 @@ if (admin.apps.length === 0) {
   try {
     let serviceAccount = null;
 
-    // 1. Try to load the dedicated Firebase Admin SDK file first
-    const sdkPath = path.join(__dirname, 'medico-doctor-9f3aa-firebase-adminsdk-fbsvc-d5a26cb8e9.json');
-    if (fs.existsSync(sdkPath)) {
-      try {
-        serviceAccount = JSON.parse(fs.readFileSync(sdkPath, 'utf8'));
-      } catch (err) {
-        console.warn('⚠️ Failed to parse Doctor SDK JSON file:', err.message);
+    // 1. Try to load the dedicated Firebase Admin SDK file first (check firebase-notify/ and config/ folders dynamically)
+    const searchDirs = [__dirname, path.join(__dirname, '..')];
+    for (const dir of searchDirs) {
+      if (fs.existsSync(dir)) {
+        try {
+          const files = fs.readdirSync(dir);
+          const doctorSdkFile = files.find(f => f.startsWith('medico-doctor-') && f.endsWith('.json'));
+          if (doctorSdkFile) {
+            const sdkPath = path.join(dir, doctorSdkFile);
+            serviceAccount = JSON.parse(fs.readFileSync(sdkPath, 'utf8'));
+            break;
+          }
+        } catch (err) {
+          console.warn('⚠️ Failed to scan or parse Doctor SDK JSON file in ' + dir + ':', err.message);
+        }
       }
     }
 
@@ -74,24 +82,20 @@ if (!patientApp) {
   try {
     let patientServiceAccount = null;
 
-    // 1. Try to load from firebase-notify folder
-    const patientSdkPath = path.join(__dirname, 'medico-patient-firebase-adminsdk-fbsvc-f6fe1f9a92.json');
-    if (fs.existsSync(patientSdkPath)) {
-      try {
-        patientServiceAccount = JSON.parse(fs.readFileSync(patientSdkPath, 'utf8'));
-      } catch (err) {
-        console.warn('⚠️ Failed to parse Patient SDK JSON file from local folder:', err.message);
-      }
-    }
-
-    // 2. Try to load from parent folder (config/)
-    if (!patientServiceAccount) {
-      const parentPatientSdkPath = path.join(__dirname, '..', 'medico-patient-firebase-adminsdk-fbsvc-f6fe1f9a92.json');
-      if (fs.existsSync(parentPatientSdkPath)) {
+    // 1. Try to load the dedicated Patient Firebase Admin SDK file dynamically (check firebase-notify/ and config/ folders)
+    const searchDirs = [__dirname, path.join(__dirname, '..')];
+    for (const dir of searchDirs) {
+      if (fs.existsSync(dir)) {
         try {
-          patientServiceAccount = JSON.parse(fs.readFileSync(parentPatientSdkPath, 'utf8'));
+          const files = fs.readdirSync(dir);
+          const patientSdkFile = files.find(f => f.startsWith('medico-patient-') && f.endsWith('.json'));
+          if (patientSdkFile) {
+            const sdkPath = path.join(dir, patientSdkFile);
+            patientServiceAccount = JSON.parse(fs.readFileSync(sdkPath, 'utf8'));
+            break;
+          }
         } catch (err) {
-          console.warn('⚠️ Failed to parse Patient SDK JSON file from parent folder:', err.message);
+          console.warn('⚠️ Failed to scan or parse Patient SDK JSON file in ' + dir + ':', err.message);
         }
       }
     }

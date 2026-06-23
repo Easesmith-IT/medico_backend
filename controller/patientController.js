@@ -553,7 +553,7 @@ exports.patientSignup = catchAsync(async (req, res, next) => {
   });
 });
 exports.verifySignupOtp = catchAsync(async (req, res, next) => {
-  const { phone, otp, dateOfBirth, gender, address, bloodGroup, emergencyContact } = req.body;
+  const { phone, otp, dateOfBirth, gender, address, bloodGroup, emergencyContact, fcmToken } = req.body;
 
   console.log('\n');
   console.log('PATIENT SIGNUP VERIFICATION - OTP Verification');
@@ -619,6 +619,9 @@ exports.verifySignupOtp = catchAsync(async (req, res, next) => {
   const refreshToken = generateRefreshToken(verifiedPatient._id, 'patient', verifiedPatient.tokenVersion || 0);
 
   // Save refresh token
+  if (fcmToken) {
+    verifiedPatient.fcmToken = fcmToken;
+  }
   verifiedPatient.refreshToken = refreshToken;
   await verifiedPatient.save({ validateBeforeSave: false });
 
@@ -874,7 +877,7 @@ exports.patientLogin = catchAsync(async (req, res, next) => {
 // });
 
 exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
-  const { phone, otp } = req.body;
+  const { phone, otp, fcmToken } = req.body;
 
   console.log('\n');
   console.log('PATIENT LOGIN VERIFICATION - OTP Verification');
@@ -922,6 +925,9 @@ exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
   const refreshToken = generateRefreshToken(patient._id, 'patient', patient.tokenVersion);
 
   patient.refreshToken = refreshToken;
+  if (fcmToken) {
+    patient.fcmToken = fcmToken;
+  }
   await patient.save({ validateBeforeSave: false });
 
   const tokens = setAuthCookies(res, accessToken, refreshToken);
