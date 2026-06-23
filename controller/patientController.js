@@ -877,6 +877,8 @@ exports.patientLogin = catchAsync(async (req, res, next) => {
 // });
 
 exports.verifyLoginOtp = catchAsync(async (req, res, next) => {
+    console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
   const { phone, otp, fcmToken } = req.body;
 
   console.log('\n');

@@ -329,15 +329,20 @@ const patientSchema = new mongoose.Schema({
     default: false,
     index: true
   },
-  isActive: {
-    type: Boolean,
-    default: false
-  },
-  fcmToken: {
-    type: String,
-    default: null
-  },
-
+isActive: {
+  type: Boolean,
+  default: true
+},
+fcmToken: {
+  type: String,
+  default: null,
+  trim: true
+},
+fcmProject: {
+  type: String,
+  enum: ['doctor', 'patient'],
+  default: null
+},
   // OTP Fields
   signupOtp: {
     type: String,
@@ -393,10 +398,7 @@ mediaFiles: [{
   uploadedAt: { type: Date, default: Date.now },
   uploadedBy: String  // doctor/patient name
 }],
-fcmToken: {
-  type: String,
-  default: null
-},
+
 fcmProject: {
   type: String,
   enum: ['doctor', 'patient', null],

@@ -1223,22 +1223,18 @@ socialHandle: {
   }],
 
   // Status
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  fcmToken: {
-    type: String,
-    default: null
-  },
-
-  fcmToken: {
+isActive: {
+  type: Boolean,
+  default: true
+},
+fcmToken: {
   type: String,
-  default: null
+  default: null,
+  trim: true
 },
 fcmProject: {
   type: String,
-  enum: ['doctor', 'patient', null],
+  enum: ['doctor', 'patient'],
   default: null
 },
   createdAt: {
