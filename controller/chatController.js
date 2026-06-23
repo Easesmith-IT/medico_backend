@@ -112,7 +112,9 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
   // Check if recipient is not active in the room to trigger FCM notification
   if (recipientPart) {
     const recipientId = recipientPart.userId.toString();
+    console.log(`[FCM Trigger] Checking notification for recipient ${recipientId} in room ${roomId}`);
     const isRoomActive = socketUtil.isUserInRoom(recipientId, roomId);
+    console.log(`[FCM Trigger] isRoomActive = ${isRoomActive}`);
     
     if (!isRoomActive) {
       // Fetch recipient to retrieve fcmToken
@@ -121,6 +123,11 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
         recipientUser = await Doctor.findById(recipientId);
       } else {
         recipientUser = await Patient.findById(recipientId);
+      }
+
+      console.log(`[FCM Trigger] Recipient user found in DB: ${!!recipientUser}`);
+      if (recipientUser) {
+        console.log(`[FCM Trigger] Recipient FCM Token: "${recipientUser.fcmToken || 'none/null'}"`);
       }
 
       if (recipientUser && recipientUser.fcmToken) {
@@ -146,7 +153,9 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
           notificationBody = `${notificationBody.substring(0, 60)}...`;
         }
         
-        await fcm.sendPushNotification(
+        console.log(`[FCM Trigger] Sending push notification to ${recipientPart.userModel.toLowerCase()}: "${notificationTitle}" - "${notificationBody}"`);
+        
+        const response = await fcm.sendPushNotification(
           recipientUser.fcmToken,
           notificationTitle,
           notificationBody,
@@ -159,7 +168,12 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
           },
           recipientPart.userModel.toLowerCase()
         );
+        console.log(`[FCM Trigger] Notification dispatch result: ${response ? 'Success' : 'Failed/Skipped'}`);
+      } else {
+        console.log(`[FCM Trigger] Skipped: Recipient user has no FCM token saved.`);
       }
+    } else {
+      console.log(`[FCM Trigger] Skipped: Recipient is active in the socket room.`);
     }
   }
 

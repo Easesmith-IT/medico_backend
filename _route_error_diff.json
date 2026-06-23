@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-23T07:38:44.028Z",
-  "totalErrorRoutes": 162,
+  "generatedAt": "2026-06-23T07:41:09.375Z",
+  "totalErrorRoutes": 148,
   "items": [
     {
       "method": "POST",
@@ -20,46 +20,36 @@
       "category": "validation",
       "error": "City ID is required",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"City ID is required\",\"stack\":\"Error: City ID is required\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:4580:17\\n    at E:\\\\medico-backend\\\\medico_backend\\\\utils\\\\catchAsync.js:3:5\\n    at Layer.handleRequest (E:\\\\medico-backend\\\\medico_backend\\\\node_modules\\\\router\\\\lib\\\\layer.j",
-      "reproducibility": "GET /api/v1/admin/admin/city/6a02f3dea924e2b2a433f288/doctors using context=admin"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/admin/admin/doctor/:doctorId/cities",
-      "controllerRef": "controller/adminController.js#getDoctorCities",
-      "status": 404,
-      "category": "not-found",
-      "error": "Doctor not found",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:4553:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "GET /api/v1/admin/admin/doctor/507f1f77bcf86cd799439011/cities using context=admin"
+      "reproducibility": "GET /api/v1/admin/admin/city/6a02f3dea924e2b2a433f289/doctors using context=admin"
     },
     {
       "method": "POST",
       "path": "/api/v1/admin/admin/doctor/add-cities",
       "controllerRef": "controller/adminController.js#addDoctorToCities",
-      "status": 404,
-      "category": "not-found",
-      "error": "Doctor not found",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:4299:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "status": 500,
+      "category": "server-bug",
+      "error": "Doctor validation failed: clinics.0.cityId: Path `cityId` is required., clinics.0.doctorId: Path `doctorId` is required.",
+      "stackExcerpt": "{\"status\":\"error\",\"error\":{\"errors\":{\"clinics.0.cityId\":{\"name\":\"ValidatorError\",\"message\":\"Path `cityId` is required.\",\"properties\":{\"message\":\"Path `cityId` is required.\",\"type\":\"required\",\"path\":\"cityId\"},\"kind\":\"required\",\"path\":\"cityId\"},\"clinics.0.doctorId\":{\"name\":\"ValidatorError\",\"message\":\"Path `doctorId` is required.\",\"properties\":{\"message\":\"Path `doctorId` is required.\",\"type\":\"require",
       "reproducibility": "POST /api/v1/admin/admin/doctor/add-cities using context=admin"
     },
     {
       "method": "POST",
       "path": "/api/v1/admin/admin/doctor/remove-cities",
       "controllerRef": "controller/adminController.js#removeDoctorFromCities",
-      "status": 404,
-      "category": "not-found",
-      "error": "Doctor not found",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:4421:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "status": 500,
+      "category": "server-bug",
+      "error": "Doctor validation failed: clinics.0.cityId: Path `cityId` is required., clinics.0.doctorId: Path `doctorId` is required.",
+      "stackExcerpt": "{\"status\":\"error\",\"error\":{\"errors\":{\"clinics.0.cityId\":{\"name\":\"ValidatorError\",\"message\":\"Path `cityId` is required.\",\"properties\":{\"message\":\"Path `cityId` is required.\",\"type\":\"required\",\"path\":\"cityId\"},\"kind\":\"required\",\"path\":\"cityId\"},\"clinics.0.doctorId\":{\"name\":\"ValidatorError\",\"message\":\"Path `doctorId` is required.\",\"properties\":{\"message\":\"Path `doctorId` is required.\",\"type\":\"require",
       "reproducibility": "POST /api/v1/admin/admin/doctor/remove-cities using context=admin"
     },
     {
       "method": "PUT",
       "path": "/api/v1/admin/admin/doctor/update-cities",
       "controllerRef": "controller/adminController.js#updateDoctorCities",
-      "status": 404,
-      "category": "not-found",
-      "error": "Doctor not found",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:4483:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "status": 500,
+      "category": "server-bug",
+      "error": "Doctor validation failed: clinics.0.cityId: Path `cityId` is required., clinics.0.doctorId: Path `doctorId` is required.",
+      "stackExcerpt": "{\"status\":\"error\",\"error\":{\"errors\":{\"clinics.0.cityId\":{\"name\":\"ValidatorError\",\"message\":\"Path `cityId` is required.\",\"properties\":{\"message\":\"Path `cityId` is required.\",\"type\":\"required\",\"path\":\"cityId\"},\"kind\":\"required\",\"path\":\"cityId\"},\"clinics.0.doctorId\":{\"name\":\"ValidatorError\",\"message\":\"Path `doctorId` is required.\",\"properties\":{\"message\":\"Path `doctorId` is required.\",\"type\":\"require",
       "reproducibility": "PUT /api/v1/admin/admin/doctor/update-cities using context=admin"
     },
     {
@@ -83,16 +73,6 @@
       "reproducibility": "PATCH /api/v1/admin/bookings/update/6a38e30005494ed2c91e6d9f using context=admin"
     },
     {
-      "method": "DELETE",
-      "path": "/api/v1/admin/doctors/:id",
-      "controllerRef": "controller/adminController.js#deleteDoctor",
-      "status": 404,
-      "category": "not-found",
-      "error": "Doctor not found",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:2262:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "DELETE /api/v1/admin/doctors/507f1f77bcf86cd799439011 using context=admin"
-    },
-    {
       "method": "GET",
       "path": "/api/v1/admin/doctors/:id",
       "controllerRef": "controller/adminController.js#getDoctorById",
@@ -100,7 +80,7 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:2211:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "GET /api/v1/admin/doctors/507f1f77bcf86cd799439011 using context=admin"
+      "reproducibility": "GET /api/v1/admin/doctors/6a02f50da924e2b2a433f2ae using context=admin"
     },
     {
       "method": "PUT",
@@ -110,7 +90,7 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:2228:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PUT /api/v1/admin/doctors/507f1f77bcf86cd799439011/approve using context=admin"
+      "reproducibility": "PUT /api/v1/admin/doctors/6a02f50da924e2b2a433f2ae/approve using context=admin"
     },
     {
       "method": "PUT",
@@ -120,7 +100,7 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:2248:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PUT /api/v1/admin/doctors/507f1f77bcf86cd799439011/reject using context=admin"
+      "reproducibility": "PUT /api/v1/admin/doctors/6a02f50da924e2b2a433f2ae/reject using context=admin"
     },
     {
       "method": "PATCH",
@@ -130,7 +110,7 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:4917:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/admin/doctors/507f1f77bcf86cd799439011/toggle-status using context=admin"
+      "reproducibility": "PATCH /api/v1/admin/doctors/6a02f50da924e2b2a433f2ae/toggle-status using context=admin"
     },
     {
       "method": "PATCH",
@@ -140,7 +120,7 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorVerificationController.js:96:28\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/admin/doctors/507f1f77bcf86cd799439011/verification-review using context=admin"
+      "reproducibility": "PATCH /api/v1/admin/doctors/6a02f50da924e2b2a433f2ae/verification-review using context=admin"
     },
     {
       "method": "POST",
@@ -183,16 +163,6 @@
       "reproducibility": "POST /api/v1/admin/mfa/verify using context=admin"
     },
     {
-      "method": "DELETE",
-      "path": "/api/v1/admin/patient/:patientId/medications",
-      "controllerRef": "controller/adminController.js#adminRemoveMedication",
-      "status": 404,
-      "category": "not-found",
-      "error": "Medication not found in patient's list",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Medication not found in patient's list\",\"stack\":\"Error: Medication not found in patient's list\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:5067:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "DELETE /api/v1/admin/patient/6a031fdc05fb2370df312436/medications?medication=Paracetamol using context=admin"
-    },
-    {
       "method": "GET",
       "path": "/api/v1/admin/patients/:id",
       "controllerRef": "controller/adminController.js#getPatientById",
@@ -200,7 +170,7 @@
       "category": "not-found",
       "error": "Patient not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:4141:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "GET /api/v1/admin/patients/6a031fdc05fb2370df312436 using context=admin"
+      "reproducibility": "GET /api/v1/admin/patients/6a031fdd05fb2370df312453 using context=admin"
     },
     {
       "method": "PUT",
@@ -210,7 +180,7 @@
       "category": "not-found",
       "error": "Patient not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:4197:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PUT /api/v1/admin/patients/6a031fdc05fb2370df312436/block using context=admin"
+      "reproducibility": "PUT /api/v1/admin/patients/6a031fdd05fb2370df312453/block using context=admin"
     },
     {
       "method": "PATCH",
@@ -220,7 +190,7 @@
       "category": "not-found",
       "error": "Patient not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:4945:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/admin/patients/6a031fdc05fb2370df312436/toggle-status using context=admin"
+      "reproducibility": "PATCH /api/v1/admin/patients/6a031fdd05fb2370df312453/toggle-status using context=admin"
     },
     {
       "method": "GET",
@@ -230,7 +200,7 @@
       "category": "not-found",
       "error": "Patient not found",
       "stackExcerpt": null,
-      "reproducibility": "GET /api/v1/admin/patients/6a031fdc05fb2370df312436/treatments using context=admin"
+      "reproducibility": "GET /api/v1/admin/patients/6a031fdd05fb2370df312453/treatments using context=admin"
     },
     {
       "method": "POST",
@@ -280,7 +250,7 @@
       "category": "not-found",
       "error": "Settlement request not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Settlement request not found\",\"stack\":\"Error: Settlement request not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminPaymentController.js:785:32\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/admin/payments/settlements/6a03391356ea778474f53492 using context=admin"
+      "reproducibility": "PATCH /api/v1/admin/payments/settlements/6a09c29284898a15f0c04841 using context=admin"
     },
     {
       "method": "PATCH",
@@ -291,16 +261,6 @@
       "error": "Invalid settlement ID format",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Invalid settlement ID format\",\"stack\":\"Error: Invalid settlement ID format\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminPaymentController.js:781:17\\n    at E:\\\\medico-backend\\\\medico_backend\\\\utils\\\\catchAsync.js:3:5\\n    at Layer.handleRequest (E:\\\\medico-backend\\\\medico_backend\\\\node_modul",
       "reproducibility": "PATCH /api/v1/admin/payments/settlements/:settlementId/status using context=admin"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/admin/payments/treatments/:treatmentId/manual-collection",
-      "controllerRef": "controller/adminPaymentController.js#adminManualCollection",
-      "status": 400,
-      "category": "validation",
-      "error": "Amount exceeds the remaining treatment balance",
-      "stackExcerpt": null,
-      "reproducibility": "POST /api/v1/admin/payments/treatments/6a38e2ff05494ed2c91e6d9c/manual-collection using context=admin"
     },
     {
       "method": "PATCH",
@@ -360,7 +320,7 @@
       "category": "not-found",
       "error": "Review not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Review not found\",\"stack\":\"Error: Review not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\reviewController.js:114:28\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/admin/reviews/6a03391356ea778474f53492/moderation using context=admin"
+      "reproducibility": "PATCH /api/v1/admin/reviews/6a09c29284898a15f0c04841/moderation using context=admin"
     },
     {
       "method": "DELETE",
@@ -380,7 +340,7 @@
       "category": "not-found",
       "error": "Admin not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Admin not found\",\"stack\":\"Error: Admin not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:1814:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "DELETE /api/v1/admin/subadmins/6a03391356ea778474f53492 using context=admin"
+      "reproducibility": "DELETE /api/v1/admin/subadmins/6a09c29284898a15f0c04841 using context=admin"
     },
     {
       "method": "GET",
@@ -390,7 +350,7 @@
       "category": "not-found",
       "error": "Admin not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Admin not found\",\"stack\":\"Error: Admin not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:1683:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "GET /api/v1/admin/subadmins/6a03391356ea778474f53492 using context=admin"
+      "reproducibility": "GET /api/v1/admin/subadmins/6a09c29284898a15f0c04841 using context=admin"
     },
     {
       "method": "PATCH",
@@ -400,7 +360,7 @@
       "category": "not-found",
       "error": "Admin not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Admin not found\",\"stack\":\"Error: Admin not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:1700:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/admin/subadmins/6a03391356ea778474f53492 using context=admin"
+      "reproducibility": "PATCH /api/v1/admin/subadmins/6a09c29284898a15f0c04841 using context=admin"
     },
     {
       "method": "POST",
@@ -410,7 +370,7 @@
       "category": "not-found",
       "error": "Admin not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Admin not found\",\"stack\":\"Error: Admin not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminGovernanceController.js:128:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "POST /api/v1/admin/subadmins/6a03391356ea778474f53492/force-logout using context=admin"
+      "reproducibility": "POST /api/v1/admin/subadmins/6a09c29284898a15f0c04841/force-logout using context=admin"
     },
     {
       "method": "PATCH",
@@ -420,7 +380,7 @@
       "category": "not-found",
       "error": "Admin not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Admin not found\",\"stack\":\"Error: Admin not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\adminController.js:1857:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/admin/subadmins/6a03391356ea778474f53492/toggle-status using context=admin"
+      "reproducibility": "PATCH /api/v1/admin/subadmins/6a09c29284898a15f0c04841/toggle-status using context=admin"
     },
     {
       "method": "PATCH",
@@ -430,7 +390,7 @@
       "category": "not-found",
       "error": "Support ticket not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Support ticket not found\",\"stack\":\"Error: Support ticket not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\supportController.js:60:28\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/admin/support/tickets/6a03391356ea778474f53492 using context=admin"
+      "reproducibility": "PATCH /api/v1/admin/support/tickets/6a09c29284898a15f0c04841 using context=admin"
     },
     {
       "method": "PATCH",
@@ -456,51 +416,41 @@
       "method": "DELETE",
       "path": "/api/v1/article/:id",
       "controllerRef": null,
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor, hospital",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, hospital\",\"stack\":\"Error: Access denied. Allowed roles: doctor, hospital\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRe",
-      "reproducibility": "DELETE /api/v1/article/69ff98563dfe2cc4bfac8153 using context=admin"
+      "status": 404,
+      "category": "not-found",
+      "error": "Article not found or you do not have permission",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Article not found or you do not have permission\",\"stack\":\"Error: Article not found or you do not have permission\\n    at deleteArticle (E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\articleController.js:577:19)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "reproducibility": "DELETE /api/v1/article/69ff98563dfe2cc4bfac8153 using context=doctor"
     },
     {
       "method": "PATCH",
       "path": "/api/v1/article/:id/publish",
       "controllerRef": null,
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor, hospital",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, hospital\",\"stack\":\"Error: Access denied. Allowed roles: doctor, hospital\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRe",
-      "reproducibility": "PATCH /api/v1/article/69ff98563dfe2cc4bfac8153/publish using context=admin"
+      "status": 404,
+      "category": "not-found",
+      "error": "Article not found or you do not have permission",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Article not found or you do not have permission\",\"stack\":\"Error: Article not found or you do not have permission\\n    at publishArticle (E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\articleController.js:622:19)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "reproducibility": "PATCH /api/v1/article/69ff98563dfe2cc4bfac8153/publish using context=doctor"
     },
     {
       "method": "POST",
       "path": "/api/v1/article/create",
       "controllerRef": null,
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor, hospital",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, hospital\",\"stack\":\"Error: Access denied. Allowed roles: doctor, hospital\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRe",
-      "reproducibility": "POST /api/v1/article/create using context=admin"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/article/my-articles",
-      "controllerRef": null,
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor, hospital",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, hospital\",\"stack\":\"Error: Access denied. Allowed roles: doctor, hospital\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRe",
-      "reproducibility": "GET /api/v1/article/my-articles using context=admin"
+      "status": 400,
+      "category": "validation",
+      "error": "cityName, category, title, and articleType are required",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"cityName, category, title, and articleType are required\",\"stack\":\"Error: cityName, category, title, and articleType are required\\n    at createArticle (E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\articleController.js:190:19)\\n    at Layer.handleRequest (E:\\\\medico-backend\\\\medico_backend\\\\node_modules\\\\",
+      "reproducibility": "POST /api/v1/article/create using context=doctor"
     },
     {
       "method": "PUT",
       "path": "/api/v1/article/updateArticle/:id",
       "controllerRef": null,
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor, hospital",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor, hospital\",\"stack\":\"Error: Access denied. Allowed roles: doctor, hospital\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRe",
-      "reproducibility": "PUT /api/v1/article/updateArticle/69ff98563dfe2cc4bfac8153 using context=admin"
+      "status": 404,
+      "category": "not-found",
+      "error": "Article not found or you do not have permission",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Article not found or you do not have permission\",\"stack\":\"Error: Article not found or you do not have permission\\n    at updateArticle (E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\articleController.js:547:19)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "reproducibility": "PUT /api/v1/article/updateArticle/69ff98563dfe2cc4bfac8153 using context=doctor"
     },
     {
       "method": "POST",
@@ -530,7 +480,7 @@
       "category": "auth",
       "error": "Access denied. Allowed roles: patient",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: patient\",\"stack\":\"Error: Access denied. Allowed roles: patient\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:int",
-      "reproducibility": "GET /api/v1/booking/patient/6a38e2ff05494ed2c91e6d9c using context=admin"
+      "reproducibility": "GET /api/v1/booking/patient/6a38e2ff05494ed2c91e6d9c using context=doctor"
     },
     {
       "method": "POST",
@@ -590,7 +540,7 @@
       "category": "not-found",
       "error": "City not found",
       "stackExcerpt": null,
-      "reproducibility": "PUT /api/v1/city/admin/cities/6a02f3dea924e2b2a433f288 using context=admin"
+      "reproducibility": "PUT /api/v1/city/admin/cities/6a02f3dea924e2b2a433f289 using context=admin"
     },
     {
       "method": "PATCH",
@@ -600,7 +550,7 @@
       "category": "not-found",
       "error": "City not found",
       "stackExcerpt": null,
-      "reproducibility": "PATCH /api/v1/city/admin/cities/toggle/6a02f3dea924e2b2a433f288 using context=admin"
+      "reproducibility": "PATCH /api/v1/city/admin/cities/toggle/6a02f3dea924e2b2a433f289 using context=admin"
     },
     {
       "method": "GET",
@@ -610,7 +560,7 @@
       "category": "not-found",
       "error": "City not found",
       "stackExcerpt": null,
-      "reproducibility": "GET /api/v1/city/cities/6a02f3dea924e2b2a433f288 using context=public"
+      "reproducibility": "GET /api/v1/city/cities/6a02f3dea924e2b2a433f289 using context=public"
     },
     {
       "method": "GET",
@@ -646,21 +596,21 @@
       "method": "PUT",
       "path": "/api/v1/doctor-appointments/:appointmentId/reschedule",
       "controllerRef": "controller/doctorAppointmentController.js#rescheduleDoctorAppointment",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "PUT /api/v1/doctor-appointments/:appointmentId/reschedule using context=admin"
+      "status": 400,
+      "category": "validation",
+      "error": "appointmentId, appointmentDate, startTime and endTime are required",
+      "stackExcerpt": null,
+      "reproducibility": "PUT /api/v1/doctor-appointments/:appointmentId/reschedule using context=doctor"
     },
     {
       "method": "PATCH",
       "path": "/api/v1/doctor-appointments/:appointmentId/status",
       "controllerRef": "controller/doctorAppointmentController.js#updateDoctorAppointmentStatus",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "PATCH /api/v1/doctor-appointments/:appointmentId/status using context=admin"
+      "status": 400,
+      "category": "validation",
+      "error": "status is required",
+      "stackExcerpt": null,
+      "reproducibility": "PATCH /api/v1/doctor-appointments/:appointmentId/status using context=doctor"
     },
     {
       "method": "POST",
@@ -674,23 +624,13 @@
     },
     {
       "method": "GET",
-      "path": "/api/v1/doctor-appointments/doctor/my-appointments",
-      "controllerRef": "controller/doctorAppointmentController.js#getMyDoctorAppointments",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "GET /api/v1/doctor-appointments/doctor/my-appointments using context=admin"
-    },
-    {
-      "method": "GET",
       "path": "/api/v1/doctor/:doctorId/service-availability",
       "controllerRef": "controller/doctorController.js#getServiceAvailability",
       "status": 404,
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": null,
-      "reproducibility": "GET /api/v1/doctor/507f1f77bcf86cd799439011/service-availability using context=public"
+      "reproducibility": "GET /api/v1/doctor/6a02f50da924e2b2a433f2ae/service-availability using context=public"
     },
     {
       "method": "GET",
@@ -700,67 +640,57 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorDiscoveryController.js:88:28\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "GET /api/v1/doctor/6a03391356ea778474f53492/public-profile using context=public"
+      "reproducibility": "GET /api/v1/doctor/6a09c29284898a15f0c04841/public-profile using context=public"
     },
     {
       "method": "POST",
       "path": "/api/v1/doctor/addClinic",
       "controllerRef": "controller/doctorController.js#addClinic",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "POST /api/v1/doctor/addClinic using context=admin"
+      "status": 400,
+      "category": "validation",
+      "error": "Please provide clinics array",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide clinics array\",\"stack\":\"Error: Please provide clinics array\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1190:17\\n    at E:\\\\medico-backend\\\\medico_backend\\\\utils\\\\catchAsync.js:3:5\\n    at Layer.handleRequest (E:\\\\medico-backend\\\\medico_backend\\\\node_modules\\\\r",
+      "reproducibility": "POST /api/v1/doctor/addClinic using context=doctor"
     },
     {
       "method": "POST",
       "path": "/api/v1/doctor/availability",
       "controllerRef": "controller/doctorController.js#configureAvailability",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "POST /api/v1/doctor/availability using context=admin"
-    },
-    {
-      "method": "PUT",
-      "path": "/api/v1/doctor/availability",
-      "controllerRef": "controller/doctorController.js#updateAvailability",
-      "status": 404,
-      "category": "not-found",
-      "error": "Doctor not found",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1142:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PUT /api/v1/doctor/availability using context=admin"
+      "status": 500,
+      "category": "server-bug",
+      "error": "Error configuring availability",
+      "stackExcerpt": null,
+      "reproducibility": "POST /api/v1/doctor/availability using context=doctor"
     },
     {
       "method": "DELETE",
       "path": "/api/v1/doctor/break-time",
       "controllerRef": "controller/doctorController.js#removeBreakTime",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "DELETE /api/v1/doctor/break-time using context=admin"
+      "status": 404,
+      "category": "not-found",
+      "error": "No slots found for this date",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No slots found for this date\",\"stack\":\"Error: No slots found for this date\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:2367:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "reproducibility": "DELETE /api/v1/doctor/break-time using context=doctor"
     },
     {
       "method": "POST",
       "path": "/api/v1/doctor/break-time",
       "controllerRef": "controller/doctorController.js#addBreakTime",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "POST /api/v1/doctor/break-time using context=admin"
+      "status": 500,
+      "category": "server-bug",
+      "error": "Doctor validation failed: clinics.0.cityId: Path `cityId` is required., clinics.0.doctorId: Path `doctorId` is required.",
+      "stackExcerpt": null,
+      "reproducibility": "POST /api/v1/doctor/break-time using context=doctor"
     },
     {
       "method": "PUT",
       "path": "/api/v1/doctor/bulk-manage-slots",
       "controllerRef": "controller/doctorController.js#bulkManageSlots",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "PUT /api/v1/doctor/bulk-manage-slots using context=admin"
+      "status": 404,
+      "category": "not-found",
+      "error": "No slots found for this date",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"No slots found for this date\",\"stack\":\"Error: No slots found for this date\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:2512:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "reproducibility": "PUT /api/v1/doctor/bulk-manage-slots using context=doctor"
     },
     {
       "method": "POST",
@@ -770,17 +700,17 @@
       "category": "validation",
       "error": "Please provide clinics array",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Please provide clinics array\",\"stack\":\"Error: Please provide clinics array\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1190:17\\n    at E:\\\\medico-backend\\\\medico_backend\\\\utils\\\\catchAsync.js:3:5\\n    at Layer.handleRequest (E:\\\\medico-backend\\\\medico_backend\\\\node_modules\\\\r",
-      "reproducibility": "POST /api/v1/doctor/clinic using context=admin"
+      "reproducibility": "POST /api/v1/doctor/clinic using context=doctor"
     },
     {
       "method": "DELETE",
       "path": "/api/v1/doctor/clinic/:clinicId",
       "controllerRef": "controller/doctorController.js#deleteClinic",
-      "status": 404,
-      "category": "not-found",
-      "error": "Doctor not found",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1393:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "DELETE /api/v1/doctor/clinic/507f1f77bcf86cd799439016 using context=admin"
+      "status": 500,
+      "category": "server-bug",
+      "error": "Doctor validation failed: clinics.0.cityId: Path `cityId` is required., clinics.0.doctorId: Path `doctorId` is required.",
+      "stackExcerpt": "{\"status\":\"error\",\"error\":{\"errors\":{\"clinics.0.cityId\":{\"name\":\"ValidatorError\",\"message\":\"Path `cityId` is required.\",\"properties\":{\"message\":\"Path `cityId` is required.\",\"type\":\"required\",\"path\":\"cityId\"},\"kind\":\"required\",\"path\":\"cityId\"},\"clinics.0.doctorId\":{\"name\":\"ValidatorError\",\"message\":\"Path `doctorId` is required.\",\"properties\":{\"message\":\"Path `doctorId` is required.\",\"type\":\"require",
+      "reproducibility": "DELETE /api/v1/doctor/clinic/6a02f50de68e7334fa333927 using context=doctor"
     },
     {
       "method": "PUT",
@@ -788,19 +718,19 @@
       "controllerRef": "controller/doctorController.js#updateClinic",
       "status": 404,
       "category": "not-found",
-      "error": "Doctor not found",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1329:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PUT /api/v1/doctor/clinic/507f1f77bcf86cd799439016 using context=admin"
+      "error": "Clinic not found",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Clinic not found\",\"stack\":\"Error: Clinic not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1369:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "reproducibility": "PUT /api/v1/doctor/clinic/6a02f50de68e7334fa333927 using context=doctor"
     },
     {
       "method": "DELETE",
       "path": "/api/v1/doctor/deleteClinic/:clinicId",
       "controllerRef": "controller/doctorController.js#deleteClinic",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "DELETE /api/v1/doctor/deleteClinic/507f1f77bcf86cd799439016 using context=admin"
+      "status": 500,
+      "category": "server-bug",
+      "error": "Doctor validation failed: clinics.0.cityId: Path `cityId` is required., clinics.0.doctorId: Path `doctorId` is required.",
+      "stackExcerpt": "{\"status\":\"error\",\"error\":{\"errors\":{\"clinics.0.cityId\":{\"name\":\"ValidatorError\",\"message\":\"Path `cityId` is required.\",\"properties\":{\"message\":\"Path `cityId` is required.\",\"type\":\"required\",\"path\":\"cityId\"},\"kind\":\"required\",\"path\":\"cityId\"},\"clinics.0.doctorId\":{\"name\":\"ValidatorError\",\"message\":\"Path `doctorId` is required.\",\"properties\":{\"message\":\"Path `doctorId` is required.\",\"type\":\"require",
+      "reproducibility": "DELETE /api/v1/doctor/deleteClinic/6a02f50de68e7334fa333927 using context=doctor"
     },
     {
       "method": "GET",
@@ -810,7 +740,7 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1650:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "GET /api/v1/doctor/doctor/cities/by-name/507f1f77bcf86cd799439011/Lucknow using context=public"
+      "reproducibility": "GET /api/v1/doctor/doctor/cities/by-name/6a02f50da924e2b2a433f2ae/Lucknow using context=public"
     },
     {
       "method": "GET",
@@ -820,27 +750,27 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1598:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "GET /api/v1/doctor/doctor/my-cities/507f1f77bcf86cd799439011 using context=public"
+      "reproducibility": "GET /api/v1/doctor/doctor/my-cities/6a02f50da924e2b2a433f2ae using context=public"
     },
     {
       "method": "GET",
-      "path": "/api/v1/doctor/getAllClinics",
-      "controllerRef": "controller/doctorController.js#getAllClinics",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "GET /api/v1/doctor/getAllClinics using context=admin"
+      "path": "/api/v1/doctor/doctors/city/:cityName",
+      "controllerRef": "controller/doctorController.js#getDoctorsByCityName",
+      "status": 404,
+      "category": "not-found",
+      "error": "City not found: Lucknow",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"City not found: Lucknow\",\"stack\":\"Error: City not found: Lucknow\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1702:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "reproducibility": "GET /api/v1/doctor/doctors/city/Lucknow using context=public"
     },
     {
       "method": "GET",
       "path": "/api/v1/doctor/getClinicById/:clinicId",
       "controllerRef": "controller/doctorController.js#getClinicById",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "GET /api/v1/doctor/getClinicById/507f1f77bcf86cd799439016 using context=admin"
+      "status": 404,
+      "category": "not-found",
+      "error": "Clinic not found",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Clinic not found\",\"stack\":\"Error: Clinic not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1503:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "reproducibility": "GET /api/v1/doctor/getClinicById/6a02f50de68e7334fa333927 using context=doctor"
     },
     {
       "method": "GET",
@@ -850,27 +780,7 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1042:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "GET /api/v1/doctor/getDoctorById/6a03391356ea778474f53492 using context=public"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/doctor/getMyProfile",
-      "controllerRef": "controller/doctorController.js#getMyProfile",
-      "status": 404,
-      "category": "not-found",
-      "error": "Doctor not found",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:850:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "GET /api/v1/doctor/getMyProfile using context=admin"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/doctor/login",
-      "controllerRef": "controller/doctorController.js#doctorLogin",
-      "status": 400,
-      "category": "validation",
-      "error": "Phone number is required",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Phone number is required\",\"stack\":\"Error: Phone number is required\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:539:17\\n    at E:\\\\medico-backend\\\\medico_backend\\\\utils\\\\catchAsync.js:3:5\\n    at Layer.handleRequest (E:\\\\medico-backend\\\\medico_backend\\\\node_modules\\\\router\\\\li",
-      "reproducibility": "POST /api/v1/doctor/login using context=public"
+      "reproducibility": "GET /api/v1/doctor/getDoctorById/6a09c29284898a15f0c04841 using context=public"
     },
     {
       "method": "POST",
@@ -881,16 +791,6 @@
       "error": "Phone number is required",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Phone number is required\",\"stack\":\"Error: Phone number is required\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:820:17\\n    at E:\\\\medico-backend\\\\medico_backend\\\\utils\\\\catchAsync.js:3:5\\n    at Layer.handleRequest (E:\\\\medico-backend\\\\medico_backend\\\\node_modules\\\\router\\\\li",
       "reproducibility": "POST /api/v1/doctor/logout-all-devices using context=public"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/doctor/my-availability",
-      "controllerRef": "controller/doctorController.js#getMyAvailability",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "GET /api/v1/doctor/my-availability using context=admin"
     },
     {
       "method": "POST",
@@ -916,21 +816,21 @@
       "method": "PUT",
       "path": "/api/v1/doctor/service-availability",
       "controllerRef": "controller/doctorController.js#updateServiceAvailability",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "PUT /api/v1/doctor/service-availability using context=admin"
+      "status": 500,
+      "category": "server-bug",
+      "error": "Doctor validation failed: clinics.0.cityId: Path `cityId` is required., clinics.0.doctorId: Path `doctorId` is required.",
+      "stackExcerpt": "{\"status\":\"error\",\"error\":{\"errors\":{\"clinics.0.cityId\":{\"name\":\"ValidatorError\",\"message\":\"Path `cityId` is required.\",\"properties\":{\"message\":\"Path `cityId` is required.\",\"type\":\"required\",\"path\":\"cityId\"},\"kind\":\"required\",\"path\":\"cityId\"},\"clinics.0.doctorId\":{\"name\":\"ValidatorError\",\"message\":\"Path `doctorId` is required.\",\"properties\":{\"message\":\"Path `doctorId` is required.\",\"type\":\"require",
+      "reproducibility": "PUT /api/v1/doctor/service-availability using context=doctor"
     },
     {
       "method": "PUT",
       "path": "/api/v1/doctor/service-coverage",
       "controllerRef": "controller/doctorController.js#updateServiceCoverage",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "PUT /api/v1/doctor/service-coverage using context=admin"
+      "status": 500,
+      "category": "server-bug",
+      "error": "Doctor validation failed: clinics.0.cityId: Path `cityId` is required., clinics.0.doctorId: Path `doctorId` is required.",
+      "stackExcerpt": "{\"status\":\"error\",\"error\":{\"errors\":{\"clinics.0.cityId\":{\"name\":\"ValidatorError\",\"message\":\"Path `cityId` is required.\",\"properties\":{\"message\":\"Path `cityId` is required.\",\"type\":\"required\",\"path\":\"cityId\"},\"kind\":\"required\",\"path\":\"cityId\"},\"clinics.0.doctorId\":{\"name\":\"ValidatorError\",\"message\":\"Path `doctorId` is required.\",\"properties\":{\"message\":\"Path `doctorId` is required.\",\"type\":\"require",
+      "reproducibility": "PUT /api/v1/doctor/service-coverage using context=doctor"
     },
     {
       "method": "POST",
@@ -950,57 +850,27 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": null,
-      "reproducibility": "GET /api/v1/doctor/slots/507f1f77bcf86cd799439011?date=2026-05-09 using context=public"
+      "reproducibility": "GET /api/v1/doctor/slots/6a02f50da924e2b2a433f2ae?date=2026-05-09 using context=public"
     },
     {
       "method": "PUT",
       "path": "/api/v1/doctor/toggle-slot",
       "controllerRef": "controller/doctorController.js#toggleSlotAvailability",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "PUT /api/v1/doctor/toggle-slot using context=admin"
+      "status": 404,
+      "category": "not-found",
+      "error": "No slots found for this date",
+      "stackExcerpt": null,
+      "reproducibility": "PUT /api/v1/doctor/toggle-slot using context=doctor"
     },
     {
       "method": "PUT",
       "path": "/api/v1/doctor/updateClinic/:clinicId",
       "controllerRef": "controller/doctorController.js#updateClinic",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "PUT /api/v1/doctor/updateClinic/507f1f77bcf86cd799439016 using context=admin"
-    },
-    {
-      "method": "PUT",
-      "path": "/api/v1/doctor/updateProfile",
-      "controllerRef": "controller/doctorController.js#updateProfile",
       "status": 404,
       "category": "not-found",
-      "error": "Doctor not found",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:887:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PUT /api/v1/doctor/updateProfile using context=admin"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/doctor/verification-documents",
-      "controllerRef": "controller/doctorVerificationController.js#uploadVerificationDocuments",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "POST /api/v1/doctor/verification-documents using context=admin"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/doctor/verification/submit",
-      "controllerRef": "controller/doctorVerificationController.js#submitVerification",
-      "status": 403,
-      "category": "auth",
-      "error": "Access denied. Allowed roles: doctor",
-      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":403,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Access denied. Allowed roles: doctor\",\"stack\":\"Error: Access denied. Allowed roles: doctor\\n    at authorizeAndContinue (E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:653:7)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\middleware\\\\auth.js:320:20\\n    at process.processTicksAndRejections (node:inter",
-      "reproducibility": "POST /api/v1/doctor/verification/submit using context=admin"
+      "error": "Clinic not found",
+      "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Clinic not found\",\"stack\":\"Error: Clinic not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\doctorController.js:1369:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
+      "reproducibility": "PUT /api/v1/doctor/updateClinic/6a02f50de68e7334fa333927 using context=doctor"
     },
     {
       "method": "POST",
@@ -1038,9 +908,9 @@
       "controllerRef": "controller/itemCategoryController.js#getItemsByCategory",
       "status": 404,
       "category": "not-found",
-      "error": "Category 6a03391356ea778474f53492 not found or deleted",
+      "error": "Category 6a09c29284898a15f0c04841 not found or deleted",
       "stackExcerpt": null,
-      "reproducibility": "GET /api/v1/items/getItemCategoryById/6a03391356ea778474f53492 using context=public"
+      "reproducibility": "GET /api/v1/items/getItemCategoryById/6a09c29284898a15f0c04841 using context=public"
     },
     {
       "method": "PATCH",
@@ -1050,7 +920,7 @@
       "category": "not-found",
       "error": "Category not found",
       "stackExcerpt": null,
-      "reproducibility": "PATCH /api/v1/items/toggle-status/6a03391356ea778474f53492 using context=admin"
+      "reproducibility": "PATCH /api/v1/items/toggle-status/6a09c29284898a15f0c04841 using context=admin"
     },
     {
       "method": "PUT",
@@ -1060,7 +930,7 @@
       "category": "not-found",
       "error": "Category not found",
       "stackExcerpt": null,
-      "reproducibility": "PUT /api/v1/items/update/6a03391356ea778474f53492 using context=admin"
+      "reproducibility": "PUT /api/v1/items/update/6a09c29284898a15f0c04841 using context=admin"
     },
     {
       "method": "POST",
@@ -1070,7 +940,7 @@
       "category": "server-bug",
       "error": "{\"status\":\"error\",\"error\":{\"errors\":{\"patientId\":{\"name\":\"ValidatorError\",\"message\":\"Path `patientId` is required.\",\"properties\":{\"message\":\"Path `patientId` is required.\",\"type\":\"required\",\"path\":\"patientId\"},\"kind\":\"required\",\"path\":\"patientId\"},\"recordType\":{\"name\":\"ValidatorError\",\"message\":\"Path `recordType` is required.\",\"properties\":{\"message\":\"Path `recordType` is required.\",\"type\":\"required\",\"path\":\"recordType\"},\"kind\":\"required\",\"path\":\"recordType\"},\"title\":{\"name\":\"ValidatorError\",\"message\":\"Path `title` is required.\",\"properties\":{\"message\":\"Path `title` is required.\",\"type\":\"required\",\"path\":\"title\"},\"kind\":\"required\",\"path\":\"title\"}},\"_message\":\"MedicalRecord validation failed\",\"statusCode\":500,\"status\":\"error\",\"name\":\"ValidationError\",\"message\":\"MedicalRecord validation failed: patientId: Path `patientId` is required., recordType: Path `recordType` is required., title: Path `title` is required.\"},\"message\":\"MedicalRecord validation failed: patientId: Path `patientId` is required., recordType: Path `recordType` is required., title: Path `title` is required.\",\"stack\":\"ValidationError: MedicalRecord validation failed: patientId: Path `patientId` is required., recordType: Path `recordType` is required., title: Path `title` is required.\\n    at Document.invalidate (E:\\\\medico-backend\\\\medico_backend\\\\node_modules\\\\mongoose\\\\lib\\\\document.js:3362:32)\\n    at E:\\\\medico-backend\\\\medico_backend\\\\node_modules\\\\mongoose\\\\lib\\\\document.js:3123:17\\n    at E:\\\\medico-backen...",
       "stackExcerpt": "{\"status\":\"error\",\"error\":{\"errors\":{\"patientId\":{\"name\":\"ValidatorError\",\"message\":\"Path `patientId` is required.\",\"properties\":{\"message\":\"Path `patientId` is required.\",\"type\":\"required\",\"path\":\"patientId\"},\"kind\":\"required\",\"path\":\"patientId\"},\"recordType\":{\"name\":\"ValidatorError\",\"message\":\"Path `recordType` is required.\",\"properties\":{\"message\":\"Path `recordType` is required.\",\"type\":\"requir",
-      "reproducibility": "POST /api/v1/medical-records/createMedicalRecord using context=serviceProvider"
+      "reproducibility": "POST /api/v1/medical-records/createMedicalRecord using context=doctor"
     },
     {
       "method": "DELETE",
@@ -1080,7 +950,7 @@
       "category": "not-found",
       "error": "Medical record not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Medical record not found\",\"stack\":\"Error: Medical record not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\medicalRecordController.js:169:48\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "DELETE /api/v1/medical-records/deleteMedicalRecord/6a03391356ea778474f53492 using context=patient"
+      "reproducibility": "DELETE /api/v1/medical-records/deleteMedicalRecord/6a09c29284898a15f0c04841 using context=patient"
     },
     {
       "method": "GET",
@@ -1100,7 +970,7 @@
       "category": "not-found",
       "error": "Medical record not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Medical record not found\",\"stack\":\"Error: Medical record not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\medicalRecordController.js:146:48\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "POST /api/v1/medical-records/shareMedicalRecord/6a03391356ea778474f53492/share using context=patient"
+      "reproducibility": "POST /api/v1/medical-records/shareMedicalRecord/6a09c29284898a15f0c04841/share using context=patient"
     },
     {
       "method": "PATCH",
@@ -1110,7 +980,7 @@
       "category": "not-found",
       "error": "Medical record not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Medical record not found\",\"stack\":\"Error: Medical record not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\medicalRecordController.js:127:48\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/medical-records/updateMedicalRecord/6a03391356ea778474f53492 using context=patient"
+      "reproducibility": "PATCH /api/v1/medical-records/updateMedicalRecord/6a09c29284898a15f0c04841 using context=patient"
     },
     {
       "method": "POST",
@@ -1120,7 +990,7 @@
       "category": "not-found",
       "error": "Doctor not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Doctor not found\",\"stack\":\"Error: Doctor not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\patientController.js:2315:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "POST /api/v1/patient/follow/507f1f77bcf86cd799439011 using context=patient"
+      "reproducibility": "POST /api/v1/patient/follow/6a02f50da924e2b2a433f2ae using context=patient"
     },
     {
       "method": "GET",
@@ -1130,7 +1000,7 @@
       "category": "not-found",
       "error": "Patient not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Patient not found\",\"stack\":\"Error: Patient not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\patientController.js:2394:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "GET /api/v1/patient/getById/6a031fdc05fb2370df312436 using context=public"
+      "reproducibility": "GET /api/v1/patient/getById/6a031fdd05fb2370df312453 using context=public"
     },
     {
       "method": "POST",
@@ -1180,7 +1050,7 @@
       "category": "validation",
       "error": "Not following this doctor",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":400,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Not following this doctor\",\"stack\":\"Error: Not following this doctor\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\patientController.js:2355:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "DELETE /api/v1/patient/unfollow/507f1f77bcf86cd799439011 using context=patient"
+      "reproducibility": "DELETE /api/v1/patient/unfollow/6a02f50da924e2b2a433f2ae using context=patient"
     },
     {
       "method": "PATCH",
@@ -1190,7 +1060,7 @@
       "category": "not-found",
       "error": "The patient does not exist",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"The patient does not exist\",\"stack\":\"Error: The patient does not exist\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\patientController.js:1493:17\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/patient/updateProfile/6a031fdc05fb2370df312436 using context=patient"
+      "reproducibility": "PATCH /api/v1/patient/updateProfile/6a031fdd05fb2370df312453 using context=patient"
     },
     {
       "method": "POST",
@@ -1290,7 +1160,7 @@
       "category": "not-found",
       "error": "Review not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Review not found\",\"stack\":\"Error: Review not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\reviewController.js:114:28\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/reviews/admin/6a03391356ea778474f53492/moderation using context=admin"
+      "reproducibility": "PATCH /api/v1/reviews/admin/6a09c29284898a15f0c04841/moderation using context=admin"
     },
     {
       "method": "POST",
@@ -1310,7 +1180,7 @@
       "category": "not-found",
       "error": "Review not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Review not found\",\"stack\":\"Error: Review not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\reviewController.js:102:28\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "DELETE /api/v1/reviews/deleteReview/6a03391356ea778474f53492 using context=patient"
+      "reproducibility": "DELETE /api/v1/reviews/deleteReview/6a09c29284898a15f0c04841 using context=patient"
     },
     {
       "method": "PATCH",
@@ -1320,7 +1190,7 @@
       "category": "not-found",
       "error": "Review not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Review not found\",\"stack\":\"Error: Review not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\reviewController.js:86:28\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "PATCH /api/v1/reviews/updateReview/6a03391356ea778474f53492 using context=patient"
+      "reproducibility": "PATCH /api/v1/reviews/updateReview/6a09c29284898a15f0c04841 using context=patient"
     },
     {
       "method": "GET",
@@ -1330,7 +1200,7 @@
       "category": "not-found",
       "error": "Service not found or inactive",
       "stackExcerpt": null,
-      "reproducibility": "GET /api/v1/service/6a03391356ea778474f53492/price using context=public"
+      "reproducibility": "GET /api/v1/service/6a09c29284898a15f0c04841/price using context=public"
     },
     {
       "method": "POST",
@@ -1340,7 +1210,7 @@
       "category": "not-found",
       "error": "Deleted service not found",
       "stackExcerpt": null,
-      "reproducibility": "POST /api/v1/service/6a03391356ea778474f53492/restore using context=admin"
+      "reproducibility": "POST /api/v1/service/6a09c29284898a15f0c04841/restore using context=admin"
     },
     {
       "method": "PATCH",
@@ -1350,7 +1220,7 @@
       "category": "not-found",
       "error": "Service not found",
       "stackExcerpt": null,
-      "reproducibility": "PATCH /api/v1/service/6a03391356ea778474f53492/toggle-status using context=admin"
+      "reproducibility": "PATCH /api/v1/service/6a09c29284898a15f0c04841/toggle-status using context=admin"
     },
     {
       "method": "GET",
@@ -1360,7 +1230,7 @@
       "category": "validation",
       "error": "Date is required",
       "stackExcerpt": null,
-      "reproducibility": "GET /api/v1/service/6a03248b28ee1195704f4539/slots using context=public"
+      "reproducibility": "GET /api/v1/service/6a03248b28ee1195704f453f/slots using context=public"
     },
     {
       "method": "POST",
@@ -1378,7 +1248,7 @@
       "controllerRef": "controller/serviceController.js#createService",
       "status": 400,
       "category": "validation",
-      "error": "Invalid city IDs: 6a02f3dea924e2b2a433f288",
+      "error": "Invalid city IDs: 6a02f3dea924e2b2a433f289",
       "stackExcerpt": null,
       "reproducibility": "POST /api/v1/service/createService using context=admin"
     },
@@ -1390,7 +1260,7 @@
       "category": "not-found",
       "error": "Service not found",
       "stackExcerpt": null,
-      "reproducibility": "GET /api/v1/service/getServiceById/6a03391356ea778474f53492 using context=public"
+      "reproducibility": "GET /api/v1/service/getServiceById/6a09c29284898a15f0c04841 using context=public"
     },
     {
       "method": "GET",
@@ -1410,7 +1280,7 @@
       "category": "not-found",
       "error": "Service not found",
       "stackExcerpt": null,
-      "reproducibility": "PATCH /api/v1/service/services/6a03248b28ee1195704f4539 using context=admin"
+      "reproducibility": "PATCH /api/v1/service/services/6a03248b28ee1195704f453f using context=admin"
     },
     {
       "method": "PATCH",
@@ -1420,7 +1290,7 @@
       "category": "not-found",
       "error": "Service provider not found",
       "stackExcerpt": null,
-      "reproducibility": "PATCH /api/v1/serviceProvider/6a03391356ea778474f53492/toggle-status using context=admin"
+      "reproducibility": "PATCH /api/v1/serviceProvider/6a09c29284898a15f0c04841/toggle-status using context=admin"
     },
     {
       "method": "POST",
@@ -1440,7 +1310,7 @@
       "category": "not-found",
       "error": "Service provider not found",
       "stackExcerpt": null,
-      "reproducibility": "GET /api/v1/serviceProvider/service-provider/6a3a37b3494e41b9dabb4d24 using context=public"
+      "reproducibility": "GET /api/v1/serviceProvider/service-provider/6a3a38454ce5f0f3979786f5 using context=public"
     },
     {
       "method": "PUT",
@@ -1450,7 +1320,7 @@
       "category": "not-found",
       "error": "Service provider not found",
       "stackExcerpt": null,
-      "reproducibility": "PUT /api/v1/serviceProvider/service-provider/6a3a37b3494e41b9dabb4d24 using context=admin"
+      "reproducibility": "PUT /api/v1/serviceProvider/service-provider/6a3a38454ce5f0f3979786f5 using context=admin"
     },
     {
       "method": "PATCH",
@@ -1460,7 +1330,7 @@
       "category": "validation",
       "error": "Invalid workflow action",
       "stackExcerpt": null,
-      "reproducibility": "PATCH /api/v1/serviceProvider/service-provider/6a3a37b3494e41b9dabb4d24/workflow using context=admin"
+      "reproducibility": "PATCH /api/v1/serviceProvider/service-provider/6a3a38454ce5f0f3979786f5/workflow using context=admin"
     },
     {
       "method": "GET",
@@ -1480,17 +1350,7 @@
       "category": "not-found",
       "error": "Appointment not found or not assigned to you",
       "stackExcerpt": null,
-      "reproducibility": "GET /api/v1/serviceProvider/service-provider/appointments/6a3a37b3494e41b9dabb4d24 using context=admin"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/socialPost/createPost",
-      "controllerRef": "controller/socialmediaController.js#createPost",
-      "status": 404,
-      "category": "not-found",
-      "error": "Doctor not found for user: 6a3a37b1494e41b9dabb4d12",
-      "stackExcerpt": null,
-      "reproducibility": "POST /api/v1/socialPost/createPost using context=admin"
+      "reproducibility": "GET /api/v1/serviceProvider/service-provider/appointments/6a3a38454ce5f0f3979786f5 using context=admin"
     },
     {
       "method": "POST",
@@ -1510,7 +1370,7 @@
       "category": "not-found",
       "error": "Post not found",
       "stackExcerpt": null,
-      "reproducibility": "PATCH /api/v1/socialPost/posts/6a3948c8600662c9cfffc39c/hide using context=admin"
+      "reproducibility": "PATCH /api/v1/socialPost/posts/6a32374973dc6dcb2d6b33a4/hide using context=admin"
     },
     {
       "method": "POST",
@@ -1520,7 +1380,7 @@
       "category": "validation",
       "error": "Reason for reporting is required",
       "stackExcerpt": null,
-      "reproducibility": "POST /api/v1/socialPost/posts/6a3948c8600662c9cfffc39c/report using context=patient"
+      "reproducibility": "POST /api/v1/socialPost/posts/6a32374973dc6dcb2d6b33a4/report using context=patient"
     },
     {
       "method": "PATCH",
@@ -1540,7 +1400,7 @@
       "category": "not-found",
       "error": "Post not found",
       "stackExcerpt": null,
-      "reproducibility": "POST /api/v1/socialPost/savePost/6a3948c8600662c9cfffc39c/toggle using context=patient"
+      "reproducibility": "POST /api/v1/socialPost/savePost/6a32374973dc6dcb2d6b33a4/toggle using context=patient"
     },
     {
       "method": "POST",
@@ -1550,7 +1410,7 @@
       "category": "not-found",
       "error": "Support ticket not found",
       "stackExcerpt": "{\"status\":\"fail\",\"error\":{\"statusCode\":404,\"status\":\"fail\",\"isOperational\":true},\"message\":\"Support ticket not found\",\"stack\":\"Error: Support ticket not found\\n    at E:\\\\medico-backend\\\\medico_backend\\\\controller\\\\supportController.js:73:28\\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\"}",
-      "reproducibility": "POST /api/v1/support/addMessageTickets/6a03391356ea778474f53492 using context=patient"
+      "reproducibility": "POST /api/v1/support/addMessageTickets/6a09c29284898a15f0c04841 using context=patient"
     },
     {
       "method": "POST",

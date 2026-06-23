@@ -215,12 +215,23 @@ function getActiveSockets() {
  * @returns {boolean} True if user is in room, false otherwise
  */
 function isUserInRoom(userId, roomId) {
-  if (!io || !userId || !roomId) return false;
+  console.log(`[Socket Check] Checking if user ${userId} is in room ${roomId}`);
+  if (!io) {
+    console.log(`[Socket Check] io is not initialized.`);
+    return false;
+  }
+  if (!userId || !roomId) {
+    console.log(`[Socket Check] Missing userId (${userId}) or roomId (${roomId}).`);
+    return false;
+  }
   const socketId = activeSockets.get(userId.toString());
+  console.log(`[Socket Check] User socket ID: ${socketId || 'offline/none'}`);
   if (!socketId) return false;
 
   const roomSockets = io.sockets.adapter.rooms.get(roomId.toString());
-  return !!(roomSockets && roomSockets.has(socketId));
+  const inRoom = !!(roomSockets && roomSockets.has(socketId));
+  console.log(`[Socket Check] Room sockets: ${roomSockets ? Array.from(roomSockets).join(', ') : 'none'}. User in room: ${inRoom}`);
+  return inRoom;
 }
 
 module.exports = {
