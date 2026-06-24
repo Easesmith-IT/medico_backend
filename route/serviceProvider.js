@@ -36,6 +36,17 @@ router.post(
   serviceProviderController.createServiceProvider,
 );
 router.post("/login", serviceProviderController.loginServiceProvider);
+router.get(
+  "/profile",
+  protect("serviceprovider"),
+  serviceProviderController.getMyProfile,
+);
+router.patch(
+  "/profile",
+  protect("serviceprovider"),
+  serviceProviderImageUpload,
+  serviceProviderController.updateMyProfile,
+);
 // Get all service providers - can be public or protected as needed
 router.get(
   "/getAllServiceProviders",

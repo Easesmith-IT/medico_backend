@@ -14,6 +14,408 @@ const {
   generateRefreshToken, 
   setAuthCookies 
 } = require("../utils/tokenUtils");
+
+const PROFILE_EDITABLE_STRING_FIELDS = [
+  "firstName",
+  "lastName",
+  "ownerName",
+  "alternateNumber",
+  "landline",
+  "about",
+];
+
+const PROFILE_EDITABLE_OBJECT_FIELDS = {
+  currentAddress: [
+    "street",
+    "locality",
+    "city",
+    "state",
+    "country",
+    "pincode",
+    "landmark",
+  ],
+  permanentAddress: [
+    "street",
+    "locality",
+    "city",
+    "state",
+    "country",
+    "pincode",
+    "landmark",
+    "sameAsCurrent",
+  ],
+  workAddress: [
+    "clinicName",
+    "street",
+    "locality",
+    "city",
+    "state",
+    "country",
+    "pincode",
+    "landmark",
+  ],
+  availability: [
+    "days",
+    "timeSlots",
+    "available24x7",
+  ],
+  emergencyContact: [
+    "name",
+    "relationship",
+    "mobile",
+  ],
+  bankDetails: [
+    "accountHolderName",
+    "accountNumber",
+    "ifscCode",
+    "bankName",
+    "branchName",
+    "upiId",
+  ],
+};
+
+const PROFILE_RESTRICTED_FIELDS = new Set([
+  "_id",
+  "id",
+  "password",
+  "email",
+  "mobile",
+  "registrationNumber",
+  "qualification",
+  "registrationCouncil",
+  "yearsOfExperience",
+  "services",
+  "serviceCities",
+  "approvalStatus",
+  "approvedBy",
+  "rejectionReason",
+  "suspensionReason",
+  "isActive",
+  "isVerified",
+  "isAvailable",
+  "rating",
+  "averageRating",
+  "totalReviews",
+  "following",
+  "followingCount",
+  "savedPosts",
+  "isDeleted",
+  "deletedAt",
+  "deletedBy",
+  "createdAt",
+  "updatedAt",
+  "__v",
+  "tokenVersion",
+  "documents",
+  "identityProof",
+  "addressProof",
+  "educationalCertificates",
+  "professionalCertificates",
+  "registrationCertificate",
+  "experienceCertificates",
+  "policeVerification",
+]);
+
+const PROFILE_RESTRICTED_UPLOAD_FIELDS = [
+  "identityProofFile",
+  "addressProofFile",
+  "educationalCertificatesFiles",
+  "professionalCertificatesFiles",
+  "registrationCertificateFile",
+  "experienceCertificatesFiles",
+  "policeVerificationFile",
+];
+
+const VALID_WEEK_DAYS = new Set([
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+]);
+
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
+
+const toPlainObject = (value) => {
+  if (!value) return {};
+  if (typeof value.toObject === "function") {
+    return value.toObject({ depopulate: true });
+  }
+  return { ...value };
+};
+
+const parseJsonIfNeeded = (value) => {
+  if (typeof value !== "string") return value;
+
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+
+  if (
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("[") && trimmed.endsWith("]"))
+  ) {
+    return JSON.parse(trimmed);
+  }
+
+  return value;
+};
+
+const validatePhoneNumber = (value, label) => {
+  if (!/^[0-9]{10}$/.test(value)) {
+    return `${label} must be a valid 10-digit number`;
+  }
+  return null;
+};
+
+const validateLandline = (value) => {
+  if (!/^[0-9]{6,12}$/.test(value)) {
+    return "landline must be a valid 6-12 digit number";
+  }
+  return null;
+};
+
+const validatePincode = (value, label) => {
+  if (!/^[0-9]{6}$/.test(value)) {
+    return `${label} pincode must be 6 digits`;
+  }
+  return null;
+};
+
+const rejectRestrictedProfileFields = (raw, files) => {
+  for (const key of Object.keys(raw || {})) {
+    if (key.startsWith("documents.")) {
+      return "This field is not editable from app profile API";
+    }
+    if (PROFILE_RESTRICTED_FIELDS.has(key)) {
+      return "This field is not editable from app profile API";
+    }
+  }
+
+  for (const field of PROFILE_RESTRICTED_UPLOAD_FIELDS) {
+    if (files?.[field]?.length) {
+      return "This field is not editable from app profile API";
+    }
+  }
+
+  return null;
+};
+
+const mergeAllowedKeys = (existingValue, incomingValue, allowedKeys) => {
+  const merged = { ...toPlainObject(existingValue) };
+  const incomingKeys = Object.keys(incomingValue || {});
+
+  if (incomingKeys.length === 0) {
+    return { error: "No valid fields provided for update" };
+  }
+
+  for (const key of incomingKeys) {
+    if (!allowedKeys.includes(key)) {
+      return { error: "This field is not editable from app profile API" };
+    }
+    merged[key] = incomingValue[key];
+  }
+
+  return { value: merged };
+};
+
+const validateAvailability = (availability) => {
+  if (hasOwn(availability, "days")) {
+    if (
+      !Array.isArray(availability.days) ||
+      !availability.days.every((day) => VALID_WEEK_DAYS.has(day))
+    ) {
+      return "availability.days must contain valid weekday values";
+    }
+  }
+
+  if (hasOwn(availability, "timeSlots")) {
+    if (!Array.isArray(availability.timeSlots)) {
+      return "availability.timeSlots must be an array";
+    }
+
+    for (const slot of availability.timeSlots) {
+      if (
+        !slot ||
+        typeof slot !== "object" ||
+        Array.isArray(slot) ||
+        !slot.startTime ||
+        !slot.endTime
+      ) {
+        return "Each availability.timeSlots entry must include startTime and endTime";
+      }
+    }
+  }
+
+  if (
+    hasOwn(availability, "available24x7") &&
+    typeof availability.available24x7 !== "boolean"
+  ) {
+    return "availability.available24x7 must be a boolean";
+  }
+
+  return null;
+};
+
+const validateProfilePatch = (updateData) => {
+  for (const field of ["firstName", "lastName"]) {
+    if (hasOwn(updateData, field) && typeof updateData[field] === "string") {
+      if (!updateData[field].trim()) {
+        return `${field} cannot be empty`;
+      }
+    }
+  }
+
+  if (hasOwn(updateData, "alternateNumber") && updateData.alternateNumber) {
+    const error = validatePhoneNumber(updateData.alternateNumber, "alternateNumber");
+    if (error) return error;
+  }
+
+  if (hasOwn(updateData, "landline") && updateData.landline) {
+    const error = validateLandline(updateData.landline);
+    if (error) return error;
+  }
+
+  if (hasOwn(updateData, "languages")) {
+    if (
+      !Array.isArray(updateData.languages) ||
+      !updateData.languages.every((item) => typeof item === "string")
+    ) {
+      return "languages must be an array of strings";
+    }
+  }
+
+  for (const field of ["currentAddress", "permanentAddress", "workAddress"]) {
+    if (hasOwn(updateData, field) && updateData[field]?.pincode) {
+      const error = validatePincode(updateData[field].pincode, field);
+      if (error) return error;
+    }
+  }
+
+  if (hasOwn(updateData, "emergencyContact") && updateData.emergencyContact?.mobile) {
+    const error = validatePhoneNumber(
+      updateData.emergencyContact.mobile,
+      "emergencyContact.mobile",
+    );
+    if (error) return error;
+  }
+
+  if (hasOwn(updateData, "availability")) {
+    const error = validateAvailability(updateData.availability);
+    if (error) return error;
+  }
+
+  if (hasOwn(updateData, "bankDetails")) {
+    const bankDetails = updateData.bankDetails || {};
+    if (hasOwn(bankDetails, "accountHolderName") && !String(bankDetails.accountHolderName).trim()) {
+      return "bankDetails.accountHolderName cannot be empty";
+    }
+    if (hasOwn(bankDetails, "accountNumber") && !String(bankDetails.accountNumber).trim()) {
+      return "bankDetails.accountNumber cannot be empty";
+    }
+    if (hasOwn(bankDetails, "ifscCode") && !String(bankDetails.ifscCode).trim()) {
+      return "bankDetails.ifscCode cannot be empty";
+    }
+  }
+
+  return null;
+};
+
+const buildProviderProfilePatch = async (raw, existingProvider, files) => {
+  const restrictedError = rejectRestrictedProfileFields(raw, files);
+  if (restrictedError) {
+    return { error: restrictedError, status: 400 };
+  }
+
+  const updateData = {};
+  const updatedFields = [];
+
+  for (const field of PROFILE_EDITABLE_STRING_FIELDS) {
+    if (!hasOwn(raw, field)) continue;
+
+    const value = raw[field];
+    updateData[field] = typeof value === "string" ? value.trim() : value;
+    updatedFields.push(field);
+  }
+
+  if (hasOwn(raw, "languages")) {
+    let languages;
+    try {
+      languages = parseJsonIfNeeded(raw.languages);
+    } catch {
+      return { error: "Invalid JSON payload for languages", status: 400 };
+    }
+    if (!Array.isArray(languages)) {
+      return { error: "languages must be an array of strings", status: 400 };
+    }
+
+    updateData.languages = languages.map((language) =>
+      typeof language === "string" ? language.trim() : language,
+    );
+    updatedFields.push("languages");
+  }
+
+  for (const [field, allowedKeys] of Object.entries(PROFILE_EDITABLE_OBJECT_FIELDS)) {
+    if (!hasOwn(raw, field)) continue;
+
+    let incomingValue;
+    try {
+      incomingValue = parseJsonIfNeeded(raw[field]);
+    } catch {
+      return { error: `Invalid JSON payload for ${field}`, status: 400 };
+    }
+    if (!incomingValue || typeof incomingValue !== "object" || Array.isArray(incomingValue)) {
+      return { error: `${field} must be an object`, status: 400 };
+    }
+
+    const mergeResult = mergeAllowedKeys(existingProvider[field], incomingValue, allowedKeys);
+    if (mergeResult.error) {
+      const isEmptyBankDetails = field === "bankDetails" && !Object.keys(incomingValue).length;
+      return {
+        error: isEmptyBankDetails ? "bankDetails cannot be empty" : mergeResult.error,
+        status: 400,
+      };
+    }
+
+    if (field === "bankDetails" && !Object.keys(incomingValue).length) {
+      return { error: "bankDetails cannot be empty", status: 400 };
+    }
+
+    if (field === "bankDetails" && hasOwn(mergeResult.value, "ifscCode")) {
+      mergeResult.value.ifscCode = String(mergeResult.value.ifscCode).trim().toUpperCase();
+    }
+
+    updateData[field] = mergeResult.value;
+    updatedFields.push(field);
+  }
+
+  if (updateData.permanentAddress?.sameAsCurrent) {
+    const currentAddress = updateData.currentAddress || toPlainObject(existingProvider.currentAddress);
+    updateData.permanentAddress = {
+      ...currentAddress,
+      sameAsCurrent: true,
+    };
+  }
+
+  if (files?.profilePhoto?.[0]) {
+    const documents = { ...toPlainObject(existingProvider.documents) };
+    documents.profilePhoto = await uploadFile(files.profilePhoto[0]);
+    updateData.documents = documents;
+    updatedFields.push("profilePhoto");
+  }
+
+  if (!updatedFields.length) {
+    return { error: "No valid fields provided for update", status: 400 };
+  }
+
+  const validationError = validateProfilePatch(updateData);
+  if (validationError) {
+    return { error: validationError, status: 400 };
+  }
+
+  return { updateData, updatedFields };
+};
 // Create service provider
 // exports.createServiceProvider = async (req, res) => {
 //   try {
@@ -703,6 +1105,89 @@ exports.loginServiceProvider = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getMyProfile = async (req, res) => {
+  try {
+    const providerId = req.user?.id || req.user?._id;
+
+    const provider = await ServiceProvider.findById(providerId)
+      .select("-password")
+      .populate("services.serviceId")
+      .populate("serviceCities");
+
+    if (!provider) {
+      return res.status(404).json({
+        success: false,
+        message: "Service provider not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Profile fetched successfully",
+      data: provider,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.updateMyProfile = async (req, res) => {
+  try {
+    const providerId = req.user?.id || req.user?._id;
+    const raw = req.body || {};
+
+    const existingProvider = await ServiceProvider.findById(providerId);
+
+    if (!existingProvider) {
+      return res.status(404).json({
+        success: false,
+        message: "Service provider not found",
+      });
+    }
+
+    const patchResult = await buildProviderProfilePatch(raw, existingProvider, req.files);
+    if (patchResult.error) {
+      return res.status(patchResult.status || 400).json({
+        success: false,
+        message: patchResult.error,
+      });
+    }
+
+    const updatedProvider = await ServiceProvider.findByIdAndUpdate(
+      providerId,
+      { $set: patchResult.updateData },
+      { new: true, runValidators: true },
+    )
+      .select("-password")
+      .populate("services.serviceId")
+      .populate("serviceCities");
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        provider: updatedProvider,
+        updatedFields: patchResult.updatedFields,
+      },
+    });
+  } catch (error) {
+    console.error("Update my profile error:", error);
+
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Duplicate field value",
+        details: error.keyValue,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 // exports.createServiceProvider = async (req, res) => {
