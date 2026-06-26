@@ -200,11 +200,54 @@ let patientApp = null;
 function readJsonFile(filePath) {
   try {
     if (!fs.existsSync(filePath)) return null;
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return normalizePrivateKey(JSON.parse(fs.readFileSync(filePath, 'utf8')));
   } catch (err) {
     console.warn(`⚠️ Failed to parse JSON file at ${filePath}:`, err.message);
     return null;
   }
+}
+
+function normalizePrivateKey(serviceAccount) {
+  if (serviceAccount && typeof serviceAccount.private_key === 'string') {
+    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+  }
+  return serviceAccount;
+}
+
+function parseServiceAccountEnv(value, envName) {
+  if (!value || typeof value !== 'string') return null;
+
+  const trimmedValue = value.trim();
+  const parsedJson = safelyParseEnvJson(trimmedValue, envName, false);
+  if (parsedJson) return normalizePrivateKey(parsedJson);
+
+  try {
+    const decoded = Buffer.from(trimmedValue, 'base64').toString('utf8');
+    const parsedBase64Json = safelyParseEnvJson(decoded, envName, false);
+    if (parsedBase64Json) return normalizePrivateKey(parsedBase64Json);
+  } catch (err) {
+    console.warn(`Failed to decode ${envName} as base64:`, err.message);
+  }
+
+  console.warn(`Failed to parse ${envName} as JSON or base64 JSON.`);
+  return null;
+}
+
+function loadServiceAccountFromEnv(envNames = [], pathEnvNames = []) {
+  for (const envName of envNames) {
+    const serviceAccount = parseServiceAccountEnv(process.env[envName], envName);
+    if (serviceAccount) return serviceAccount;
+  }
+
+  for (const envName of pathEnvNames) {
+    const filePath = process.env[envName];
+    if (!filePath) continue;
+
+    const serviceAccount = readJsonFile(filePath);
+    if (serviceAccount) return serviceAccount;
+  }
+
+  return null;
 }
 
 /**
@@ -238,11 +281,12 @@ function loadDoctorServiceAccount() {
   const searchDirs = [__dirname, path.join(__dirname, '..')];
 
   let serviceAccount =
+    loadServiceAccountFromEnv(
+      ['FIREBASE_DOCTOR_SERVICE_ACCOUNT', 'DOCTOR_FIREBASE_SERVICE_ACCOUNT', 'GCP_SERVICE_ACCOUNT'],
+      ['FIREBASE_DOCTOR_SERVICE_ACCOUNT_PATH', 'DOCTOR_FIREBASE_SERVICE_ACCOUNT_PATH', 'GOOGLE_APPLICATION_CREDENTIALS']
+    ) ||
     findServiceAccountByPrefix('medico-doctor-', searchDirs) ||
     readJsonFile(path.join(__dirname, '..', 'gcpbucket.json')) ||
-    (process.env.GCP_SERVICE_ACCOUNT
-      ? safelyParseEnvJson(process.env.GCP_SERVICE_ACCOUNT, 'GCP_SERVICE_ACCOUNT')
-      : null) ||
     readJsonFile(path.join(__dirname, 'gcpbucket.json'));
 
   return serviceAccount;
@@ -255,10 +299,12 @@ function loadPatientServiceAccount() {
   const searchDirs = [__dirname, path.join(__dirname, '..')];
 
   let serviceAccount =
+    loadServiceAccountFromEnv(
+      ['FIREBASE_PATIENT_SERVICE_ACCOUNT', 'PATIENT_FIREBASE_SERVICE_ACCOUNT', 'PATIENT_GCP_SERVICE_ACCOUNT'],
+      ['FIREBASE_PATIENT_SERVICE_ACCOUNT_PATH', 'PATIENT_FIREBASE_SERVICE_ACCOUNT_PATH', 'PATIENT_GCP_SERVICE_ACCOUNT_PATH']
+    ) ||
     findServiceAccountByPrefix('medico-patient-', searchDirs) ||
-    (process.env.PATIENT_GCP_SERVICE_ACCOUNT
-      ? safelyParseEnvJson(process.env.PATIENT_GCP_SERVICE_ACCOUNT, 'PATIENT_GCP_SERVICE_ACCOUNT')
-      : null);
+    null;
 
   return serviceAccount;
 }
@@ -266,11 +312,13 @@ function loadPatientServiceAccount() {
 /**
  * Parse JSON from env safely
  */
-function safelyParseEnvJson(value, envName) {
+function safelyParseEnvJson(value, envName, logWarning = true) {
   try {
     return JSON.parse(value);
   } catch (err) {
-    console.warn(`⚠️ Failed to parse ${envName}:`, err.message);
+    if (logWarning) {
+      console.warn(`Failed to parse ${envName}:`, err.message);
+    }
     return null;
   }
 }
@@ -390,6 +438,18 @@ function getMessagingInstance({ targetProject, targetRole }) {
   return { messaging: doctorApp.messaging(), appName: 'doctor' };
 }
 
+function getFallbackMessagingInstance(appName) {
+  if (appName === 'doctor' && patientApp) {
+    return { messaging: patientApp.messaging(), appName: 'patient' };
+  }
+
+  if (appName === 'patient' && doctorApp) {
+    return { messaging: doctorApp.messaging(), appName: 'doctor' };
+  }
+
+  return null;
+}
+
 /**
  * Convert all data payload values to strings
  */
@@ -458,7 +518,30 @@ async function sendPushNotification(
   try {
     const { messaging, appName } = getMessagingInstance({ targetProject, targetRole });
 
-    const response = await messaging.send(message);
+    let response;
+    try {
+      response = await messaging.send(message);
+    } catch (error) {
+      const shouldTryFallback =
+        !targetProject &&
+        error.code === 'messaging/mismatched-credential';
+
+      if (!shouldTryFallback) {
+        throw error;
+      }
+
+      const fallback = getFallbackMessagingInstance(appName);
+      if (!fallback) {
+        throw error;
+      }
+
+      console.warn(
+        `FCM token did not match ${appName} Firebase app. Retrying via ${fallback.appName}.`
+      );
+      response = await fallback.messaging.send(message);
+      console.log(`FCM push notification sent successfully via ${fallback.appName}:`, response);
+      return response;
+    }
 
     console.log(`🚀 FCM push notification sent successfully via ${appName}:`, response);
     return response;

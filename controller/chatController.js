@@ -455,12 +455,16 @@ exports.updateFcmToken = catchAsync(async (req, res, next) => {
 
   const userId = req.user.id;
   const role = req.user.role?.toLowerCase();
+  const normalizedFcmProject = ['doctor', 'patient'].includes(String(fcmProject).toLowerCase())
+    ? String(fcmProject).toLowerCase()
+    : role;
+  const update = { fcmToken, fcmProject: normalizedFcmProject };
 
   let user;
   if (role === 'doctor') {
-    user = await Doctor.findByIdAndUpdate(userId, { fcmToken }, { new: true, runValidators: true });
+    user = await Doctor.findByIdAndUpdate(userId, update, { new: true, runValidators: true });
   } else if (role === 'patient') {
-    user = await Patient.findByIdAndUpdate(userId, { fcmToken }, { new: true, runValidators: true });
+    user = await Patient.findByIdAndUpdate(userId, update, { new: true, runValidators: true });
   } else {
     return next(new AppError('Invalid user role. FCM token can only be updated for Doctors or Patients.', 400));
   }
@@ -475,7 +479,8 @@ exports.updateFcmToken = catchAsync(async (req, res, next) => {
     data: {
       userId: user._id,
       role,
-      fcmToken: user.fcmToken
+      fcmToken: user.fcmToken,
+      fcmProject: user.fcmProject
     }
   });
 });
