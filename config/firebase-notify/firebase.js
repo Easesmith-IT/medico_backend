@@ -467,6 +467,13 @@ function normalizeFcmData(data = {}) {
   return stringData;
 }
 
+function maskFcmToken(token) {
+  if (!token || typeof token !== 'string') return 'none';
+  const trimmed = token.trim();
+  if (trimmed.length <= 18) return `${trimmed.slice(0, 6)}...`;
+  return `${trimmed.slice(0, 12)}...${trimmed.slice(-6)}`;
+}
+
 /**
  * Sends a push notification using Firebase Cloud Messaging
  *
@@ -521,6 +528,9 @@ async function sendPushNotification(
 
   try {
     const { messaging, appName } = getMessagingInstance({ targetProject, targetRole });
+    console.log(
+      `[FCM Send] selectedApp=${appName} targetRole=${targetRole || 'doctor'} targetProject=${targetProject || 'role-default'} token=${maskFcmToken(fcmToken)} type=${stringData.type || 'unknown'} roomId=${stringData.roomId || 'n/a'} messageId=${stringData.messageId || 'n/a'}`
+    );
 
     let response;
     try {

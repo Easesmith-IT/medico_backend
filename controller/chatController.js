@@ -19,6 +19,13 @@ const capitalizeModel = (role) => {
   return role.charAt(0).toUpperCase() + role.slice(1);
 };
 
+const maskFcmToken = (token) => {
+  if (!token || typeof token !== 'string') return 'none';
+  const trimmed = token.trim();
+  if (trimmed.length <= 18) return `${trimmed.slice(0, 6)}...`;
+  return `${trimmed.slice(0, 12)}...${trimmed.slice(-6)}`;
+};
+
 /**
  * Checks if there is a valid booking/appointment between Doctor and Patient
  */
@@ -115,7 +122,9 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
   // The frontend app will suppress the visible banner if the user is actively viewing the chat room.
   if (recipientPart) {
     const recipientId = recipientPart.userId.toString();
-    console.log(`[FCM Trigger] Checking notification for recipient ${recipientId} in room ${roomId}`);
+    console.log(
+      `[Chat FCM] messageId=${message._id} roomId=${roomId} sender=${senderModel}:${senderId} recipient=${recipientPart.userModel}:${recipientId}`
+    );
     
     // Fetch recipient to retrieve fcmToken
     let recipientUser;
@@ -125,10 +134,9 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
       recipientUser = await Patient.findById(recipientId);
     }
 
-    console.log(`[FCM Trigger] Recipient user found in DB: ${!!recipientUser}`);
-    if (recipientUser) {
-      console.log(`[FCM Trigger] Recipient FCM Token: "${recipientUser.fcmToken || 'none/null'}"`);
-    }
+    console.log(
+      `[Chat FCM] recipientFound=${!!recipientUser} recipientRole=${recipientPart.userModel.toLowerCase()} fcmProject=${recipientUser?.fcmProject || 'role-default'} token=${maskFcmToken(recipientUser?.fcmToken)}`
+    );
 
     if (recipientUser && recipientUser.fcmToken) {
       // Fetch sender to include name in notification
@@ -153,7 +161,9 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
         notificationBody = `${notificationBody.substring(0, 60)}...`;
       }
       
-      console.log(`[FCM Trigger] Sending push notification to ${recipientPart.userModel.toLowerCase()}: "${notificationTitle}" - "${notificationBody}"`);
+      console.log(
+        `[Chat FCM] triggering targetRole=${recipientPart.userModel.toLowerCase()} targetProject=${recipientUser.fcmProject || 'role-default'} title="${notificationTitle}" body="${notificationBody}"`
+      );
       
       // const response = await fcm.sendPushNotification(
 
@@ -188,9 +198,9 @@ const response = await fcm.sendPushNotification(
   recipientUser.fcmProject || null
 );
       
-      console.log(`[FCM Trigger] Notification dispatch result: ${response ? 'Success' : 'Failed/Skipped'}`);
+      console.log(`[Chat FCM] dispatchResult=${response ? 'success' : 'failed_or_skipped'} messageId=${message._id}`);
     } else {
-      console.log(`[FCM Trigger] Skipped: Recipient user has no FCM token saved.`);
+      console.log(`[Chat FCM] skipped reason=no_recipient_fcm_token recipientRole=${recipientPart.userModel.toLowerCase()} recipientId=${recipientId}`);
     }
   }
 
