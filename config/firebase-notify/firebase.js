@@ -282,11 +282,15 @@ function loadDoctorServiceAccount() {
 
   let serviceAccount =
     loadServiceAccountFromEnv(
-      ['FIREBASE_DOCTOR_SERVICE_ACCOUNT', 'DOCTOR_FIREBASE_SERVICE_ACCOUNT', 'GCP_SERVICE_ACCOUNT'],
-      ['FIREBASE_DOCTOR_SERVICE_ACCOUNT_PATH', 'DOCTOR_FIREBASE_SERVICE_ACCOUNT_PATH', 'GOOGLE_APPLICATION_CREDENTIALS']
+      ['FIREBASE_DOCTOR_SERVICE_ACCOUNT', 'DOCTOR_FIREBASE_SERVICE_ACCOUNT'],
+      ['FIREBASE_DOCTOR_SERVICE_ACCOUNT_PATH', 'DOCTOR_FIREBASE_SERVICE_ACCOUNT_PATH']
     ) ||
     findServiceAccountByPrefix('medico-doctor-', searchDirs) ||
     readJsonFile(path.join(__dirname, '..', 'gcpbucket.json')) ||
+    loadServiceAccountFromEnv(
+      ['GCP_SERVICE_ACCOUNT'],
+      ['GOOGLE_APPLICATION_CREDENTIALS']
+    ) ||
     readJsonFile(path.join(__dirname, 'gcpbucket.json'));
 
   return serviceAccount;
