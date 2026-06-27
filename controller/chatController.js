@@ -224,10 +224,13 @@ const response = await fcm.sendPushNotification(
   recipientPart.userModel.toLowerCase(),
   recipientUser.fcmProject || null
 );
+      const fcmError = response ? null : fcm.getLastSendError?.();
 
       responseMessage.notificationDebug = {
         attempted: true,
         dispatchResult: response ? 'success' : 'failed_or_skipped',
+        failureReason: fcmError?.message || null,
+        failureCode: fcmError?.code || null,
         recipientId,
         recipientRole: recipientPart.userModel.toLowerCase(),
         fcmProject: recipientUser.fcmProject || 'role-default',

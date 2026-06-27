@@ -546,7 +546,13 @@ async function sendPushNotification(
   targetRole = 'doctor',
   targetProject = null
 ) {
+  lastSendError = null;
+
   if (!fcmToken || typeof fcmToken !== 'string' || !fcmToken.trim()) {
+    lastSendError = {
+      code: 'NO_FCM_TOKEN',
+      message: 'No valid FCM token provided'
+    };
     console.log('⚠️ No valid FCM token provided. Skipping notification.');
     return null;
   }
@@ -614,6 +620,13 @@ async function sendPushNotification(
     console.log(`🚀 FCM push notification sent successfully via ${appName}:`, response);
     return response;
   } catch (error) {
+    lastSendError = {
+      code: error.code || 'N/A',
+      message: error.message || 'Unknown error',
+      targetRole,
+      targetProject: targetProject || null
+    };
+
     console.error('❌ Failed to send FCM notification');
     console.error('targetRole:', targetRole);
     console.error('targetProject:', targetProject);
@@ -642,10 +655,15 @@ async function sendPushNotification(
   }
 }
 
+function getLastSendError() {
+  return lastSendError;
+}
+
 module.exports = {
   admin,
   doctorApp,
   patientApp,
   sendPushNotification,
+  getLastSendError,
   getMessagingInstance,
 };
