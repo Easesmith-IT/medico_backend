@@ -193,6 +193,7 @@ const fs = require('fs');
 
 let doctorApp = null;
 let patientApp = null;
+let lastSendError = null;
 
 /**
  * Safely load JSON credentials from file
