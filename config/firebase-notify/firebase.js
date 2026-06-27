@@ -221,6 +221,32 @@ function parseServiceAccountEnv(value, envName) {
   const parsedJson = safelyParseEnvJson(trimmedValue, envName, false);
   if (parsedJson) return normalizePrivateKey(parsedJson);
 
+  if (trimmedValue.endsWith('.json')) {
+    const candidatePaths = path.isAbsolute(trimmedValue)
+      ? [trimmedValue]
+      : [
+          path.join(__dirname, trimmedValue),
+          path.join(__dirname, '..', trimmedValue),
+          path.join(process.cwd(), trimmedValue),
+          path.join(process.cwd(), 'config', trimmedValue),
+          path.join(process.cwd(), 'config', 'firebase-notify', trimmedValue),
+        ];
+
+    for (const candidatePath of candidatePaths) {
+      const parsedFile = readJsonFile(candidatePath);
+      if (parsedFile) {
+        console.log(`${envName} loaded from JSON file: ${candidatePath}`);
+        return normalizePrivateKey(parsedFile);
+      }
+    }
+
+    console.warn(
+      `${envName} is set to a JSON filename, but the file was not found in the deployment. ` +
+      'On Vercel, set this env var to the full JSON content instead of only the filename.'
+    );
+    return null;
+  }
+
   try {
     const decoded = Buffer.from(trimmedValue, 'base64').toString('utf8');
     const parsedBase64Json = safelyParseEnvJson(decoded, envName, false);
