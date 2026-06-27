@@ -26,6 +26,13 @@ const maskFcmToken = (token) => {
   return `${trimmed.slice(0, 12)}...${trimmed.slice(-6)}`;
 };
 
+const getDebugFcmToken = (token) => {
+  if (process.env.SHOW_FULL_FCM_TOKEN_IN_RESPONSE === 'true') {
+    return token || 'none';
+  }
+  return maskFcmToken(token);
+};
+
 /**
  * Checks if there is a valid booking/appointment between Doctor and Patient
  */
@@ -154,7 +161,8 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
       recipientId,
       recipientRole: recipientPart.userModel.toLowerCase(),
       fcmProject: recipientUser?.fcmProject || 'role-default',
-      fcmToken: maskFcmToken(recipientUser?.fcmToken)
+      fcmToken: getDebugFcmToken(recipientUser?.fcmToken),
+      fcmTokenMasked: maskFcmToken(recipientUser?.fcmToken)
     };
 
     if (recipientUser && recipientUser.fcmToken) {
@@ -223,7 +231,8 @@ const response = await fcm.sendPushNotification(
         recipientId,
         recipientRole: recipientPart.userModel.toLowerCase(),
         fcmProject: recipientUser.fcmProject || 'role-default',
-        fcmToken: maskFcmToken(recipientUser.fcmToken),
+        fcmToken: getDebugFcmToken(recipientUser.fcmToken),
+        fcmTokenMasked: maskFcmToken(recipientUser.fcmToken),
         firebaseMessageId: response || null
       };
       
