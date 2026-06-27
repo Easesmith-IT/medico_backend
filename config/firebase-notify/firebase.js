@@ -219,7 +219,12 @@ function parseServiceAccountEnv(value, envName) {
 
   const trimmedValue = value.trim();
   const parsedJson = safelyParseEnvJson(trimmedValue, envName, false);
-  if (parsedJson) return normalizePrivateKey(parsedJson);
+  if (parsedJson) {
+    console.log(
+      `[FCM Config] ${envName}=json project_id=${parsedJson.project_id || 'missing'} client_email=${parsedJson.client_email || 'missing'}`
+    );
+    return normalizePrivateKey(parsedJson);
+  }
 
   if (trimmedValue.endsWith('.json')) {
     const candidatePaths = path.isAbsolute(trimmedValue)
@@ -235,13 +240,15 @@ function parseServiceAccountEnv(value, envName) {
     for (const candidatePath of candidatePaths) {
       const parsedFile = readJsonFile(candidatePath);
       if (parsedFile) {
-        console.log(`${envName} loaded from JSON file: ${candidatePath}`);
+        console.log(
+          `[FCM Config] ${envName}=file path=${candidatePath} project_id=${parsedFile.project_id || 'missing'} client_email=${parsedFile.client_email || 'missing'}`
+        );
         return normalizePrivateKey(parsedFile);
       }
     }
 
     console.warn(
-      `${envName} is set to a JSON filename, but the file was not found in the deployment. ` +
+      `[FCM Config] ${envName}=filename_missing value=${trimmedValue}. ` +
       'On Vercel, set this env var to the full JSON content instead of only the filename.'
     );
     return null;
@@ -250,27 +257,47 @@ function parseServiceAccountEnv(value, envName) {
   try {
     const decoded = Buffer.from(trimmedValue, 'base64').toString('utf8');
     const parsedBase64Json = safelyParseEnvJson(decoded, envName, false);
-    if (parsedBase64Json) return normalizePrivateKey(parsedBase64Json);
+    if (parsedBase64Json) {
+      console.log(
+        `[FCM Config] ${envName}=base64_json project_id=${parsedBase64Json.project_id || 'missing'} client_email=${parsedBase64Json.client_email || 'missing'}`
+      );
+      return normalizePrivateKey(parsedBase64Json);
+    }
   } catch (err) {
-    console.warn(`Failed to decode ${envName} as base64:`, err.message);
+    console.warn(`[FCM Config] Failed to decode ${envName} as base64:`, err.message);
   }
 
-  console.warn(`Failed to parse ${envName} as JSON or base64 JSON.`);
+  console.warn(`[FCM Config] Failed to parse ${envName} as JSON or base64 JSON.`);
   return null;
 }
 
 function loadServiceAccountFromEnv(envNames = [], pathEnvNames = []) {
   for (const envName of envNames) {
+    if (!process.env[envName]) {
+      console.log(`[FCM Config] ${envName}=missing`);
+      continue;
+    }
+
     const serviceAccount = parseServiceAccountEnv(process.env[envName], envName);
     if (serviceAccount) return serviceAccount;
   }
 
   for (const envName of pathEnvNames) {
     const filePath = process.env[envName];
-    if (!filePath) continue;
+    if (!filePath) {
+      console.log(`[FCM Config] ${envName}=missing`);
+      continue;
+    }
 
     const serviceAccount = readJsonFile(filePath);
-    if (serviceAccount) return serviceAccount;
+    if (serviceAccount) {
+      console.log(
+        `[FCM Config] ${envName}=path project_id=${serviceAccount.project_id || 'missing'} client_email=${serviceAccount.client_email || 'missing'}`
+      );
+      return serviceAccount;
+    }
+
+    console.warn(`[FCM Config] ${envName}=path_unreadable path=${filePath}`);
   }
 
   return null;

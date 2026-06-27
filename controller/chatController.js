@@ -202,6 +202,10 @@ const response = await fcm.sendPushNotification(
     } else {
       console.log(`[Chat FCM] skipped reason=no_recipient_fcm_token recipientRole=${recipientPart.userModel.toLowerCase()} recipientId=${recipientId}`);
     }
+  } else {
+    console.log(
+      `[Chat FCM] skipped reason=no_recipient_participant roomId=${roomId} sender=${senderModel}:${senderId}`
+    );
   }
 
   return populatedMessage;
