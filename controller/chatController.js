@@ -116,6 +116,15 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
     io.to(roomId.toString()).emit('new_message', populatedMessage);
   }
 
+  const responseMessage = populatedMessage?.toObject
+    ? populatedMessage.toObject({ virtuals: true })
+    : populatedMessage;
+  responseMessage.notificationDebug = {
+    attempted: false,
+    dispatchResult: 'not_attempted',
+    reason: 'recipient_not_checked'
+  };
+
   // Trigger FCM push notification to guarantee delivery.
   // We send the notification even if the socket room check is active, because
   // mobile apps can keep socket connections alive in the background (stale room status).
@@ -137,6 +146,16 @@ const processMessageSending = async (roomId, senderId, senderModel, textOrPayloa
     console.log(
       `[Chat FCM] recipientFound=${!!recipientUser} recipientRole=${recipientPart.userModel.toLowerCase()} fcmProject=${recipientUser?.fcmProject || 'role-default'} token=${maskFcmToken(recipientUser?.fcmToken)}`
     );
+
+    responseMessage.notificationDebug = {
+      attempted: false,
+      dispatchResult: 'not_attempted',
+      reason: recipientUser?.fcmToken ? 'pending_send' : 'no_recipient_fcm_token',
+      recipientId,
+      recipientRole: recipientPart.userModel.toLowerCase(),
+      fcmProject: recipientUser?.fcmProject || 'role-default',
+      fcmToken: maskFcmToken(recipientUser?.fcmToken)
+    };
 
     if (recipientUser && recipientUser.fcmToken) {
       // Fetch sender to include name in notification
@@ -197,6 +216,16 @@ const response = await fcm.sendPushNotification(
   recipientPart.userModel.toLowerCase(),
   recipientUser.fcmProject || null
 );
+
+      responseMessage.notificationDebug = {
+        attempted: true,
+        dispatchResult: response ? 'success' : 'failed_or_skipped',
+        recipientId,
+        recipientRole: recipientPart.userModel.toLowerCase(),
+        fcmProject: recipientUser.fcmProject || 'role-default',
+        fcmToken: maskFcmToken(recipientUser.fcmToken),
+        firebaseMessageId: response || null
+      };
       
       console.log(`[Chat FCM] dispatchResult=${response ? 'success' : 'failed_or_skipped'} messageId=${message._id}`);
     } else {
@@ -206,9 +235,14 @@ const response = await fcm.sendPushNotification(
     console.log(
       `[Chat FCM] skipped reason=no_recipient_participant roomId=${roomId} sender=${senderModel}:${senderId}`
     );
+    responseMessage.notificationDebug = {
+      attempted: false,
+      dispatchResult: 'skipped',
+      reason: 'no_recipient_participant'
+    };
   }
 
-  return populatedMessage;
+  return responseMessage;
 };
 
 /**
