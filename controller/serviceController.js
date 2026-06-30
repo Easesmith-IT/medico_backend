@@ -332,6 +332,21 @@ exports.createService = async (req, res) => {
       }
       return val;
     };
+    const normalizeStringArray = (val) => {
+      const parsed = parseJson(val, []);
+      const values = Array.isArray(parsed)
+        ? parsed
+        : typeof parsed === "string"
+          ? parsed.split(",")
+          : [];
+      return [
+        ...new Set(
+          values
+            .map((item) => String(item || "").trim())
+            .filter(Boolean),
+        ),
+      ];
+    };
     const name = raw.name;
     const category = raw.category;
     const nursingType = raw.nursingType;
@@ -350,6 +365,12 @@ exports.createService = async (req, res) => {
     const timeFormat = raw.timeFormat || "24-hour";
     let cities = parseJson(raw.cities, null);
     let slotConfig = parseJson(raw.slotConfig, {});
+    const recommendedSpecializations = normalizeStringArray(
+      raw.recommendedSpecializations,
+    );
+    const recommendedSubSpecialties = normalizeStringArray(
+      raw.recommendedSubSpecialties,
+    );
 
     if (!name || !category || !description || basePrice == null) {
       return res.status(400).json({
@@ -438,6 +459,8 @@ exports.createService = async (req, res) => {
       timeFormat,
       icon,
       image,
+      recommendedSpecializations,
+      recommendedSubSpecialties,
       cities: validatedCities.map((c) => c._id),
       slotConfig,
       createdBy: {
@@ -773,6 +796,21 @@ exports.updateService = async (req, res) => {
       }
       return val;
     };
+    const normalizeStringArray = (val) => {
+      const parsed = parseJson(val, []);
+      const values = Array.isArray(parsed)
+        ? parsed
+        : typeof parsed === "string"
+          ? parsed.split(",")
+          : [];
+      return [
+        ...new Set(
+          values
+            .map((item) => String(item || "").trim())
+            .filter(Boolean),
+        ),
+      ];
+    };
     const raw = req.body;
 
     let name = raw.name;
@@ -798,6 +836,14 @@ exports.updateService = async (req, res) => {
           ? false
           : raw.isActive;
     let slotConfig = parseJson(raw.slotConfig, undefined);
+    let recommendedSpecializations =
+      raw.recommendedSpecializations !== undefined
+        ? normalizeStringArray(raw.recommendedSpecializations)
+        : undefined;
+    let recommendedSubSpecialties =
+      raw.recommendedSubSpecialties !== undefined
+        ? normalizeStringArray(raw.recommendedSubSpecialties)
+        : undefined;
 
     // Image/icon: upload to GCP if files present
     if (req.files?.image?.[0]) {
@@ -852,6 +898,10 @@ exports.updateService = async (req, res) => {
     if (timeFormat) updatePayload.timeFormat = timeFormat;
     if (icon !== undefined) updatePayload.icon = icon;
     if (image !== undefined) updatePayload.image = image;
+    if (recommendedSpecializations !== undefined)
+      updatePayload.recommendedSpecializations = recommendedSpecializations;
+    if (recommendedSubSpecialties !== undefined)
+      updatePayload.recommendedSubSpecialties = recommendedSubSpecialties;
     if (isActive !== undefined) updatePayload.isActive = isActive;
     if (slotConfig)
       updatePayload.slotConfig = { ...(service.slotConfig || {}), ...slotConfig };

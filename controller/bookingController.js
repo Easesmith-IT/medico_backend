@@ -4023,7 +4023,10 @@ exports.getTreatmentById = catchAsync(async (req, res, next) => {
   // 1. Fetch treatment with patient ownership check
   const treatment = await Treatment.findById(treatmentId)
     .populate('patientId', 'firstName phone email')
-    .populate('serviceId', 'name category basePrice modes')
+    .populate(
+      'serviceId',
+      'name category basePrice modes recommendedSpecializations recommendedSubSpecialties'
+    )
     .populate('servicePartnerId', 'firstName specialization phone');
 
   if (!treatment) {

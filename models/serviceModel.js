@@ -319,6 +319,19 @@ const serviceSchema = new mongoose.Schema(
     icon: String,
     image: String,
 
+    recommendedSpecializations: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    recommendedSubSpecialties: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+
     // Soft delete
     isDeleted: {
       type: Boolean,
@@ -339,6 +352,8 @@ serviceSchema.index({ cities: 1, isActive: 1 });
 serviceSchema.index({ isActive: 1, isDeleted: 1 });
 serviceSchema.index({ 'createdBy.userId': 1 });
 serviceSchema.index({ category: 1, nursingType: 1 });
+serviceSchema.index({ recommendedSpecializations: 1 });
+serviceSchema.index({ recommendedSubSpecialties: 1 });
 
 // ============= PRE HOOKS =============
 serviceSchema.pre(/^find/, function(next) {

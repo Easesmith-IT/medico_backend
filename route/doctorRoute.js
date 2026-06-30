@@ -18,6 +18,8 @@ router.post('/verify-login-otp', doctorController.verifyLoginOtp);
 router.post('/resend-login-otp', doctorController.resendLoginOtp);
 router.post('/check-auth', doctorController.checkAuthStatus);
 router.get('/search', doctorDiscoveryController.searchDoctors);
+router.get('/recommended/service/:serviceId', doctorDiscoveryController.getRecommendedDoctorsByService);
+router.get('/recommended/treatment/:treatmentId', doctorDiscoveryController.getRecommendedDoctorsByTreatment);
 router.get('/:id/public-profile', doctorDiscoveryController.getPublicProfile);
 router.get('/getAllDoctors', doctorController.getAllDoctors);
 router.get('/specialization/:specialization', doctorController.getDoctorsBySpecialization);
