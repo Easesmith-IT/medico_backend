@@ -561,6 +561,89 @@ exports.getAllServices = async (req, res) => {
   }
 };
 
+exports.selectService = async (req, res) => {
+  try {
+    const { serviceIds } = req.body;
+    const { timeFormat = "24-hour" } = req.query;
+
+    if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "serviceIds must be a non-empty array",
+      });
+    }
+
+    const normalizedServiceIds = [
+      ...new Set(
+        serviceIds
+          .map((id) => String(id || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+
+    const invalidServiceIds = normalizedServiceIds.filter(
+      (id) => !mongoose.Types.ObjectId.isValid(id),
+    );
+
+    if (invalidServiceIds.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service id(s)",
+        invalidServiceIds,
+      });
+    }
+
+    const services = await Service.find({
+      _id: { $in: normalizedServiceIds },
+      isActive: true,
+      isDeleted: false,
+    })
+      .populate("cities", "name latitude longitude")
+      .lean();
+
+    const serviceById = new Map(
+      services.map((service) => [service._id.toString(), service]),
+    );
+
+    const selectedServices = normalizedServiceIds
+      .map((id) => serviceById.get(id))
+      .filter(Boolean)
+      .map((service) => ({
+        ...service,
+        slotConfig: autoFilterSlots(
+          service.slotConfig,
+          service.category,
+          timeFormat,
+        ),
+        formattedDuration: formatDuration(service.defaultDuration),
+        displayTimeFormat: timeFormat,
+      }));
+
+    const missingServiceIds = normalizedServiceIds.filter(
+      (id) => !serviceById.has(id),
+    );
+
+    return res.status(200).json({
+      success: true,
+      count: selectedServices.length,
+      requestedCount: normalizedServiceIds.length,
+      missingServiceIds,
+      data: {
+        services: selectedServices,
+        selectedServices,
+        missingServiceIds,
+      },
+    });
+  } catch (error) {
+    console.error("Select services error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error selecting services",
+      error: error.message,
+    });
+  }
+};
+
 // Get Service By ID
 // exports.getServiceById = async (req, res) => {
 //   try {

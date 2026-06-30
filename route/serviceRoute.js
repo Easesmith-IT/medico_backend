@@ -24,6 +24,9 @@ router.get("/getAllServices", serviceController.getAllServices);
 // Search Services
 router.get("/search", serviceController.searchServices);
 
+// Select multiple services by IDs
+router.post("/selectService", serviceController.selectService);
+
 // Get Services by Category
 router.get("/category/:category", serviceController.getServicesByCategory);
 
