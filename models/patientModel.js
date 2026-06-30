@@ -391,6 +391,12 @@ fcmProject: {
       default: Date.now
     }
   }],
+
+  selectedServices: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service'
+  }],
+
   // Add to patientSchema.treatmentProgress[].vitals (or as separate field)
 mediaFiles: [{
   url: String,

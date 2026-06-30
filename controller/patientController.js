@@ -1138,7 +1138,8 @@ exports.patientLogoutAll = catchAsync(async (req, res, next) => {
 exports.getMyProfile = catchAsync(async (req, res, next) => {
   const patient = await Patient.findById(req.user?.id)
     .select('-password -tokenVersion')
-    .populate('following', 'firstName specialization profilePhoto averageRating');
+    .populate('following', 'firstName specialization profilePhoto averageRating')
+    .populate('selectedServices', 'name category nursingType description basePrice equipmentCharges taxPercentage modes icon image');
 
   if (!patient) {
     return next(new AppError('Patient not found', 404));

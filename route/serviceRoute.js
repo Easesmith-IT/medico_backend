@@ -24,8 +24,12 @@ router.get("/getAllServices", serviceController.getAllServices);
 // Search Services
 router.get("/search", serviceController.searchServices);
 
-// Select multiple services by IDs
-router.post("/selectService", serviceController.selectService);
+// Select and save multiple services for a patient
+router.post(
+  "/selectService",
+  protect("patient", "admin", "superadmin", "superAdmin"),
+  serviceController.selectService,
+);
 
 // Get Services by Category
 router.get("/category/:category", serviceController.getServicesByCategory);

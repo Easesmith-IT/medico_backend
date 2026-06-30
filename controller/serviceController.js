@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Service = require('../models/serviceModel');
 const City = require('../models/availableCities');
 const Admin = require('../models/adminModel');
+const Patient = require('../models/patientModel');
 const Doctor = require('../models/doctorModel');
 const { autoFilterSlots } = require('../utils/timeFIlter');
 const { formatDuration } = require('../utils/timeFormat');
@@ -563,7 +564,7 @@ exports.getAllServices = async (req, res) => {
 
 exports.selectService = async (req, res) => {
   try {
-    const { serviceIds } = req.body;
+    const { serviceIds, patientId } = req.body;
     const { timeFormat = "24-hour" } = req.query;
 
     if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
@@ -580,6 +581,13 @@ exports.selectService = async (req, res) => {
           .filter(Boolean),
       ),
     ];
+
+    if (normalizedServiceIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "serviceIds must contain at least one valid service id",
+      });
+    }
 
     const invalidServiceIds = normalizedServiceIds.filter(
       (id) => !mongoose.Types.ObjectId.isValid(id),
@@ -623,8 +631,31 @@ exports.selectService = async (req, res) => {
       (id) => !serviceById.has(id),
     );
 
+    const userRole = String(req.user?.role || "").toLowerCase().replace(/[_\s]/g, "");
+    const targetPatientId =
+      userRole === "patient" ? req.user.id : patientId;
+
+    if (!targetPatientId || !mongoose.Types.ObjectId.isValid(targetPatientId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid patientId is required to save selected services",
+      });
+    }
+
+    const patient = await Patient.findById(targetPatientId);
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    patient.selectedServices = selectedServices.map((service) => service._id);
+    await patient.save({ validateBeforeSave: false });
+
     return res.status(200).json({
       success: true,
+      message: "Selected services saved successfully",
       count: selectedServices.length,
       requestedCount: normalizedServiceIds.length,
       missingServiceIds,
@@ -632,6 +663,8 @@ exports.selectService = async (req, res) => {
         services: selectedServices,
         selectedServices,
         missingServiceIds,
+        patientId: patient._id,
+        savedServiceIds: patient.selectedServices,
       },
     });
   } catch (error) {
