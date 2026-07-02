@@ -632,30 +632,38 @@ exports.selectService = async (req, res) => {
     );
 
     const userRole = String(req.user?.role || "").toLowerCase().replace(/[_\s]/g, "");
-    const targetPatientId =
-      userRole === "patient" ? req.user.id : patientId;
+    const targetPatientId = userRole === "patient" ? req.user.id : patientId;
+    let patient = null;
+    let savedServiceIds = [];
+    let savedToPatient = false;
 
-    if (!targetPatientId || !mongoose.Types.ObjectId.isValid(targetPatientId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Valid patientId is required to save selected services",
-      });
+    if (targetPatientId) {
+      if (!mongoose.Types.ObjectId.isValid(targetPatientId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid patientId is required to save selected services",
+        });
+      }
+
+      patient = await Patient.findById(targetPatientId);
+      if (!patient) {
+        return res.status(404).json({
+          success: false,
+          message: "Patient not found",
+        });
+      }
+
+      patient.selectedServices = selectedServices.map((service) => service._id);
+      await patient.save({ validateBeforeSave: false });
+      savedServiceIds = patient.selectedServices;
+      savedToPatient = true;
     }
-
-    const patient = await Patient.findById(targetPatientId);
-    if (!patient) {
-      return res.status(404).json({
-        success: false,
-        message: "Patient not found",
-      });
-    }
-
-    patient.selectedServices = selectedServices.map((service) => service._id);
-    await patient.save({ validateBeforeSave: false });
 
     return res.status(200).json({
       success: true,
-      message: "Selected services saved successfully",
+      message: savedToPatient
+        ? "Selected services saved successfully"
+        : "Selected services retrieved successfully",
       count: selectedServices.length,
       requestedCount: normalizedServiceIds.length,
       missingServiceIds,
@@ -663,8 +671,9 @@ exports.selectService = async (req, res) => {
         services: selectedServices,
         selectedServices,
         missingServiceIds,
-        patientId: patient._id,
-        savedServiceIds: patient.selectedServices,
+        patientId: patient?._id || null,
+        savedToPatient,
+        savedServiceIds,
       },
     });
   } catch (error) {

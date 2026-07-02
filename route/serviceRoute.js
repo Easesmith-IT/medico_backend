@@ -24,7 +24,7 @@ router.get("/getAllServices", serviceController.getAllServices);
 // Search Services
 router.get("/search", serviceController.searchServices);
 
-// Select and save multiple services for a patient
+// Select services. Patient calls save to profile; doctor/admin calls can just return selected service details.
 router.post(
   "/selectService",
   protect("patient", "admin", "doctor","superadmin", "superAdmin"),
