@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const Doctor = require("../models/doctorModel");
+const DoctorSpecialty = require("../models/doctorSpecialtyModel");
 const Service = require("../models/serviceModel");
 const Treatment = require("../models/treatmentModel");
 
@@ -20,6 +21,101 @@ const normalizeStringArray = (value) => {
         .filter(Boolean),
     ),
   ];
+};
+
+const slugify = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const parseBoolean = (value, fallback = true) => {
+  if (value === undefined) return fallback;
+  if (typeof value === "boolean") return value;
+  return String(value).toLowerCase() === "true";
+};
+
+const normalizeDoctorSpecializations = (specialty) => [
+  ...new Set(
+    [specialty.specialization, ...(specialty.aliases || [])]
+      .map((item) => String(item || "").trim().toLowerCase())
+      .filter(Boolean),
+  ),
+];
+
+const countDoctorsBySpecialization = async (specialties) => {
+  const specializationSet = new Set();
+
+  specialties.forEach((specialty) => {
+    normalizeDoctorSpecializations(specialty).forEach((specialization) => {
+      specializationSet.add(specialization);
+    });
+  });
+
+  if (specializationSet.size === 0) return new Map();
+
+  const counts = await Doctor.aggregate([
+    {
+      $match: {
+        isActive: true,
+        verificationStatus: "approved",
+      },
+    },
+    {
+      $project: {
+        specializationKey: {
+          $toLower: { $trim: { input: "$specialization" } },
+        },
+      },
+    },
+    {
+      $match: {
+        specializationKey: { $in: [...specializationSet] },
+      },
+    },
+    {
+      $group: {
+        _id: "$specializationKey",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  return new Map(counts.map((item) => [item._id, item.count]));
+};
+
+const formatSpecialty = (specialty, countMap) => {
+  const doctorCount = normalizeDoctorSpecializations(specialty).reduce(
+    (total, specialization) => total + (countMap.get(specialization) || 0),
+    0,
+  );
+
+  return {
+    id: specialty._id,
+    key: specialty.key,
+    name: specialty.name,
+    specialization: specialty.specialization,
+    aliases: specialty.aliases || [],
+    icon: specialty.icon,
+    description: specialty.description || "",
+    order: specialty.order,
+    isActive: specialty.isActive,
+    doctorCount,
+    doctorsEndpoint: `/api/v1/doctor/search?specialization=${encodeURIComponent(
+      specialty.specialization,
+    )}`,
+  };
+};
+
+const findSpecialtyByIdOrKey = async (idOrKey, includeDeleted = false) => {
+  const query = mongoose.Types.ObjectId.isValid(idOrKey)
+    ? { _id: idOrKey }
+    : { key: String(idOrKey || "").toLowerCase() };
+
+  if (!includeDeleted) query.isDeleted = false;
+
+  return DoctorSpecialty.findOne(query);
 };
 
 const buildRecommendationFilter = (query = {}) => {
@@ -141,6 +237,137 @@ const getRecommendedDoctorsForService = async (service, reqQuery = {}) => {
     },
   };
 };
+
+exports.getDoctorSpecialties = catchAsync(async (req, res) => {
+  const {
+    includeInactive = "false",
+    limit,
+  } = req.query;
+
+  const filter = { isDeleted: false };
+  if (includeInactive !== "true") filter.isActive = true;
+
+  let query = DoctorSpecialty.find(filter).sort({ order: 1, name: 1 });
+  if (limit) query = query.limit(parseLimit(limit));
+
+  const specialties = await query.lean();
+  const countMap = await countDoctorsBySpecialization(specialties);
+
+  res.status(200).json({
+    success: true,
+    count: specialties.length,
+    data: {
+      specialties: specialties.map((specialty) =>
+        formatSpecialty(specialty, countMap),
+      ),
+    },
+  });
+});
+
+exports.getDoctorSpecialtyByKey = catchAsync(async (req, res, next) => {
+  const specialty = await findSpecialtyByIdOrKey(req.params.key);
+
+  if (!specialty || !specialty.isActive) {
+    return next(new AppError("Doctor specialty not found", 404));
+  }
+
+  const specialtyObject = specialty.toObject();
+  const countMap = await countDoctorsBySpecialization([specialtyObject]);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      specialty: formatSpecialty(specialtyObject, countMap),
+    },
+  });
+});
+
+exports.createDoctorSpecialty = catchAsync(async (req, res, next) => {
+  const { name, specialization, icon, aliases, description, order, isActive } =
+    req.body;
+  const key = slugify(req.body.key || name);
+
+  if (!key || !name || !specialization || !icon) {
+    return next(
+      new AppError("Required fields: key/name, specialization, and icon", 400),
+    );
+  }
+
+  const specialty = await DoctorSpecialty.create({
+    key,
+    name: String(name).trim(),
+    specialization: String(specialization).trim(),
+    icon: String(icon).trim(),
+    aliases: normalizeStringArray(aliases),
+    description,
+    order: order !== undefined ? Number(order) : 0,
+    isActive: parseBoolean(isActive, true),
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Doctor specialty created successfully",
+    data: { specialty },
+  });
+});
+
+exports.updateDoctorSpecialty = catchAsync(async (req, res, next) => {
+  const specialty = await findSpecialtyByIdOrKey(req.params.idOrKey);
+
+  if (!specialty) {
+    return next(new AppError("Doctor specialty not found", 404));
+  }
+
+  const allowedFields = [
+    "name",
+    "specialization",
+    "icon",
+    "description",
+    "order",
+    "isActive",
+  ];
+
+  allowedFields.forEach((field) => {
+    if (req.body[field] === undefined) return;
+    specialty[field] =
+      field === "isActive" ? parseBoolean(req.body[field], specialty.isActive) : req.body[field];
+  });
+
+  if (req.body.key !== undefined) {
+    const nextKey = slugify(req.body.key);
+    if (!nextKey) return next(new AppError("Specialty key is invalid", 400));
+    specialty.key = nextKey;
+  }
+
+  if (req.body.aliases !== undefined) {
+    specialty.aliases = normalizeStringArray(req.body.aliases);
+  }
+
+  await specialty.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Doctor specialty updated successfully",
+    data: { specialty },
+  });
+});
+
+exports.deleteDoctorSpecialty = catchAsync(async (req, res, next) => {
+  const specialty = await findSpecialtyByIdOrKey(req.params.idOrKey);
+
+  if (!specialty) {
+    return next(new AppError("Doctor specialty not found", 404));
+  }
+
+  specialty.isActive = false;
+  specialty.isDeleted = true;
+  await specialty.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Doctor specialty deleted successfully",
+  });
+});
 
 exports.searchDoctors = catchAsync(async (req, res) => {
   const {

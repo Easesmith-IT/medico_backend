@@ -17,6 +17,8 @@ router.post('/login', doctorController.doctorLogin);
 router.post('/verify-login-otp', doctorController.verifyLoginOtp);
 router.post('/resend-login-otp', doctorController.resendLoginOtp);
 router.post('/check-auth', doctorController.checkAuthStatus);
+router.get('/specialties', doctorDiscoveryController.getDoctorSpecialties);
+router.get('/specialties/:key', doctorDiscoveryController.getDoctorSpecialtyByKey);
 router.get('/search', doctorDiscoveryController.searchDoctors);
 router.get('/recommended/service/:serviceId', doctorDiscoveryController.getRecommendedDoctorsByService);
 router.get('/recommended/treatment/:treatmentId', doctorDiscoveryController.getRecommendedDoctorsByTreatment);
@@ -36,6 +38,9 @@ router.put('/clinic/:clinicId', verifyAccessToken, doctorController.updateClinic
 router.delete('/clinic/:clinicId', verifyAccessToken, doctorController.deleteClinic);
 router.post('/verification-documents', protect('doctor'), doctorVerificationController.uploadVerificationDocuments);
 router.post('/verification/submit', protect('doctor'), doctorVerificationController.submitVerification);
+router.post('/specialties', protect('admin', 'superadmin', 'superAdmin', 'subadmin'), doctorDiscoveryController.createDoctorSpecialty);
+router.patch('/specialties/:idOrKey', protect('admin', 'superadmin', 'superAdmin', 'subadmin'), doctorDiscoveryController.updateDoctorSpecialty);
+router.delete('/specialties/:idOrKey', protect('admin', 'superadmin', 'superAdmin', 'subadmin'), doctorDiscoveryController.deleteDoctorSpecialty);
 
 
 //citywise 
