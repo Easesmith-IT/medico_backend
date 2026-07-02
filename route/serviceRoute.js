@@ -27,7 +27,7 @@ router.get("/search", serviceController.searchServices);
 // Select and save multiple services for a patient
 router.post(
   "/selectService",
-  protect("patient", "admin", "superadmin", "superAdmin"),
+  protect("patient", "admin", "doctor","superadmin", "superAdmin"),
   serviceController.selectService,
 );
 
