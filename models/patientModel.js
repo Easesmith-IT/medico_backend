@@ -381,6 +381,16 @@ fcmProject: {
     type: Number,
     default: 0
   },
+  favoriteDoctors: [{
+    doctorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Doctor'
+    },
+    addedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   savedPosts: [{
     postId: {
       type: mongoose.Schema.Types.ObjectId,
