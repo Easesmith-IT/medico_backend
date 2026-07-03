@@ -23,6 +23,12 @@ router.get(
 );
 
 router.get(
+  "/doctor/patient-history/:patientId",
+  protect("doctor"),
+  doctorAppointmentController.getDoctorPatientHistory
+);
+
+router.get(
   "/:appointmentId",
   protect("patient", "doctor"),
   doctorAppointmentController.getDoctorAppointmentById

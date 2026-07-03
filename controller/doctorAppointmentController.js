@@ -642,6 +642,107 @@ exports.getMyDoctorAppointments = async (req, res) => {
   }
 };
 
+exports.getDoctorPatientHistory = async (req, res) => {
+  try {
+    const doctorId = req.user?.id || req.user?._id;
+    const { patientId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    if (!doctorId) {
+      return res.status(401).json({
+        success: false,
+        message: "Doctor ID not found in token",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid patientId",
+      });
+    }
+
+    const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNumber = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const query = buildListQuery({ doctorId, patientId }, req.query);
+
+    const [appointments, total, patient] = await Promise.all([
+      DoctorAppointment.find(query)
+        .populate("doctorId", "firstName lastName email phone specialization consultationFees")
+        .populate("patientId", "firstName lastName email phone mobile profilePhoto")
+        .populate("city", "name")
+        .populate("previousAppointmentId", "appointmentDate status")
+        .populate("nextAppointmentId", "appointmentDate status")
+        .sort({ appointmentDate: -1, createdAt: -1 })
+        .skip((pageNumber - 1) * limitNumber)
+        .limit(limitNumber)
+        .lean(),
+      DoctorAppointment.countDocuments(query),
+      Patient.findById(patientId).select("firstName lastName email phone mobile profilePhoto").lean(),
+    ]);
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    const appointmentIds = appointments.map((appointment) => appointment._id);
+    const medicalRecords = appointmentIds.length
+      ? await MedicalRecord.find({
+          doctorId,
+          patientId,
+          appointmentId: { $in: appointmentIds },
+          isDeleted: false,
+        })
+          .sort({ createdAt: -1 })
+          .lean()
+      : [];
+
+    const recordsByAppointmentId = medicalRecords.reduce((acc, record) => {
+      const appointmentKey = String(record.appointmentId);
+      const normalizedRecord = {
+        ...record,
+        files: processFilesArray(record.files),
+      };
+
+      if (!acc[appointmentKey]) acc[appointmentKey] = [];
+      acc[appointmentKey].push(normalizedRecord);
+      return acc;
+    }, {});
+
+    const appointmentsWithRecords = appointments.map((appointment) => {
+      const records = recordsByAppointmentId[String(appointment._id)] || [];
+      return {
+        ...appointment,
+        medicalRecords: records,
+        reports: records.filter((record) => record.recordType === "report"),
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Doctor-specific patient history fetched successfully",
+      count: appointmentsWithRecords.length,
+      total,
+      page: pageNumber,
+      limit: limitNumber,
+      totalPages: Math.ceil(total / limitNumber),
+      data: {
+        patient,
+        appointments: appointmentsWithRecords,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch doctor-specific patient history",
+      error: error.message,
+    });
+  }
+};
+
 const processFilesArray = (files) => {
   if (!files || !Array.isArray(files)) return [];
   const bucketName = bucket?.name || process.env.GCP_BUCKET_NAME || "medico_health_tech";
