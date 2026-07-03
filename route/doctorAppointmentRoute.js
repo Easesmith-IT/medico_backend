@@ -23,15 +23,15 @@ router.get(
 );
 
 router.get(
-<<<<<<< HEAD
   "/doctor/patient-history/:patientId",
   protect("doctor"),
   doctorAppointmentController.getDoctorPatientHistory
-=======
+);
+
+router.get(
   "/doctor/my-patients",
   protect("doctor"),
   doctorAppointmentController.getMyDoctorPatients
->>>>>>> 98c701857bfe5e141e1808cb52f803111a4915cd
 );
 
 router.get(

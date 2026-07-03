@@ -646,7 +646,6 @@ exports.getMyDoctorAppointments = async (req, res) => {
   }
 };
 
-<<<<<<< HEAD
 exports.getDoctorPatientHistory = async (req, res) => {
   try {
     const doctorId = req.user?.id || req.user?._id;
@@ -738,7 +737,16 @@ exports.getDoctorPatientHistory = async (req, res) => {
         patient,
         appointments: appointmentsWithRecords,
       },
-=======
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch doctor-specific patient history",
+      error: error.message,
+    });
+  }
+};
+
 exports.getMyDoctorPatients = async (req, res) => {
   try {
     const doctorId = req.user?.id || req.user?._id;
@@ -965,16 +973,11 @@ exports.getMyDoctorPatients = async (req, res) => {
       },
       count: data.length,
       data,
->>>>>>> 98c701857bfe5e141e1808cb52f803111a4915cd
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-<<<<<<< HEAD
-      message: "Failed to fetch doctor-specific patient history",
-=======
       message: "Failed to fetch doctor patients",
->>>>>>> 98c701857bfe5e141e1808cb52f803111a4915cd
       error: error.message,
     });
   }
