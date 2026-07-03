@@ -26,14 +26,19 @@ build/
 logs/
 *.log
 
+# Local cache
+.cache/
+.cache/puppeteer/
+
+# Puppeteer browser downloads
+chrome-win64/
+
 # Google Cloud bucket key
 config/extreme-ability-475608-c9-e702cd34fb5d.json
 config/gcpbucket.json
 config/*bucket*.json
 config/*ability*.json
 config/firebase-notify/*.json
-
-.cache/.env
 config/firebase-notify/medico-doctor-9f3aa-firebase-adminsdk-fbsvc-d5a26cb8e9.json
 config/firebase-notify/abhicares-partner-firebase-adminsdk-fbsvc-3af2fd3066.json
 config/firebase-notify/gcpbucket.json
