@@ -35,6 +35,7 @@ const mongoose = require('mongoose');
 
 const USER_ROLES = [
   'doctor',
+  'serviceprovider',
   'patient',
   'admin',
   'superadmin',
@@ -49,7 +50,26 @@ const socialPostSchema = new mongoose.Schema(
     doctor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Doctor',
-      required: true
+      default: null
+    },
+
+    serviceProvider: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ServiceProvider',
+      default: null
+    },
+
+    adminAuthor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Admin',
+      default: null
+    },
+
+    authorRole: {
+      type: String,
+      enum: USER_ROLES,
+      default: 'doctor',
+      index: true
     },
 
     type: {
@@ -208,6 +228,8 @@ const socialPostSchema = new mongoose.Schema(
 
 // Feed / timeline
 socialPostSchema.index({ doctor: 1, createdAt: -1 });
+socialPostSchema.index({ serviceProvider: 1, createdAt: -1 });
+socialPostSchema.index({ adminAuthor: 1, createdAt: -1 });
 
 // Post feed by type
 socialPostSchema.index({ type: 1, createdAt: -1 });
@@ -242,6 +264,36 @@ socialPostSchema.index({
 socialPostSchema.index({
   content: 'text',
   hashtags: 'text'
+});
+
+socialPostSchema.pre('validate', function(next) {
+  const authorRole = String(this.authorRole || 'doctor').toLowerCase();
+
+  if (authorRole === 'serviceprovider') {
+    if (!this.serviceProvider) {
+      return next(new Error('serviceProvider is required for serviceprovider-authored posts'));
+    }
+    this.doctor = null;
+    this.adminAuthor = null;
+    return next();
+  }
+
+  if (['admin', 'superadmin', 'subadmin'].includes(authorRole)) {
+    if (!this.adminAuthor) {
+      return next(new Error('adminAuthor is required for admin-authored posts'));
+    }
+    this.doctor = null;
+    this.serviceProvider = null;
+    return next();
+  }
+
+  this.authorRole = 'doctor';
+  if (!this.doctor) {
+    return next(new Error('doctor is required for doctor-authored posts'));
+  }
+  this.serviceProvider = null;
+  this.adminAuthor = null;
+  next();
 });
 
 module.exports = mongoose.model('Post', socialPostSchema);

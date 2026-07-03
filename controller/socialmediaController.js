@@ -62,6 +62,141 @@ const normalizeUser = (req) => {
   return { userId, userRole };
 };
 
+const isAdminRole = (role = "") =>
+  ["admin", "superadmin", "subadmin"].includes(String(role).toLowerCase());
+
+const getUserModelForRole = (role = "") => {
+  const normalizedRole = String(role).toLowerCase();
+
+  if (normalizedRole === "doctor") return Doctor;
+  if (normalizedRole === "patient") return Patient;
+  if (normalizedRole === "serviceprovider") return ServiceProvider;
+  if (isAdminRole(normalizedRole)) return Admin;
+
+  return null;
+};
+
+const applyPostPopulation = (query) =>
+  query
+    .populate({
+      path: "doctor",
+      select:
+        "firstName lastName address cities specialization profilePhoto clinics",
+      populate: { path: "cities", select: "name" },
+    })
+    .populate({
+      path: "serviceProvider",
+      select:
+        "firstName lastName currentAddress qualification documents.profilePhoto serviceCities",
+      populate: { path: "serviceCities", select: "name" },
+    })
+    .populate({
+      path: "adminAuthor",
+      select: "firstName lastName role",
+    })
+    .populate("mentions", "firstName lastName");
+
+const getAuthorRoleForPost = (post = {}) => {
+  const explicitRole = String(post.authorRole || "").toLowerCase();
+  if (explicitRole) return explicitRole;
+  if (post.serviceProvider) return "serviceprovider";
+  if (post.adminAuthor) {
+    return String(post.adminAuthor.role || "admin").toLowerCase();
+  }
+  return "doctor";
+};
+
+const buildCreatorMeta = (post = {}) => {
+  const authorRole = getAuthorRoleForPost(post);
+
+  if (authorRole === "serviceprovider") {
+    const provider = post.serviceProvider;
+    const city =
+      provider?.serviceCities?.[0]?.name ||
+      provider?.currentAddress?.city ||
+      "Not specified";
+
+    return {
+      _id: provider?._id || post.serviceProvider || null,
+      name:
+        [provider?.firstName, provider?.lastName].filter(Boolean).join(" ") ||
+        "Service Provider",
+      location: city,
+      position: provider?.qualification || "Service Provider",
+      profilePhoto: provider?.documents?.profilePhoto || null,
+      role: "serviceprovider",
+    };
+  }
+
+  if (isAdminRole(authorRole)) {
+    const admin = post.adminAuthor;
+
+    return {
+      _id: admin?._id || post.adminAuthor || null,
+      name: [admin?.firstName, admin?.lastName].filter(Boolean).join(" ") || "Admin",
+      location: "Admin",
+      position: String(admin?.role || authorRole || "admin"),
+      profilePhoto: null,
+      role: String(admin?.role || authorRole || "admin").toLowerCase(),
+    };
+  }
+
+  const doctor = post.doctor;
+  let city = "Not specified";
+
+  if (doctor) {
+    if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
+      city = doctor.cities[0].name;
+    } else if (doctor.address?.city) {
+      city = doctor.address.city;
+    } else if (
+      doctor.clinics &&
+      doctor.clinics.length &&
+      doctor.clinics[0]?.address?.city
+    ) {
+      city = doctor.clinics[0].address.city;
+    }
+  }
+
+  return {
+    _id: doctor?._id || post.doctor || null,
+    name: [doctor?.firstName, doctor?.lastName].filter(Boolean).join(" ") || "Doctor",
+    location: city,
+    position: doctor?.specialization || "Doctor",
+    profilePhoto: doctor?.profilePhoto || null,
+    role: "doctor",
+  };
+};
+
+const getSavedPostIds = (dbUser) => {
+  const savedPostIds = new Set();
+  if (dbUser && Array.isArray(dbUser.savedPosts)) {
+    dbUser.savedPosts.forEach((item) => {
+      if (item?.postId) savedPostIds.add(item.postId.toString());
+    });
+  }
+  return savedPostIds;
+};
+
+const getFollowingDoctorIds = (dbUser) => {
+  const followedDoctorIds = new Set();
+  if (dbUser && Array.isArray(dbUser.following)) {
+    dbUser.following.forEach((doctorId) => {
+      if (doctorId) followedDoctorIds.add(doctorId.toString());
+    });
+  }
+  return followedDoctorIds;
+};
+
+const loadViewerSocialState = async (userId, userRole, select = "following savedPosts") => {
+  const UserModel = getUserModelForRole(userRole);
+  if (!UserModel || !userId || isAdminRole(userRole)) {
+    return null;
+  }
+
+  return UserModel.findById(userId).select(select).lean();
+};
+
 const populateCommentsForPosts = async (postsOrPost) => {
   if (!postsOrPost) return postsOrPost;
   const isArray = Array.isArray(postsOrPost);
@@ -70,6 +205,7 @@ const populateCommentsForPosts = async (postsOrPost) => {
   const doctorIds = new Set();
   const patientIds = new Set();
   const adminIds = new Set();
+  const serviceProviderIds = new Set();
 
   posts.forEach((post) => {
     if (post && post.comments && Array.isArray(post.comments)) {
@@ -79,6 +215,8 @@ const populateCommentsForPosts = async (postsOrPost) => {
           const idStr = comment.userId.toString();
           if (role === 'doctor') {
             doctorIds.add(idStr);
+          } else if (role === 'serviceprovider') {
+            serviceProviderIds.add(idStr);
           } else if (role === 'patient') {
             patientIds.add(idStr);
           } else if (['admin', 'superadmin', 'subadmin'].includes(role)) {
@@ -89,10 +227,15 @@ const populateCommentsForPosts = async (postsOrPost) => {
     }
   });
 
-  const [doctors, patients, admins] = await Promise.all([
+  const [doctors, serviceProviders, patients, admins] = await Promise.all([
     doctorIds.size > 0
       ? Doctor.find({ _id: { $in: Array.from(doctorIds) } })
           .select('firstName lastName profilePhoto specialization')
+          .lean()
+      : [],
+    serviceProviderIds.size > 0
+      ? ServiceProvider.find({ _id: { $in: Array.from(serviceProviderIds) } })
+          .select('firstName lastName qualification documents.profilePhoto')
           .lean()
       : [],
     patientIds.size > 0
@@ -117,6 +260,17 @@ const populateCommentsForPosts = async (postsOrPost) => {
       profilePhoto: d.profilePhoto || null,
       specialization: d.specialization || 'Doctor',
       role: 'doctor',
+    };
+  });
+  serviceProviders.forEach((sp) => {
+    userMap[sp._id.toString()] = {
+      _id: sp._id,
+      firstName: sp.firstName,
+      lastName: sp.lastName,
+      name: [sp.firstName, sp.lastName].filter(Boolean).join(' '),
+      profilePhoto: sp.documents?.profilePhoto || null,
+      specialization: sp.qualification || 'Service Provider',
+      role: 'serviceprovider',
     };
   });
   patients.forEach((p) => {
@@ -446,12 +600,6 @@ const notifyFollowersForPost = async (doctor, post) => {
 
 exports.createPost = async (req, res, next) => {
   try {
-    console.log('Request body:', req.body);
-    console.log('Files:', req.files);
-    console.log('File:', req.file);
-    console.log('User:', req.user);
-
-    // Collect all uploaded files from req.file or req.files (either array or fields format)
     let uploadedFiles = [];
     if (req.files) {
       if (Array.isArray(req.files)) {
@@ -488,9 +636,7 @@ exports.createPost = async (req, res, next) => {
       type = 'TEXT';
     }
 
-    // 2) Get USER ID from JWT
-    const userId = req.user?._id || req.user?.id;
-    
+    const { userId, userRole } = normalizeUser(req);
     if (!userId || userId.length !== 24) {
       return res.status(400).json({
         success: false,
@@ -498,32 +644,68 @@ exports.createPost = async (req, res, next) => {
       });
     }
 
-    console.log('User ID from JWT:', userId);
+    let authorRole = userRole;
+    let authorDoc = null;
+    let cityId = null;
+    let postOwnership = {
+      doctor: null,
+      serviceProvider: null,
+      adminAuthor: null,
+    };
 
-    // 3) Find Doctor record + CITY
-    const doctor = await Doctor.findById(userId).select('cities firstName lastName').lean();
-    
-    if (!doctor) {
-      return res.status(404).json({
+    if (userRole === "doctor") {
+      authorDoc = await Doctor.findById(userId)
+        .select("cities firstName lastName specialization profilePhoto")
+        .populate("cities", "name")
+        .lean();
+
+      if (!authorDoc) {
+        return res.status(404).json({
+          success: false,
+          message: `Doctor not found for user: ${userId}`
+        });
+      }
+
+      cityId = authorDoc.cities?.[0]?._id || authorDoc.cities?.[0] || null;
+      postOwnership.doctor = userId;
+    } else if (userRole === "serviceprovider") {
+      authorDoc = await ServiceProvider.findById(userId)
+        .select(
+          "firstName lastName qualification currentAddress documents.profilePhoto serviceCities"
+        )
+        .populate("serviceCities", "name")
+        .lean();
+
+      if (!authorDoc) {
+        return res.status(404).json({
+          success: false,
+          message: `Service provider not found for user: ${userId}`
+        });
+      }
+
+      cityId = authorDoc.serviceCities?.[0]?._id || authorDoc.serviceCities?.[0] || null;
+      postOwnership.serviceProvider = userId;
+    } else if (isAdminRole(userRole)) {
+      authorDoc = await Admin.findById(userId)
+        .select("firstName lastName role")
+        .lean();
+
+      if (!authorDoc) {
+        return res.status(404).json({
+          success: false,
+          message: `Admin not found for user: ${userId}`
+        });
+      }
+
+      authorRole = String(authorDoc.role || userRole).toLowerCase();
+      postOwnership.adminAuthor = userId;
+    } else {
+      return res.status(403).json({
         success: false,
-        message: `Doctor not found for user: ${userId}`
+        message: "Only doctors, service providers, and admins can create posts"
       });
     }
 
-    console.log('Doctor found:', doctor._id, 'Cities:', doctor.cities);
-
-    // 4) CITY VALIDATION (SCHEMA REQUIRES IT)
-    if (!doctor.cities || !doctor.cities.length || !doctor.cities[0]) {
-      return res.status(400).json({
-        success: false,
-        message: 'Doctor must have at least one city assigned in cities array'
-      });
-    }
-
-    const cityId = doctor.cities[0];
-    console.log('Using city ID:', cityId);
-
-    // 5) Safe hashtags/mentions
     const hashtags = Array.isArray(req.body.hashtags)
       ? req.body.hashtags
       : (req.body.hashtags
@@ -536,7 +718,6 @@ exports.createPost = async (req, res, next) => {
         ? String(req.body.mentions).split(',').map(m => m.trim()).filter(id => id && id.length === 24)
         : []);
 
-    // 6) COMPLETE Post Data (ALL REQUIRED FIELDS)
     let mediaUrls = [];
     if (uploadedFiles.length > 0) {
       const uploadPromises = uploadedFiles.map(file => uploadFile(file));
@@ -548,7 +729,8 @@ exports.createPost = async (req, res, next) => {
     }
 
     const postData = {
-      doctor: userId,
+      ...postOwnership,
+      authorRole,
       city: cityId,
       type,
       content: req.body.content || '',
@@ -558,33 +740,29 @@ exports.createPost = async (req, res, next) => {
       isHidden: false
     };
 
-    console.log('Saving post data:', postData);
-
-    // 7) Save post
     const post = new Post(postData);
     await post.save();
-    await notifyFollowersForPost(doctor, post);
+    if (authorRole === "doctor" && authorDoc) {
+      await notifyFollowersForPost(authorDoc, post);
+    }
 
-    console.log('Post saved:', post._id);
+    const creator = buildCreatorMeta({
+      ...post.toObject(),
+      authorRole,
+      doctor: authorRole === "doctor" ? authorDoc : null,
+      serviceProvider: authorRole === "serviceprovider" ? authorDoc : null,
+      adminAuthor: isAdminRole(authorRole) ? authorDoc : null,
+    });
 
-    // 8) Creator info
-    const creator = {
-      _id: doctor._id,
-      name: [doctor.firstName, doctor.lastName].filter(Boolean).join(' ') || 'Doctor',
-      location: 'City',
-      position: 'Specialist',
-      profilePhoto: null,
-      role: 'doctor',
-      cities: [cityId]
-    };
-
-    // 9) Success response
     res.status(201).json({
       success: true,
       data: {
         _id: post._id.toString(),
-        doctor: post.doctor.toString(),
-        city: post.city.toString(),
+        doctor: post.doctor ? post.doctor.toString() : null,
+        serviceProvider: post.serviceProvider ? post.serviceProvider.toString() : null,
+        adminAuthor: post.adminAuthor ? post.adminAuthor.toString() : null,
+        authorRole,
+        city: post.city ? post.city.toString() : null,
         type: post.type,
         content: post.content,
         mediaUrls: post.mediaUrls,
@@ -597,12 +775,7 @@ exports.createPost = async (req, res, next) => {
     });
 
   } catch (err) {
-    console.error('FULL ERROR:', err.message);
-    console.error('ERROR STACK:', err.stack);
-    res.status(500).json({ 
-      status: 'error', 
-      message: err.message 
-    });
+    next(err);
   }
 };
 
@@ -749,108 +922,36 @@ exports.getPosts = async (req, res, next) => {
 
     const query = { isHidden: { $ne: true } };
 
-    let userModel = null;
-    if (userId && ['patient', 'doctor', 'serviceprovider'].includes(userRole)) {
-      if (userRole === 'patient') userModel = Patient;
-      else if (userRole === 'doctor') userModel = Doctor;
-      else if (userRole === 'serviceprovider') userModel = ServiceProvider;
-    }
-
-    const [posts, total, followDocs, dbUser] = await Promise.all([
-      Post.find(query)
-      .populate({
-        path: 'doctor',
-        select:
-          'firstName lastName address cities specialization profilePhoto clinics',
-        populate: { path: 'cities', select: 'name' }
-      })
-      .populate('mentions', 'firstName lastName')
+    const [posts, total, dbUser] = await Promise.all([
+      applyPostPopulation(
+        Post.find(query)
+      )
       .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
       Post.countDocuments(query),
-      userId
-        ? Post.find({
-            'follows.followerId': userId,
-            'follows.followerRole': userRole
-          }).select('doctor follows')
-        : [],
-      userModel
-        ? userModel.findById(userId).select('savedPosts').lean()
-        : null
+      loadViewerSocialState(userId, userRole, 'following savedPosts')
     ]);
 
-    const followedDoctorIds = new Set();
-    followDocs.forEach((doc) => {
-      (doc.follows || []).forEach((follow) => {
-        const followerId = follow.followerId?.toString();
-        const followerRole = (follow.followerRole || '').toLowerCase();
-        if (followerId === userId && followerRole === userRole) {
-          const followingId = follow.followingId || doc.doctor;
-          if (followingId) followedDoctorIds.add(followingId.toString());
-        }
-      });
-    });
-
-    const savedPostIds = new Set();
-    if (dbUser && Array.isArray(dbUser.savedPosts)) {
-      dbUser.savedPosts.forEach((item) => {
-        if (item && item.postId) savedPostIds.add(item.postId.toString());
-      });
-    }
+    const followedDoctorIds = getFollowingDoctorIds(dbUser);
+    const savedPostIds = getSavedPostIds(dbUser);
 
     const postsWithCreators = await Promise.all(
       posts.map(async post => {
-        const doctor = post.doctor;
-
-        const name = doctor
-          ? [doctor.firstName, doctor.lastName]
-              .filter(Boolean)
-              .join(' ')
-          : 'Admin';
-
-        let city = 'Not specified';
-
-        if (doctor) {
-          if (
-            doctor.cities &&
-            doctor.cities.length &&
-            doctor.cities[0]?.name
-          ) {
-            city = doctor.cities[0].name;
-          } else if (doctor.address?.city) {
-            city = doctor.address.city;
-          } else if (
-            doctor.clinics &&
-            doctor.clinics.length &&
-            doctor.clinics[0]?.address?.city
-          ) {
-            city = doctor.clinics[0].address.city;
-          }
-        }
-
-        const position = doctor?.specialization || 'Doctor';
-
+        const creator = buildCreatorMeta(post);
         const isLiked = !!post.likes?.some(
           (like) =>
             like.userId?.toString() === userId &&
             (like.userRole || '').toLowerCase() === userRole
         );
-        const isFollowed = doctor?._id
-          ? followedDoctorIds.has(doctor._id.toString())
+        const isFollowed = creator.role === 'doctor' && creator._id
+          ? followedDoctorIds.has(creator._id.toString())
           : false;
         const isSaved = savedPostIds.has(post._id.toString());
 
         return {
           ...post.toObject(),
-          creator: {
-            _id: doctor?._id || post.doctor,
-            name,
-            location: city,
-            position,
-            profilePhoto: doctor?.profilePhoto || null,
-            role: doctor ? 'doctor' : 'admin'
-          },
+          creator,
           isLiked,
           isFollowed,
           isSaved
@@ -1398,49 +1499,24 @@ exports.getPostById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // 1) Normalize user EXACTLY like toggleFollowDoctor
-    const user = req.user || {};
-    const rawRole = user.role || user.userRole || "";
-    const userRole = rawRole.toLowerCase();
-    const userIdRaw = user._id || user.id || user.userId || "";
-    const userId = userIdRaw ? userIdRaw.toString() : "";
+    const { userId, userRole } = normalizeUser(req);
 
-    const post = await Post.findById(id)
-      .populate({
-        path: "doctor",
-        select:
-          "firstName lastName address cities specialization profilePhoto clinics",
-        populate: { path: "cities", select: "name" },
-      })
-      .populate("mentions", "firstName lastName");
+    const [post, dbUser] = await Promise.all([
+      applyPostPopulation(Post.findById(id)),
+      loadViewerSocialState(userId, userRole, "following savedPosts"),
+    ]);
 
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
     }
 
-    const doctor = post.doctor;
-
-    const name = doctor
-      ? [doctor.firstName, doctor.lastName].filter(Boolean).join(" ")
-      : "Admin";
-
-    let city = "Not specified";
-
-    if (doctor) {
-      if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
-        city = doctor.cities[0].name;
-      } else if (doctor.address?.city) {
-        city = doctor.address.city;
-      } else if (
-        doctor.clinics &&
-        doctor.clinics.length &&
-        doctor.clinics[0]?.address?.city
-      ) {
-        city = doctor.clinics[0].address.city;
-      }
+    if (post.isHidden && !isAdminRole(userRole)) {
+      return res.status(404).json({ message: "Post not found" });
     }
 
-    const position = doctor?.specialization || "Doctor";
+    const creator = buildCreatorMeta(post);
+    const followedDoctorIds = getFollowingDoctorIds(dbUser);
+    const savedPostIds = getSavedPostIds(dbUser);
 
     // 2) isLiked from THIS post.likes array
     const isLiked = !!post.likes?.some((l) => {
@@ -1450,72 +1526,19 @@ exports.getPostById = async (req, res, next) => {
     });
 
     // 3) isFollowed from the doctor’s SOCIAL doc (where toggleFollowDoctor writes)
-    let isFollowed = false;
+    const isFollowed =
+      creator.role === "doctor" && creator._id
+        ? followedDoctorIds.has(creator._id.toString())
+        : false;
 
-    console.log("GET POST userId:", userId, "userRole:", userRole);
-    console.log("GET POST doctorId:", doctor?._id?.toString());
-
-    if (doctor && userId && userRole) {
-      const social = await Post.findOne({ doctor: doctor._id });
-
-      console.log("SOCIAL DOC ID:", social?._id?.toString());
-      console.log("SOCIAL FOLLOWS:", social?.follows);
-
-      if (social && Array.isArray(social.follows)) {
-        isFollowed = !!social.follows.find((f) => {
-          if (!f || !f.followerId) return false;
-
-          const followUserId = f.followerId.toString();
-          const followUserRole = (f.followerRole || "").toLowerCase();
-          const followingId = f.followingId?.toString();
-
-          console.log("COMPARE FOLLOW:", {
-            followUserId,
-            followUserRole,
-            followingId,
-          });
-
-          return (
-            followUserId === userId &&
-            followUserRole === userRole &&
-            followingId === doctor._id.toString()
-          );
-        });
-      }
-    }
-
-    // 4) isSaved from user's savedPosts
-    let isSaved = false;
-    if (userId && ["patient", "doctor", "serviceprovider"].includes(userRole)) {
-      let userModel;
-      if (userRole === "patient") userModel = Patient;
-      else if (userRole === "doctor") userModel = Doctor;
-      else if (userRole === "serviceprovider") userModel = ServiceProvider;
-
-      if (userModel) {
-        const dbUser = await userModel.findById(userId).select("savedPosts").lean();
-        if (dbUser && Array.isArray(dbUser.savedPosts)) {
-          isSaved = dbUser.savedPosts.some(
-            (item) => item.postId?.toString() === post._id.toString()
-          );
-        }
-      }
-    }
 
     const postWithCreator = {
       ...post.toObject(),
-      creator: {
-        _id: doctor?._id || post.doctor,
-        name,
-        location: city,
-        position,
-        profilePhoto: doctor?.profilePhoto || null,
-        role: doctor ? "doctor" : "admin",
-      },
-      doctorId: doctor?._id || post.doctor, // <- explicit doctor id
+      creator,
+      doctorId: creator.role === "doctor" ? creator._id : null,
       isLiked,
       isFollowed,
-      isSaved
+      isSaved: savedPostIds.has(post._id.toString())
     };
 
     const postWithComments = await populateCommentsForPosts(postWithCreator);
@@ -2020,6 +2043,19 @@ exports.toggleFollowDoctor = async (req, res, next) => {
         .json({ success: false, message: "targetDoctorId required" });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(targetDoctorId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid targetDoctorId" });
+    }
+
+    const targetDoctor = await Doctor.findById(targetDoctorId).select("_id");
+    if (!targetDoctor) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Target doctor not found" });
+    }
+
     // Find or create social document for the doctor
     let social = await Post.findOne({ doctor: targetDoctorId });
     if (!social) {
@@ -2031,12 +2067,7 @@ exports.toggleFollowDoctor = async (req, res, next) => {
       });
     }
 
-    // Normalize user
-    const user = req.user || {};
-    const rawRole = user.role || user.userRole || "";
-    const userRole = rawRole.toLowerCase();
-    const userIdRaw = user._id || user.id || user.userId || "";
-    const userId = userIdRaw ? userIdRaw.toString() : "";
+    const { userId, userRole } = normalizeUser(req);
 
     if (!userId || !userRole) {
       return res.status(401).json({
@@ -2141,52 +2172,25 @@ exports.getPostByIdByAdmin = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Normalize user
-    const user = req.user || {};
-    const rawRole = user.role || user.userRole || "";
-    const userRole = rawRole.toLowerCase();
-    const userIdRaw = user._id || user.id || user.userId || "";
-    const userId = userIdRaw ? userIdRaw.toString() : "";
-
-    const isAdminRole = ['admin', 'superadmin', 'subadmin'].includes(userRole);
+    const { userId, userRole } = normalizeUser(req);
+    const adminAccess = isAdminRole(userRole);
 
     // Fetch post
-    const post = await Post.findById(id)
-      .populate({
-        path: "doctor",
-        select:
-          "firstName lastName address cities specialization profilePhoto clinics",
-        populate: { path: "cities", select: "name" },
-      })
-      .populate("mentions", "firstName lastName");
+    const [post, dbUser] = await Promise.all([
+      applyPostPopulation(Post.findById(id)),
+      loadViewerSocialState(userId, userRole, "following"),
+    ]);
 
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
     }
 
     // If post is hidden and user is not admin, block access
-    if (post.isHidden && !isAdminRole) {
+    if (post.isHidden && !adminAccess) {
       return res.status(403).json({ message: "Post is hidden" });
     }
-
-    const doctor = post.doctor;
-
-    const name = doctor
-      ? [doctor.firstName, doctor.lastName].filter(Boolean).join(" ")
-      : "Admin";
-
-    let city = "Not specified";
-    if (doctor) {
-      if (doctor.cities?.length && doctor.cities[0]?.name) {
-        city = doctor.cities[0].name;
-      } else if (doctor.address?.city) {
-        city = doctor.address.city;
-      } else if (doctor.clinics?.length && doctor.clinics[0]?.address?.city) {
-        city = doctor.clinics[0].address.city;
-      }
-    }
-
-    const position = doctor?.specialization || "Doctor";
+    const creator = buildCreatorMeta(post);
+    const followedDoctorIds = getFollowingDoctorIds(dbUser);
 
     // Check if user liked the post
     const isLiked = !!post.likes?.some((l) => {
@@ -2195,34 +2199,15 @@ exports.getPostByIdByAdmin = async (req, res, next) => {
       return likeUserId === userId && likeUserRole === userRole;
     });
 
-    // Check if user follows doctor
-    let isFollowed = false;
-    if (doctor && userId && userRole) {
-      const social = await Post.findOne({ doctor: doctor._id });
-      if (social?.follows?.length) {
-        isFollowed = social.follows.some((f) => {
-          if (!f?.followerId) return false;
-          const followUserId = f.followerId.toString();
-          const followUserRole = (f.followerRole || "").toLowerCase();
-          const followingId = f.followingId?.toString();
-          return followUserId === userId &&
-            followUserRole === userRole &&
-            followingId === doctor._id.toString();
-        });
-      }
-    }
+    const isFollowed =
+      creator.role === "doctor" && creator._id
+        ? followedDoctorIds.has(creator._id.toString())
+        : false;
 
     const postWithCreator = {
       ...post.toObject(),
-      creator: {
-        _id: doctor?._id || post.doctor,
-        name,
-        location: city,
-        position,
-        profilePhoto: doctor?.profilePhoto || null,
-        role: doctor ? "doctor" : "admin",
-      },
-      doctorId: doctor?._id || post.doctor,
+      creator,
+      doctorId: creator.role === "doctor" ? creator._id : null,
       isLiked,
       isFollowed,
       isHidden: post.isHidden || false, // <-- sync with toggleHidePost
@@ -2363,6 +2348,21 @@ exports.addComment = async (req, res, next) => {
           profilePhoto: d.profilePhoto || null,
           specialization: d.specialization || 'Doctor',
           role: 'doctor'
+        };
+      }
+    } else if (userRoleLower === 'serviceprovider') {
+      const sp = await ServiceProvider.findById(userIdStr)
+        .select('firstName lastName qualification documents.profilePhoto')
+        .lean();
+      if (sp) {
+        userMeta = {
+          _id: sp._id,
+          firstName: sp.firstName,
+          lastName: sp.lastName,
+          name: [sp.firstName, sp.lastName].filter(Boolean).join(' '),
+          profilePhoto: sp.documents?.profilePhoto || null,
+          specialization: sp.qualification || 'Service Provider',
+          role: 'serviceprovider'
         };
       }
     } else if (userRoleLower === 'patient') {
@@ -2564,13 +2564,6 @@ exports.toggleSavePost = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Post not found" });
     }
 
-    if (!post.doctor) {
-      return res.status(400).json({
-        success: false,
-        message: "Only doctor posts can be saved",
-      });
-    }
-
     let userModel;
     if (userRole === "patient") userModel = Patient;
     else if (userRole === "doctor") userModel = Doctor;
@@ -2628,13 +2621,23 @@ exports.getSavedPosts = async (req, res, next) => {
       .select("savedPosts following")
       .populate({
         path: "savedPosts.postId",
-        match: { isHidden: false, hiddenAt: null },
-        populate: {
-          path: "doctor",
-          select: "firstName lastName address cities specialization profilePhoto clinics",
-          populate: { path: "cities", select: "name" }
-        },
-      });
+        match: { isHidden: false, hiddenAt: null }
+      })
+      .populate({
+        path: "savedPosts.postId.doctor",
+        select: "firstName lastName address cities specialization profilePhoto clinics",
+        populate: { path: "cities", select: "name" }
+      })
+      .populate({
+        path: "savedPosts.postId.serviceProvider",
+        select: "firstName lastName currentAddress qualification documents.profilePhoto serviceCities",
+        populate: { path: "serviceCities", select: "name" }
+      })
+      .populate({
+        path: "savedPosts.postId.adminAuthor",
+        select: "firstName lastName role"
+      })
+      .populate("savedPosts.postId.mentions", "firstName lastName");
 
     if (!dbUser) {
       return res.status(404).json({ success: false, message: `${userRole} not found` });
@@ -2653,36 +2656,15 @@ exports.getSavedPosts = async (req, res, next) => {
     const formattedData = data.map((item, index) => {
       const post = populatedPosts[index];
       const postObj = typeof post.toObject === 'function' ? post.toObject() : post;
-      const doctor = postObj.doctor;
-
-      const name = doctor
-        ? [doctor.firstName, doctor.lastName].filter(Boolean).join(' ')
-        : 'Admin';
-
-      let city = 'Not specified';
-      if (doctor) {
-        if (doctor.cities && doctor.cities.length && doctor.cities[0]?.name) {
-          city = doctor.cities[0].name;
-        } else if (doctor.address?.city) {
-          city = doctor.address.city;
-        } else if (
-          doctor.clinics &&
-          doctor.clinics.length &&
-          doctor.clinics[0]?.address?.city
-        ) {
-          city = doctor.clinics[0].address.city;
-        }
-      }
-
-      const position = doctor?.specialization || 'Doctor';
+      const creator = buildCreatorMeta(postObj);
 
       const isLiked = !!postObj.likes?.some(
         (like) =>
           like.userId?.toString() === userId &&
           (like.userRole || '').toLowerCase() === userRole
       );
-      const isFollowed = doctor?._id
-        ? followedDoctorIdsSet.has(doctor._id.toString())
+      const isFollowed = creator.role === 'doctor' && creator._id
+        ? followedDoctorIdsSet.has(creator._id.toString())
         : false;
 
       return {
@@ -2690,14 +2672,7 @@ exports.getSavedPosts = async (req, res, next) => {
         savedAt: item.savedAt,
         postId: {
           ...postObj,
-          creator: {
-            _id: doctor?._id || postObj.doctor,
-            name,
-            location: city,
-            position,
-            profilePhoto: doctor?.profilePhoto || null,
-            role: doctor ? 'doctor' : 'admin'
-          },
+          creator,
           isLiked,
           isSaved: true,
           isFollowed
@@ -2739,31 +2714,28 @@ exports.getMySocialNotifications = async (req, res, next) => {
 // GET /social/follow-stats/me
 exports.getMyFollowStats = async (req, res, next) => {
   try {
-    const user = req.user || {};
-    const rawRole = user.role || user.userRole || '';
-    const userRole = rawRole.toLowerCase();
-    const userIdRaw = user._id || user.id || user.userId || '';
-    const userId = userIdRaw ? userIdRaw.toString() : '';
+    const { userId, userRole } = normalizeUser(req);
 
-    if (!userId || (userRole !== 'doctor' && userRole !== 'patient')) {
+    if (!userId || !['doctor', 'patient', 'serviceprovider'].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: 'Only doctors and patients can view follow stats'
+        message: 'Only doctors, patients, and service providers can view follow stats'
       });
     }
 
     let followers = [];
-    let following = [];
+    const dbUser = await loadViewerSocialState(userId, userRole, 'following');
+    const followingIdsSet = getFollowingDoctorIds(dbUser);
 
     if (userRole === 'doctor') {
-      // 1) Followers of this doctor: any Post doc where doctor = doctorId and follows.followingId = doctorId
       const followerPosts = await Post.find({
         doctor: userId,
         'follows.followingId': userId
       }).select('follows');
 
-      const followerIdsSet = new Set();
+      const doctorFollowerIdsSet = new Set();
       const patientFollowerIdsSet = new Set();
+      const serviceProviderFollowerIdsSet = new Set();
 
       followerPosts.forEach(p => {
         (p.follows || []).forEach(f => {
@@ -2772,78 +2744,40 @@ exports.getMyFollowStats = async (req, res, next) => {
             const fRole = (f.followerRole || '').toLowerCase();
             if (fRole === 'patient') {
               patientFollowerIdsSet.add(fId);
+            } else if (fRole === 'serviceprovider') {
+              serviceProviderFollowerIdsSet.add(fId);
             } else {
-              followerIdsSet.add(fId);
+              doctorFollowerIdsSet.add(fId);
             }
           }
         });
       });
 
-      const [doctorFollowers, patientFollowers] = await Promise.all([
-        Doctor.find({ _id: { $in: Array.from(followerIdsSet) } })
+      const [doctorFollowers, patientFollowers, serviceProviderFollowers] = await Promise.all([
+        Doctor.find({ _id: { $in: Array.from(doctorFollowerIdsSet) } })
           .select('firstName lastName profilePhoto specialization'),
         Patient.find({ _id: { $in: Array.from(patientFollowerIdsSet) } })
-          .select('firstName lastName profilePhoto')
+          .select('firstName lastName profilePhoto'),
+        ServiceProvider.find({ _id: { $in: Array.from(serviceProviderFollowerIdsSet) } })
+          .select('firstName lastName qualification documents.profilePhoto')
       ]);
 
-      // Combine followers info
       followers = [
         ...doctorFollowers.map(d => ({ ...d.toObject ? d.toObject() : d, role: 'doctor' })),
-        ...patientFollowers.map(p => ({ ...p.toObject ? p.toObject() : p, role: 'patient' }))
+        ...patientFollowers.map(p => ({ ...p.toObject ? p.toObject() : p, role: 'patient' })),
+        ...serviceProviderFollowers.map(sp => ({
+          ...sp.toObject ? sp.toObject() : sp,
+          profilePhoto: sp.documents?.profilePhoto || null,
+          specialization: sp.qualification || 'Service Provider',
+          role: 'serviceprovider'
+        }))
       ];
-
-      // 2) Following (doctors this doctor follows): any Post doc where follows.followerId = doctorId
-      const followingPosts = await Post.find({
-        'follows.followerId': userId,
-        'follows.followerRole': 'doctor'
-      }).select('doctor follows');
-
-      const followingIdsSet = new Set();
-      followingPosts.forEach(p => {
-        (p.follows || []).forEach(f => {
-          if (
-            f.followerId?.toString() === userId &&
-            f.followerRole === 'doctor' &&
-            f.followingId
-          ) {
-            followingIdsSet.add(f.followingId.toString());
-          }
-        });
-      });
-
-      const followingDoctors = await Doctor.find({ _id: { $in: Array.from(followingIdsSet) } })
-        .select('firstName lastName profilePhoto specialization');
-      
-      following = followingDoctors.map(d => ({ ...d.toObject ? d.toObject() : d, role: 'doctor' }));
-
-    } else if (userRole === 'patient') {
-      // Patients have no followers in this model (only doctors can be followed)
-      followers = [];
-
-      // Following (doctors this patient follows): any Post doc where follows.followerId = patientId
-      const followingPosts = await Post.find({
-        'follows.followerId': userId,
-        'follows.followerRole': 'patient'
-      }).select('doctor follows');
-
-      const followingIdsSet = new Set();
-      followingPosts.forEach(p => {
-        (p.follows || []).forEach(f => {
-          if (
-            f.followerId?.toString() === userId &&
-            f.followerRole === 'patient' &&
-            f.followingId
-          ) {
-            followingIdsSet.add(f.followingId.toString());
-          }
-        });
-      });
-
-      const followingDoctors = await Doctor.find({ _id: { $in: Array.from(followingIdsSet) } })
-        .select('firstName lastName profilePhoto specialization');
-      
-      following = followingDoctors.map(d => ({ ...d.toObject ? d.toObject() : d, role: 'doctor' }));
     }
+
+    const followingDoctors = await Doctor.find({ _id: { $in: Array.from(followingIdsSet) } })
+      .select('firstName lastName profilePhoto specialization');
+
+    const following = followingDoctors.map(d => ({ ...d.toObject ? d.toObject() : d, role: 'doctor' }));
 
     return res.json({
       success: true,

@@ -10,7 +10,7 @@ const { protect } = require('../middleware/auth');
 
 router.post(
   '/createPost',
-  protect('doctor', 'admin', 'superadmin', 'subadmin'),
+  protect('doctor', 'serviceprovider', 'admin', 'superadmin', 'subadmin'),
   createUpload({
     fields: [{ name: 'image', maxCount: 10 }, { name: 'images', maxCount: 10 }],
     fileTypes: 'imageAndPdfAndVideo'
@@ -18,16 +18,16 @@ router.post(
   postCtrl.createPost
 );
 
-router.get('/getPosts',protect('doctor', 'admin', 'superadmin', 'subadmin','patient'), postCtrl.getPosts);
+router.get('/getPosts',protect('doctor', 'admin', 'superadmin', 'subadmin', 'patient', 'serviceprovider'), postCtrl.getPosts);
 
 // router.post('/likePost/:id/like', postCtrl.likePost);
 
 
 
 // router.post('/likePost/:id/toggle', protect(['doctor', 'patient']),  postCtrl.toggleLikePost);
-router.post('/commentPost/:id', protect('doctor', 'admin', 'patient','superadmin', 'subadmin'),  postCtrl.addComment);
+router.post('/commentPost/:id', protect('doctor', 'admin', 'patient', 'superadmin', 'subadmin', 'serviceprovider'),  postCtrl.addComment);
 // router.post('/followDoctor', protect(['doctor', 'patient','admin', 'superadmin', 'subadmin']),  postCtrl.toggleFollowDoctor); // Follow doctor
-router.post('/followDoctor', protect('doctor', 'patient','admin', 'superadmin', 'subadmin'), postCtrl.toggleFollowDoctor);
+router.post('/followDoctor', protect('doctor', 'patient', 'admin', 'superadmin', 'subadmin', 'serviceprovider'), postCtrl.toggleFollowDoctor);
 
 // AFTER
 // router.post(
@@ -39,7 +39,7 @@ router.post('/followDoctor', protect('doctor', 'patient','admin', 'superadmin', 
 
 router.post(
   '/likePost/:id/toggle',
-  protect('doctor', 'patient', 'admin', 'superadmin', 'subadmin'),
+  protect('doctor', 'patient', 'admin', 'superadmin', 'subadmin', 'serviceprovider'),
   postCtrl.toggleLikePost
 );
 router.post(
@@ -61,10 +61,10 @@ router.get('/feed', protect('patient', 'doctor', 'serviceprovider'), postCtrl.ge
 // router.get('/getPostById/:id', postCtrl.getPostById);
 router.get(
   '/getPostById/:id',
-  protect('doctor', 'patient', 'admin', 'superadmin', 'subadmin'),
+  protect('doctor', 'patient', 'admin', 'superadmin', 'subadmin', 'serviceprovider'),
   postCtrl.getPostById
 );
-router.post('/addComment/:id', protect('doctor', 'patient', 'admin', 'superadmin', 'subadmin'), postCtrl.addComment);
+router.post('/addComment/:id', protect('doctor', 'patient', 'admin', 'superadmin', 'subadmin', 'serviceprovider'), postCtrl.addComment);
 
 router.patch(
   '/posts/:id/hide',
@@ -83,7 +83,7 @@ router.delete(
 );
 router.get(
   '/follow-stats/me',
-  protect('doctor', 'patient'),
+  protect('doctor', 'patient', 'serviceprovider'),
   postCtrl.getMyFollowStats
 );
 router.get(

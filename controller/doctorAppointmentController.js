@@ -18,6 +18,7 @@ const ACTIVE_STATUSES = [
 
 const COMPLETED_STATUSES = ["Completed", "TreatmentCompleted"];
 const CANCELLED_STATUSES = ["Cancelled", "Rejected"];
+const PATIENT_LIST_STATUSES = [...ACTIVE_STATUSES, ...COMPLETED_STATUSES];
 const DAY_NAMES = [
   "Sunday",
   "Monday",
@@ -72,6 +73,9 @@ const resolveDuration = (startTime, endTime, duration) => {
 };
 
 const normalizeDay = (day) => String(day || "").trim().toLowerCase();
+const escapeRegex = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const toObjectId = (value) =>
+  mongoose.Types.ObjectId.isValid(value) ? new mongoose.Types.ObjectId(value) : null;
 
 const getDayName = (date) => DAY_NAMES[new Date(date).getDay()];
 
@@ -642,6 +646,7 @@ exports.getMyDoctorAppointments = async (req, res) => {
   }
 };
 
+<<<<<<< HEAD
 exports.getDoctorPatientHistory = async (req, res) => {
   try {
     const doctorId = req.user?.id || req.user?._id;
@@ -733,11 +738,243 @@ exports.getDoctorPatientHistory = async (req, res) => {
         patient,
         appointments: appointmentsWithRecords,
       },
+=======
+exports.getMyDoctorPatients = async (req, res) => {
+  try {
+    const doctorId = req.user?.id || req.user?._id;
+    const doctorObjectId = toObjectId(doctorId);
+
+    if (!doctorObjectId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid doctor session",
+      });
+    }
+
+    const search = String(req.query.search || "").trim();
+    const requestedBucket = String(req.query.bucket || "all").trim().toLowerCase();
+    const bucket = ["all", "served", "serving"].includes(requestedBucket)
+      ? requestedBucket
+      : "all";
+    const pageNumber = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limitNumber = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+
+    const pipeline = [
+      {
+        $match: {
+          doctorId: doctorObjectId,
+          isDeleted: false,
+          status: { $in: PATIENT_LIST_STATUSES },
+        },
+      },
+      {
+        $sort: { appointmentDate: -1, createdAt: -1 },
+      },
+      {
+        $group: {
+          _id: "$patientId",
+          appointments: {
+            $push: {
+              _id: "$_id",
+              appointmentDate: "$appointmentDate",
+              slotTime: "$slotTime",
+              status: "$status",
+              city: "$city",
+              createdAt: "$createdAt",
+            },
+          },
+          activeAppointmentsCount: {
+            $sum: {
+              $cond: [{ $in: ["$status", ACTIVE_STATUSES] }, 1, 0],
+            },
+          },
+          completedAppointmentsCount: {
+            $sum: {
+              $cond: [{ $in: ["$status", COMPLETED_STATUSES] }, 1, 0],
+            },
+          },
+          totalAppointmentsCount: { $sum: 1 },
+          lastInteractionAt: { $max: "$appointmentDate" },
+        },
+      },
+      {
+        $addFields: {
+          relationshipStatus: {
+            $cond: [{ $gt: ["$activeAppointmentsCount", 0] }, "serving", "served"],
+          },
+          latestAppointment: { $arrayElemAt: ["$appointments", 0] },
+          latestActiveAppointment: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$appointments",
+                  as: "appointment",
+                  cond: { $in: ["$$appointment.status", ACTIVE_STATUSES] },
+                },
+              },
+              0,
+            ],
+          },
+          lastCompletedAppointment: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$appointments",
+                  as: "appointment",
+                  cond: { $in: ["$$appointment.status", COMPLETED_STATUSES] },
+                },
+              },
+              0,
+            ],
+          },
+          relationshipPriority: {
+            $cond: [{ $gt: ["$activeAppointmentsCount", 0] }, 0, 1],
+          },
+        },
+      },
+    ];
+
+    if (bucket !== "all") {
+      pipeline.push({
+        $match: {
+          relationshipStatus: bucket,
+        },
+      });
+    }
+
+    pipeline.push(
+      {
+        $lookup: {
+          from: "patients",
+          let: { patientId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$_id", "$$patientId"] },
+              },
+            },
+            {
+              $project: {
+                firstName: 1,
+                lastName: 1,
+                phone: 1,
+                mobile: 1,
+                email: 1,
+                profilePhoto: 1,
+              },
+            },
+          ],
+          as: "patient",
+        },
+      },
+      {
+        $unwind: {
+          path: "$patient",
+          preserveNullAndEmptyArrays: false,
+        },
+      }
+    );
+
+    if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), "i");
+      pipeline.push({
+        $match: {
+          $or: [
+            { "patient.firstName": searchRegex },
+            { "patient.lastName": searchRegex },
+            { "patient.phone": searchRegex },
+            { "patient.mobile": searchRegex },
+            { "patient.email": searchRegex },
+          ],
+        },
+      });
+    }
+
+    pipeline.push(
+      {
+        $project: {
+          _id: 0,
+          patientId: "$_id",
+          relationshipStatus: 1,
+          activeAppointmentsCount: 1,
+          completedAppointmentsCount: 1,
+          totalAppointmentsCount: 1,
+          lastInteractionAt: 1,
+          latestAppointment: 1,
+          latestActiveAppointment: 1,
+          lastCompletedAppointment: 1,
+          relationshipPriority: 1,
+          patient: {
+            _id: "$patient._id",
+            firstName: "$patient.firstName",
+            lastName: "$patient.lastName",
+            fullName: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ["$patient.firstName", ""] },
+                    " ",
+                    { $ifNull: ["$patient.lastName", ""] },
+                  ],
+                },
+              },
+            },
+            phone: "$patient.phone",
+            mobile: "$patient.mobile",
+            email: "$patient.email",
+            profilePhoto: "$patient.profilePhoto",
+          },
+        },
+      },
+      {
+        $sort: {
+          relationshipPriority: 1,
+          lastInteractionAt: -1,
+          "patient.fullName": 1,
+        },
+      },
+      {
+        $project: {
+          relationshipPriority: 0,
+        },
+      },
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          data: [
+            { $skip: (pageNumber - 1) * limitNumber },
+            { $limit: limitNumber },
+          ],
+        },
+      },
+    );
+
+    const [result] = await DoctorAppointment.aggregate(pipeline);
+    const total = result?.metadata?.[0]?.total || 0;
+    const data = result?.data || [];
+
+    return res.status(200).json({
+      success: true,
+      page: pageNumber,
+      limit: limitNumber,
+      total,
+      totalPages: Math.ceil(total / limitNumber),
+      filters: {
+        bucket,
+        search,
+      },
+      count: data.length,
+      data,
+>>>>>>> 98c701857bfe5e141e1808cb52f803111a4915cd
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
+<<<<<<< HEAD
       message: "Failed to fetch doctor-specific patient history",
+=======
+      message: "Failed to fetch doctor patients",
+>>>>>>> 98c701857bfe5e141e1808cb52f803111a4915cd
       error: error.message,
     });
   }
