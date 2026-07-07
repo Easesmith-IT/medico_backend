@@ -59,6 +59,7 @@ const supportRoute = require("../route/supportRoute");
 const doctorAppointmentRoute = require("../route/doctorAppointmentRoute");
 const chatRoute = require("../route/chatRoute");
 const favoriteRoute = require("../route/favoriteRoute");
+const legalContentRoute = require("../route/legalContentRoute");
 
 const router = express.Router();
 
@@ -88,4 +89,5 @@ router.use('/doctor-appointments', doctorAppointmentRoute);
 router.use('/seperatepatientAddress', seperatePatientAddressRoute);
 router.use('/chats', chatRoute);
 router.use('/favorites', favoriteRoute);
+router.use('/legal', legalContentRoute);
 module.exports = router;
