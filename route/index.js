@@ -60,6 +60,7 @@ const doctorAppointmentRoute = require("../route/doctorAppointmentRoute");
 const chatRoute = require("../route/chatRoute");
 const favoriteRoute = require("../route/favoriteRoute");
 const legalContentRoute = require("../route/legalContentRoute");
+const callbackRequestRoute = require("../route/callbackRequestRoute");
 
 const router = express.Router();
 
@@ -90,4 +91,5 @@ router.use('/seperatepatientAddress', seperatePatientAddressRoute);
 router.use('/chats', chatRoute);
 router.use('/favorites', favoriteRoute);
 router.use('/legal', legalContentRoute);
+router.use('/callback-requests', callbackRequestRoute);
 module.exports = router;
