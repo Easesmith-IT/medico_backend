@@ -12,6 +12,47 @@ const {
 } = require('../config/cloudinaryConfig');
 const uploadFile = require('../utils/uploadFile');
 
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildCityArticleFilter = async ({ cityId, cityName }) => {
+  const orFilters = [];
+  let city = null;
+
+  if (cityId) {
+    if (!mongoose.Types.ObjectId.isValid(cityId)) {
+      throw new AppError('Invalid cityId format', 400);
+    }
+
+    city = await City.findById(cityId).lean();
+    if (!city) {
+      throw new AppError('City not found', 404);
+    }
+  } else if (cityName) {
+    const normalizedCityName = cityName.trim();
+    const cityNameRegex = new RegExp(`^${escapeRegex(normalizedCityName)}$`, 'i');
+
+    city = await City.findOne({ name: cityNameRegex }).lean();
+    orFilters.push({ location: new RegExp(escapeRegex(normalizedCityName), 'i') });
+  }
+
+  if (city) {
+    const Doctor = mongoose.model('Doctor');
+    const doctorsInCity = await Doctor.find({ cities: city._id }).select('_id').lean();
+    const doctorIds = doctorsInCity.map(doc => doc._id);
+
+    orFilters.push(
+      { cityId: city._id },
+      { location: new RegExp(escapeRegex(city.name), 'i') }
+    );
+
+    if (doctorIds.length > 0) {
+      orFilters.push({ createdBy: { $in: doctorIds }, creatorModel: 'Doctor' });
+    }
+  }
+
+  return orFilters;
+};
+
 // const createArticle = async (req, res, next) => {
 //   try {
 //     const { 
@@ -360,29 +401,10 @@ const getAllArticles = async (req, res, next) => {
           currentPage: parseInt(page),
           articles: []
         });
-      } else if (cityId && mongoose.Types.ObjectId.isValid(cityId)) {
-        const city = await City.findById(cityId).lean();
-        if (city) {
-          const Doctor = mongoose.model('Doctor');
-          const doctorsInCity = await Doctor.find({ cities: city._id }).select('_id');
-          const doctorIds = doctorsInCity.map(doc => doc._id);
-          filter.$or = [
-            { cityId: city._id },
-            { location: new RegExp(city.name, 'i') },
-            { createdBy: { $in: doctorIds }, creatorModel: 'Doctor' }
-          ];
-        }
-      } else if (cityName) {
-        const cityByName = await City.findOne({ name: cityName.toLowerCase().trim() }).lean();
-        if (cityByName) {
-          const Doctor = mongoose.model('Doctor');
-          const doctorsInCity = await Doctor.find({ cities: cityByName._id }).select('_id');
-          const doctorIds = doctorsInCity.map(doc => doc._id);
-          filter.$or = [
-            { cityId: cityByName._id },
-            { location: new RegExp(cityName, 'i') },
-            { createdBy: { $in: doctorIds }, creatorModel: 'Doctor' }
-          ];
+      } else if (cityId || cityName) {
+        const cityFilters = await buildCityArticleFilter({ cityId, cityName });
+        if (cityFilters.length > 0) {
+          filter.$or = cityFilters;
         }
       }
 
@@ -397,29 +419,7 @@ const getAllArticles = async (req, res, next) => {
     }
     // OPTION 2: Filter by specific cityId
     else if (cityId) {
-      if (!mongoose.Types.ObjectId.isValid(cityId)) {
-        return next(new AppError('Invalid cityId format', 400));
-      }
-
-      // Get city name for backward compatibility
-      const city = await City.findById(cityId);
-      if (!city) {
-        return res.status(404).json({
-          success: false,
-          message: 'City not found'
-        });
-      }
-
-      const Doctor = mongoose.model('Doctor');
-      const doctorsInCity = await Doctor.find({ cities: city._id }).select('_id');
-      const doctorIds = doctorsInCity.map(doc => doc._id);
-
-      // Handle both old and new formats
-      filter.$or = [
-        { cityId: cityId },
-        { location: new RegExp(city.name, 'i') },
-        { createdBy: { $in: doctorIds }, creatorModel: 'Doctor' }
-      ];
+      filter.$or = await buildCityArticleFilter({ cityId });
 
       articles = await Article.find(filter)
         .populate('createdBy', 'name email specialization profileImage cityId')
@@ -432,25 +432,7 @@ const getAllArticles = async (req, res, next) => {
     }
     // OPTION 3: Filter by city name (THIS IS YOUR MAIN ISSUE!)
     else if (cityName) {
-      const city = await City.findOne({ name: cityName.toLowerCase().trim() });
-      
-      if (!city) {
-        return res.status(404).json({
-          success: false,
-          message: 'City not found'
-        });
-      }
-
-      const Doctor = mongoose.model('Doctor');
-      const doctorsInCity = await Doctor.find({ cities: city._id }).select('_id');
-      const doctorIds = doctorsInCity.map(doc => doc._id);
-
-      // THIS IS THE KEY FIX: Search both cityId AND location fields
-      filter.$or = [
-        { cityId: city._id },                                    // New articles with cityId
-        { location: new RegExp(cityName, 'i') },                 // Old articles with location string
-        { createdBy: { $in: doctorIds }, creatorModel: 'Doctor' } // Doctor's city
-      ];
+      filter.$or = await buildCityArticleFilter({ cityName });
 
       articles = await Article.find(filter)
         .populate('createdBy', 'name email specialization profileImage cityId')
