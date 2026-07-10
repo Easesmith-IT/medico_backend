@@ -30,6 +30,33 @@ const shouldRenewRefreshToken = (decoded) => {
   return daysUntilExpiry < 30;
 };
 
+const normalizeRoleKey = (role) =>
+  String(role || "")
+    .toLowerCase()
+    .replace(/[_\s]/g, "");
+
+const isAdminRole = (role) =>
+  ["superadmin", "subadmin", "admin"].includes(normalizeRoleKey(role));
+
+const isTokenPresent = (token) =>
+  Boolean(token && token !== "undefined" && token !== "null");
+
+const hasMatchingStoredRefreshToken = (user, refreshToken) =>
+  Boolean(user?.refreshToken && user.refreshToken === refreshToken);
+
+async function validateRefreshRecoverySession(role, user, refreshToken, userId) {
+  if (isAdminRole(role)) {
+    return isSessionActiveByRefreshToken(refreshToken, userId);
+  }
+
+  return hasMatchingStoredRefreshToken(user, refreshToken);
+}
+
+async function touchRefreshRecoverySession(role, refreshToken) {
+  if (!isAdminRole(role)) return null;
+  return touchAdminSession(refreshToken);
+}
+
 // const protect = (...allowedRoles) => {
 //   const normalizedAllowedRoles = allowedRoles
 //     .flat()
@@ -287,7 +314,9 @@ const protect = (...allowedRoles) => {
       if (accessToken && accessToken !== "undefined" && accessToken !== "null") {
         try {
           const decoded = verifyToken(accessToken, "access");
-          const user = await loadUserByRole(decoded.role, decoded.id, true);
+          const user = await loadUserByRole(decoded.role, decoded.id, {
+            includeTokenVersion: true,
+          });
 
           if (user) {
             if (user.tokenVersion != null && decoded.tokenVersion !== user.tokenVersion) {
@@ -295,20 +324,16 @@ const protect = (...allowedRoles) => {
               return next(new AppError("Session expired. Please login again.", 401));
             }
 
-            const roleKey = String(decoded.role || "").toLowerCase().replace(/[_\s]/g, "");
-            const hasRefreshCookie =
-              refreshToken && refreshToken !== "undefined" && refreshToken !== "null";
+            const roleKey = normalizeRoleKey(decoded.role);
+            const hasRefreshCookie = isTokenPresent(refreshToken);
 
-            if (
-              hasRefreshCookie &&
-              (roleKey === "superadmin" || roleKey === "subadmin" || roleKey === "admin")
-            ) {
+            if (hasRefreshCookie && isAdminRole(roleKey)) {
               const isActiveSession = await isSessionActiveByRefreshToken(refreshToken, decoded.id);
               if (!isActiveSession) {
                 clearAuthCookies(res);
                 return next(new AppError("Session revoked. Please login again.", 401));
               }
-              await touchAdminSession(refreshToken);
+              await touchRefreshRecoverySession(roleKey, refreshToken);
             }
 
             req.user = {
@@ -325,17 +350,22 @@ const protect = (...allowedRoles) => {
       }
 
       // 2) Try refresh token
-      if (refreshToken && refreshToken !== "undefined" && refreshToken !== "null") {
+      if (isTokenPresent(refreshToken)) {
         try {
           const refreshDecoded = verifyToken(refreshToken, "refresh");
-          const user = await loadUserByRole(refreshDecoded.role, refreshDecoded.id, true);
+          const user = await loadUserByRole(refreshDecoded.role, refreshDecoded.id, {
+            includeTokenVersion: true,
+            includeRefreshToken: !isAdminRole(refreshDecoded.role),
+          });
 
           if (!user) {
             clearAuthCookies(res);
             return next(new AppError("Session expired. Please login again.", 401));
           }
 
-          const isActiveSession = await isSessionActiveByRefreshToken(
+          const isActiveSession = await validateRefreshRecoverySession(
+            refreshDecoded.role,
+            user,
             refreshToken,
             refreshDecoded.id
           );
@@ -375,7 +405,7 @@ const protect = (...allowedRoles) => {
             firstName: user.firstName,
           };
 
-          await touchAdminSession(refreshToken);
+          await touchRefreshRecoverySession(refreshDecoded.role, refreshToken);
 
           return authorizeAndContinue(req, req.user.role, normalizedAllowedRoles, next);
         } catch (err) {
@@ -550,27 +580,54 @@ const protect = (...allowedRoles) => {
 // }
 
 
-async function loadUserByRole(role, id, includeTokenVersion = false) {
+async function loadUserByRole(
+  role,
+  id,
+  options = {}
+) {
   if (!role) return null;
 
-  const selectFields = includeTokenVersion
-    ? "+tokenVersion isActive email firstName role"
-    : "firstName email isActive role";
+  const normalizedOptions =
+    typeof options === "boolean"
+      ? { includeTokenVersion: options, includeRefreshToken: false }
+      : options;
+
+  const {
+    includeTokenVersion = false,
+    includeRefreshToken = false,
+  } = normalizedOptions;
+
+  const selectFields = [
+    "firstName",
+    "email",
+    "isActive",
+    "role",
+  ];
+
+  if (includeTokenVersion) {
+    selectFields.unshift("+tokenVersion");
+  }
+
+  if (includeRefreshToken) {
+    selectFields.unshift("+refreshToken");
+  }
+
+  const projection = selectFields.join(" ");
 
   switch (role.toLowerCase()) {
     case "doctor":
-      return await Doctor.findById(id).select(selectFields);
+      return await Doctor.findById(id).select(projection);
 
     case "serviceprovider":
-      return await ServiceProvider.findById(id).select(selectFields);
+      return await ServiceProvider.findById(id).select(projection);
 
     case "patient":
-      return await Patient.findById(id).select(selectFields);
+      return await Patient.findById(id).select(projection);
 
     case "admin":
     case "superadmin":
     case "subadmin":
-      return await Admin.findById(id).select(selectFields);
+      return await Admin.findById(id).select(projection);
 
     default:
       return null;

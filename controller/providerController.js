@@ -1080,9 +1080,16 @@ exports.loginServiceProvider = async (req, res) => {
       return res.status(403).json({ success: false, message: "Your account is currently inactive" });
     }
 
+    if (provider.tokenVersion == null) {
+      provider.tokenVersion = 0;
+    }
+
     // 1. Generate both tokens using your utility functions
     const accessToken = generateAccessToken(provider._id, "serviceprovider", provider.tokenVersion);
     const refreshToken = generateRefreshToken(provider._id, "serviceprovider", provider.tokenVersion);
+
+    provider.refreshToken = refreshToken;
+    await provider.save({ validateBeforeSave: false });
 
     // 2. Log tokens to console as requested
     console.log("--- Login Success ---");

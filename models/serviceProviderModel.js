@@ -703,6 +703,16 @@ const serviceProviderSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  tokenVersion: {
+    type: Number,
+    default: 0,
+    select: false
+  },
+  refreshToken: {
+    type: String,
+    default: null,
+    select: false
+  },
 
   // Emergency Contact
   emergencyContact: {
