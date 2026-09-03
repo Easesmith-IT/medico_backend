@@ -1893,8 +1893,9 @@ exports.getBookedServicesByPatientId = async (req, res) => {
       Booking.find(query)
         .populate("serviceId", "name category modes")
         .populate("servicePartnerId", "firstName lastName email mobile phone")
-        .populate("treatmentId", "status validTill")
+        .populate("treatmentId", "status validTill lastBookingAt")
         .populate("patientId", "firstName phone")
+        .populate("previousBookingId", "appointmentDate")
         .lean()
         .sort({ appointmentDate: -1, createdAt: -1 });
 
