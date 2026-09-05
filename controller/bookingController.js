@@ -1947,25 +1947,32 @@ exports.getBookedServicesByPatientId = async (req, res) => {
             .toString("hex")
             .toUpperCase()}`;
 
-          const pdfBuffer = await new Promise((resolve, reject) => {
-            const doc = new PDFDocument({ margin: 40 });
-            const buffers = [];
-            doc.on("data", buffers.push.bind(buffers));
-            doc.on("end", () => resolve(Buffer.concat(buffers)));
-            doc.on("error", reject);
+          const subtotal = Number(booking.pricing?.subtotal || booking.pricing?.basePrice || 0);
+          const gstAmount = Number(booking.pricing?.taxAmount || ((subtotal * (booking.pricing?.taxPercentage || 18)) / 100));
+          const grandTotal = Number(booking.pricing?.totalAmount || (subtotal + gstAmount));
 
-            doc.fontSize(20).text("MEDICO PLATFORM", { align: "center" }).moveDown();
-            doc.fontSize(12).text(`Invoice Number: ${invoiceNumber}`);
-            doc.text(`Patient: ${booking.patientId?.firstName || "N/A"}`);
-            doc.text(`Service: ${booking.serviceId?.name || "N/A"}`);
-            doc.text(`Date: ${new Date().toLocaleDateString()}`);
-            doc.moveDown();
-            doc.fontSize(14).text(
-              `Total Amount: Rs.${booking.pricing?.totalAmount || 0}`,
-              { bold: true }
-            );
-            doc.end();
-          });
+          const invoicePayload = {
+            invoiceNumber,
+            patientId: booking.patientId,
+            doctorId: booking.servicePartnerId,
+            billingDetails: {
+              serviceName: booking.serviceId?.name || "Healthcare Service",
+              calculatedBase: subtotal,
+              basePrice: subtotal,
+              taxPercentage: booking.pricing?.taxPercentage || 18
+            },
+            totals: {
+              subtotal,
+              gstAmount,
+              cgst: gstAmount / 2,
+              sgst: gstAmount / 2,
+              grandTotal
+            },
+            medicines: [],
+            additionalEquipment: []
+          };
+
+          const pdfBuffer = await generateInvoicePdf(invoicePayload);
 
           const file = {
             originalname: `${invoiceNumber}.pdf`,

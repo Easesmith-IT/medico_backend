@@ -401,8 +401,16 @@ console.log('medicines with dates:', JSON.stringify(populatedInvoice.medicines, 
 exports.downloadInvoice = async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.invoiceId)
-      .populate("patientId")
-      .populate("doctorId");
+      .populate({
+        path: "bookingId",
+        populate: [
+          { path: "serviceId", select: "name price" },
+          { path: "patientId", select: "firstName lastName phone address" },
+          { path: "servicePartnerId", select: "firstName lastName phone specialization medicalRegistrationNumber address" }
+        ]
+      })
+      .populate("patientId", "firstName lastName phone address")
+      .populate("doctorId", "firstName lastName phone specialization medicalRegistrationNumber address");
 
     if (!invoice) {
       return res.status(404).json({
@@ -411,8 +419,14 @@ exports.downloadInvoice = async (req, res) => {
       });
     }
 
-    // If already generated return URL
-    if (invoice.isInvoiceGenerated && invoice.invoiceUrl) {
+    const bookingPricing = invoice.bookingId?.pricing;
+    const isOldBrokenInvoice = invoice.isInvoiceGenerated &&
+      invoice.totals?.grandTotal === 0 &&
+      bookingPricing &&
+      (bookingPricing.totalAmount > 0 || bookingPricing.basePrice > 0);
+
+    // If already generated valid official URL
+    if (invoice.isInvoiceGenerated && invoice.invoiceUrl && !isOldBrokenInvoice && req.query.regenerate !== "true") {
       if (req.headers.accept && req.headers.accept.includes("application/json")) {
         return res.json({
           success: true,
@@ -422,48 +436,47 @@ exports.downloadInvoice = async (req, res) => {
       return res.redirect(invoice.invoiceUrl);
     }
 
-    const doc = new PDFDocument();
-    const buffers = [];
-    doc.on("data", (chunk) => buffers.push(chunk));
+    // Resolve patient & doctor objects from invoice or parent booking
+    const patientObj = invoice.patientId || invoice.bookingId?.patientId;
+    const doctorObj = invoice.doctorId || invoice.bookingId?.servicePartnerId;
 
-    // ---------- PDF CONTENT ----------
-    doc.fontSize(20).text("Invoice", { align: "center" });
+    let subtotal = Number(invoice.totals?.subtotal || invoice.billingDetails?.calculatedBase || invoice.billingDetails?.basePrice || 0);
+    let grandTotal = Number(invoice.totals?.grandTotal || 0);
+    let gstAmount = Number(invoice.totals?.gstAmount || 0);
 
-    doc.moveDown();
+    if (grandTotal === 0 && bookingPricing) {
+      subtotal = Number(bookingPricing.subtotal || bookingPricing.basePrice || 0);
+      gstAmount = Number(bookingPricing.taxAmount || ((subtotal * (bookingPricing.taxPercentage || 18)) / 100));
+      grandTotal = Number(bookingPricing.totalAmount || (subtotal + gstAmount));
+    }
 
-    doc.fontSize(12).text(`Invoice Number: ${invoice.invoiceNumber}`);
-    doc.text(`Patient: ${invoice.patientId?.name || ""}`);
-    doc.text(`Doctor: ${invoice.doctorId?.name || ""}`);
-    doc.text(`Date: ${new Date().toDateString()}`);
+    const serviceName = invoice.billingDetails?.serviceName ||
+      invoice.bookingId?.serviceId?.name ||
+      "Healthcare Service & Consultation";
 
-    doc.moveDown();
+    const invoiceDataForPdf = {
+      ...(typeof invoice.toObject === 'function' ? invoice.toObject() : invoice),
+      patientId: patientObj,
+      doctorId: doctorObj,
+      billingDetails: {
+        ...(invoice.billingDetails || {}),
+        serviceName,
+        calculatedBase: subtotal,
+        basePrice: subtotal,
+        taxPercentage: bookingPricing?.taxPercentage || invoice.billingDetails?.taxPercentage || 18
+      },
+      totals: {
+        subtotal,
+        gstAmount,
+        cgst: gstAmount / 2,
+        sgst: gstAmount / 2,
+        grandTotal
+      }
+    };
 
-    doc.text("Medicines");
+    // Generate PDF ONLY using the Official Generator
+    const pdfBuffer = await generateInvoicePdf(invoiceDataForPdf);
 
-    invoice.medicines?.forEach((med, i) => {
-      doc.text(`${i + 1}. ${med.name} - ₹${med.price}`);
-    });
-
-    doc.moveDown();
-
-    doc.text("Additional Equipment");
-
-    invoice.additionalEquipment?.forEach((equip, i) => {
-      doc.text(`${i + 1}. ${equip.name} - ₹${equip.price}`);
-    });
-
-    doc.moveDown();
-
-    doc.text(`Total Amount: ₹${invoice.billingDetails?.totalAmount}`);
-
-    const done = new Promise((resolve, reject) => {
-      doc.once("end", resolve);
-      doc.once("error", reject);
-    });
-    doc.end();
-    await done;
-
-    const pdfBuffer = Buffer.concat(buffers);
     const file = {
       originalname: `${invoice.invoiceNumber}.pdf`,
       buffer: pdfBuffer,
@@ -472,7 +485,17 @@ exports.downloadInvoice = async (req, res) => {
     const pdfUrl = await uploadFile(file);
     invoice.invoiceUrl = pdfUrl;
     invoice.isInvoiceGenerated = true;
+    invoice.totals = invoiceDataForPdf.totals;
+    if (invoice.billingDetails) {
+      invoice.billingDetails.serviceName = serviceName;
+      invoice.billingDetails.calculatedBase = subtotal;
+      invoice.billingDetails.basePrice = subtotal;
+    }
     await invoice.save();
+
+    if (invoice.bookingId?._id) {
+      await Booking.findByIdAndUpdate(invoice.bookingId._id, { invoiceUrl: pdfUrl });
+    }
 
     if (req.headers.accept && req.headers.accept.includes("application/json")) {
       return res.json({

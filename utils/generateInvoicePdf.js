@@ -526,14 +526,34 @@ const generateInvoicePdf = (invoice) => {
 
     y += 30;
 
-    if (invoice.medicines?.length) {
+    const hasMedicines = Array.isArray(invoice.medicines) && invoice.medicines.length > 0;
+    const hasEquipment = Array.isArray(invoice.additionalEquipment) && invoice.additionalEquipment.length > 0;
+
+    if (hasMedicines) {
       y = drawCategoryRow(doc, 'MEDICINES & PHARMACY', y, L, W);
       y = drawItemRows(doc, invoice.medicines, y, cols, 'medicine');
     }
 
-    if (invoice.additionalEquipment?.length) {
+    if (hasEquipment) {
       y = drawCategoryRow(doc, 'ADDITIONAL EQUIPMENT & RENTALS', y, L, W);
       y = drawItemRows(doc, invoice.additionalEquipment, y, cols, 'equipment');
+    }
+
+    if (!hasMedicines && !hasEquipment) {
+      const serviceName = invoice.billingDetails?.serviceName || 'Healthcare Consultation & Service';
+      const baseRate = Number(invoice.totals?.subtotal || invoice.billingDetails?.calculatedBase || invoice.billingDetails?.basePrice || 0);
+      const taxPercent = Number(invoice.billingDetails?.taxPercentage || 18);
+      const totalAmount = Number(invoice.totals?.grandTotal || (baseRate + (baseRate * taxPercent / 100)));
+
+      y = drawCategoryRow(doc, 'CONSULTATION & HEALTHCARE SERVICES', y, L, W);
+      const serviceItem = [{
+        name: serviceName,
+        quantity: 1,
+        rate: baseRate,
+        gstPercentage: taxPercent,
+        total: totalAmount
+      }];
+      y = drawItemRows(doc, serviceItem, y, cols, 'equipment');
     }
 
     y += 20;
@@ -660,6 +680,7 @@ function cleanNumber(value) {
 }
 
 module.exports = generateInvoicePdf;
+module.exports.generateInvoicePdf = generateInvoicePdf;
 // const PDFDocument = require('pdfkit');
 
 // const generateInvoicePdf = (invoice) => {
