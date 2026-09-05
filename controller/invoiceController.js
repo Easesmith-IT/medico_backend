@@ -413,10 +413,13 @@ exports.downloadInvoice = async (req, res) => {
 
     // If already generated return URL
     if (invoice.isInvoiceGenerated && invoice.invoiceUrl) {
-      return res.json({
-        success: true,
-        downloadUrl: invoice.invoiceUrl
-      });
+      if (req.headers.accept && req.headers.accept.includes("application/json")) {
+        return res.json({
+          success: true,
+          downloadUrl: invoice.invoiceUrl
+        });
+      }
+      return res.redirect(invoice.invoiceUrl);
     }
 
     const doc = new PDFDocument();
@@ -471,10 +474,13 @@ exports.downloadInvoice = async (req, res) => {
     invoice.isInvoiceGenerated = true;
     await invoice.save();
 
-    return res.json({
-      success: true,
-      downloadUrl: pdfUrl,
-    });
+    if (req.headers.accept && req.headers.accept.includes("application/json")) {
+      return res.json({
+        success: true,
+        downloadUrl: pdfUrl,
+      });
+    }
+    return res.redirect(pdfUrl);
 
   } catch (error) {
     res.status(500).json({
