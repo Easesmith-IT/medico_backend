@@ -47,7 +47,15 @@ const treatmentSchema = new mongoose.Schema({
       type: Boolean,
       default: true,
     },
-  
+  careProtocol: {
+    guidelines: [{ type: String }],
+    dietaryAdvice: { type: String, default: "" },
+    medicationNotes: { type: String, default: "" },
+    pdfUrl: { type: String, default: "" },
+  },
+  totalAmount: { type: Number, default: 0 },
+  paidAmount: { type: Number, default: 0 },
+  remainingAmount: { type: Number, default: 0 },
 }, { timestamps: true 
 });
 

@@ -16,6 +16,7 @@ const Treatment = require("../models/treatmentModel");
 const Payment = require("../models/paymentModel");
 const crypto = require('crypto');   
 const Invoice = require("../models/invoiceModel");
+const MedicalRecord = require("../models/medicalRecordModel");
 // const upload = require("../middleware/multerConfig");
 const fs = require('fs');
 // const Invoice = require('../models/Invoice'); // Your Invoice model path
@@ -3984,8 +3985,15 @@ if (status.toLowerCase() === 'treatmentcompleted') {
     }
   };
 
-  const newInvoice = new Invoice(invoicePayload);
-  const savedInvoice = await newInvoice.save();
+  let savedInvoice = await Invoice.findOne({ bookingId: booking._id });
+  if (savedInvoice) {
+    savedInvoice.billingDetails = invoicePayload.billingDetails;
+    savedInvoice.paymentStatus = "Unpaid";
+    await savedInvoice.save();
+  } else {
+    const newInvoice = new Invoice(invoicePayload);
+    savedInvoice = await newInvoice.save();
+  }
   
   booking.invoiceId = savedInvoice._id;
   booking.invoiceGenerated = true;
@@ -4030,12 +4038,12 @@ exports.getTreatmentById = catchAsync(async (req, res, next) => {
 
   // 1. Fetch treatment with patient ownership check
   const treatment = await Treatment.findById(treatmentId)
-    .populate('patientId', 'firstName phone email')
+    .populate('patientId', 'firstName lastName phone email')
     .populate(
       'serviceId',
       'name category basePrice modes recommendedSpecializations recommendedSubSpecialties'
     )
-    .populate('servicePartnerId', 'firstName specialization phone');
+    .populate('servicePartnerId', 'firstName lastName specialization profilePicture documents.profilePhoto clinicAddress address mobile rating gender phone');
 
   if (!treatment) {
     return res.status(404).json({
@@ -4053,33 +4061,181 @@ exports.getTreatmentById = catchAsync(async (req, res, next) => {
     });
   }
 
-  // 3. Get all bookings for this treatment (your existing pattern)
+  // 3. Get all bookings for this treatment
   const bookings = await Booking.find({ treatmentId })
-    .populate('serviceId', 'name category')
-    .populate('servicePartnerId', 'firstName specialization')
+    .populate('serviceId', 'name category basePrice')
+    .populate('servicePartnerId', 'firstName lastName specialization profilePicture documents.profilePhoto clinicAddress address mobile rating gender phone')
     .populate('city', 'name')
-    .sort({ appointmentDate: 1 })
+    .sort({ appointmentDate: 1, sessionNumber: 1 })
     .lean();
 
-  // 4. Calculate treatment progress
-  const totalBookings = bookings.length;
-  const completedBookings = bookings.filter(b => 
+  // 4. Calculate treatment progress & session stats
+  const totalSessions = bookings.length;
+  const completedBookingsList = bookings.filter(b => 
     ['Completed', 'TreatmentCompleted'].includes(b.status)
-  ).length;
-  const progressPercentage = totalBookings > 0 
-    ? Math.round((completedBookings / totalBookings) * 100) 
+  );
+  const completedSessions = completedBookingsList.length;
+  const remainingSessions = Math.max(0, totalSessions - completedSessions);
+  const progressPercentage = totalSessions > 0 
+    ? Math.round((completedSessions / totalSessions) * 100) 
     : 0;
 
-  // 5. Summary stats
+  // 5. Determine next upcoming/active booking
+  const activeStatuses = ['Pending', 'Confirmed', 'Approved', 'Rescheduled', 'In-Progress', 'Started'];
+  const upcomingBookings = bookings
+    .filter(b => activeStatuses.includes(b.status))
+    .sort((a, b) => new Date(a.appointmentDate) - new Date(b.appointmentDate));
+  const rawNextBooking = upcomingBookings[0] || null;
+
+  let nextBooking = null;
+  if (rawNextBooking) {
+    const resolvedProvider = rawNextBooking.servicePartnerId || treatment.servicePartnerId || null;
+    nextBooking = {
+      ...rawNextBooking,
+      doctor: resolvedProvider,
+      serviceProvider: resolvedProvider,
+      servicePartnerId: resolvedProvider
+    };
+  }
+
+  // 6. Query Dedicated Financial Ledger (Payment model)
+  const paymentLedger = await Payment.findOne({ treatmentId })
+    .select("paymentStatus totalBillAmount totalPaid totalRefunded remainingBalance billBreakdown currency invoiceId transactions refunds updatedAt createdAt")
+    .populate("invoiceId", "_id invoiceNumber invoiceUrl issuedAt isInvoiceGenerated totals")
+    .lean();
+
+  let packagePrice = 0;
+  let totalPaid = 0;
+  let totalDue = 0;
+  let paymentStatus = 'Unpaid';
+  let billBreakdown = {
+    subtotal: 0,
+    gstAmount: 0,
+    cgst: 0,
+    sgst: 0,
+    grandTotal: 0
+  };
+
+  if (paymentLedger) {
+    packagePrice = Number(paymentLedger.totalBillAmount || 0);
+    totalPaid = Number(paymentLedger.totalPaid || 0);
+    totalDue = Number(paymentLedger.remainingBalance || 0);
+    paymentStatus = paymentLedger.paymentStatus || 'Unpaid';
+    if (paymentLedger.billBreakdown) {
+      billBreakdown = { ...billBreakdown, ...paymentLedger.billBreakdown };
+    }
+  } else {
+    // Dynamic fallback when Payment ledger is not yet created
+    bookings.forEach(b => {
+      const bPrice = Number(b.pricing?.totalAmount || b.pricing?.basePrice || 0);
+      packagePrice += bPrice;
+      totalPaid += Number(b.paidAmount || 0);
+    });
+
+    if (packagePrice === 0) {
+      const base = Number(treatment.serviceId?.basePrice || 0);
+      packagePrice = Number(treatment.totalAmount || (base * (totalSessions || 1)));
+    }
+    if (totalPaid === 0 && treatment.paidAmount) {
+      totalPaid = Number(treatment.paidAmount);
+    }
+    totalDue = Math.max(0, packagePrice - totalPaid);
+    paymentStatus = totalPaid >= packagePrice && packagePrice > 0 ? 'Paid' : totalPaid > 0 ? 'Partially Paid' : 'Unpaid';
+    billBreakdown.subtotal = packagePrice;
+    billBreakdown.grandTotal = packagePrice;
+  }
+
+  const financials = {
+    packagePrice,
+    totalPaid,
+    totalDue,
+    paymentStatus,
+    billBreakdown,
+    currency: paymentLedger?.currency || 'INR',
+    hasLedger: Boolean(paymentLedger)
+  };
+
+  // 7. Fetch Care Protocol / Medical Records / Prescriptions
+  const medicalRecords = await MedicalRecord.find({
+    treatmentId,
+    isDeleted: { $ne: true }
+  }).sort({ createdAt: -1 }).lean();
+
+  const guidelines = [...(treatment.careProtocol?.guidelines || [])];
+  let pdfUrl = treatment.careProtocol?.pdfUrl || null;
+  const careNotes = treatment.careProtocol?.medicationNotes || '';
+
+  for (const rec of medicalRecords) {
+    if (rec.notes && rec.notes.trim() && !guidelines.includes(rec.notes.trim())) {
+      guidelines.push(rec.notes.trim());
+    }
+    if (!pdfUrl && Array.isArray(rec.files) && rec.files.length > 0) {
+      const file = rec.files.find(f => f?.url && (String(f.url).toLowerCase().endsWith('.pdf') || f.fileType === 'pdf'));
+      if (file) pdfUrl = file.url;
+      else if (rec.files[0]?.url) pdfUrl = rec.files[0].url;
+    }
+  }
+
+  const careProtocol = {
+    guidelines,
+    notes: careNotes,
+    pdfUrl,
+    hasCarePlan: guidelines.length > 0 || Boolean(pdfUrl)
+  };
+
+  // 8. Fetch Invoices for all bookings and treatment
+  const bookingIds = bookings.map(b => b._id);
+  const invoiceQuery = [{ bookingId: { $in: bookingIds } }];
+  if (treatment.invoiceId) {
+    invoiceQuery.push({ _id: treatment.invoiceId });
+  }
+  if (paymentLedger?.invoiceId) {
+    invoiceQuery.push({ _id: paymentLedger.invoiceId._id || paymentLedger.invoiceId });
+  }
+  const rawInvoices = await Invoice.find({ $or: invoiceQuery }).sort({ createdAt: -1 }).lean();
+
+  // Deduplicate invoices by bookingId (keep newest per session/booking) and normalize schema fields
+  const seenBookingIds = new Set();
+  const invoices = [];
+  for (const inv of rawInvoices) {
+    const bIdStr = inv.bookingId ? inv.bookingId.toString() : null;
+    if (bIdStr) {
+      if (seenBookingIds.has(bIdStr)) continue;
+      seenBookingIds.add(bIdStr);
+    }
+    const grandTotal = Number(inv.totals?.grandTotal || inv.totalAmount || inv.amount || 0);
+    invoices.push({
+      ...inv,
+      grandTotal,
+      totalAmount: grandTotal,
+      paymentStatus: inv.paymentStatus || 'Unpaid',
+      status: inv.paymentStatus || 'Unpaid',
+      invoiceNumber: inv.invoiceNumber || String(inv._id),
+      invoiceUrl: inv.invoiceUrl || null,
+      date: inv.issuedAt || inv.createdAt
+    });
+  }
+
+  // 9. Summary stats with both current and legacy/alias fields
   const stats = {
-    totalSessions: totalBookings,
-    completedSessions: completedBookings,
+    totalSessions,
+    completedSessions,
+    remainingSessions,
     pendingSessions: bookings.filter(b => b.status === 'Pending').length,
-    inProgressSessions: bookings.filter(b => b.status === 'In-Progress').length,
+    inProgressSessions: bookings.filter(b => ['In-Progress', 'Started'].includes(b.status)).length,
     progressPercentage,
     status: treatment.status,
     validTill: treatment.validTill,
-    nextBooking: bookings.find(b => b.status === 'Pending') || null
+    nextBooking,
+    // Aliases for seamless frontend compatibility
+    completedBookings: completedSessions,
+    totalBookings: totalSessions,
+    remainingBookings: remainingSessions,
+    packagePrice,
+    totalAmountSpent: totalPaid,
+    totalDue,
+    paymentStatus,
+    financials
   };
 
   const response = {
@@ -4087,18 +4243,21 @@ exports.getTreatmentById = catchAsync(async (req, res, next) => {
     data: {
       treatment: {
         ...treatment.toObject(),
-        _id: treatment._id.toString()  // Clean ObjectId
+        _id: treatment._id.toString(),
+        totalAmount: packagePrice,
+        paidAmount: totalPaid,
+        remainingAmount: totalDue,
+        careProtocol
       },
       bookings,
       stats,
-      summary: `${completedBookings}/${totalBookings} sessions completed (${progressPercentage}%)`
+      financials,
+      paymentLedger,
+      careProtocol,
+      invoices,
+      summary: `${completedSessions}/${totalSessions} sessions completed (${progressPercentage}%)`
     }
   };
-
-  if (details === 'full') {
-    // Add invoice/equipment/medicine details from your bookingCompletedDetails
-    response.data.invoices = await Invoice.find({ bookingId: { $in: bookings.map(b => b._id) } });
-  }
 
   res.status(200).json(response);
 });
