@@ -137,6 +137,7 @@ const listAppointments = async (baseQuery, req, res) => {
       .populate("doctorId", "firstName lastName email phone specialization consultationFees")
       .populate("patientId", "firstName lastName email phone mobile profilePhoto")
       .populate("city", "name")
+      .populate("treatmentId")
       .populate("previousAppointmentId", "appointmentDate status")
       .populate("nextAppointmentId", "appointmentDate status")
       .sort({ appointmentDate: -1, createdAt: -1 })
@@ -188,9 +189,9 @@ const reserveDoctorSlot = async ({
     },
     {
       $set: {
-        "availability.dailySlots.$[day].slots.$[slot].isBooked": true,
+        "availability.dailySlots.$[day].slots.$[slot].isBooked": false,
         "availability.dailySlots.$[day].slots.$[slot].isSlotAvailable": false,
-        "availability.dailySlots.$[day].slots.$[slot].status": "booked",
+        "availability.dailySlots.$[day].slots.$[slot].status": "reserved_pending",
         "availability.dailySlots.$[day].slots.$[slot].bookingId": appointmentId,
         "availability.dailySlots.$[day].slots.$[slot].doctorAppointmentId": appointmentId,
       },
@@ -543,6 +544,12 @@ exports.createDoctorAppointment = async (req, res) => {
       duration: appointmentDuration,
     });
     slotReserved = Boolean(reservedDoctor);
+    if (!reservedDoctor) {
+      return res.status(409).json({
+        success: false,
+        message: "The selected doctor slot is no longer available. Please select another slot.",
+      });
+    }
 
     const appointment = await DoctorAppointment.create({
       _id: appointmentId,
@@ -583,6 +590,7 @@ exports.createDoctorAppointment = async (req, res) => {
       .populate("doctorId", "firstName lastName email phone specialization consultationFees")
       .populate("patientId", "firstName lastName email phone mobile profilePhoto")
       .populate("city", "name")
+      .populate("treatmentId")
       .populate("previousAppointmentId", "appointmentDate status")
       .lean();
 
@@ -605,6 +613,12 @@ exports.createDoctorAppointment = async (req, res) => {
       });
     }
 
+    if (error && error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "This doctor slot has already been booked by another patient. Please choose a different slot.",
+      });
+    }
     console.error("Doctor appointment create error:", error);
     return res.status(500).json({
       success: false,
@@ -675,6 +689,7 @@ exports.getDoctorPatientHistory = async (req, res) => {
         .populate("doctorId", "firstName lastName email phone specialization consultationFees")
         .populate("patientId", "firstName lastName email phone mobile profilePhoto")
         .populate("city", "name")
+      .populate("treatmentId")
         .populate("previousAppointmentId", "appointmentDate status")
         .populate("nextAppointmentId", "appointmentDate status")
         .sort({ appointmentDate: -1, createdAt: -1 })
@@ -1018,6 +1033,7 @@ exports.getDoctorAppointmentById = async (req, res) => {
       .populate("doctorId", "firstName lastName email phone specialization consultationFees")
       .populate("patientId", "firstName lastName email phone mobile profilePhoto")
       .populate("city", "name")
+      .populate("treatmentId")
       .populate("previousAppointmentId", "appointmentDate status")
       .populate("nextAppointmentId", "appointmentDate status")
       .lean();
@@ -1106,6 +1122,64 @@ exports.updateDoctorAppointmentStatus = async (req, res) => {
     }
 
     const oldStatus = appointment.status;
+    if (appointment.status === 'Cancellation Requested') {
+      return res.status(400).json({
+        success: false,
+        message: "Patient has requested cancellation for this appointment. Awaiting Admin review.",
+      });
+    }
+
+    if (['Approved', 'Confirmed'].includes(status)) {
+      if (oldStatus !== 'Pending') {
+        return res.status(409).json({ success: false, message: "Action conflict: Appointment is no longer pending." });
+      }
+      const dayR = getDayRange(appointment.appointmentDate);
+      if (dayR) {
+        await Doctor.updateOne(
+          { _id: doctorId },
+          {
+            $set: {
+              "availability.dailySlots.$[day].slots.$[slot].status": "booked",
+              "availability.dailySlots.$[day].slots.$[slot].isBooked": true,
+            },
+          },
+          {
+            arrayFilters: [
+              { "day.date": { $gte: dayR.start, $lte: dayR.end } },
+              { "slot.startTime": appointment.slotTime.startTime, "slot.endTime": appointment.slotTime.endTime },
+            ],
+          }
+        );
+      }
+    }
+
+    if (status === 'Rejected') {
+      if (oldStatus !== 'Pending') {
+        return res.status(409).json({ success: false, message: "Action conflict: Appointment is no longer pending." });
+      }
+      if (!statusReason || !String(statusReason).trim()) {
+        return res.status(400).json({ success: false, message: "Rejection reason is mandatory." });
+      }
+    }
+    if (['Completed', 'TreatmentCompleted'].includes(status)) {
+      const { validateBookingCanComplete } = require("../utils/bookingTemporalValidator");
+      const completeValidation = validateBookingCanComplete(appointment, { allowDirectFromApproved: true });
+      if (!completeValidation.isValid) {
+        return res.status(completeValidation.statusCode || 400).json({
+          success: false,
+          message: completeValidation.message,
+        });
+      }
+    } else if (['In-Progress', 'Started'].includes(status)) {
+      const { validateBookingCanStart } = require("../utils/bookingTemporalValidator");
+      const startValidation = validateBookingCanStart(appointment);
+      if (!startValidation.isValid) {
+        return res.status(startValidation.statusCode || 400).json({
+          success: false,
+          message: startValidation.message,
+        });
+      }
+    }
     appointment.status = status;
     if (statusReason !== undefined) appointment.statusReason = statusReason;
     await appointment.save();
@@ -1127,6 +1201,7 @@ exports.updateDoctorAppointmentStatus = async (req, res) => {
       .populate("doctorId", "firstName lastName email phone specialization consultationFees")
       .populate("patientId", "firstName lastName email phone mobile profilePhoto")
       .populate("city", "name")
+      .populate("treatmentId")
       .lean();
 
     return res.status(200).json({
@@ -1258,6 +1333,7 @@ exports.rescheduleDoctorAppointment = async (req, res) => {
       .populate("doctorId", "firstName lastName email phone specialization consultationFees")
       .populate("patientId", "firstName lastName email phone mobile profilePhoto")
       .populate("city", "name")
+      .populate("treatmentId")
       .populate("previousAppointmentId", "appointmentDate status")
       .populate("nextAppointmentId", "appointmentDate status")
       .lean();
@@ -1326,6 +1402,33 @@ exports.cancelMyDoctorAppointment = async (req, res) => {
       });
     }
 
+    if (appointment.status === "Pending") {
+      const atomicAppointment = await DoctorAppointment.findOneAndUpdate(
+        { _id: appointmentId, status: "Pending" },
+        {
+          $set: {
+            status: "Cancellation Requested",
+            statusReason: reason || "Cancelled by patient while pending confirmation",
+            adminApprovalRequired: true,
+          },
+        },
+        { new: true }
+      );
+
+      if (!atomicAppointment) {
+        return res.status(409).json({
+          success: false,
+          message: "Conflict: Appointment status has already changed (it may have been confirmed or rejected by the doctor).",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Cancellation request submitted. Awaiting Admin confirmation before releasing hold.",
+        data: atomicAppointment,
+      });
+    }
+
     appointment.status = "Cancelled";
     appointment.statusReason = reason || "";
     await appointment.save();
@@ -1349,5 +1452,127 @@ exports.cancelMyDoctorAppointment = async (req, res) => {
       message: "Failed to cancel doctor appointment",
       error: error.message,
     });
+  }
+};
+
+
+exports.reassignDoctorAppointment = async (req, res) => {
+  try {
+    const appointmentId = req.params.appointmentId || req.params.id;
+    const { newDoctorId, appointmentDate, startTime, endTime } = req.body;
+
+    if (!newDoctorId) {
+      return res.status(400).json({ success: false, message: "newDoctorId is required" });
+    }
+
+    const appointment = await DoctorAppointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: "Doctor appointment not found" });
+    }
+
+    if (!['Rejected', 'Pending'].includes(appointment.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Only Rejected or Pending appointments can be reassigned (current: ${appointment.status})`,
+      });
+    }
+
+    const newDoctor = await Doctor.findById(newDoctorId).select("firstName lastName consultationFees isActive availability currency");
+    if (!newDoctor || newDoctor.isActive === false) {
+      return res.status(404).json({ success: false, message: "New doctor not found or inactive" });
+    }
+
+    if (appointment.doctorId) {
+      await releaseDoctorSlot({
+        doctorId: appointment.doctorId,
+        appointmentId: appointment._id,
+        appointmentDate: appointment.appointmentDate,
+        startTime: appointment.slotTime.startTime,
+        endTime: appointment.slotTime.endTime,
+      });
+    }
+
+    const targetDate = appointmentDate ? new Date(appointmentDate) : appointment.appointmentDate;
+    const targetStart = startTime || appointment.slotTime.startTime;
+    const targetEnd = endTime || appointment.slotTime.endTime;
+    const dayRange = getDayRange(targetDate);
+
+    const reservedDoctor = await reserveSlotForAppointment({
+      doctorId: newDoctorId,
+      appointmentId: appointment._id,
+      dayRange,
+      startTime: targetStart,
+      endTime: targetEnd,
+      duration: resolveDuration(targetStart, targetEnd, appointment.duration),
+    });
+
+    if (!reservedDoctor) {
+      return res.status(409).json({
+        success: false,
+        message: "The selected doctor slot is not available. Please choose another slot.",
+      });
+    }
+
+    const oldDoctorFee = Number(appointment.consultationFees || 0);
+    const targetDoctorFee = Number(newDoctor.consultationFees || oldDoctorFee);
+    const docFeeDelta = targetDoctorFee - oldDoctorFee;
+    let docDeltaAction = 'none';
+
+    if (docFeeDelta > 0) {
+      docDeltaAction = 'pay_delta';
+    } else if (docFeeDelta < 0) {
+      docDeltaAction = 'credit_delta';
+    }
+
+    appointment.doctorId = newDoctorId;
+    appointment.appointmentDate = targetDate;
+    appointment.slotTime = { startTime: targetStart, endTime: targetEnd };
+    appointment.status = "Pending";
+    appointment.statusReason = "Reassigned to alternate doctor";
+    appointment.consultationFees = targetDoctorFee;
+    appointment.currency = newDoctor.currency || appointment.currency || "INR";
+    await appointment.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Doctor appointment successfully reassigned and awaiting doctor confirmation.",
+      data: {
+        appointment,
+        reassignmentDelta: docFeeDelta,
+        deltaAction: docDeltaAction,
+      },
+    });
+  } catch (error) {
+    console.error("Reassign doctor appointment error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.requestDoctorAppointmentRefund = async (req, res) => {
+  try {
+    const appointmentId = req.params.appointmentId || req.params.id;
+    const { reason } = req.body || {};
+
+    const appointment = await DoctorAppointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: "Doctor appointment not found" });
+    }
+
+    appointment.refundRequested = true;
+    appointment.refundRequestReason = reason || "Patient requested refund";
+    appointment.refundRequestedAt = new Date();
+    await appointment.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Doctor appointment refund request submitted to Medico Admin for review.",
+      data: {
+        appointmentId: appointment._id,
+        refundRequested: true,
+      },
+    });
+  } catch (error) {
+    console.error("Request doctor appointment refund error:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -28,8 +28,8 @@ const treatmentSchema = new mongoose.Schema({
   validTill: { type: Date, default: () => new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) },
   status: { 
     type: String, 
-    enum: ['Active', 'InProgress', 'Completed', 'Expired', 'Cancelled'], 
-    default: 'Active' 
+    enum: ['PendingApproval', 'PendingReassignment', 'Active', 'InProgress', 'Completed', 'Expired', 'Cancelled'], 
+    default: 'PendingApproval' 
   },
    currentBookingId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -43,6 +43,8 @@ const treatmentSchema = new mongoose.Schema({
     },
   invoiceGenerated: { type: Boolean, default: false },
   invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
+  treatmentCode: { type: String, trim: true, default: '' },
+  invoicesHistory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' }],
   isActive: {
       type: Boolean,
       default: true,

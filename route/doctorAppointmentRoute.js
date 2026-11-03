@@ -58,4 +58,16 @@ router.put(
   doctorAppointmentController.cancelMyDoctorAppointment
 );
 
+router.post(
+  "/:appointmentId/reassign-doctor",
+  protect("patient", "admin", "superAdmin"),
+  doctorAppointmentController.reassignDoctorAppointment
+);
+
+router.post(
+  "/:appointmentId/request-refund",
+  protect("patient"),
+  doctorAppointmentController.requestDoctorAppointmentRefund
+);
+
 module.exports = router;

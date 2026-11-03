@@ -454,7 +454,7 @@
 //         },
 //         status: {
 //           type: String,
-//           enum: ['available', 'booked', 'blocked'],
+//           enum: ['available', 'booked', 'blocked', 'reserved_pending'],
 //           default: 'available'
 //         }
 //       }],
@@ -1142,7 +1142,7 @@ const doctorSchema = new mongoose.Schema({
         },
         status: {
           type: String,
-          enum: ['available', 'booked', 'blocked'],
+          enum: ['available', 'booked', 'blocked', 'reserved_pending'],
           default: 'available'
         }
       }],

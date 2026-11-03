@@ -12,6 +12,11 @@ const doctorAppointmentSchema = new mongoose.Schema(
       ref: "Doctor",
       required: true,
     },
+    treatmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Treatment",
+      default: null,
+    },
     previousAppointmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "DoctorAppointment",
@@ -81,6 +86,10 @@ const doctorAppointmentSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    adminApprovalRequired: {
+      type: Boolean,
+      default: false,
+    },
     notes: {
       type: String,
       default: "",
@@ -123,11 +132,35 @@ doctorAppointmentSchema.index({ doctorId: 1, appointmentDate: 1 });
 doctorAppointmentSchema.index({ patientId: 1, appointmentDate: -1 });
 doctorAppointmentSchema.index({ status: 1 });
 doctorAppointmentSchema.index({ previousAppointmentId: 1 });
-doctorAppointmentSchema.index({
-  doctorId: 1,
-  appointmentDate: 1,
-  "slotTime.startTime": 1,
-  "slotTime.endTime": 1,
+doctorAppointmentSchema.index(
+  { doctorId: 1, appointmentDate: 1, "slotTime.startTime": 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["Pending", "Approved", "In-Progress", "Confirmed"] },
+      doctorId: { $type: "objectId" },
+    },
+  }
+);
+
+// Pre-validate hook: Temporal & state integrity guard
+doctorAppointmentSchema.pre("validate", function (next) {
+  if (this.isModified("status")) {
+    const isCompletedStatus = ["Completed", "TreatmentCompleted"].includes(this.status);
+    if (isCompletedStatus && this.appointmentDate && !this._bypassTemporalValidation) {
+      const { getScheduledDateRange, getTodayDateStr } = require("../utils/bookingTemporalValidator");
+      const { dateStr } = getScheduledDateRange(this.appointmentDate, this.slotTime);
+      const todayStr = getTodayDateStr();
+      if (dateStr && dateStr > todayStr) {
+        return next(
+          new Error(
+            `Data integrity violation: Cannot save doctor appointment status as '${this.status}' for a future appointment date (${dateStr}).`
+          )
+        );
+      }
+    }
+  }
+  next();
 });
 
 module.exports = mongoose.model("DoctorAppointment", doctorAppointmentSchema);

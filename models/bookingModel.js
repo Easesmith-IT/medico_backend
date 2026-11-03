@@ -303,6 +303,50 @@ const bookingSchema = new mongoose.Schema(
       },
     ],
 
+    medicinesUsed: [
+      {
+        medicineId: { type: mongoose.Schema.Types.ObjectId, ref: "ItemCategory.items", default: null },
+        name: { type: String, required: true, trim: true },
+        categoryName: { type: String, default: "Medicine" },
+        serviceCode: { type: String, default: "" },
+        dosage: { type: String, default: "" },
+        quantity: { type: Number, required: true }, // Can be negative for credit returns
+        unitPrice: { type: Number, required: true, min: 0 },
+        taxPercentage: { type: Number, default: 12 },
+        total: { type: Number, required: true },
+        isReturn: { type: Boolean, default: false },
+        administeredAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    inventoryAndEquipmentUsed: [
+      {
+        itemId: { type: mongoose.Schema.Types.ObjectId, ref: "ItemCategory.items", default: null },
+        name: { type: String, required: true, trim: true },
+        categoryName: { type: String, default: "Equipment & Rentals" },
+        serviceCode: { type: String, default: "" },
+        type: { type: String, enum: ["Equipment", "Inventory", "Consumable"], default: "Equipment" },
+        quantity: { type: Number, required: true }, // Can be negative for credit returns
+        duration: { type: String, default: "1 Session" },
+        unitRate: { type: Number, required: true, min: 0 },
+        taxPercentage: { type: Number, default: 18 },
+        total: { type: Number, required: true },
+        isReturn: { type: Boolean, default: false },
+        usedAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    sessionFinancialSnapshot: {
+      serviceFee: { type: Number, default: 0 },
+      medicinesTotal: { type: Number, default: 0 },
+      inventoryTotal: { type: Number, default: 0 },
+      subtotal: { type: Number, default: 0 },
+      taxAmount: { type: Number, default: 0 },
+      discountAmount: { type: Number, default: 0 },
+      netTotal: { type: Number, default: 0 },
+      isBilled: { type: Boolean, default: false },
+    },
+
     paymentStatus: {
       type: String,
       enum: ["Unpaid", "Partially Paid", "Paid"],
@@ -374,5 +418,35 @@ bookingSchema.index({ patientId: 1, appointmentDate: 1 });
 bookingSchema.index({ paymentStatus: 1 });
 // bookingSchema.index({ treatmentStatus: 1 });
 bookingSchema.index({ status: 1 });
+bookingSchema.index(
+  { servicePartnerId: 1, appointmentDate: 1, "slotTime.startTime": 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["Pending", "Approved", "In-Progress", "Confirmed"] },
+      servicePartnerId: { $type: "objectId" },
+    },
+  }
+);
+
+// Pre-validate hook: Temporal & state integrity guard
+bookingSchema.pre("validate", function (next) {
+  if (this.isModified("status")) {
+    const isCompletedStatus = ["Completed", "TreatmentCompleted"].includes(this.status);
+    if (isCompletedStatus && this.appointmentDate && !this._bypassTemporalValidation) {
+      const { getScheduledDateRange, getTodayDateStr } = require("../utils/bookingTemporalValidator");
+      const { dateStr } = getScheduledDateRange(this.appointmentDate, this.slotTime);
+      const todayStr = getTodayDateStr();
+      if (dateStr && dateStr > todayStr) {
+        return next(
+          new Error(
+            `Data integrity violation: Cannot save booking status as '${this.status}' for a future appointment date (${dateStr}).`
+          )
+        );
+      }
+    }
+  }
+  next();
+});
 
 module.exports = mongoose.model("Booking", bookingSchema);

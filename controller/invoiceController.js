@@ -1,3 +1,4 @@
+const treatmentInvoiceService = require('../services/treatmentInvoiceService');
 const mongoose = require('mongoose');
 const ejs = require('ejs')
 const catchAsync = require('../utils/catchAsync'); 
@@ -199,12 +200,38 @@ exports.generateInvoice = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid bookingId format' });
     }
 
+    // Fetch booking to strictly enforce admin-defined tax percentage and service pricing
+    const booking = await Booking.findById(bookingId).populate('serviceId');
+    let adminTaxRate = parseFloat(billingDetails?.taxPercentage || 0);
+    let adminBasePrice = parseFloat(billingDetails?.calculatedBase || billingDetails?.basePrice || 0);
+
+    if (booking) {
+      if (booking.pricing?.taxPercentage != null && booking.pricing.taxPercentage > 0) {
+        adminTaxRate = booking.pricing.taxPercentage;
+      } else if (booking.serviceId?.taxPercentage != null && booking.serviceId.taxPercentage > 0) {
+        adminTaxRate = booking.serviceId.taxPercentage;
+      }
+
+      if (booking.pricing?.totalAmount != null && booking.pricing.totalAmount > 0) {
+        adminBasePrice = booking.pricing.totalAmount;
+      } else if (booking.pricing?.basePrice != null && booking.pricing.basePrice > 0) {
+        adminBasePrice = booking.pricing.basePrice;
+      }
+    }
+
+    if (billingDetails) {
+      billingDetails.taxPercentage = adminTaxRate;
+      billingDetails.basePrice = adminBasePrice;
+    }
+
     // Calculate total for each medicine + preserve addedDate
     const medicinesWithTotal = (medicines || []).map(med => {
+      const gstPercentage = (med.gstPercentage != null && med.gstPercentage > 0) ? med.gstPercentage : adminTaxRate;
       const base = med.quantity * med.pricePerUnit;
-      const gst  = (base * med.gstPercentage) / 100;
+      const gst  = (base * gstPercentage) / 100;
       return {
         ...med,
+        gstPercentage,
         total:     parseFloat((base + gst).toFixed(2)),
         addedDate: med.addedDate ? new Date(med.addedDate) : new Date()
       };
@@ -212,23 +239,28 @@ exports.generateInvoice = async (req, res) => {
 
     // Calculate total for each equipment
     const equipmentWithTotal = (additionalEquipment || []).map(eq => {
+      const gstPercentage = (eq.gstPercentage != null && eq.gstPercentage > 0) ? eq.gstPercentage : adminTaxRate;
       const base = eq.quantity * eq.rate;
-      const gst  = (base * eq.gstPercentage) / 100;
+      const gst  = (base * gstPercentage) / 100;
       return {
         ...eq,
+        gstPercentage,
         total: parseFloat((base + gst).toFixed(2))
       };
     });
 
-    // Calculate invoice totals
+    // Calculate invoice totals including base service fee
+    const billingBase = adminBasePrice;
+    const billingTaxRate = adminTaxRate;
+    const billingTax = (billingBase * billingTaxRate) / 100;
+
     const medSubtotal = medicinesWithTotal.reduce((sum, m) => sum + (m.quantity * m.pricePerUnit), 0);
     const eqSubtotal  = equipmentWithTotal.reduce((sum, e) => sum + (e.quantity * e.rate), 0);
-    const subtotal    = parseFloat((medSubtotal + eqSubtotal).toFixed(2));
+    const subtotal    = parseFloat((billingBase + medSubtotal + eqSubtotal).toFixed(2));
 
-    const gstAmount = parseFloat((
-      medicinesWithTotal.reduce((sum, m) => sum + ((m.quantity * m.pricePerUnit * m.gstPercentage) / 100), 0) +
-      equipmentWithTotal.reduce((sum, e) => sum + ((e.quantity * e.rate * e.gstPercentage) / 100), 0)
-    ).toFixed(2));
+    const medGst = medicinesWithTotal.reduce((sum, m) => sum + ((m.quantity * m.pricePerUnit * m.gstPercentage) / 100), 0);
+    const eqGst  = equipmentWithTotal.reduce((sum, e) => sum + ((e.quantity * e.rate * e.gstPercentage) / 100), 0);
+    const gstAmount = parseFloat((billingTax + medGst + eqGst).toFixed(2));
 
     const cgst       = parseFloat((gstAmount / 2).toFixed(2));
     const sgst       = parseFloat((gstAmount / 2).toFixed(2));
@@ -360,47 +392,47 @@ console.log('medicines with dates:', JSON.stringify(populatedInvoice.medicines, 
 
 
 //best one
-// exports.downloadInvoice = async (req, res) => {
-//   try {
-//     const invoice = await Invoice.findById(req.params.invoiceId)
-//       .populate("patientId")
-//       .populate("doctorId");
-
-//     if (!invoice) return res.status(404).send("Invoice not found");
-
-//     const templatePath = path.join(__dirname, "..", "views", "invoice-template.ejs");
-//     const html = await ejs.renderFile(templatePath, { invoice });
-
-//     // --- FIX STARTS HERE ---
-//     const isProduction = process.env.NODE_ENV === 'production';
-    
-//     const browser = await puppeteer.launch({
-//       args: isProduction ? chromium.args : ["--no-sandbox", "--disable-setuid-sandbox"],
-//       defaultViewport: chromium.defaultViewport,
-//       executablePath: isProduction 
-//         ? await chromium.executablePath() 
-//         : "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // Path for Windows
-//       headless: isProduction ? chromium.headless : true,
-//     });
-//     // --- FIX ENDS HERE ---
-
-//     const page = await browser.newPage();
-//     await page.setContent(html, { waitUntil: "networkidle0" });
-//     const pdf = await page.pdf({ format: "A4", printBackground: true });
-//     await browser.close();
-
-//     res.set({ 
-//       "Content-Type": "application/pdf", 
-//       "Content-Disposition": `attachment; filename=INV-${invoice.invoiceNumber}.pdf` 
-//     });
-//     res.send(pdf);
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// };
 exports.downloadInvoice = async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.invoiceId)
+    let invoice = await Invoice.findById(req.params.invoiceId);
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found"
+      });
+    }
+
+    // Handle TreatmentConsolidated invoices directly
+    if (invoice.invoiceType === 'TreatmentConsolidated' || invoice.treatmentId) {
+      if (invoice.securityHash && !treatmentInvoiceService.verifyInvoiceSecurityHash(invoice)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Security validation failed: Invoice cryptographic signature is invalid or record has been tampered with.',
+        });
+      }
+
+      if (invoice.localPdfPath && fs.existsSync(invoice.localPdfPath)) {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${invoice.invoiceNumber || 'invoice'}.pdf"`);
+        return res.sendFile(path.resolve(invoice.localPdfPath));
+      }
+
+      if (invoice.pdfUrl && invoice.pdfUrl.startsWith('http')) {
+        if (req.headers.accept && req.headers.accept.includes('application/json')) {
+          return res.json({ success: true, downloadUrl: invoice.pdfUrl });
+        }
+        return res.redirect(invoice.pdfUrl);
+      }
+
+      // Generate fallback PDF buffer on the fly
+      const pdfBuffer = await generateInvoicePdf(typeof invoice.toObject === 'function' ? invoice.toObject() : invoice);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${invoice.invoiceNumber || 'invoice'}.pdf"`);
+      return res.send(pdfBuffer);
+    }
+
+    // Populate for legacy single booking invoice
+    invoice = await Invoice.findById(req.params.invoiceId)
       .populate({
         path: "bookingId",
         populate: [
@@ -719,3 +751,75 @@ exports.getPatientInvoicesByServiceProvider = catchAsync(async (req, res, next) 
   res.status(200).json(response);
 });
 
+
+
+// ==========================================
+// TREATMENT CONSOLIDATED INVOICE CONTROLLERS
+// ==========================================
+
+exports.generateTreatmentInvoice = async (req, res) => {
+  try {
+    const { treatmentId } = req.params;
+    const { institutionalDiscount = 0 } = req.body || {};
+
+    const requestedBy = {
+      id: req.user?.id,
+      name: req.user?.name || req.user?.firstName || 'Clinical Administrator',
+      role: req.user?.role || 'Admin',
+    };
+
+    const invoice = await treatmentInvoiceService.compileAndMaterializeTreatmentInvoice({
+      treatmentId,
+      requestedBy,
+      institutionalDiscount: Number(institutionalDiscount) || 0,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Treatment consolidated invoice compiled and materialized successfully',
+      data: invoice,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message,
+      code: error.code || undefined,
+    });
+  }
+};
+
+exports.getTreatmentInvoice = async (req, res) => {
+  try {
+    const { treatmentId } = req.params;
+    const invoice = await treatmentInvoiceService.getLatestTreatmentInvoice(treatmentId, req.user);
+    return res.status(200).json({
+      success: true,
+      data: invoice,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.getTreatmentInvoiceHistory = async (req, res) => {
+  try {
+    const { treatmentId } = req.params;
+    const history = await treatmentInvoiceService.getTreatmentInvoiceHistory(treatmentId, req.user);
+    return res.status(200).json({
+      success: true,
+      count: history.length,
+      data: history,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

@@ -3772,6 +3772,25 @@ exports.updateBookingByAdmin = async (req, res) => {
 
     // Update status & reason
     if (status) {
+      if (['Completed', 'TreatmentCompleted'].includes(status)) {
+        const { validateBookingCanComplete } = require("../utils/bookingTemporalValidator");
+        const completeValidation = validateBookingCanComplete(booking, { allowDirectFromApproved: true });
+        if (!completeValidation.isValid) {
+          return res.status(completeValidation.statusCode || 400).json({
+            success: false,
+            message: completeValidation.message,
+          });
+        }
+      } else if (['In-Progress', 'Started'].includes(status)) {
+        const { validateBookingCanStart } = require("../utils/bookingTemporalValidator");
+        const startValidation = validateBookingCanStart(booking);
+        if (!startValidation.isValid) {
+          return res.status(startValidation.statusCode || 400).json({
+            success: false,
+            message: startValidation.message,
+          });
+        }
+      }
       booking.status = status;
       if (statusReason) booking.statusReason = statusReason;
     }

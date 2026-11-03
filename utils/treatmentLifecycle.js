@@ -10,6 +10,8 @@ const OPEN_BOOKING_STATUSES = new Set([
 ]);
 
 const TREATMENT_STATES = {
+  PENDING_APPROVAL: "PendingApproval",
+  PENDING_REASSIGNMENT: "PendingReassignment",
   ACTIVE: "Active",
   IN_PROGRESS: "InProgress",
   COMPLETED: "Completed",
@@ -51,6 +53,20 @@ const getAllowedTreatmentActions = ({
 const canTransitionStatus = ({ currentStatus, targetStatus }) => {
   const current = String(currentStatus || "");
   const target = String(targetStatus || "");
+
+  if (
+    current === TREATMENT_STATES.PENDING_APPROVAL &&
+    [TREATMENT_STATES.ACTIVE, TREATMENT_STATES.PENDING_REASSIGNMENT, TREATMENT_STATES.CANCELLED].includes(target)
+  ) {
+    return true;
+  }
+
+  if (
+    current === TREATMENT_STATES.PENDING_REASSIGNMENT &&
+    [TREATMENT_STATES.PENDING_APPROVAL, TREATMENT_STATES.CANCELLED].includes(target)
+  ) {
+    return true;
+  }
 
   if (current === TREATMENT_STATES.EXPIRED && target === TREATMENT_STATES.ACTIVE) {
     return true;

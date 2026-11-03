@@ -23,6 +23,11 @@ const fs = require('fs');
 const { generateInvoicePdf } = require('../utils/generateInvoicePdf'); // Your PDF generator path
 const  uploadFile  = require('../utils/uploadFile')
 const razorpayInstance = require("../config/razorpay");
+const {
+  validateBookingCanStart,
+  validateBookingCanComplete,
+  validateTreatmentCanComplete,
+} = require("../utils/bookingTemporalValidator");
 
 const getBookingTreatmentId = (booking) =>
   booking?.treatmentId?._id
@@ -1256,7 +1261,7 @@ const paymentController = require("../controller/payController");
 //         patientId,
 //         servicePartnerId,
 //         createdBy: req.user?.id || patientId,
-//         status: "Active",
+//         status: "PendingApproval",
 //       });
 //       resolvedTreatmentId = treatment._id;
 //     }
@@ -1272,6 +1277,7 @@ const paymentController = require("../controller/payController");
 //         totalAmount: Number(pricing?.totalAmount || 0),
 //         ...pricing,
 //       },
+//       status: "Pending",
 //       paymentOption: paymentOption || "PayLater",
 //       createdBy: req.user?.id || patientId,
 //     });
@@ -1684,7 +1690,7 @@ exports.createBooking = async (req, res) => {
         servicePartnerId,
         serviceId,
         createdBy: patientId,
-        status: "Active",
+        status: "PendingApproval",
       });
 
       resolvedTreatmentId = treatment._id;
@@ -1752,6 +1758,7 @@ exports.createBooking = async (req, res) => {
 
       pricing: finalPricing,
 
+      status: "Pending",
       paymentOption: paymentOption || "PayLater",
       createdBy: patientId,
     });
@@ -1825,6 +1832,12 @@ exports.createBooking = async (req, res) => {
     });
   } catch (error) {
     console.error("Create Booking Error:", error);
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "This slot is already reserved or booked with this service provider. Please choose an alternate slot.",
+      });
+    }
 
     return res.status(500).json({
       success: false,
@@ -2508,6 +2521,39 @@ exports.cancelBooking = async (req, res) => {
     const originalStatus = booking.status;
     let newStatus = 'Cancelled';
     let adminApprovalRequired = false;
+
+    if (booking.status === 'Pending') {
+      const atomicBooking = await Booking.findOneAndUpdate(
+        { _id: bookingId, status: 'Pending' },
+        {
+          $set: {
+            status: 'Cancellation Requested',
+            cancelledBy: 'patient',
+            requestedCancellationAt: now,
+            cancellationReason: reason || 'Cancelled by patient while pending approval',
+            originalStatus: 'Pending',
+            adminApprovalRequired: true,
+          },
+        },
+        { new: true }
+      );
+
+      if (!atomicBooking) {
+        return res.status(409).json({
+          success: false,
+          message: 'Conflict: Booking status has already changed (it may have been approved or rejected by the provider).',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Cancellation request submitted. Awaiting Admin confirmation before releasing hold.',
+        data: {
+          ...atomicBooking.toObject(),
+          cancellationType: 'admin_approval_required',
+        },
+      });
+    }
 
     if (timeDiffHours <= 12) {
       // Direct cancellation within 12 hours
@@ -3785,10 +3831,81 @@ exports.updateServiceStatus = async (req, res) => {
       : null;
 
     // Regular booking statuses (NO INVOICE, NO PAYMENT CHECK)
-    const bookingStatuses = ["Pending", "Approved", "Rejected", "Rescheduled", "Cancelled", "In-Progress"];
+    const bookingStatuses = ["Pending", "Approved", "Rejected", "Rescheduled", "Cancelled", "In-Progress", "Completed"];
     if (bookingStatuses.includes(status)) {
+      if (status === 'In-Progress' || status === 'Started') {
+        const startValidation = validateBookingCanStart(booking);
+        if (!startValidation.isValid) {
+          return res.status(startValidation.statusCode || 400).json({
+            success: false,
+            message: startValidation.message,
+          });
+        }
+        booking.serviceStartedAt = new Date();
+      }
+
+      if (status === 'Completed') {
+        const completeValidation = validateBookingCanComplete(booking);
+        if (!completeValidation.isValid) {
+          return res.status(completeValidation.statusCode || 400).json({
+            success: false,
+            message: completeValidation.message,
+          });
+        }
+        booking.serviceEndedAt = new Date();
+      }
+
+      if (['Approved', 'Confirmed'].includes(status)) {
+        const atomicBooking = await Booking.findOneAndUpdate(
+          { _id: bookingId, status: 'Pending' },
+          {
+            $set: {
+              status: status,
+              approvedAt: new Date(),
+            },
+          },
+          { new: true }
+        );
+        if (!atomicBooking) {
+          return res.status(409).json({ success: false, message: "Action conflict: Booking is no longer pending." });
+        }
+        if (booking.treatmentId) {
+          await Treatment.findByIdAndUpdate(booking.treatmentId, { $set: { status: 'Active' } });
+        }
+        return res.status(200).json({ success: true, message: `Booking status updated to ${status}`, data: atomicBooking });
+      }
+
+      if (status === 'Rejected') {
+        const statusReason = req.body.statusReason || req.body.reason;
+        if (!statusReason || !String(statusReason).trim()) {
+          return res.status(400).json({ success: false, message: "Rejection reason is mandatory." });
+        }
+        const atomicBooking = await Booking.findOneAndUpdate(
+          { _id: bookingId, status: 'Pending' },
+          {
+            $set: {
+              status: 'Rejected',
+              statusReason: String(statusReason).trim(),
+              rejectedAt: new Date(),
+            },
+          },
+          { new: true }
+        );
+        if (!atomicBooking) {
+          return res.status(409).json({ success: false, message: "Action conflict: Booking is no longer pending." });
+        }
+        if (booking.treatmentId) {
+          const isInitialSession = Number(booking.sessionNumber || 1) === 1;
+          if (isInitialSession) {
+            await Treatment.findByIdAndUpdate(booking.treatmentId, {
+              $set: { status: 'PendingReassignment', cancellationReason: String(statusReason).trim() },
+            });
+          }
+        }
+        return res.status(200).json({ success: true, message: "Booking status updated to Rejected", data: atomicBooking });
+      }
+
       booking.status = status;
-      if (status === 'In-Progress') booking.serviceStartedAt = new Date();
       
       // Initialize payment fields if first time
       if (!booking.paidAmount) booking.paidAmount = 0;
@@ -3938,6 +4055,32 @@ if (status.toLowerCase() === 'treatmentcompleted') {
     return res.status(400).json({ success: false, message: "Treatment must be Active" });
   }
 
+  // Validate that this booking can be completed (not future scheduled, and has started)
+  const completeValidation = validateBookingCanComplete(booking);
+  if (!completeValidation.isValid) {
+    return res.status(completeValidation.statusCode || 400).json({
+      success: false,
+      message: completeValidation.message,
+    });
+  }
+
+  // Validate that treatment can be completed (no other pending/future sessions remain open)
+  if (booking.treatmentId) {
+    const treatmentValidation = await validateTreatmentCanComplete(
+      Treatment,
+      Booking,
+      booking.treatmentId,
+      booking._id
+    );
+    if (!treatmentValidation.isValid) {
+      return res.status(treatmentValidation.statusCode || 409).json({
+        success: false,
+        message: treatmentValidation.message,
+        openSessions: treatmentValidation.openSessions,
+      });
+    }
+  }
+
   // 🔥 1. RESET ADVANCE PAYMENT (tumhari main requirement)
   booking.advanceAmount = 0;           // ✅ Advance clear
   booking.paidAmount = 0;              // ✅ Paid amount clear  
@@ -4036,9 +4179,9 @@ exports.getTreatmentById = catchAsync(async (req, res, next) => {
     });
   }
 
-  // 1. Fetch treatment with patient ownership check
+  // 1. Fetch treatment
   const treatment = await Treatment.findById(treatmentId)
-    .populate('patientId', 'firstName lastName phone email')
+    .populate('patientId', 'firstName lastName phone email profilePhoto address dateOfBirth gender bloodGroup')
     .populate(
       'serviceId',
       'name category basePrice modes recommendedSpecializations recommendedSubSpecialties'
@@ -4052,12 +4195,31 @@ exports.getTreatmentById = catchAsync(async (req, res, next) => {
     });
   }
 
-  // 2. Verify patient owns this treatment
-  const patientId = req.user?.id || req.body.patientId;
-  if (treatment.patientId._id.toString() !== patientId) {
+  // 2. Verify authorization: patient owner, assigned service partner, assigned doctor, or admin
+  const userId = req.user?.id || req.user?._id || req.body?.patientId;
+  const userRole = String(req.user?.role || '').toLowerCase();
+  const isAdmin = ['admin', 'superadmin', 'subadmin'].includes(userRole);
+
+  const isPatient = treatment.patientId && treatment.patientId._id.toString() === String(userId);
+  const isServiceProvider = treatment.servicePartnerId && treatment.servicePartnerId._id.toString() === String(userId);
+  const isDoctor = treatment.doctorId && treatment.doctorId.toString() === String(userId);
+
+  let isAssignedInBookings = false;
+  if (!isPatient && !isServiceProvider && !isDoctor && !isAdmin && userId) {
+    isAssignedInBookings = await Booking.exists({
+      treatmentId,
+      $or: [
+        { servicePartnerId: userId },
+        { doctorId: userId },
+        { 'createdBy.userId': userId }
+      ]
+    });
+  }
+
+  if (!isPatient && !isServiceProvider && !isDoctor && !isAdmin && !isAssignedInBookings) {
     return res.status(403).json({
       success: false,
-      message: 'Unauthorized - not your treatment'
+      message: 'Unauthorized - you are not assigned to this treatment'
     });
   }
 
@@ -4166,9 +4328,6 @@ exports.getTreatmentById = catchAsync(async (req, res, next) => {
   const careNotes = treatment.careProtocol?.medicationNotes || '';
 
   for (const rec of medicalRecords) {
-    if (rec.notes && rec.notes.trim() && !guidelines.includes(rec.notes.trim())) {
-      guidelines.push(rec.notes.trim());
-    }
     if (!pdfUrl && Array.isArray(rec.files) && rec.files.length > 0) {
       const file = rec.files.find(f => f?.url && (String(f.url).toLowerCase().endsWith('.pdf') || f.fileType === 'pdf'));
       if (file) pdfUrl = file.url;
@@ -4185,7 +4344,10 @@ exports.getTreatmentById = catchAsync(async (req, res, next) => {
 
   // 8. Fetch Invoices for all bookings and treatment
   const bookingIds = bookings.map(b => b._id);
-  const invoiceQuery = [{ bookingId: { $in: bookingIds } }];
+  const invoiceQuery = [
+    { bookingId: { $in: bookingIds } },
+    { treatmentId: treatment._id }
+  ];
   if (treatment.invoiceId) {
     invoiceQuery.push({ _id: treatment.invoiceId });
   }
@@ -4601,10 +4763,10 @@ exports.bookingCompletedDetails = catchAsync(async (req, res) => {
   const { 
     bookingId, 
     billingDetails = {}, 
-    categories = []  // [{categoryId, items: [{name, quantity, unitPrice}]}]
+    categories = []  // [{categoryId, items: [{name, quantity, unitPrice, isReturn}]}]
   } = req.body;
 
-  const providerId = req.user.id;
+  const providerId = req.user?.id;
 
   // 1. Validate provider & booking
   const booking = await Booking.findById(bookingId)
@@ -4619,14 +4781,23 @@ exports.bookingCompletedDetails = catchAsync(async (req, res) => {
     });
   }
 
-  if (booking.servicePartnerId._id.toString() !== providerId) {
+  if (providerId && booking.servicePartnerId && booking.servicePartnerId._id.toString() !== providerId) {
     return res.status(403).json({ 
       success: false, 
       message: 'Unauthorized provider' 
     });
   }
 
-  // 2. ✅ VALIDATE YOUR ADMIN CATEGORIES
+  // Validate temporal constraint: cannot complete future scheduled booking
+  const completeValidation = validateBookingCanComplete(booking);
+  if (!completeValidation.isValid) {
+    return res.status(completeValidation.statusCode || 400).json({
+      success: false,
+      message: completeValidation.message,
+    });
+  }
+
+  // 2. Validate categories & process returns + auto-merge duplicates
   const processedCategories = await processBillingCategories(categories);
 
   // 3. Calculate totals
@@ -4639,26 +4810,88 @@ exports.bookingCompletedDetails = catchAsync(async (req, res) => {
   
   const subTotal = serviceBase + categoriesTotal;
   const taxPercentage = parseFloat(billingDetails.taxPercentage) || 18;
-  const taxAmount = subTotal * (taxPercentage / 100);
+  const taxAmount = (subTotal * taxPercentage) / 100;
   const grandTotal = subTotal + taxAmount;
 
-  // 4. Response
+  // 4. Extract medicines & inventory items to permanently save into Booking document
+  const medicinesUsed = [];
+  const inventoryAndEquipmentUsed = [];
+
+  for (const cat of processedCategories) {
+    const isMed = cat.type === 'medicine' || (cat.categoryName || '').toLowerCase().includes('medicine') || (cat.categoryName || '').toLowerCase().includes('pharmacy');
+    for (const item of (cat.items || [])) {
+      if (isMed) {
+        medicinesUsed.push({
+          medicineId: item._id || null,
+          name: item.name,
+          categoryName: cat.categoryName,
+          serviceCode: item.serviceCode || '',
+          dosage: item.dosage || '',
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          taxPercentage: taxPercentage,
+          total: parseFloat(item.totalPrice),
+          isReturn: Boolean(item.isReturn || item.quantity < 0),
+          administeredAt: new Date()
+        });
+      } else {
+        inventoryAndEquipmentUsed.push({
+          itemId: item._id || null,
+          name: item.name,
+          categoryName: cat.categoryName,
+          serviceCode: item.serviceCode || '',
+          type: cat.type === 'equipment' ? 'Equipment' : 'Consumable',
+          quantity: item.quantity,
+          duration: item.duration || '1 Session',
+          unitRate: item.unitPrice,
+          taxPercentage: taxPercentage,
+          total: parseFloat(item.totalPrice),
+          isReturn: Boolean(item.isReturn || item.quantity < 0),
+          usedAt: new Date()
+        });
+      }
+    }
+  }
+
+  // Save directly to the booking document
+  booking.medicinesUsed = medicinesUsed;
+  booking.inventoryAndEquipmentUsed = inventoryAndEquipmentUsed;
+  booking.status = 'Completed';
+  booking.serviceEndedAt = new Date();
+
+  const medTotal = medicinesUsed.reduce((sum, m) => sum + m.total, 0);
+  const invTotal = inventoryAndEquipmentUsed.reduce((sum, e) => sum + e.total, 0);
+
+  booking.sessionFinancialSnapshot = {
+    serviceFee: parseFloat(serviceBase.toFixed(2)),
+    medicinesTotal: parseFloat(medTotal.toFixed(2)),
+    inventoryTotal: parseFloat(invTotal.toFixed(2)),
+    subtotal: parseFloat(subTotal.toFixed(2)),
+    taxAmount: parseFloat(taxAmount.toFixed(2)),
+    discountAmount: 0,
+    netTotal: parseFloat(grandTotal.toFixed(2)),
+    isBilled: false,
+  };
+
+  await booking.save();
+
+  // 5. Response
   res.status(200).json({
     success: true,
-    message: 'Billing processed successfully',
+    message: 'Billing details, medicines, and inventory persisted successfully to booking',
     data: {
       bookingId: booking._id,
       patientName: booking.patientId?.name,
       serviceName: booking.serviceId?.name,
-      
+      status: booking.status,
+      medicinesUsed,
+      inventoryAndEquipmentUsed,
+      sessionFinancialSnapshot: booking.sessionFinancialSnapshot,
       billingDetails: {
         serviceBase: serviceBase.toFixed(2),
         serviceCategory: booking.serviceId?.category
       },
-      
-      // ✅ Your validated categories
       categories: processedCategories,
-      
       totals: {
         serviceBase: serviceBase.toFixed(2),
         categoriesTotal: categoriesTotal.toFixed(2),
@@ -4680,7 +4913,7 @@ const processBillingCategories = async (categoriesData) => {
   for (const catEntry of categoriesData) {
     const { categoryId, items = [] } = catEntry;
 
-    // ✅ VALIDATE category exists and is active
+    // VALIDATE category exists and is active
     const category = await ItemCategory.findOne({
       _id: categoryId,
       isActive: true,
@@ -4688,55 +4921,67 @@ const processBillingCategories = async (categoriesData) => {
     })
     .populate({
       path: 'items',
-      match: { isActive: true }, // Only active items
+      match: { isActive: true },
       select: 'name unitPrice _id'
     })
     .lean();
 
     if (!category) continue; // Skip invalid categories
 
-    // ✅ Get all allowed item names from this category
-    const allowedItemNames = category.items.map(item => item.name.toLowerCase());
+    const allowedItemNames = (category.items || []).map(item => item.name.toLowerCase());
 
-    // ✅ Filter ONLY items that exist in this category
-    const validItems = items
-      .filter(item => {
-        // Must have required fields
-        if (!item.name?.trim() || (item.quantity || 0) <= 0 || (item.unitPrice || 0) <= 0) {
-          return false;
-        }
+    // Filter items that exist in category (accept negative numbers for returns)
+    const validRawItems = items.filter(item => {
+      if (!item.name?.trim() || (item.quantity || 0) === 0 || (item.unitPrice || 0) <= 0) {
+        return false;
+      }
+      return allowedItemNames.includes(item.name.trim().toLowerCase());
+    });
 
-        // ✅ CRITICAL: Item name MUST exist in category's items array
-        return allowedItemNames.includes(item.name.trim().toLowerCase());
-      })
-      .map(item => {
-        // Find the exact matching item from category to validate unitPrice
-        const categoryItem = category.items.find(catItem => 
-          catItem.name.toLowerCase() === item.name.trim().toLowerCase()
-        );
+    if (validRawItems.length === 0) continue;
 
-        return {
-          _id: categoryItem?._id,           // ✅ Original item ID
+    // Auto-merge / deduplicate items sharing the same name (TC-CAT-03)
+    const mergedMap = new Map();
+    for (const item of validRawItems) {
+      const lower = item.name.trim().toLowerCase();
+      const categoryItem = category.items.find(catItem =>
+        catItem.name.toLowerCase() === lower
+      );
+      const unitPrice = categoryItem?.unitPrice || parseFloat(item.unitPrice);
+      const qty = parseInt(item.quantity);
+      const isReturn = Boolean(item.isReturn || qty < 0);
+      const key = `${lower}_${isReturn ? 'ret' : 'reg'}`;
+
+      if (mergedMap.has(key)) {
+        const existing = mergedMap.get(key);
+        existing.quantity += qty;
+        existing.totalPrice = (existing.quantity * unitPrice).toFixed(2);
+      } else {
+        mergedMap.set(key, {
+          _id: categoryItem?._id,
           name: item.name.trim(),
-          unitPrice: categoryItem?.unitPrice || parseFloat(item.unitPrice), // Use category's price if available
-          quantity: parseInt(item.quantity),
-          totalPrice: (parseInt(item.quantity) * 
-            (categoryItem?.unitPrice || parseFloat(item.unitPrice))).toFixed(2)
-        };
-      });
+          serviceCode: item.serviceCode || '',
+          dosage: item.dosage || '',
+          unitPrice,
+          quantity: qty,
+          isReturn,
+          totalPrice: (qty * unitPrice).toFixed(2)
+        });
+      }
+    }
 
-    if (validItems.length === 0) continue;
-
-    const categoryTotal = validItems.reduce(
+    const mergedItems = Array.from(mergedMap.values());
+    const categoryTotal = mergedItems.reduce(
       (sum, item) => sum + parseFloat(item.totalPrice), 0
     );
 
     processed.push({
       categoryId: category._id,
       categoryName: category.name,
+      type: category.type || 'consumables',
       description: category.description,
-      items: validItems,
-      itemCount: validItems.length,
+      items: mergedItems,
+      itemCount: mergedItems.length,
       categoryTotal: categoryTotal.toFixed(2)
     });
   }
@@ -6030,3 +6275,124 @@ exports.createProviderBooking = async (req, res) => {
 //   }
 // };
 
+
+
+exports.reassignBookingProvider = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { newServiceProviderId, appointmentDate, startTime, endTime } = req.body;
+
+    if (!newServiceProviderId) {
+      return res.status(400).json({ success: false, message: "newServiceProviderId is required" });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    if (!['Rejected', 'Pending'].includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Only Rejected or Pending bookings can be reassigned (current: ${booking.status})`,
+      });
+    }
+
+    const targetDate = appointmentDate ? new Date(appointmentDate) : booking.appointmentDate;
+    const targetStart = startTime || booking.slotTime?.startTime;
+    const conflict = await Booking.findOne({
+      _id: { $ne: booking._id },
+      servicePartnerId: newServiceProviderId,
+      appointmentDate: targetDate,
+      "slotTime.startTime": targetStart,
+      status: { $in: ["Pending", "Approved", "In-Progress", "Confirmed"] },
+    });
+
+    if (conflict) {
+      return res.status(409).json({
+        success: false,
+        message: "The selected provider already has a booking at this time slot. Please choose another slot.",
+      });
+    }
+
+    const oldFee = Number(booking.pricing?.totalAmount || 0);
+    const newFee = req.body.newFee !== undefined ? Number(req.body.newFee) : oldFee;
+    const feeDelta = newFee - oldFee;
+    const isCashOrPayLater = booking.paymentOption === 'PayLater' || booking.paymentMethod === 'Cash';
+    let deltaAction = 'none';
+
+    if (!isCashOrPayLater && feeDelta > 0) {
+      deltaAction = 'pay_delta';
+    } else if (!isCashOrPayLater && feeDelta < 0) {
+      deltaAction = 'credit_delta';
+    }
+
+    booking.servicePartnerId = newServiceProviderId;
+    if (appointmentDate) booking.appointmentDate = targetDate;
+    if (startTime && endTime) booking.slotTime = { startTime, endTime };
+    if (req.body.newFee !== undefined && booking.pricing) {
+      booking.pricing.totalAmount = newFee;
+    }
+    booking.status = "Pending";
+    booking.statusReason = "Reassigned to alternate service provider";
+    booking.escalatedToAdmin = false;
+    await booking.save();
+
+    if (booking.treatmentId) {
+      await Treatment.findByIdAndUpdate(booking.treatmentId, {
+        $set: {
+          servicePartnerId: newServiceProviderId,
+          status: "PendingApproval",
+        },
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Booking successfully reassigned to new provider and awaiting confirmation.",
+      data: {
+        booking,
+        reassignmentDelta: feeDelta,
+        deltaAction,
+      },
+    });
+  } catch (error) {
+    console.error("Reassign booking provider error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.requestBookingRefund = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { reason } = req.body || {};
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    booking.refundRequested = true;
+    booking.refundRequestReason = reason || "Patient requested refund";
+    booking.refundRequestedAt = new Date();
+    await booking.save();
+
+    if (booking.treatmentId) {
+      await Treatment.findByIdAndUpdate(booking.treatmentId, {
+        $set: { refundRequested: true, refundRequestReason: reason || "Patient requested refund" },
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Refund request submitted to Medico Admin for review and processing.",
+      data: {
+        bookingId: booking._id,
+        refundRequested: true,
+      },
+    });
+  } catch (error) {
+    console.error("Request booking refund error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

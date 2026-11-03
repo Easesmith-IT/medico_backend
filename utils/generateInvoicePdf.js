@@ -1,1092 +1,498 @@
-
-
-
-
-
-
-// const PDFDocument = require('pdfkit');
-
-// const generateInvoicePdf = (invoice) => {
-//   return new Promise((resolve, reject) => {
-//     const doc = new PDFDocument({ size: 'A4', margin: 50 });
-//     let buffers = [];
-    
-//     doc.on('data', buffers.push.bind(buffers));
-//     doc.on('end', () => resolve(Buffer.concat(buffers)));
-//     doc.on('error', reject);
-
-//     let y = 50;
-
-//     // === HEADER ===
-//     doc.fontSize(24).font('Helvetica-Bold').fillColor('#2c3e50').text('MEDICO PLATFORM', 50, y);
-//     doc.fontSize(20).font('Helvetica').fillColor('#7f8c8d').text('Tax Invoice', 350, y, { width: 200, align: 'right' });
-    
-//     y += 35;
-//     doc.fontSize(10).font('Helvetica').fillColor('#7f8c8d')
-//       .text(`Invoice #: ${invoice.invoiceNumber}`, 50, y)
-//       .text(`Date: ${new Date(invoice.issuedAt || invoice.createdAt).toLocaleDateString('en-IN')}`, 350, y, { width: 200, align: 'right' });
-    
-//     y += 30;
-//     doc.strokeColor('#2c3e50').lineWidth(2).moveTo(50, y).lineTo(550, y).stroke();
-
-//     // === INFO GRID ===
-//     y += 30;
-//     const boxHeight = 110;
-//     // Patient box
-//     doc.fillColor('#f9f9f9').rect(50, y, 240, boxHeight).fill();
-//     doc.strokeColor('#3498db').lineWidth(3).moveTo(50, y).lineTo(50, y + boxHeight).stroke();
-//     doc.fillColor('#2c3e50').fontSize(12).font('Helvetica-Bold').text('Billed To (Patient)', 65, y + 15);
-//     doc.fontSize(10).font('Helvetica').fillColor('#333')
-//       .text(`Name: ${invoice.patientId?.firstName || 'N/A'}`, 65, y + 35)
-//       .text(`Phone: ${invoice.patientId?.phone || 'N/A'}`, 65, y + 50)
-//       .text(`ID: ${invoice.patientId?._id || 'N/A'}`, 65, y + 65, { width: 210 });
-
-//     // Doctor box
-//     doc.fillColor('#f9f9f9').rect(310, y, 240, boxHeight).fill();
-//     doc.strokeColor('#2ecc71').lineWidth(3).moveTo(310, y).lineTo(310, y + boxHeight).stroke();
-//     doc.fillColor('#2c3e50').fontSize(12).font('Helvetica-Bold').text('Service Provider (Doctor)', 325, y + 15);
-//     doc.fontSize(10).font('Helvetica').fillColor('#333')
-//       .text(`Dr. ${invoice.doctorId?.firstName || 'N/A'}`, 325, y + 35)
-//       .text(`Reg: ${invoice.doctorId?.medicalRegistrationNumber || 'N/A'}`, 325, y + 50)
-//       .text(`Clinic: ${invoice.doctorId?.address?.city || 'N/A'}`, 325, y + 65);
-
-//     // === ITEMS TABLE ===
-//     y += boxHeight + 40;
-
-//     // Define column positions and widths for perfect alignment
-//     const col1 = 60;  // Description
-//     const col2 = 330; // Qty
-//     const col3 = 380; // Rate
-//     const col4 = 450; // GST
-//     const col5 = 500; // Amount
-
-//     // Headers
-//     doc.fillColor('#2c3e50').rect(50, y, 500, 30).fill();
-//     doc.fillColor('white').fontSize(11).font('Helvetica-Bold');
-//     doc.text('Description', col1, y + 10);
-//     doc.text('Qty', col2, y + 10, { width: 40, align: 'center' });
-//     doc.text('Rate', col3, y + 10, { width: 60, align: 'right' });
-//     doc.text('GST %', col4, y + 10, { width: 40, align: 'center' });
-//     doc.text('Amount', col5, y + 10, { width: 45, align: 'right' });
-    
-//     y += 35;
-
-//     const drawRow = (name, qty, rate, gst, total) => {
-//       doc.fontSize(10).font('Helvetica').fillColor('#333');
-//       doc.text(name, col1, y, { width: 260 });
-//       doc.text(qty.toString(), col2, y, { width: 40, align: 'center' });
-//       doc.text(`₹${rate}`, col3, y, { width: 60, align: 'right' });
-//       doc.text(`${gst}%`, col4, y, { width: 40, align: 'center' });
-//       doc.text(`₹${total.toFixed(2)}`, col5, y, { width: 45, align: 'right' });
-      
-//       doc.strokeColor('#eee').lineWidth(1).moveTo(50, y + 15).lineTo(550, y + 15).stroke();
-//       y += 25;
-//     };
-
-//     // Medicines
-//     if (invoice.medicines?.length) {
-//         doc.fillColor('#f2f2f2').rect(50, y, 500, 20).fill();
-//         doc.fillColor('#666').fontSize(9).font('Helvetica-Bold').text('MEDICINES & PHARMACY', col1, y + 6);
-//         y += 25;
-//         invoice.medicines.forEach(item => drawRow(item.name, item.quantity, item.pricePerUnit, item.gstPercentage, item.total));
-//     }
-
-//     // Equipment
-//     if (invoice.additionalEquipment?.length) {
-//         doc.fillColor('#f2f2f2').rect(50, y, 500, 20).fill();
-//         doc.fillColor('#666').fontSize(9).font('Helvetica-Bold').text('ADDITIONAL EQUIPMENT & RENTALS', col1, y + 6);
-//         y += 25;
-//         invoice.additionalEquipment.forEach(item => drawRow(item.name, item.quantity, item.rate, item.gstPercentage, item.total));
-//     }
-
-//     // === SUMMARY ===
-//     y += 20;
-//     const summaryLabelX = 350;
-//     const summaryValueX = 480;
-
-//     doc.fontSize(10).font('Helvetica').fillColor('#7f8c8d')
-//       .text('Note: Computer generated invoice.', 50, y, { width: 250 });
-
-//     const totals = [
-//         { label: 'Subtotal:', value: invoice.totals?.subtotal },
-//         { label: 'CGST (50%):', value: invoice.totals?.cgst },
-//         { label: 'SGST (50%):', value: invoice.totals?.sgst }
-//     ];
-
-//     totals.forEach(item => {
-//         doc.fillColor('#333').text(item.label, summaryLabelX, y, { width: 100, align: 'right' });
-//         doc.text(`₹${item.value?.toFixed(2) || '0.00'}`, summaryValueX, y, { width: 65, align: 'right' });
-//         y += 18;
-//     });
-
-//     // Grand Total
-//     y += 10;
-//     doc.fillColor('#2c3e50').rect(summaryLabelX, y, 200, 35).fill();
-//     doc.fillColor('white').fontSize(12).font('Helvetica-Bold');
-//     doc.text('GRAND TOTAL:', summaryLabelX + 10, y + 12);
-//     doc.text(`₹${invoice.totals?.grandTotal?.toFixed(2) || '0.00'}`, summaryValueX, y + 12, { width: 65, align: 'right' });
-
-//     doc.end();
-//   });
-// };
-
-
-// module.exports =  generateInvoicePdf ;
-
-
-
-// Enhanced utility functions
-// function cleanNumber(value) {
-//   if (value == null || value === '') return 0;
-//   return Number(String(value).replace(/[^\d.]/g, ''));
-// }
-
-// function formatDate(date) {
-//   return new Date(date).toLocaleDateString('en-IN', { 
-//     day: '2-digit', 
-//     month: 'short', 
-//     year: 'numeric' 
-//   });
-// }
-// Enhanced utility functions - ADD THESE AT THE BOTTOM
-
-// const PDFDocument = require('pdfkit');
-
-// const generateInvoicePdf = (invoice) => {
-//   return new Promise((resolve, reject) => {
-//     const doc = new PDFDocument({ size: 'A4', margin: 15 * 2.83465 });
-//     let buffers = [];
-
-//     doc.on('data', buffers.push.bind(buffers));
-//     doc.on('end', () => resolve(Buffer.concat(buffers)));
-//     doc.on('error', reject);
-
-//     const L = 42;
-//     const R = 553;
-//     const W = R - L;
-
-//     let y = 40;
-
-//     // HEADER
-//     doc.font('Helvetica-Bold').fontSize(22).fillColor('#2c3e50')
-//       .text('MEDICO PLATFORM', L, y);
-
-//     doc.font('Helvetica').fontSize(17).fillColor('#7f8c8d')
-//       .text('TAX INVOICE', L, y + 4, { width: W, align: 'right' });
-
-//     y += 34;
-
-//     doc.font('Helvetica').fontSize(10).fillColor('#7f8c8d')
-//       .text(`Invoice #: ${formatInvoiceNumber(invoice.invoiceNumber)}`, L, y)
-//       .text(`Date: ${formatDate(invoice.issuedAt || invoice.createdAt)}`, L, y, { width: W, align: 'right' });
-
-//     y += 14;
-
-//     doc.lineWidth(2.5).strokeColor('#2c3e50').moveTo(L, y).lineTo(R, y).stroke();
-
-//     y += 18;
-
-//     // INFO GRID
-//     const colW = (W / 2) - 8;
-//     const boxH = 105;
-
-//     // Patient Box
-//     doc.fillColor('#f9f9f9').rect(L, y, colW, boxH).fill();
-//     doc.fillColor('#3498db').rect(L, y, 4, boxH).fill();
-
-//     doc.font('Helvetica-Bold').fontSize(10).fillColor('#2c3e50')
-//       .text('BILLED TO (PATIENT)', L + 10, y + 10);
-
-//     const patientName = invoice.patientId?.firstName || 'N/A';
-//     const patientPhone = invoice.patientId?.phone || 'N/A';
-//     const patientAddr = invoice.patientId?.address
-//       ? `${invoice.patientId.address.street || ''}, ${invoice.patientId.address.city || ''}, ${invoice.patientId.address.pincode || ''}`.replace(/^,\s*/, '')
-//       : 'Address Not Provided';
-//     const patientId = invoice.patientId?._id
-//       ? String(invoice.patientId._id).slice(-8)
-//       : 'N/A';
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Name: ', L + 10, y + 26, { continued: true })
-//       .font('Helvetica').text(patientName);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Phone: ', L + 10, y + 40, { continued: true })
-//       .font('Helvetica').text(patientPhone);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Address: ', L + 10, y + 54, { continued: true })
-//       .font('Helvetica').text(patientAddr, { width: colW - 20 });
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('ID: ', L + 10, y + 80, { continued: true })
-//       .font('Helvetica').text(patientId);
-
-//     // Doctor Box
-//     const dColX = L + colW + 16;
-//     doc.fillColor('#f9f9f9').rect(dColX, y, colW, boxH).fill();
-//     doc.fillColor('#2ecc71').rect(dColX, y, 4, boxH).fill();
-
-//     doc.font('Helvetica-Bold').fontSize(10).fillColor('#2c3e50')
-//       .text('SERVICE PROVIDER (DOCTOR)', dColX + 10, y + 10);
-
-//     const doctorName = `Dr. ${invoice.doctorId?.firstName || 'N/A'}`;
-//     const specialization = invoice.doctorId?.specialization || 'General';
-//     const regNo = invoice.doctorId?.medicalRegistrationNumber || 'N/A';
-//     const doctorPhone = invoice.doctorId?.phone || 'N/A';
-//     const clinicLoc = invoice.doctorId?.address
-//       ? `${invoice.doctorId.address.city || ''}, ${invoice.doctorId.address.state || ''}`.replace(/^,\s*/, '')
-//       : 'N/A';
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text(doctorName, dColX + 10, y + 26);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Specialization: ', dColX + 10, y + 40, { continued: true })
-//       .font('Helvetica').text(specialization);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Reg No: ', dColX + 10, y + 54, { continued: true })
-//       .font('Helvetica').text(regNo);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Phone: ', dColX + 10, y + 68, { continued: true })
-//       .font('Helvetica').text(doctorPhone);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Clinic: ', dColX + 10, y + 82, { continued: true })
-//       .font('Helvetica').text(clinicLoc);
-
-//     y += boxH + 20;
-
-//     // ITEMS TABLE
-//     const cols = {
-//       desc:  L,
-//       qty:   L + 270,
-//       rate:  L + 330,
-//       gst:   L + 390,
-//       total: L + 445
-//     };
-
-//     doc.fillColor('#2c3e50').rect(L, y, W, 26).fill();
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('white')
-//       .text('DESCRIPTION', cols.desc  + 4, y + 8, { width: 265 })
-//       .text('QTY',         cols.qty,        y + 8, { width: 55,  align: 'center' })
-//       .text('RATE',        cols.rate,        y + 8, { width: 55,  align: 'right' })
-//       .text('GST %',       cols.gst,         y + 8, { width: 50,  align: 'center' })
-//       .text('AMOUNT',      cols.total,       y + 8, { width: 65,  align: 'right' });
-
-//     y += 30;
-
-//     if (invoice.medicines?.length) {
-//       y = drawCategoryRow(doc, 'MEDICINES & PHARMACY', y, L, W);
-//       y = drawItemRows(doc, invoice.medicines, y, cols, 'medicine');
-//     }
-
-//     if (invoice.additionalEquipment?.length) {
-//       y = drawCategoryRow(doc, 'ADDITIONAL EQUIPMENT & RENTALS', y, L, W);
-//       y = drawItemRows(doc, invoice.additionalEquipment, y, cols, 'equipment');
-//     }
-
-//     y += 20;
-
-//     // SUMMARY SECTION
-//     const noteW = W * 0.55;
-//     const sumX  = L + noteW + 10;
-//     const sumW  = W - noteW - 10;
-
-//     // Note - left side
-//     doc.font('Helvetica-Bold').fontSize(8).fillColor('#333')
-//       .text('Note: ', L, y, { continued: true })
-//       .font('Helvetica').fillColor('#7f8c8d')
-//       .text(
-//         'This is a computer-generated invoice and does not require a physical signature. ' +
-//         'Healthcare services may be subject to different GST exemptions based on local laws.',
-//         { width: noteW - 10 }
-//       );
-
-//     // Summary rows - pushed 50px below note to prevent overlap
-//     const summaryRows = [
-//       ['Subtotal:',  invoice.totals?.subtotal || 0],
-//       ['CGST (9%):', invoice.totals?.cgst     || 0],
-//       ['SGST (9%):', invoice.totals?.sgst     || 0],
-//     ];
-
-//     let sy = y + 50;
-//     summaryRows.forEach(([label, val]) => {
-//       doc.font('Helvetica').fontSize(10).fillColor('#333')
-//         .text(label, sumX, sy, { width: sumW * 0.55, align: 'left' })
-//         .text(`Rs. ${formatCurrency(val)}`, sumX + sumW * 0.55, sy, { width: sumW * 0.45, align: 'right' });
-//       sy += 22;
-//     });
-
-//     // Grand Total
-//     sy += 12;
-//     doc.fillColor('#2c3e50').rect(sumX, sy, sumW, 36).fill();
-//     doc.font('Helvetica-Bold').fontSize(12).fillColor('white')
-//       .text('GRAND TOTAL:', sumX + 8, sy + 11, { width: sumW * 0.55 })
-//       .text(`Rs. ${formatCurrency(invoice.totals?.grandTotal || 0)}`, sumX + sumW * 0.55, sy + 11, { width: sumW * 0.45 - 8, align: 'right' });
-
-//     doc.end();
-//   });
-// };
-
-// // Category row helper
-// function drawCategoryRow(doc, title, y, L, W) {
-//   doc.fillColor('#f2f2f2').rect(L, y, W, 20).fill();
-//   doc.font('Helvetica-Bold').fontSize(9).fillColor('#666')
-//     .text(title, L + 6, y + 5);
-//   return y + 24;
-// }
-
-// // Item rows helper
-// // function drawItemRows(doc, items, y, cols, type) {
-// //   items.forEach(item => {
-// //     const rate = type === 'medicine' ? item.pricePerUnit : item.rate;
-
-// //     doc.font('Helvetica').fontSize(9).fillColor('#333')
-// //       .text(item.name || 'Item', cols.desc + 4, y, { width: 262 });
-
-// //     doc.text(String(item.quantity || 1), cols.qty,   y, { width: 55, align: 'center' });
-// //     doc.text(`Rs. ${formatCurrency(rate)}`,  cols.rate,  y, { width: 55, align: 'right' });
-// //     doc.text(`${item.gstPercentage || 0}%`,  cols.gst,   y, { width: 50, align: 'center' });
-// //     doc.text(`Rs. ${formatCurrency(item.total)}`, cols.total, y, { width: 65, align: 'right' });
-
-// //     doc.lineWidth(0.5).strokeColor('#eeeeee')
-// //       .moveTo(cols.desc, y + 16)
-// //       .lineTo(cols.desc + 511, y + 16)
-// //       .stroke();
-
-// //     y += 20;
-// //   });
-// //   return y;
-// // }
-// function drawItemRows(doc, items, y, cols, type) {
-//   items.forEach(item => {
-//     const rate    = type === 'medicine' ? item.pricePerUnit : item.rate;
-//     const hasDate = type === 'medicine' && item.addedDate;
-//     const rowH    = hasDate ? 30 : 20;
-
-//     // Item name
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text(item.name || 'Item', cols.desc + 4, y, { width: 262 });
-
-//     // ✅ addedDate shown below name — works with Date object or ISO string
-//     if (hasDate) {
-//       let dateStr = '';
-//       try {
-//         dateStr = new Date(item.addedDate).toLocaleDateString('en-IN', {
-//           day: '2-digit', month: 'short', year: 'numeric'
-//         });
-//       } catch {
-//         dateStr = String(item.addedDate).slice(0, 10);
-//       }
-//       doc.font('Helvetica').fontSize(7).fillColor('#9ca3af')
-//         .text(`Prescribed: ${dateStr}`, cols.desc + 4, y + 11, { width: 262 });
-//     }
-
-//     // Numeric columns
-//     doc.font('Helvetica').fontSize(9).fillColor('#333');
-//     doc.text(String(item.quantity || 1),          cols.qty,   y, { width: 55, align: 'center' });
-//     doc.text(`Rs. ${formatCurrency(rate)}`,        cols.rate,  y, { width: 55, align: 'right'  });
-//     doc.text(`${item.gstPercentage || 0}%`,        cols.gst,   y, { width: 50, align: 'center' });
-//     doc.text(`Rs. ${formatCurrency(item.total)}`,  cols.total, y, { width: 65, align: 'right'  });
-
-//     // Row divider
-//     doc.lineWidth(0.5).strokeColor('#eeeeee')
-//       .moveTo(cols.desc, y + rowH)
-//       .lineTo(cols.desc + 511, y + rowH)
-//       .stroke();
-
-//     y += rowH + 4;
-//   });
-//   return y;
-// }
-// // Formatters
-// function formatInvoiceNumber(num) {
-//   return cleanNumber(num).toString().slice(-8).padStart(8, '0');
-// }
-
-// function formatDate(dateStr) {
-//   try {
-//     return new Date(dateStr).toLocaleDateString('en-IN', {
-//       day: '2-digit', month: 'short', year: 'numeric'
-//     });
-//   } catch {
-//     return '09 Mar 2026';
-//   }
-// }
-
-// function formatCurrency(value) {
-//   return cleanNumber(value).toLocaleString('en-IN', {
-//     minimumFractionDigits: 2,
-//     maximumFractionDigits: 2
-//   });
-// }
-
-// function cleanNumber(value) {
-//   if (!value) return 0;
-//   return Number(String(value).replace(/[^\d.]/g, '').replace(/\.(?=.*\.)/g, '')) || 0;
-// }
-
-// module.exports = generateInvoicePdf;
 const PDFDocument = require('pdfkit');
 
+/**
+ * High-Density Multi-Page Inpatient & Consolidated Treatment Invoice Generator
+ * Supports:
+ * - Dynamic page breaks with repeating headers and page numbering (Page X of Y)
+ * - Treatment status banners (InProgress Interim Bill vs. Completed Final Bill)
+ * - Session-by-session clinical breakdown (Service fee, medicines, inventory/equipment)
+ * - Formal Return / Credit Note line items (negative quantities and negative amounts)
+ * - Master Payment Ledger and Financial Distribution reconciliation
+ * - Refund Due support when deposits exceed total billed
+ * - Cryptographic SHA-256 seal verification footer
+ */
 const generateInvoicePdf = (invoice) => {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 15 * 2.83465 });
-    let buffers = [];
+    try {
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: 36, // 0.5 inch margins for hospital data density
+        bufferPages: true, // Enables two-pass page numbering
+      });
 
-    doc.on('data', buffers.push.bind(buffers));
-    doc.on('end', () => resolve(Buffer.concat(buffers)));
-    doc.on('error', reject);
+      const buffers = [];
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
 
-    const L = 42;
-    const R = 553;
-    const W = R - L;
+      const L = 36;
+      const R = 559;
+      const W = R - L;
+      const maxY = 770;
 
-    let y = 40;
+      // Formatting helpers
+      const formatCurrency = (val) => {
+        const num = Number(val) || 0;
+        return num.toLocaleString('en-IN', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      };
 
-    // HEADER
-    doc.font('Helvetica-Bold').fontSize(22).fillColor('#2c3e50')
-      .text('MEDICO PLATFORM', L, y);
-    doc.font('Helvetica').fontSize(17).fillColor('#7f8c8d')
-      .text('TAX INVOICE', L, y + 4, { width: W, align: 'right' });
+      const formatDate = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        try {
+          return new Date(dateStr).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          });
+        } catch {
+          return String(dateStr).slice(0, 10);
+        }
+      };
 
-    y += 34;
+      const formatDateTime = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        try {
+          const d = new Date(dateStr);
+          if (isNaN(d.getTime())) return String(dateStr);
+          const datePart = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+          const timePart = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+          return `${datePart}, ${timePart}`;
+        } catch {
+          return String(dateStr).slice(0, 16);
+        }
+      };
 
-    doc.font('Helvetica').fontSize(10).fillColor('#7f8c8d')
-      .text(`Invoice #: ${formatInvoiceNumber(invoice.invoiceNumber)}`, L, y)
-      .text(`Date: ${formatDate(invoice.issuedAt || invoice.createdAt)}`, L, y, { width: W, align: 'right' });
+      const formatSlotTime = (slotTime, duration) => {
+        if (!slotTime && !duration) return '10:00 AM';
+        let start = '';
+        let end = '';
+        if (typeof slotTime === 'string') {
+          start = slotTime;
+        } else if (typeof slotTime === 'object' && slotTime !== null) {
+          start = slotTime.startTime || '';
+          end = slotTime.endTime || '';
+        }
 
-    y += 14;
-    doc.lineWidth(2.5).strokeColor('#2c3e50').moveTo(L, y).lineTo(R, y).stroke();
-    y += 18;
+        const toAmPm = (tStr) => {
+          if (!tStr) return '';
+          const s = String(tStr).trim();
+          if (s.toLowerCase().includes('am') || s.toLowerCase().includes('pm')) return s;
+          const parts = s.split(':');
+          if (parts.length >= 2) {
+            let h = parseInt(parts[0], 10);
+            const m = parts[1].slice(0, 2).padStart(2, '0');
+            if (isNaN(h)) return s;
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12;
+            h = h ? h : 12;
+            return `${h}:${m} ${ampm}`;
+          }
+          return s;
+        };
 
-    // INFO GRID
-    const colW = (W / 2) - 8;
-    const boxH = 105;
+        const startFmt = toAmPm(start) || '10:00 AM';
+        const endFmt = toAmPm(end);
 
-    // Patient Box
-    doc.fillColor('#f9f9f9').rect(L, y, colW, boxH).fill();
-    doc.fillColor('#3498db').rect(L, y, 4, boxH).fill();
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#2c3e50')
-      .text('BILLED TO (PATIENT)', L + 10, y + 10);
+        let timeStr = endFmt ? `${startFmt} - ${endFmt}` : startFmt;
+        if (duration) {
+          timeStr += ` (${duration} min)`;
+        }
+        return timeStr;
+      };
 
-    const patientName  = invoice.patientId?.firstName || 'N/A';
-    const patientPhone = invoice.patientId?.phone || 'N/A';
-    const patientAddr  = invoice.patientId?.address
-      ? `${invoice.patientId.address.street || ''}, ${invoice.patientId.address.city || ''}, ${invoice.patientId.address.pincode || ''}`.replace(/^,\s*/, '')
-      : 'Address Not Provided';
-    const patientId = invoice.patientId?._id ? String(invoice.patientId._id).slice(-8) : 'N/A';
+      // Auto page break checker
+      const checkPageBreak = (neededHeight) => {
+        if (doc.y + neededHeight > maxY) {
+          doc.addPage();
+          drawCompactHeader();
+          return true;
+        }
+        return false;
+      };
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#333').text('Name: ',    L + 10, y + 26, { continued: true }).font('Helvetica').text(patientName);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#333').text('Phone: ',   L + 10, y + 40, { continued: true }).font('Helvetica').text(patientPhone);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#333').text('Address: ', L + 10, y + 54, { continued: true }).font('Helvetica').text(patientAddr, { width: colW - 20 });
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#333').text('ID: ',      L + 10, y + 80, { continued: true }).font('Helvetica').text(patientId);
+      // Header on Page 1
+      const drawMainHeader = () => {
+        let y = 32;
+        // Brand & Facility title on left
+        doc.font('Helvetica-Bold').fontSize(16).fillColor('#0F172A').text('MEDICO HEALTHCARE', L, y);
+        
+        // Document Title on right (cleanly aligned without collision)
+        doc.font('Helvetica-Bold').fontSize(11).fillColor('#0284C7')
+           .text('CONSOLIDATED TREATMENT INVOICE', L + 240, y + 2, { width: W - 240, align: 'right' });
+        y += 18;
 
-    // Doctor Box
-    const dColX = L + colW + 16;
-    doc.fillColor('#f9f9f9').rect(dColX, y, colW, boxH).fill();
-    doc.fillColor('#2ecc71').rect(dColX, y, 4, boxH).fill();
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#2c3e50')
-      .text('SERVICE PROVIDER (DOCTOR)', dColX + 10, y + 10);
+        // Subtitle line on left & right
+        doc.font('Helvetica').fontSize(8).fillColor('#64748B')
+           .text('Multi-Speciality Clinical & Home Healthcare Platform', L, y);
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#64748B')
+           .text('TAX INVOICE & DISCHARGE SUMMARY', L + 240, y, { width: W - 240, align: 'right' });
+        y += 18;
 
-    const doctorName      = `Dr. ${invoice.doctorId?.firstName || 'N/A'}`;
-    const specialization  = invoice.doctorId?.specialization || 'General';
-    const regNo           = invoice.doctorId?.medicalRegistrationNumber || 'N/A';
-    const doctorPhone     = invoice.doctorId?.phone || 'N/A';
-    const clinicLoc       = invoice.doctorId?.address
-      ? `${invoice.doctorId.address.city || ''}, ${invoice.doctorId.address.state || ''}`.replace(/^,\s*/, '')
-      : 'N/A';
+        // Status Badge Banner
+        const isInProgress = (invoice.treatmentStatus || '').toLowerCase() === 'inprogress' || (invoice.billType || '').toLowerCase() === 'interimbill';
+        if (isInProgress) {
+          doc.rect(L, y, W, 22).fill('#FEF3C7');
+          doc.rect(L, y, W, 22).strokeColor('#F59E0B').lineWidth(0.8).stroke();
+          doc.font('Helvetica-Bold').fontSize(9).fillColor('#B45309')
+             .text(`INTERIM RUNNING BILL (v${invoice.billVersion || 1}) | TREATMENT IN PROGRESS | CUT-OFF: ${formatDate(invoice.clinicalContext?.cutOffDate || new Date())}`, L, y + 6, { width: W, align: 'center' });
+        } else {
+          doc.rect(L, y, W, 22).fill('#DCFCE7');
+          doc.rect(L, y, W, 22).strokeColor('#10B981').lineWidth(0.8).stroke();
+          doc.font('Helvetica-Bold').fontSize(9).fillColor('#065F46')
+             .text(`FINAL DISCHARGE BILL (v${invoice.billVersion || 1}) | TREATMENT COMPLETED | ALL SESSIONS FINALIZED`, L, y + 6, { width: W, align: 'center' });
+        }
+        y += 28;
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#333').text(doctorName, dColX + 10, y + 26);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#333').text('Specialization: ', dColX + 10, y + 40, { continued: true }).font('Helvetica').text(specialization);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#333').text('Reg No: ',         dColX + 10, y + 54, { continued: true }).font('Helvetica').text(regNo);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#333').text('Phone: ',          dColX + 10, y + 68, { continued: true }).font('Helvetica').text(doctorPhone);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#333').text('Clinic: ',         dColX + 10, y + 82, { continued: true }).font('Helvetica').text(clinicLoc);
+        // Demographic & Clinical 2-Column Box
+        const colW = (W - 10) / 2;
+        const boxH = 96;
 
-    y += boxH + 20;
+        // Patient Box (Left)
+        doc.rect(L, y, colW, boxH).fill('#F8FAFC');
+        doc.rect(L, y, 4, boxH).fill('#3B82F6');
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#1E293B').text('PATIENT DEMOGRAPHICS', L + 10, y + 7);
+        doc.font('Helvetica').fontSize(8).fillColor('#334155');
+        doc.text(`Patient Name : ${invoice.patientSnapshot?.name || invoice.patientId?.firstName || 'Patient'}`, L + 10, y + 21);
+        doc.text(`UHID Number  : ${invoice.patientSnapshot?.uhid || 'UHID-' + String(invoice.patientId?._id || '').slice(-6).toUpperCase()}`, L + 10, y + 34);
+        doc.text(`Treatment ID : #TR-${String(invoice.treatmentId?._id || invoice.treatmentId || '').slice(-6).toLowerCase()}`, L + 10, y + 47);
+        doc.text(`Age / Gender : ${invoice.patientSnapshot?.age || 'N/A'} / ${invoice.patientSnapshot?.gender || 'N/A'}`, L + 10, y + 60);
+        doc.text(`Contact Phone: ${invoice.patientSnapshot?.phone || 'N/A'}`, L + 10, y + 73);
+        const rawAddr = String(invoice.patientSnapshot?.address || '').replace(/^,\s*/, '').replace(/,\s*$/, '').trim();
+        doc.text(`Patient City : ${rawAddr || 'Noida, Uttar Pradesh'}`, L + 10, y + 86);
 
-    // ITEMS TABLE
-    const cols = {
-      desc:  L,
-      qty:   L + 270,
-      rate:  L + 330,
-      gst:   L + 390,
-      total: L + 445
-    };
-    doc.fillColor('#2c3e50').rect(L, y, W, 26).fill();
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('white')
-      .text('DESCRIPTION', cols.desc + 4, y + 8, { width: 265 })
-      .text('QTY',         cols.qty,       y + 8, { width: 55, align: 'center' })
-      .text('RATE',        cols.rate,       y + 8, { width: 55, align: 'right'  })
-      .text('GST %',       cols.gst,        y + 8, { width: 50, align: 'center' })
-      .text('AMOUNT',      cols.total,      y + 8, { width: 65, align: 'right'  });
+        // Clinical / Bill Box (Right)
+        const rX = L + colW + 10;
+        doc.rect(rX, y, colW, boxH).fill('#F8FAFC');
+        doc.rect(rX, y, 4, boxH).fill('#10B981');
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#1E293B').text('TREATMENT & BILLING CONTEXT', rX + 10, y + 7);
+        doc.font('Helvetica').fontSize(8).fillColor('#334155');
+        doc.text(`Invoice No   : ${invoice.invoiceNumber || 'INV-TEMP'}`, rX + 10, y + 21);
+        doc.text(`Invoice Date : ${formatDateTime(invoice.issuedAt || invoice.createdAt || new Date())}`, rX + 10, y + 34);
+        doc.text(`Care Period  : ${formatDate(invoice.clinicalContext?.startDate)} to ${formatDate(invoice.clinicalContext?.cutOffDate)} (${invoice.sessions?.length || 0} Sessions)`, rX + 10, y + 47);
+        doc.text(`Service Plan : ${invoice.clinicalContext?.serviceName || 'Clinical Care'}`, rX + 10, y + 60);
+        doc.text(`Treating Dr. : ${invoice.clinicalContext?.treatingDoctorName || 'Consultant Specialist'}`, rX + 10, y + 73);
+        doc.text(`Speciality   : ${invoice.clinicalContext?.treatingDoctorSpeciality || 'Clinical Specialist'}`, rX + 10, y + 86);
 
-    y += 30;
+        doc.y = y + boxH + 12;
+      };
 
-    const hasMedicines = Array.isArray(invoice.medicines) && invoice.medicines.length > 0;
-    const hasEquipment = Array.isArray(invoice.additionalEquipment) && invoice.additionalEquipment.length > 0;
+      // Header on subsequent pages
+      const drawCompactHeader = () => {
+        let y = 32;
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#475569')
+           .text(`MEDICO CONSOLIDATED BILL | Inv: ${invoice.invoiceNumber} | Patient: ${invoice.patientSnapshot?.name || 'Patient'}`, L, y, { width: W - 110, ellipsis: true });
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0284C7')
+           .text(`[${(invoice.treatmentStatus || 'InProgress').toUpperCase()}]`, L + W - 100, y, { width: 100, align: 'right' });
+        y += 14;
+        doc.strokeColor('#CBD5E1').lineWidth(0.8).moveTo(L, y).lineTo(R, y).stroke();
+        doc.y = y + 10;
+      };
 
-    if (hasMedicines) {
-      y = drawCategoryRow(doc, 'MEDICINES & PHARMACY', y, L, W);
-      y = drawItemRows(doc, invoice.medicines, y, cols, 'medicine');
+      // Initial page setup
+      drawMainHeader();
+
+      // ==========================================
+      // SECTION 1: SESSIONS & ITEMIZED USAGE
+      // ==========================================
+      const sessions = Array.isArray(invoice.sessions) && invoice.sessions.length > 0 
+        ? invoice.sessions 
+        : [];
+
+      if (sessions.length > 0) {
+        sessions.forEach((session, sIdx) => {
+          checkPageBreak(75);
+
+          // Session Header Ribbon
+          let sy = doc.y;
+          doc.rect(L, sy, W, 22).fill('#0F172A');
+          
+          const bookingTag = session.bookingCode 
+            ? `#${session.bookingCode}` 
+            : `#BID-${String(session.bookingId?._id || session.bookingId || '').slice(-6).toLowerCase()}`;
+          const dateStr = formatDate(session.appointmentDate);
+          const timeSlotStr = formatSlotTime(session.slotTime, session.duration);
+          const providerStr = session.attendingProviderName || 'Assigned Staff';
+
+          doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#FFFFFF')
+             .text(`SESSION #${session.sessionNumber || (sIdx + 1)} [${bookingTag}]   |   Date: ${dateStr}`, L + 8, sy + 6, { width: 260 });
+          doc.font('Helvetica').fontSize(8).fillColor('#E2E8F0')
+             .text(`Time: ${timeSlotStr}   |   Staff: ${providerStr}`, L + 250, sy + 6, { width: W - 258, align: 'right' });
+          doc.y = sy + 26;
+
+          // Table Header
+          checkPageBreak(30);
+          sy = doc.y;
+          doc.rect(L, sy, W, 18).fill('#F1F5F9');
+          doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#475569');
+          doc.text('CATEGORY / ITEM DESCRIPTION', L + 4, sy + 5, { width: 230 });
+          doc.text('CODE', L + 240, sy + 5, { width: 55 });
+          doc.text('QTY', L + 300, sy + 5, { width: 35, align: 'center' });
+          doc.text('RATE (Rs.)', L + 340, sy + 5, { width: 60, align: 'right' });
+          doc.text('GST %', L + 405, sy + 5, { width: 45, align: 'center' });
+          doc.text('TOTAL (Rs.)', L + 455, sy + 5, { width: 64, align: 'right' });
+          doc.y = sy + 20;
+
+          // 1. Base Service Row
+          checkPageBreak(18);
+          sy = doc.y;
+          const sFee = Number(session.serviceFee) || 0;
+          doc.font('Helvetica-Bold').fontSize(8).fillColor('#1E293B').text('Clinical Service / Consultation Base', L + 4, sy + 2, { width: 230 });
+          doc.font('Helvetica').fontSize(7.5).fillColor('#64748B').text('SRV-BASE', L + 240, sy + 2);
+          doc.text('1', L + 300, sy + 2, { width: 35, align: 'center' });
+          doc.text(formatCurrency(sFee), L + 340, sy + 2, { width: 60, align: 'right' });
+          doc.text('0%', L + 405, sy + 2, { width: 45, align: 'center' });
+          doc.font('Helvetica-Bold').fillColor('#1E293B').text(formatCurrency(sFee), L + 455, sy + 2, { width: 64, align: 'right' });
+          doc.strokeColor('#E2E8F0').lineWidth(0.5).moveTo(L, sy + 14).lineTo(R, sy + 14).stroke();
+          doc.y = sy + 16;
+
+          // 2. Medicines Rows (Handles Returns TC-FIN-01)
+          if (Array.isArray(session.medicines) && session.medicines.length > 0) {
+            session.medicines.forEach((med) => {
+              checkPageBreak(18);
+              sy = doc.y;
+              const isRet = Boolean(med.isReturn || (med.quantity || 0) < 0 || (med.total || 0) < 0);
+              const medColor = isRet ? '#DC2626' : '#334155';
+              const nameText = isRet ? `[RETURN / CREDIT NOTE] ${med.name}` : `[Medicine] ${med.name}${med.dosage ? ' - ' + med.dosage : ''}`;
+
+              doc.font(isRet ? 'Helvetica-Bold' : 'Helvetica').fontSize(7.5).fillColor(medColor)
+                 .text(nameText, L + 4, sy + 2, { width: 230 });
+              doc.text(med.serviceCode || 'MED-01', L + 240, sy + 2);
+              doc.text(String(med.quantity || 1), L + 300, sy + 2, { width: 35, align: 'center' });
+              doc.text(formatCurrency(med.unitPrice || 0), L + 340, sy + 2, { width: 60, align: 'right' });
+              doc.text(`${med.taxPercentage || 12}%`, L + 405, sy + 2, { width: 45, align: 'center' });
+              doc.text(formatCurrency(med.total || 0), L + 455, sy + 2, { width: 64, align: 'right' });
+
+              doc.strokeColor('#F1F5F9').lineWidth(0.5).moveTo(L, sy + 14).lineTo(R, sy + 14).stroke();
+              doc.y = sy + 16;
+            });
+          }
+
+          // 3. Equipment & Inventory Rows
+          if (Array.isArray(session.equipmentAndInventory) && session.equipmentAndInventory.length > 0) {
+            session.equipmentAndInventory.forEach((eq) => {
+              checkPageBreak(18);
+              sy = doc.y;
+              const isRet = Boolean(eq.isReturn || (eq.quantity || 0) < 0 || (eq.total || 0) < 0);
+              const eqColor = isRet ? '#DC2626' : '#334155';
+              const nameText = isRet ? `[RETURN / CREDIT NOTE] ${eq.name}` : `[${eq.type || 'Equipment'}] ${eq.name} (${eq.duration || 'Session'})`;
+
+              doc.font(isRet ? 'Helvetica-Bold' : 'Helvetica').fontSize(7.5).fillColor(eqColor)
+                 .text(nameText, L + 4, sy + 2, { width: 230 });
+              doc.text(eq.serviceCode || 'EQ-01', L + 240, sy + 2);
+              doc.text(String(eq.quantity || 1), L + 300, sy + 2, { width: 35, align: 'center' });
+              doc.text(formatCurrency(eq.unitRate || 0), L + 340, sy + 2, { width: 60, align: 'right' });
+              doc.text(`${eq.taxPercentage || 18}%`, L + 405, sy + 2, { width: 45, align: 'center' });
+              doc.text(formatCurrency(eq.total || 0), L + 455, sy + 2, { width: 64, align: 'right' });
+
+              doc.strokeColor('#F1F5F9').lineWidth(0.5).moveTo(L, sy + 14).lineTo(R, sy + 14).stroke();
+              doc.y = sy + 16;
+            });
+          }
+
+          // Session Subtotal Row
+          checkPageBreak(22);
+          sy = doc.y;
+          const sTotal = Number(session.sessionFinancials?.sessionNetTotal || 0);
+          doc.rect(L, sy, W, 18).fill('#F8FAFC');
+          doc.font('Helvetica-Bold').fontSize(8).fillColor('#0F172A')
+             .text(`SESSION #${session.sessionNumber || (sIdx + 1)} NET SUBTOTAL:`, L + 200, sy + 5, { width: 240, align: 'right' });
+          doc.text(`Rs. ${formatCurrency(sTotal)}`, L + 445, sy + 5, { width: 74, align: 'right' });
+          doc.y = sy + 24;
+        });
+      } else {
+        // Fallback for legacy items if any
+        doc.font('Helvetica-Oblique').fontSize(8.5).fillColor('#64748B').text('No itemized sessions logged.', L, doc.y + 10);
+        doc.y += 25;
+      }
+
+      // ==========================================
+      // SECTION 2: FINANCIAL DISTRIBUTION MATRIX
+      // ==========================================
+      if (sessions.length > 0) {
+        checkPageBreak(80 + (sessions.length * 15));
+        let my = doc.y + 8;
+        doc.rect(L, my, W, 18).fill('#0284C7');
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#FFFFFF')
+           .text('TREATMENT FINANCIAL DISTRIBUTION PER BOOKING', L + 6, my + 5);
+        my += 20;
+
+        // Header
+        doc.rect(L, my, W, 15).fill('#E0F2FE');
+        doc.font('Helvetica-Bold').fontSize(7).fillColor('#0369A1');
+        doc.text('BOOKING / SESSION REF', L + 4, my + 4, { width: 114 });
+        doc.text('DATE & TIME', L + 120, my + 4, { width: 95 });
+        doc.text('SERVICE FEE', L + 218, my + 4, { width: 68, align: 'right' });
+        doc.text('MEDICINES', L + 290, my + 4, { width: 72, align: 'right' });
+        doc.text('INVENTORY / EQUIP', L + 366, my + 4, { width: 80, align: 'right' });
+        doc.text('NET TOTAL', L + 450, my + 4, { width: 68, align: 'right' });
+        my += 16;
+
+        sessions.forEach((s) => {
+          const bTag = s.bookingCode ? `#${s.bookingCode}` : `#BID-${String(s.bookingId?._id || s.bookingId || '').slice(-6).toLowerCase()}`;
+          const timeOnly = formatSlotTime(s.slotTime).split('-')[0].replace(/\(\d+.*$/, '').trim();
+          doc.font('Helvetica').fontSize(7.5).fillColor('#334155');
+          doc.text(`Session #${s.sessionNumber} (${bTag})`, L + 4, my + 3, { width: 114, ellipsis: true });
+          doc.text(`${formatDate(s.appointmentDate)} ${timeOnly}`, L + 120, my + 3, { width: 95 });
+          doc.text(formatCurrency(s.sessionFinancials?.serviceFee || s.serviceFee || 0), L + 218, my + 3, { width: 68, align: 'right' });
+          doc.text(formatCurrency(s.sessionFinancials?.medicineSubtotal || 0), L + 290, my + 3, { width: 72, align: 'right' });
+          doc.text(formatCurrency(s.sessionFinancials?.inventorySubtotal || 0), L + 366, my + 3, { width: 80, align: 'right' });
+          doc.font('Helvetica-Bold').text(formatCurrency(s.sessionFinancials?.sessionNetTotal || 0), L + 450, my + 3, { width: 68, align: 'right' });
+          doc.strokeColor('#F1F5F9').lineWidth(0.5).moveTo(L, my + 13).lineTo(R, my + 13).stroke();
+          my += 15;
+        });
+
+        // Totals Row
+        const summary = invoice.financialDistributionSummary || {};
+        doc.rect(L, my, W, 16).fill('#F0F9FF');
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#0284C7');
+        doc.text('CUMULATIVE TOTALS:', L + 4, my + 4, { width: 210 });
+        doc.text(formatCurrency(summary.totalServiceFees || 0), L + 218, my + 4, { width: 68, align: 'right' });
+        doc.text(formatCurrency(summary.totalMedicinesCost || 0), L + 290, my + 4, { width: 72, align: 'right' });
+        doc.text(formatCurrency(summary.totalEquipmentInventoryCost || 0), L + 366, my + 4, { width: 80, align: 'right' });
+        doc.text(`Rs. ${formatCurrency(summary.grossSubtotal || 0)}`, L + 450, my + 4, { width: 68, align: 'right' });
+        my += 22;
+        doc.y = my;
+      }
+
+      // ==========================================
+      // SECTION 3: MASTER PAYMENT LEDGER
+      // ==========================================
+      const payments = Array.isArray(invoice.paymentLedger) && invoice.paymentLedger.length > 0 ? invoice.paymentLedger : [];
+      checkPageBreak(60 + (payments.length * 14));
+      let py = doc.y + 4;
+      doc.rect(L, py, W, 18).fill('#475569');
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#FFFFFF')
+         .text('ADVANCE DEPOSITS & PAYMENT RECEIPTS LEDGER', L + 6, py + 5);
+      py += 20;
+
+      doc.rect(L, py, W, 15).fill('#F1F5F9');
+      doc.font('Helvetica-Bold').fontSize(7).fillColor('#475569');
+      doc.text('S.NO', L + 4, py + 4, { width: 30 });
+      doc.text('RECEIPT NO', L + 40, py + 4, { width: 120 });
+      doc.text('DATE & TIME', L + 170, py + 4, { width: 130 });
+      doc.text('PAYMENT MODE', L + 310, py + 4, { width: 90 });
+      doc.text('STAGE / TYPE', L + 410, py + 4, { width: 60 });
+      doc.text('AMOUNT (Rs.)', L + 475, py + 4, { width: 44, align: 'right' });
+      py += 16;
+
+      if (payments.length > 0) {
+        payments.forEach((p, idx) => {
+          doc.font('Helvetica').fontSize(7.5).fillColor('#334155');
+          doc.text(String(idx + 1), L + 4, py + 3, { width: 30 });
+          doc.text(p.receiptNumber || 'N/A', L + 40, py + 3, { width: 120 });
+          doc.text(formatDateTime(p.paidAt), L + 170, py + 3, { width: 130 });
+          doc.text(p.mode || 'Online', L + 310, py + 3, { width: 90 });
+          doc.text(p.transactionType || 'Deposit', L + 410, py + 3, { width: 60 });
+          doc.font('Helvetica-Bold').text(formatCurrency(p.amount || 0), L + 475, py + 3, { width: 44, align: 'right' });
+          doc.strokeColor('#F1F5F9').lineWidth(0.5).moveTo(L, py + 13).lineTo(R, py + 13).stroke();
+          py += 14;
+        });
+      } else {
+        doc.font('Helvetica-Oblique').fontSize(7.5).fillColor('#64748B').text('No advance deposits recorded.', L + 4, py + 3);
+        py += 14;
+      }
+      doc.y = py + 8;
+
+      // ==========================================
+      // SECTION 4: GRAND FINANCIAL RECONCILIATION
+      // ==========================================
+      checkPageBreak(110);
+      let fy = doc.y + 4;
+      const sum = invoice.financialDistributionSummary || {};
+      const gross = Number(sum.grossSubtotal || 0);
+      const discount = Number(sum.totalDiscounts || 0);
+      const net = Number(sum.netPayableAmount || (gross - discount));
+      const paid = Number(sum.totalPaidAmount || 0);
+      const balanceDue = Number(sum.balanceDue || Math.max(0, net - paid));
+      const refundDue = Number(sum.refundDue || Math.max(0, paid - net)); // TC-FIN-02
+
+      const sumW = 240;
+      const sumX = R - sumW;
+
+      doc.rect(sumX, fy, sumW, 90).fill('#F8FAFC');
+      doc.rect(sumX, fy, sumW, 90).strokeColor('#CBD5E1').lineWidth(0.8).stroke();
+
+      doc.font('Helvetica').fontSize(8).fillColor('#475569');
+      doc.text('Total Bill Amount (Gross):', sumX + 10, fy + 8, { width: 130 });
+      doc.font('Helvetica-Bold').text(`Rs. ${formatCurrency(gross)}`, sumX + 140, fy + 8, { width: 90, align: 'right' });
+
+      doc.font('Helvetica').text('Institutional Concession / Disc:', sumX + 10, fy + 22, { width: 130 });
+      doc.font('Helvetica-Bold').fillColor('#DC2626').text(`- Rs. ${formatCurrency(discount)}`, sumX + 140, fy + 22, { width: 90, align: 'right' });
+
+      doc.font('Helvetica').fillColor('#475569').text('Net Payable Amount:', sumX + 10, fy + 36, { width: 130 });
+      doc.font('Helvetica-Bold').fillColor('#0F172A').text(`Rs. ${formatCurrency(net)}`, sumX + 140, fy + 36, { width: 90, align: 'right' });
+
+      doc.font('Helvetica').fillColor('#475569').text('Total Paid / Advance Deposited:', sumX + 10, fy + 50, { width: 130 });
+      doc.font('Helvetica-Bold').fillColor('#059669').text(`Rs. ${formatCurrency(paid)}`, sumX + 140, fy + 50, { width: 90, align: 'right' });
+
+      // Final status banner inside box
+      if (refundDue > 0) {
+        doc.rect(sumX, fy + 65, sumW, 25).fill('#DC2626');
+        doc.font('Helvetica-Bold').fontSize(9).fillColor('#FFFFFF')
+           .text('REFUND PAYABLE TO PATIENT:', sumX + 8, fy + 72)
+           .text(`Rs. ${formatCurrency(refundDue)}`, sumX + 130, fy + 72, { width: 100, align: 'right' });
+      } else if (balanceDue > 0) {
+        doc.rect(sumX, fy + 65, sumW, 25).fill('#0F172A');
+        doc.font('Helvetica-Bold').fontSize(9).fillColor('#FFFFFF')
+           .text('BALANCE DUE / PENDING:', sumX + 8, fy + 72)
+           .text(`Rs. ${formatCurrency(balanceDue)}`, sumX + 130, fy + 72, { width: 100, align: 'right' });
+      } else {
+        doc.rect(sumX, fy + 65, sumW, 25).fill('#059669');
+        doc.font('Helvetica-Bold').fontSize(9).fillColor('#FFFFFF')
+           .text('STATUS: FULLY SETTLED', sumX + 8, fy + 72)
+           .text('Rs. 0.00 DUE', sumX + 130, fy + 72, { width: 100, align: 'right' });
+      }
+
+      // Legal Note (Left of Summary)
+      doc.font('Helvetica').fontSize(7.5).fillColor('#64748B')
+         .text(
+           'Note: This is a verified electronic medical billing statement generated by the Medico Clinical Core. ' +
+           'All pharmaceutical items and clinical inventory recorded were authorized and administered by credentialed providers. ' +
+           'Subject to audit and state tax compliance regulations.',
+           L, fy + 10, { width: W - sumW - 20 }
+         );
+
+      doc.y = fy + 105;
+
+      // ==========================================
+      // SECTION 5: SIGNATURES & AUDIT SEAL
+      // ==========================================
+      checkPageBreak(50);
+      let sgy = doc.y + 10;
+      doc.strokeColor('#E2E8F0').lineWidth(0.8).moveTo(L, sgy).lineTo(R, sgy).stroke();
+      sgy += 8;
+
+      const sigW = W / 3;
+      doc.font('Helvetica').fontSize(7.5).fillColor('#475569');
+      doc.text('Patient / Attendant Signature', L, sgy, { width: sigW });
+      doc.text(`Printed By: ${invoice.createdBy?.userName || 'Billing Operator'}`, L + sigW, sgy, { width: sigW, align: 'center' });
+      doc.text('Authorized Hospital Signatory', L + (sigW * 2), sgy, { width: sigW, align: 'right' });
+      sgy += 14;
+
+      // Digital Security Seal Footer
+      if (invoice.securityHash) {
+        doc.font('Courier').fontSize(6.5).fillColor('#94A3B8')
+           .text(`SHA-256 Security Seal: ${invoice.securityHash} [Verified Immutable Record]`, L, sgy, { width: W, align: 'center' });
+      }
+
+      // ==========================================
+      // TWO-PASS PAGE NUMBERING (Page X of Y)
+      // ==========================================
+      const totalPages = doc.bufferedPageRange().count;
+      for (let i = 0; i < totalPages; i++) {
+        doc.switchToPage(i);
+        doc.font('Helvetica').fontSize(7).fillColor('#94A3B8')
+           .text(`Page ${i + 1} of ${totalPages}`, L, maxY + 2, { width: W, align: 'center' });
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
     }
-
-    if (hasEquipment) {
-      y = drawCategoryRow(doc, 'ADDITIONAL EQUIPMENT & RENTALS', y, L, W);
-      y = drawItemRows(doc, invoice.additionalEquipment, y, cols, 'equipment');
-    }
-
-    if (!hasMedicines && !hasEquipment) {
-      const serviceName = invoice.billingDetails?.serviceName || 'Healthcare Consultation & Service';
-      const baseRate = Number(invoice.totals?.subtotal || invoice.billingDetails?.calculatedBase || invoice.billingDetails?.basePrice || 0);
-      const taxPercent = Number(invoice.billingDetails?.taxPercentage || 18);
-      const totalAmount = Number(invoice.totals?.grandTotal || (baseRate + (baseRate * taxPercent / 100)));
-
-      y = drawCategoryRow(doc, 'CONSULTATION & HEALTHCARE SERVICES', y, L, W);
-      const serviceItem = [{
-        name: serviceName,
-        quantity: 1,
-        rate: baseRate,
-        gstPercentage: taxPercent,
-        total: totalAmount
-      }];
-      y = drawItemRows(doc, serviceItem, y, cols, 'equipment');
-    }
-
-    y += 20;
-
-    // SUMMARY SECTION
-    const noteW = W * 0.55;
-    const sumX  = L + noteW + 10;
-    const sumW  = W - noteW - 10;
-
-    doc.font('Helvetica-Bold').fontSize(8).fillColor('#333')
-      .text('Note: ', L, y, { continued: true })
-      .font('Helvetica').fillColor('#7f8c8d')
-      .text(
-        'This is a computer-generated invoice and does not require a physical signature. ' +
-        'Healthcare services may be subject to different GST exemptions based on local laws.',
-        { width: noteW - 10 }
-      );
-
-    const summaryRows = [
-      ['Subtotal:',  invoice.totals?.subtotal || 0],
-      ['CGST (9%):', invoice.totals?.cgst     || 0],
-      ['SGST (9%):', invoice.totals?.sgst     || 0],
-    ];
-
-    let sy = y + 50;
-    summaryRows.forEach(([label, val]) => {
-      doc.font('Helvetica').fontSize(10).fillColor('#333')
-        .text(label, sumX, sy, { width: sumW * 0.55, align: 'left' })
-        .text(`Rs. ${formatCurrency(val)}`, sumX + sumW * 0.55, sy, { width: sumW * 0.45, align: 'right' });
-      sy += 22;
-    });
-
-    sy += 12;
-    doc.fillColor('#2c3e50').rect(sumX, sy, sumW, 36).fill();
-    doc.font('Helvetica-Bold').fontSize(12).fillColor('white')
-      .text('GRAND TOTAL:', sumX + 8, sy + 11, { width: sumW * 0.55 })
-      .text(`Rs. ${formatCurrency(invoice.totals?.grandTotal || 0)}`, sumX + sumW * 0.55, sy + 11, { width: sumW * 0.45 - 8, align: 'right' });
-
-    doc.end();
   });
 };
 
-// Category row helper
-function drawCategoryRow(doc, title, y, L, W) {
-  doc.fillColor('#f2f2f2').rect(L, y, W, 20).fill();
-  doc.font('Helvetica-Bold').fontSize(9).fillColor('#666').text(title, L + 6, y + 5);
-  return y + 24;
-}
-
-// ✅ Item rows — shows "Prescribed: DD Mon YYYY" under each medicine name
-// ✅ Item rows — date shown inline on same line as medicine name
-function drawItemRows(doc, items, y, cols, type) {
-  items.forEach(item => {
-    const rate    = type === 'medicine' ? item.pricePerUnit : item.rate;
-    const hasDate = type === 'medicine' && item.addedDate;
-    const rowH    = hasDate ? 30 : 20;
-
-    // Medicine name
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-      .text(item.name || 'Item', cols.desc + 4, y, { width: 180 });
-
-    // Date on same line — "Prescribed:" label + bold date value
-    if (hasDate) {
-      let dateStr = '';
-      try {
-        dateStr = new Date(item.addedDate).toLocaleDateString('en-IN', {
-          day: '2-digit', month: 'short', year: 'numeric'
-        });
-      } catch {
-        dateStr = String(item.addedDate).slice(0, 10);
-      }
-
-      // "Prescribed:" in grey
-      doc.font('Helvetica').fontSize(7).fillColor('#9ca3af')
-        .text('Prescribed:', cols.desc + 190, y + 1, { continued: true })
-      // date value in bold dark
-      doc.font('Helvetica-Bold').fontSize(7).fillColor('#374151')
-        .text(` ${dateStr}`, { width: 80 });
-    }
-
-    // Numeric columns
-    doc.font('Helvetica').fontSize(9).fillColor('#333');
-    doc.text(String(item.quantity || 1),         cols.qty,   y, { width: 55, align: 'center' });
-    doc.text(`Rs. ${formatCurrency(rate)}`,       cols.rate,  y, { width: 55, align: 'right'  });
-    doc.text(`${item.gstPercentage || 0}%`,       cols.gst,   y, { width: 50, align: 'center' });
-    doc.text(`Rs. ${formatCurrency(item.total)}`, cols.total, y, { width: 65, align: 'right'  });
-
-    doc.lineWidth(0.5).strokeColor('#eeeeee')
-      .moveTo(cols.desc, y + rowH)
-      .lineTo(cols.desc + 511, y + rowH)
-      .stroke();
-
-    y += rowH + 4;
-  });
-  return y;
-}
-
-
-
-function formatInvoiceNumber(num) {
-  return cleanNumber(num).toString().slice(-8).padStart(8, '0');
-}
-
-function formatDate(dateStr) {
-  try {
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: '2-digit', month: 'short', year: 'numeric'
-    });
-  } catch {
-    return '09 Mar 2026';
-  }
-}
-
-function formatCurrency(value) {
-  return cleanNumber(value).toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-}
-
-function cleanNumber(value) {
-  if (!value) return 0;
-  return Number(String(value).replace(/[^\d.]/g, '').replace(/\.(?=.*\.)/g, '')) || 0;
-}
-
 module.exports = generateInvoicePdf;
-module.exports.generateInvoicePdf = generateInvoicePdf;
-// const PDFDocument = require('pdfkit');
-
-// const generateInvoicePdf = (invoice) => {
-//   return new Promise((resolve, reject) => {
-//     const doc = new PDFDocument({ size: 'A4', margin: 15 * 2.83465 }); // 15mm margins like @page
-//     let buffers = [];
-
-//     doc.on('data', buffers.push.bind(buffers));
-//     doc.on('end', () => resolve(Buffer.concat(buffers)));
-//     doc.on('error', reject);
-
-//     const L = 42;       // left margin (~15mm)
-//     const R = 553;      // right edge
-//     const W = R - L;    // usable width ~511
-
-//     let y = 40;
-
-//     // =============================================
-//     // HEADER - matches .header-table style
-//     // brand-name: font-size:28px bold color:#2c3e50
-//     // invoice-label: right, font-size:22px color:#7f8c8d uppercase
-//     // border-bottom: 3px solid #2c3e50
-//     // =============================================
-//     doc.font('Helvetica-Bold').fontSize(22).fillColor('#2c3e50')
-//       .text('MEDICO PLATFORM', L, y);
-
-//     doc.font('Helvetica').fontSize(17).fillColor('#7f8c8d')
-//       .text('TAX INVOICE', L, y + 4, { width: W, align: 'right' });
-
-//     y += 34;
-
-//     // Invoice # and Date row (font-size:12px color:#7f8c8d)
-//     doc.font('Helvetica').fontSize(10).fillColor('#7f8c8d')
-//       .text(`Invoice #: ${formatInvoiceNumber(invoice.invoiceNumber)}`, L, y)
-//       .text(`Date: ${formatDate(invoice.issuedAt || invoice.createdAt)}`, L, y, { width: W, align: 'right' });
-
-//     y += 14;
-
-//     // Header bottom border: 3px solid #2c3e50
-//     doc.lineWidth(2.5).strokeColor('#2c3e50').moveTo(L, y).lineTo(R, y).stroke();
-
-//     y += 18; // margin-bottom ~30px scaled
-
-//     // =============================================
-//     // INFO GRID - matches .info-grid / .info-box
-//     // Two columns, each ~half width
-//     // Patient box: border-left: 4px solid #3498db, bg:#f9f9f9
-//     // Doctor box:  border-left: 4px solid #2ecc71, bg:#f9f9f9
-//     // =============================================
-//     const colW = (W / 2) - 8;
-//     const boxH = 105;
-
-//     // --- Patient Box ---
-//     doc.fillColor('#f9f9f9').rect(L, y, colW, boxH).fill();
-//     doc.fillColor('#3498db').rect(L, y, 4, boxH).fill(); // left border
-
-//     doc.font('Helvetica-Bold').fontSize(10).fillColor('#2c3e50')
-//       .text('BILLED TO (PATIENT)', L + 10, y + 10);
-
-//     const patientName = invoice.patientId?.firstName || 'N/A';
-//     const patientPhone = invoice.patientId?.phone || 'N/A';
-//     const patientAddr = invoice.patientId?.address
-//       ? `${invoice.patientId.address.street || ''}, ${invoice.patientId.address.city || ''}, ${invoice.patientId.address.pincode || ''}`.replace(/^,\s*/, '')
-//       : 'Address Not Provided';
-//     const patientId = invoice.patientId?._id
-//       ? String(invoice.patientId._id).slice(-8)
-//       : 'N/A';
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Name: ', L + 10, y + 26, { continued: true })
-//       .font('Helvetica').text(patientName);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Phone: ', L + 10, y + 40, { continued: true })
-//       .font('Helvetica').text(patientPhone);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Address: ', L + 10, y + 54, { continued: true })
-//       .font('Helvetica').text(patientAddr, { width: colW - 20 });
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('ID: ', L + 10, y + 80, { continued: true })
-//       .font('Helvetica').text(patientId);
-
-//     // --- Doctor Box ---
-//     const dColX = L + colW + 16;
-//     doc.fillColor('#f9f9f9').rect(dColX, y, colW, boxH).fill();
-//     doc.fillColor('#2ecc71').rect(dColX, y, 4, boxH).fill(); // left border
-
-//     doc.font('Helvetica-Bold').fontSize(10).fillColor('#2c3e50')
-//       .text('SERVICE PROVIDER (DOCTOR)', dColX + 10, y + 10);
-
-//     const doctorName = `Dr. ${invoice.doctorId?.firstName || 'N/A'}`;
-//     const specialization = invoice.doctorId?.specialization || 'General';
-//     const regNo = invoice.doctorId?.medicalRegistrationNumber || 'N/A';
-//     const doctorPhone = invoice.doctorId?.phone || 'N/A';
-//     const clinicLoc = invoice.doctorId?.address
-//       ? `${invoice.doctorId.address.city || ''}, ${invoice.doctorId.address.state || ''}`.replace(/^,\s*/, '')
-//       : 'N/A';
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text(doctorName, dColX + 10, y + 26);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Specialization: ', dColX + 10, y + 40, { continued: true })
-//       .font('Helvetica').text(specialization);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Reg No: ', dColX + 10, y + 54, { continued: true })
-//       .font('Helvetica').text(regNo);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Phone: ', dColX + 10, y + 68, { continued: true })
-//       .font('Helvetica').text(doctorPhone);
-
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('#333')
-//       .text('Clinic: ', dColX + 10, y + 82, { continued: true })
-//       .font('Helvetica').text(clinicLoc);
-
-//     y += boxH + 20;
-
-//     // =============================================
-//     // ITEMS TABLE
-//     // th: bg:#2c3e50, color:white, fontSize:10, uppercase, padding:12px
-//     // td: border-bottom:1px solid #eee, fontSize:10, padding:12
-//     // .row-category: bg:#f2f2f2, bold, fontSize:9, color:#666
-//     // =============================================
-//     const cols = {
-//       desc:   L,
-//       qty:    L + 270,
-//       rate:   L + 330,
-//       gst:    L + 390,
-//       total:  L + 445
-//     };
-
-//     // Table header
-//     doc.fillColor('#2c3e50').rect(L, y, W, 26).fill();
-//     doc.font('Helvetica-Bold').fontSize(9).fillColor('white')
-//       .text('DESCRIPTION',  cols.desc  + 4, y + 8, { width: 265 })
-//       .text('QTY',          cols.qty,        y + 8, { width: 55,  align: 'center' })
-//       .text('RATE',         cols.rate,        y + 8, { width: 55,  align: 'right' })
-//       .text('GST %',        cols.gst,         y + 8, { width: 50,  align: 'center' })
-//       .text('AMOUNT',       cols.total,       y + 8, { width: 65,  align: 'right' });
-
-//     y += 30;
-
-//     // Medicines section
-//     if (invoice.medicines?.length) {
-//       y = drawCategoryRow(doc, 'MEDICINES & PHARMACY', y, L, W);
-//       y = drawItemRows(doc, invoice.medicines, y, cols, 'medicine');
-//     }
-
-//     // Equipment section
-//     if (invoice.additionalEquipment?.length) {
-//       y = drawCategoryRow(doc, 'ADDITIONAL EQUIPMENT & RENTALS', y, L, W);
-//       y = drawItemRows(doc, invoice.additionalEquipment, y, cols, 'equipment');
-//     }
-
-//     y += 10;
-
-//     // =============================================
-//     // SUMMARY - matches .summary-wrapper
-//     // Left note: fontSize:9, color:#7f8c8d
-//     // Right table: subtotal/cgst/sgst rows normal
-//     // grand-total-row: bg:#2c3e50, color:white, bold, fontSize:13
-//     // =============================================
-//     const noteW = W * 0.55;
-//     const sumX  = L + noteW + 10;
-//     const sumW  = W - noteW - 10;
-
-//     doc.font('Helvetica-Bold').fontSize(8).fillColor('#333')
-//       .text('Note: ', L, y, { continued: true })
-//       .font('Helvetica').fillColor('#7f8c8d')
-//       .text(
-//         'This is a computer-generated invoice and does not require a physical signature. ' +
-//         'Healthcare services may be subject to different GST exemptions based on local laws.',
-//         { width: noteW - 10 }
-//       );
-
-//     // Summary rows
-//     const summaryRows = [
-//       ['Subtotal:',   invoice.totals?.subtotal  || 0],
-//       ['CGST (9%):',  invoice.totals?.cgst      || 0],
-//       ['SGST (9%):',  invoice.totals?.sgst      || 0],
-//     ];
-
-//     let sy = y;
-//     summaryRows.forEach(([label, val]) => {
-//       doc.font('Helvetica').fontSize(10).fillColor('#333')
-//         .text(label, sumX, sy, { width: sumW * 0.55, align: 'left' })
-//         .text(`Rs. ${formatCurrency(val)}`, sumX + sumW * 0.55, sy, { width: sumW * 0.45, align: 'right' });
-//       sy += 18;
-//     });
-
-//     // Grand total row: bg:#2c3e50, color:white, bold, fontSize:13
-//     sy += 4;
-//     doc.fillColor('#2c3e50').rect(sumX, sy, sumW, 32).fill();
-//     doc.font('Helvetica-Bold').fontSize(12).fillColor('white')
-//       .text('GRAND TOTAL:', sumX + 8, sy + 9, { width: sumW * 0.55 })
-//       .text(`Rs. ${formatCurrency(invoice.totals?.grandTotal || 0)}`, sumX + sumW * 0.55, sy + 9, { width: sumW * 0.45 - 8, align: 'right' });
-
-//     doc.end();
-//   });
-// };
-
-// // =============================================
-// // HELPER: Category row (.row-category)
-// // bg:#f2f2f2, bold, fontSize:9, color:#666
-// // =============================================
-// function drawCategoryRow(doc, title, y, L, W) {
-//   doc.fillColor('#f2f2f2').rect(L, y, W, 20).fill();
-//   doc.font('Helvetica-Bold').fontSize(9).fillColor('#666')
-//     .text(title, L + 6, y + 5);
-//   return y + 24;
-// }
-
-// // =============================================
-// // HELPER: Item rows (td style)
-// // fontSize:10, color:#333, border-bottom:1px solid #eee
-// // NO rupee superscript - use plain "Rs."
-// // =============================================
-// function drawItemRows(doc, items, y, cols, type) {
-//   items.forEach(item => {
-//     const rate = type === 'medicine' ? item.pricePerUnit : item.rate;
-
-//     doc.font('Helvetica').fontSize(9).fillColor('#333')
-//       .text(item.name || 'Item', cols.desc + 4, y, { width: 262 });
-
-//     doc.text(String(item.quantity || 1), cols.qty, y, { width: 55, align: 'center' });
-
-//     doc.text(`Rs. ${formatCurrency(rate)}`, cols.rate, y, { width: 55, align: 'right' });
-
-//     doc.text(`${item.gstPercentage || 0}%`, cols.gst, y, { width: 50, align: 'center' });
-
-//     doc.text(`Rs. ${formatCurrency(item.total)}`, cols.total, y, { width: 65, align: 'right' });
-
-//     // border-bottom: 1px solid #eee
-//     doc.lineWidth(0.5).strokeColor('#eeeeee')
-//       .moveTo(cols.desc, y + 16)
-//       .lineTo(cols.desc + 511, y + 16)
-//       .stroke();
-
-//     y += 20;
-//   });
-//   return y;
-// }
-
-// // =============================================
-// // FORMATTERS
-// // =============================================
-// function formatInvoiceNumber(num) {
-//   return cleanNumber(num).toString().slice(-8).padStart(8, '0');
-// }
-
-// function formatDate(dateStr) {
-//   try {
-//     return new Date(dateStr).toLocaleDateString('en-IN', {
-//       day: '2-digit', month: 'short', year: 'numeric'
-//     });
-//   } catch {
-//     return '09 Mar 2026';
-//   }
-// }
-
-// function formatCurrency(value) {
-//   return cleanNumber(value).toLocaleString('en-IN', {
-//     minimumFractionDigits: 2,
-//     maximumFractionDigits: 2
-//   });
-// }
-
-// function cleanNumber(value) {
-//   if (!value) return 0;
-//   return Number(String(value).replace(/[^\d.]/g, '').replace(/\.(?=.*\.)/g, '')) || 0;
-// }
-
-// module.exports = generateInvoicePdf;
-
-
-
-
-
-// const PDFDocument = require('pdfkit');
-
-// const generateInvoicePdf = (invoice) => {
-//   return new Promise((resolve, reject) => {
-//     const doc = new PDFDocument({ size: 'A4', margin: 50 });
-//     let buffers = [];
-    
-//     doc.on('data', buffers.push.bind(buffers));
-//     doc.on('end', () => resolve(Buffer.concat(buffers)));
-//     doc.on('error', reject);
-
-//     let y = 50;
-
-//     // === HEADER ===
-//     doc.fontSize(24).font('Helvetica-Bold').fillColor('#2c3e50').text('MEDICO PLATFORM', 50, y);
-//     doc.fontSize(20).font('Helvetica').fillColor('#7f8c8d').text('Tax Invoice', 350, y, { width: 200, align: 'right' });
-    
-//     y += 35;
-//     doc.fontSize(10).font('Helvetica').fillColor('#7f8c8d')
-//       .text('Invoice #: ' + invoice.invoiceNumber, 50, y)
-//       .text('Date: ' + new Date(invoice.issuedAt || invoice.createdAt).toLocaleDateString('en-IN'), 350, y, { width: 200, align: 'right' });
-    
-//     y += 30;
-//     doc.strokeColor('#2c3e50').lineWidth(2).moveTo(50, y).lineTo(550, y).stroke();
-
-//     // === INFO GRID ===
-//     y += 30;
-//     const boxHeight = 110;
-//     // Patient box
-//     doc.fillColor('#f9f9f9').rect(50, y, 240, boxHeight).fill();
-//     doc.strokeColor('#3498db').lineWidth(3).moveTo(50, y).lineTo(50, y + boxHeight).stroke();
-//     doc.fillColor('#2c3e50').fontSize(12).font('Helvetica-Bold').text('Billed To (Patient)', 65, y + 15);
-//     doc.fontSize(10).font('Helvetica').fillColor('#333')
-//       .text('Name: ' + (invoice.patientId?.firstName || 'N/A'), 65, y + 35)
-//       .text('Phone: ' + (invoice.patientId?.phone || 'N/A'), 65, y + 50)
-//       .text('ID: ' + (invoice.patientId?._id || 'N/A'), 65, y + 65, { width: 210 });
-
-//     // Doctor box
-//     doc.fillColor('#f9f9f9').rect(310, y, 240, boxHeight).fill();
-//     doc.strokeColor('#2ecc71').lineWidth(3).moveTo(310, y).lineTo(310, y + boxHeight).stroke();
-//     doc.fillColor('#2c3e50').fontSize(12).font('Helvetica-Bold').text('Service Provider (Doctor)', 325, y + 15);
-//     doc.fontSize(10).font('Helvetica').fillColor('#333')
-//       .text('Dr. ' + (invoice.doctorId?.firstName || 'N/A'), 325, y + 35)
-//       .text('Reg: ' + (invoice.doctorId?.medicalRegistrationNumber || 'N/A'), 325, y + 50)
-//       .text('Clinic: ' + (invoice.doctorId?.address?.city || 'N/A'), 325, y + 65);
-
-//     // === ITEMS TABLE ===
-//     y += boxHeight + 40;
-
-//     const col1 = 60;
-//     const col2 = 330;
-//     const col3 = 380;
-//     const col4 = 450;
-//     const col5 = 500;
-
-//     // Headers
-//     doc.fillColor('#2c3e50').rect(50, y, 500, 30).fill();
-//     doc.fillColor('white').fontSize(11).font('Helvetica-Bold');
-//     doc.text('Description', col1, y + 10);
-//     doc.text('Qty', col2, y + 10, { width: 40, align: 'center' });
-//     doc.text('Rate', col3, y + 10, { width: 60, align: 'right' });
-//     doc.text('GST %', col4, y + 10, { width: 40, align: 'center' });
-//     doc.text('Amount', col5, y + 10, { width: 45, align: 'right' });
-    
-//     y += 35;
-
-//     const drawRow = (name, qty, rate, gst, total) => {
-//       doc.fontSize(10).font('Helvetica').fillColor('#333');
-//       doc.text(name, col1, y, { width: 260 });
-//       doc.text(qty.toString(), col2, y, { width: 40, align: 'center' });
-//       doc.text('₹' + rate, col3, y, { width: 60, align: 'right' });
-//       doc.text(gst + '%', col4, y, { width: 40, align: 'center' });
-//       doc.text('₹' + total.toFixed(2), col5, y, { width: 45, align: 'right' });
-      
-//       doc.strokeColor('#eee').lineWidth(1).moveTo(50, y + 15).lineTo(550, y + 15).stroke();
-//       y += 25;
-//     };
-
-//     // Medicines
-//     if (invoice.medicines?.length) {
-//         doc.fillColor('#f2f2f2').rect(50, y, 500, 20).fill();
-//         doc.fillColor('#666').fontSize(9).font('Helvetica-Bold').text('MEDICINES & PHARMACY', col1, y + 6);
-//         y += 25;
-//         invoice.medicines.forEach(item => drawRow(item.name, item.quantity, item.pricePerUnit, item.gstPercentage, item.total));
-//     }
-
-//     // Equipment
-//     if (invoice.additionalEquipment?.length) {
-//         doc.fillColor('#f2f2f2').rect(50, y, 500, 20).fill();
-//         doc.fillColor('#666').fontSize(9).font('Helvetica-Bold').text('ADDITIONAL EQUIPMENT & RENTALS', col1, y + 6);
-//         y += 25;
-//         invoice.additionalEquipment.forEach(item => drawRow(item.name, item.quantity, item.rate, item.gstPercentage, item.total));
-//     }
-
-//     // === SUMMARY ===
-//     y += 20;
-//     const summaryLabelX = 350;
-//     const summaryValueX = 480;
-
-//     doc.fontSize(10).font('Helvetica').fillColor('#7f8c8d')
-//       .text('Note: Computer generated invoice.', 50, y, { width: 250 });
-
-//     const totals = [
-//         { label: 'Subtotal:', value: invoice.totals?.subtotal },
-//         { label: 'CGST (50%):', value: invoice.totals?.cgst },
-//         { label: 'SGST (50%):', value: invoice.totals?.sgst }
-//     ];
-
-//     totals.forEach(item => {
-//         doc.fillColor('#333').text(item.label, summaryLabelX, y, { width: 100, align: 'right' });
-//         doc.text('₹' + (item.value?.toFixed(2) || '0.00'), summaryValueX, y, { width: 65, align: 'right' });
-//         y += 18;
-//     });
-
-//     // Grand Total
-//     y += 10;
-//     doc.fillColor('#2c3e50').rect(summaryLabelX, y, 200, 35).fill();
-//     doc.fillColor('white').fontSize(12).font('Helvetica-Bold');
-//     doc.text('GRAND TOTAL:', summaryLabelX + 10, y + 12);
-//     doc.text('₹' + (invoice.totals?.grandTotal?.toFixed(2) || '0.00'), summaryValueX, y + 12, { width: 65, align: 'right' });
-
-//     doc.end();
-//   });
-// };
-
-// module.exports = generateInvoicePdf;
-

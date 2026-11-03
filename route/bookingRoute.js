@@ -80,6 +80,10 @@ router.post('/providerBookings',
 
 
 
-router.get('/patient/:treatmentId', protect('patient'),bookingController.getTreatmentById);
+router.get('/patient/:treatmentId', protect('patient', 'doctor', 'serviceprovider', 'admin', 'superAdmin'), bookingController.getTreatmentById);
+router.get('/treatment/:treatmentId', protect('patient', 'doctor', 'serviceprovider', 'admin', 'superAdmin'), bookingController.getTreatmentById);
+
+router.post('/reassign-provider/:bookingId', protect('patient', 'admin', 'superAdmin'), bookingController.reassignBookingProvider);
+router.post('/request-refund/:bookingId', protect('patient'), bookingController.requestBookingRefund);
 
 module.exports = router;

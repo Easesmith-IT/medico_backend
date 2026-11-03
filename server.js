@@ -199,6 +199,8 @@ const server = app.listen(PORT, () => {
 
 // Initialize Socket.IO
 initSocket(server);
+const { processSlaSweeper } = require("./jobs/slaExpirySweeper");
+setInterval(processSlaSweeper, 5 * 60 * 1000);
 
 // ============================================
 // ERROR HANDLING

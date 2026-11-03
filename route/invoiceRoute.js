@@ -1,38 +1,51 @@
 const express = require('express');
 const router = express.Router();
 const invoiceController = require('../controller/invoiceController');
+const { protect } = require('../middleware/auth');
 
-// Generate Invoice (creates DB record + PDF)
-// router.post('/generate', invoiceController.generateInvoice);
+// ==========================================
+// TREATMENT CONSOLIDATED INVOICES (ENTERPRISE)
+// ==========================================
 
-// // Download Invoice PDF
-// router.get('/download/:invoiceId', invoiceController.downloadInvoice);
-// router.get('/:invoiceId/download', invoiceController.downloadInvoice);
-// // Get Invoice Details
-// router.get('/:invoiceId', invoiceController.getInvoice);
-// router.get('/generateinv/:patientId', 
-// //   protect(['serviceProvider']), 
-//   invoiceController.getPatientInvoicesByServiceProvider
-// );
+// 1. Generate Materialized Snapshot on demand (Doctor, Attending Provider, Admin)
+router.post(
+  '/treatment/:treatmentId/generate',
+  protect(['admin', 'superadmin', 'doctor', 'serviceprovider', 'serviceProvider']),
+  invoiceController.generateTreatmentInvoice
+);
 
+// 2. Fetch Latest Materialized Invoice (O(1) read - Doctor, Attending Provider, Admin, Patient)
+router.get(
+  '/treatment/:treatmentId/current',
+  protect(['admin', 'superadmin', 'doctor', 'serviceprovider', 'serviceProvider', 'patient']),
+  invoiceController.getTreatmentInvoice
+);
 
+// 3. Treatment Invoice Version History (Audit & Insurance)
+router.get(
+  '/treatment/:treatmentId/history',
+  protect(['admin', 'superadmin', 'doctor', 'serviceprovider', 'serviceProvider', 'patient']),
+  invoiceController.getTreatmentInvoiceHistory
+);
 
+// ==========================================
+// LEGACY SINGLE BOOKING & GENERAL INVOICES
+// ==========================================
+
+// Legacy Single-Booking Generate
 router.post('/generate', invoiceController.generateInvoice);
 
-// 2. generateinv BEFORE /:invoiceId
-router.get('/generateinv/:patientId', 
-  // protect(['serviceProvider']), 
+// Legacy Service Provider Invoices
+router.get(
+  '/generateinv/:patientId',
   invoiceController.getPatientInvoicesByServiceProvider
 );
 
-// 3. Download routes
-// router.get('/download/:invoiceId', invoiceController.downloadInvoice);
-// router.get('/:invoiceId/download', invoiceController.downloadInvoice);
-// ✅ ONE ROUTE handles ALL link types
-router.get("/download/:invoiceId", invoiceController.downloadInvoice);
+// Download PDF (Handles both TreatmentConsolidated and Legacy Single Booking)
+router.get('/download/:invoiceId', invoiceController.downloadInvoice);
+router.get('/:invoiceId/download', invoiceController.downloadInvoice);
 
-// 4. Generic param route LAST
+// Generic Invoice Details by ID
 router.get('/:invoiceId', invoiceController.getInvoice);
 
 module.exports = router;
-
