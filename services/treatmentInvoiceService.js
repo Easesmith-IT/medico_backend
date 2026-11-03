@@ -282,13 +282,21 @@ const compileAndMaterializeTreatmentInvoice = async ({
     const pdfBuffer = await generateInvoicePdf(invoiceDoc.toObject());
 
     // Local Disk Storage Retention (TC-PDF-03)
-    const localUploadsDir = path.join(__dirname, '..', 'uploads', 'invoices');
-    if (!fs.existsSync(localUploadsDir)) {
-      fs.mkdirSync(localUploadsDir, { recursive: true });
+    try {
+      const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+      const localUploadsDir = isServerless
+        ? path.join('/tmp', 'invoices')
+        : path.join(__dirname, '..', 'uploads', 'invoices');
+
+      if (!fs.existsSync(localUploadsDir)) {
+        fs.mkdirSync(localUploadsDir, { recursive: true });
+      }
+      const localPdfPath = path.join(localUploadsDir, `${invoiceNumber}.pdf`);
+      fs.writeFileSync(localPdfPath, pdfBuffer);
+      invoiceDoc.localPdfPath = localPdfPath;
+    } catch (fsErr) {
+      console.warn(`[TreatmentInvoiceService] Local disk write skipped: ${fsErr.message}`);
     }
-    const localPdfPath = path.join(localUploadsDir, `${invoiceNumber}.pdf`);
-    fs.writeFileSync(localPdfPath, pdfBuffer);
-    invoiceDoc.localPdfPath = localPdfPath;
 
     // Cloud CDN Upload with Local Fallback (TC-PDF-03)
     let cdnUrl = null;
