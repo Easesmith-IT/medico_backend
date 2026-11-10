@@ -1,10 +1,9 @@
 const mongoose = require("mongoose");
-const crypto = require("crypto");
 
 const Booking = require("../models/bookingModel");
 const Treatment = require("../models/treatmentModel");
-const Invoice = require("../models/invoiceModel");
 const Payment = require("../models/paymentModel");
+const treatmentInvoiceService = require("../services/treatmentInvoiceService");
 const {
   OPEN_BOOKING_STATUSES,
   TREATMENT_STATES,
@@ -149,46 +148,11 @@ const finalizeTreatmentCompletion = async ({
   treatment.endDate = booking.serviceEndedAt;
   treatment.lastBookingAt = booking.serviceEndedAt;
 
-  const invoicePayload = {
-    invoiceNumber: `INV-${Date.now()}-${crypto
-      .randomBytes(2)
-      .toString("hex")
-      .toUpperCase()}`,
-    bookingId: booking._id,
-    patientId: booking.patientId,
-    doctorId: booking.servicePartnerId || actorId || null,
-    billingDetails: {
-      serviceName: booking.serviceId?.name,
-      category: booking.serviceId?.category || booking.category,
-      totalAmount: booking.pricing.totalAmount,
-      paidAmount: 0,
-      dueAmount: booking.dueAmount,
-      paymentStatus: "Unpaid",
-      durationMinutes: booking.duration,
-      basePrice: booking.pricing?.basePrice,
-      calculatedBase: booking.pricing?.subtotal,
-      taxPercentage: booking.serviceId?.taxPercentage || booking.pricing?.taxPercentage || 0,
-      shiftType: booking.shiftType || null,
-    },
-    paymentStatus: "Unpaid",
-    isInvoiceGenerated: true,
-    issuedAt: new Date(),
-  };
-
-  const invoice = await Invoice.create([invoicePayload], { session });
-  const savedInvoice = invoice[0];
-
-  booking.invoiceId = savedInvoice._id;
-  booking.invoiceGenerated = true;
-  treatment.invoiceId = savedInvoice._id;
-  treatment.invoiceGenerated = true;
-
   await booking.save({ session });
   await treatment.save({ session });
 
   const payment = await Payment.findOne({ treatmentId: treatment._id }).session(session);
   if (payment) {
-    payment.invoiceId = savedInvoice._id;
     payment.paymentStatus = booking.paymentStatus;
     payment.totalBillAmount = toNumber(booking.pricing?.totalAmount, payment.totalBillAmount);
     payment.totalPaid = 0;
@@ -201,7 +165,7 @@ const finalizeTreatmentCompletion = async ({
     alreadyCompleted: false,
     booking,
     treatment,
-    invoice: savedInvoice,
+    invoice: null,
   };
 };
 
@@ -221,6 +185,22 @@ const completeTreatmentWithTransaction = async ({
       session,
     });
     await session.commitTransaction();
+
+    if (!result.alreadyCompleted && result.treatment?._id) {
+      try {
+        const consolidated = await treatmentInvoiceService.compileAndMaterializeTreatmentInvoice({
+          treatmentId: result.treatment._id,
+          requestedBy: { id: actorId || null, role: "Admin" },
+        });
+        if (consolidated) {
+          result.invoice = consolidated;
+          result.consolidatedInvoice = consolidated;
+        }
+      } catch (invErr) {
+        console.warn("[TreatmentCompletionService] Consolidated invoice generation deferred:", invErr.message);
+      }
+    }
+
     return result;
   } catch (error) {
     await session.abortTransaction();

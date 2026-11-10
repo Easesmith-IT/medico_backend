@@ -43,6 +43,7 @@ const generateInvoicePdf = (invoice) => {
         if (!dateStr) return 'N/A';
         try {
           return new Date(dateStr).toLocaleDateString('en-IN', {
+            timeZone: 'Asia/Kolkata',
             day: '2-digit',
             month: 'short',
             year: 'numeric',
@@ -57,8 +58,8 @@ const generateInvoicePdf = (invoice) => {
         try {
           const d = new Date(dateStr);
           if (isNaN(d.getTime())) return String(dateStr);
-          const datePart = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-          const timePart = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+          const datePart = d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
+          const timePart = d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
           return `${datePart}, ${timePart}`;
         } catch {
           return String(dateStr).slice(0, 16);

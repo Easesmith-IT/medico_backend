@@ -20,7 +20,7 @@ const MedicalRecord = require("../models/medicalRecordModel");
 // const upload = require("../middleware/multerConfig");
 const fs = require('fs');
 // const Invoice = require('../models/Invoice'); // Your Invoice model path
-const { generateInvoicePdf } = require('../utils/generateInvoicePdf'); // Your PDF generator path
+const treatmentInvoiceService = require('../services/treatmentInvoiceService');
 const  uploadFile  = require('../utils/uploadFile')
 const razorpayInstance = require("../config/razorpay");
 const {
@@ -84,6 +84,8 @@ const buildBookingPaymentView = (booking, payment) => {
     isAdvancePaid: advanceAmount > 0 || Boolean(booking?.isAdvancePaid),
     isFinalPaymentDone: paidAmount > 0 && dueAmount === 0,
     payNow: dueAmount > 0,
+    invoiceGenerated: Boolean(booking?.invoiceGenerated ?? booking?.isInvoiceGenerated),
+    isInvoiceGenerated: Boolean(booking?.isInvoiceGenerated ?? booking?.invoiceGenerated),
     lastRazorpayOrderId:
       latestOnlineTransaction?.razorpayOrderId ||
       booking?.lastRazorpayOrderId ||
@@ -1949,71 +1951,23 @@ exports.getBookedServicesByPatientId = async (req, res) => {
     let invoicesGeneratedCount = 0;
 
     if (generateInvoice === "true") {
-      const completedWithoutInvoice = bookings.filter(
-        (booking) =>
-          booking.treatmentId?.status === "Completed" && !booking.invoiceUrl
-      );
+      const completedTreatmentIds = [
+        ...new Set(
+          bookings
+            .filter((booking) => booking.treatmentId?.status === "Completed" && !booking.invoiceUrl)
+            .map((booking) => String(booking.treatmentId?._id || booking.treatmentId))
+            .filter(Boolean)
+        ),
+      ];
 
-      for (const booking of completedWithoutInvoice) {
+      for (const tId of completedTreatmentIds) {
         try {
-          const invoiceNumber = `INV-${Date.now()}-${crypto
-            .randomBytes(2)
-            .toString("hex")
-            .toUpperCase()}`;
-
-          const subtotal = Number(booking.pricing?.subtotal || booking.pricing?.basePrice || 0);
-          const gstAmount = Number(booking.pricing?.taxAmount || ((subtotal * (booking.pricing?.taxPercentage || 18)) / 100));
-          const grandTotal = Number(booking.pricing?.totalAmount || (subtotal + gstAmount));
-
-          const invoicePayload = {
-            invoiceNumber,
-            patientId: booking.patientId,
-            doctorId: booking.servicePartnerId,
-            billingDetails: {
-              serviceName: booking.serviceId?.name || "Healthcare Service",
-              calculatedBase: subtotal,
-              basePrice: subtotal,
-              taxPercentage: booking.pricing?.taxPercentage || 18
-            },
-            totals: {
-              subtotal,
-              gstAmount,
-              cgst: gstAmount / 2,
-              sgst: gstAmount / 2,
-              grandTotal
-            },
-            medicines: [],
-            additionalEquipment: []
-          };
-
-          const pdfBuffer = await generateInvoicePdf(invoicePayload);
-
-          const file = {
-            originalname: `${invoiceNumber}.pdf`,
-            buffer: pdfBuffer,
-          };
-
-          const pdfUrl = await uploadFile(file);
-
-          await Booking.findByIdAndUpdate(booking._id, {
-            invoiceUrl: pdfUrl,
-            isInvoiceGenerated: true,
+          await treatmentInvoiceService.compileAndMaterializeTreatmentInvoice({
+            treatmentId: tId,
           });
-
-          const newInvoice = new Invoice({
-            invoiceNumber,
-            bookingId: booking._id,
-            patientId: booking.patientId?._id || booking.patientId,
-            doctorId: booking.servicePartnerId?._id,
-            billingDetails: booking.pricing,
-            invoiceUrl: pdfUrl,
-            isInvoiceGenerated: true,
-          });
-
-          await newInvoice.save();
           invoicesGeneratedCount++;
         } catch (err) {
-          console.error(`Error generating invoice for ${booking._id}:`, err.message);
+          console.error(`Error generating consolidated invoice for treatment ${tId}:`, err.message);
         }
       }
 
@@ -2386,10 +2340,12 @@ exports.rescheduleBooking = async (req, res) => {
       });
     }
 
-    if (["Cancelled", "Rejected"].includes(booking.status)) {
-      return res.status(400).json({
+    const { validateBookingCanReschedule } = require("../utils/bookingTemporalValidator");
+    const rescheduleValidation = validateBookingCanReschedule(booking);
+    if (!rescheduleValidation.isValid) {
+      return res.status(rescheduleValidation.statusCode || 400).json({
         success: false,
-        message: "Cannot reschedule cancelled or rejected bookings",
+        message: rescheduleValidation.message,
       });
     }
 
@@ -3822,6 +3778,10 @@ exports.updateServiceStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: "Booking cancelled" });
     }
 
+    if (booking.status === 'Completed') {
+      return res.status(400).json({ success: false, message: "A completed booking is final and cannot be modified." });
+    }
+
     if (booking.servicePartnerId?.toString() !== providerId.toString()) {
       return res.status(403).json({ success: false, message: "Unauthorized provider" });
     }
@@ -4112,36 +4072,19 @@ if (status.toLowerCase() === 'treatmentcompleted') {
     booking.dueAmount = booking.pricing.totalAmount;  // Full updated amount due
   }
 
-  // 5. Generate invoice with CLEAN payment status
-  const invoicePayload = {
-    invoiceNumber: `INV-${Date.now()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
-    bookingId: booking._id,
-    patientId: booking.patientId,
-    doctorId: providerId,
-    billingDetails: {
-      serviceName: booking.serviceId.name,
-      category: booking.serviceId.category,
-      totalAmount: booking.pricing.totalAmount,
-      paidAmount: 0,        // ✅ Zero after advance reset
-      dueAmount: booking.dueAmount,  // ✅ Full amount
-      paymentStatus: "Unpaid"         // ✅ Fresh start
-    }
-  };
-
-  let savedInvoice = await Invoice.findOne({ bookingId: booking._id });
-  if (savedInvoice) {
-    savedInvoice.billingDetails = invoicePayload.billingDetails;
-    savedInvoice.paymentStatus = "Unpaid";
-    await savedInvoice.save();
-  } else {
-    const newInvoice = new Invoice(invoicePayload);
-    savedInvoice = await newInvoice.save();
-  }
-  
-  booking.invoiceId = savedInvoice._id;
-  booking.invoiceGenerated = true;
+  // 5. Save completion state and compile consolidated FinalBill invoice
   await treatment.save();
   await booking.save();
+
+  let compiledInvoice = null;
+  try {
+    compiledInvoice = await treatmentInvoiceService.compileAndMaterializeTreatmentInvoice({
+      treatmentId: treatment._id,
+      requestedBy: { id: providerId, role: 'ServiceProvider' },
+    });
+  } catch (invErr) {
+    console.warn('[bookingController] Consolidated invoice compilation deferred:', invErr.message);
+  }
 
   return res.status(200).json({
     success: true,
@@ -4154,7 +4097,9 @@ if (status.toLowerCase() === 'treatmentcompleted') {
       totalAmount: booking.pricing.totalAmount,
       dueAmount: booking.dueAmount,
       payNow: true,                 // ✅ Ready for final payment
-      invoiceGenerated: true
+      invoiceGenerated: Boolean(compiledInvoice),
+      invoiceId: compiledInvoice?._id || null,
+      invoiceNumber: compiledInvoice?.invoiceNumber || null,
     }
   });
 }
@@ -4342,41 +4287,31 @@ exports.getTreatmentById = catchAsync(async (req, res, next) => {
     hasCarePlan: guidelines.length > 0 || Boolean(pdfUrl)
   };
 
-  // 8. Fetch Invoices for all bookings and treatment
-  const bookingIds = bookings.map(b => b._id);
-  const invoiceQuery = [
-    { bookingId: { $in: bookingIds } },
-    { treatmentId: treatment._id }
-  ];
-  if (treatment.invoiceId) {
-    invoiceQuery.push({ _id: treatment.invoiceId });
-  }
-  if (paymentLedger?.invoiceId) {
-    invoiceQuery.push({ _id: paymentLedger.invoiceId._id || paymentLedger.invoiceId });
-  }
-  const rawInvoices = await Invoice.find({ $or: invoiceQuery }).sort({ createdAt: -1 }).lean();
+  // 8. Fetch Latest Consolidated Invoice for treatment
+  const rawInvoices = await Invoice.find({
+    treatmentId: treatment._id,
+    invoiceType: 'TreatmentConsolidated',
+    isLatest: true,
+  })
+    .sort({ createdAt: -1 })
+    .lean();
 
-  // Deduplicate invoices by bookingId (keep newest per session/booking) and normalize schema fields
-  const seenBookingIds = new Set();
-  const invoices = [];
-  for (const inv of rawInvoices) {
-    const bIdStr = inv.bookingId ? inv.bookingId.toString() : null;
-    if (bIdStr) {
-      if (seenBookingIds.has(bIdStr)) continue;
-      seenBookingIds.add(bIdStr);
-    }
-    const grandTotal = Number(inv.totals?.grandTotal || inv.totalAmount || inv.amount || 0);
-    invoices.push({
+  const invoices = rawInvoices.map((inv) => {
+    const grandTotal = Number(inv.financialDistributionSummary?.netPayableAmount || 0);
+    const url = inv.pdfUrl || inv.invoiceUrl || null;
+    return {
       ...inv,
+      isConsolidated: true,
       grandTotal,
       totalAmount: grandTotal,
       paymentStatus: inv.paymentStatus || 'Unpaid',
       status: inv.paymentStatus || 'Unpaid',
       invoiceNumber: inv.invoiceNumber || String(inv._id),
-      invoiceUrl: inv.invoiceUrl || null,
-      date: inv.issuedAt || inv.createdAt
-    });
-  }
+      pdfUrl: url,
+      invoiceUrl: url,
+      date: inv.issuedAt || inv.createdAt,
+    };
+  });
 
   // 9. Summary stats with both current and legacy/alias fields
   const stats = {
@@ -4760,11 +4695,13 @@ exports.getTreatmentById = catchAsync(async (req, res, next) => {
 //   return result;
 // };
 exports.bookingCompletedDetails = catchAsync(async (req, res) => {
-  const { 
-    bookingId, 
-    billingDetails = {}, 
-    categories = []  // [{categoryId, items: [{name, quantity, unitPrice, isReturn}]}]
+  const {
+    billingDetails = {},
+    categories = [],  // [{categoryId, items: [{name, quantity, unitPrice, isReturn}]}]
+    medicines = [],
+    additionalEquipment = [],
   } = req.body;
+  const bookingId = req.params.bookingId || req.body.bookingId;
 
   const providerId = req.user?.id;
 
@@ -4788,30 +4725,25 @@ exports.bookingCompletedDetails = catchAsync(async (req, res) => {
     });
   }
 
-  // Validate temporal constraint: cannot complete future scheduled booking
-  const completeValidation = validateBookingCanComplete(booking);
-  if (!completeValidation.isValid) {
-    return res.status(completeValidation.statusCode || 400).json({
-      success: false,
-      message: completeValidation.message,
-    });
+  // Validate temporal constraint if booking isn't already completed
+  if (booking.status !== 'Completed') {
+    const completeValidation = validateBookingCanComplete(booking);
+    if (!completeValidation.isValid) {
+      return res.status(completeValidation.statusCode || 400).json({
+        success: false,
+        message: completeValidation.message,
+      });
+    }
   }
 
   // 2. Validate categories & process returns + auto-merge duplicates
   const processedCategories = await processBillingCategories(categories);
 
   // 3. Calculate totals
-  const serviceBase = parseFloat(billingDetails.calculatedBase) || 
+  const serviceBase = parseFloat(billingDetails.calculatedBase) ||
+                     parseFloat(billingDetails.basePrice) ||
                      booking.serviceId?.basePrice || 0;
-  
-  const categoriesTotal = processedCategories.reduce(
-    (sum, cat) => sum + parseFloat(cat.categoryTotal || 0), 0
-  );
-  
-  const subTotal = serviceBase + categoriesTotal;
   const taxPercentage = parseFloat(billingDetails.taxPercentage) || 18;
-  const taxAmount = (subTotal * taxPercentage) / 100;
-  const grandTotal = subTotal + taxAmount;
 
   // 4. Extract medicines & inventory items to permanently save into Booking document
   const medicinesUsed = [];
@@ -4853,14 +4785,63 @@ exports.bookingCompletedDetails = catchAsync(async (req, res) => {
     }
   }
 
+  if (processedCategories.length === 0) {
+    for (const med of (Array.isArray(medicines) ? medicines : [])) {
+      const qty = Number(med.quantity ?? 1);
+      const unitPrice = Number(med.pricePerUnit ?? med.unitPrice ?? 0);
+      const medTax = Number(med.gstPercentage ?? med.taxPercentage ?? taxPercentage);
+      const total = med.total != null ? Number(med.total) : qty * unitPrice * (1 + medTax / 100);
+      medicinesUsed.push({
+        medicineId: med.medicineId || med._id || null,
+        name: med.name || 'Medicine',
+        categoryName: med.categoryName || 'Medicine',
+        serviceCode: med.serviceCode || '',
+        dosage: med.dosage || '',
+        quantity: qty,
+        unitPrice,
+        taxPercentage: medTax,
+        total: parseFloat(total.toFixed(2)),
+        isReturn: Boolean(med.isReturn || qty < 0),
+        administeredAt: new Date(),
+      });
+    }
+
+    for (const eq of (Array.isArray(additionalEquipment) ? additionalEquipment : [])) {
+      const qty = Number(eq.quantity ?? 1);
+      const unitRate = Number(eq.rate ?? eq.unitRate ?? 0);
+      const eqTax = Number(eq.gstPercentage ?? eq.taxPercentage ?? taxPercentage);
+      const total = eq.total != null ? Number(eq.total) : qty * unitRate * (1 + eqTax / 100);
+      inventoryAndEquipmentUsed.push({
+        itemId: eq.itemId || eq._id || null,
+        name: eq.name || 'Equipment',
+        categoryName: eq.categoryName || 'Equipment & Rentals',
+        serviceCode: eq.serviceCode || '',
+        type: eq.type || 'Equipment',
+        quantity: qty,
+        duration: eq.duration || '1 Session',
+        unitRate,
+        taxPercentage: eqTax,
+        total: parseFloat(total.toFixed(2)),
+        isReturn: Boolean(eq.isReturn || qty < 0),
+        usedAt: new Date(),
+      });
+    }
+  }
+
+  const medTotal = medicinesUsed.reduce((sum, m) => sum + m.total, 0);
+  const invTotal = inventoryAndEquipmentUsed.reduce((sum, e) => sum + e.total, 0);
+  const categoriesTotal = processedCategories.length > 0
+    ? processedCategories.reduce((sum, cat) => sum + parseFloat(cat.categoryTotal || 0), 0)
+    : medTotal + invTotal;
+  const subTotal = serviceBase + categoriesTotal;
+  const taxAmount = (subTotal * taxPercentage) / 100;
+  const grandTotal = subTotal + taxAmount;
+
   // Save directly to the booking document
   booking.medicinesUsed = medicinesUsed;
   booking.inventoryAndEquipmentUsed = inventoryAndEquipmentUsed;
   booking.status = 'Completed';
-  booking.serviceEndedAt = new Date();
-
-  const medTotal = medicinesUsed.reduce((sum, m) => sum + m.total, 0);
-  const invTotal = inventoryAndEquipmentUsed.reduce((sum, e) => sum + e.total, 0);
+  booking.serviceEndedAt = booking.serviceEndedAt || new Date();
 
   booking.sessionFinancialSnapshot = {
     serviceFee: parseFloat(serviceBase.toFixed(2)),
@@ -4881,6 +4862,7 @@ exports.bookingCompletedDetails = catchAsync(async (req, res) => {
     message: 'Billing details, medicines, and inventory persisted successfully to booking',
     data: {
       bookingId: booking._id,
+      treatmentId: booking.treatmentId || null,
       patientName: booking.patientId?.name,
       serviceName: booking.serviceId?.name,
       status: booking.status,
@@ -5095,7 +5077,7 @@ exports.getBookingsByServiceProvider = async (req, res, next) => {
                 select: 'status validTill'
             })
             .lean()
-            .sort({ createdAt: -1 });
+            .sort({ appointmentDate: -1, 'slotTime.startTime': -1, createdAt: -1 });
 
         const bookingTreatmentIds = [
             ...new Set(bookings.map((booking) => getBookingTreatmentId(booking)).filter(Boolean))
@@ -5566,14 +5548,7 @@ exports.createProviderBooking = async (req, res) => {
       throw new Error("Patient not found");
     }
 
-    // 5. Validate City
-    const bookingCityId = cityId || patient.address.cityId;
-    const bookingCity = await City.findById(bookingCityId).session(session);
-    if (!bookingCity?.isActive) {
-      throw new Error("Invalid or inactive city");
-    }
-
-    // 6. Must have previousBookingId and that booking must be completed
+    // 5. Must have previousBookingId and that booking must be completed
     if (!previousBookingId) {
       throw new Error(
         "previousBookingId is required - current booking must be completed first"
@@ -5592,6 +5567,49 @@ exports.createProviderBooking = async (req, res) => {
       throw new Error(
         `Current booking must have status: "Completed" (current: "${prevBooking.status}")`
       );
+    }
+
+    // 6. Validate City (supports cityId param, previous booking city, patient address city, or service city)
+    const validId = (id) =>
+      id &&
+      typeof id.toString === "function" &&
+      mongoose.Types.ObjectId.isValid(id.toString())
+        ? id.toString()
+        : null;
+    const candidateCityId =
+      validId(cityId) ||
+      validId(prevBooking.city) ||
+      validId(patient.address?.cityId);
+    let bookingCity = candidateCityId
+      ? await City.findById(candidateCityId).session(session)
+      : null;
+
+    if (
+      !bookingCity?.isActive &&
+      service.serviceCities &&
+      service.serviceCities.length > 0
+    ) {
+      bookingCity = await City.findOne({
+        _id: { $in: service.serviceCities },
+        isActive: true,
+      }).session(session);
+    }
+
+    if (!bookingCity?.isActive && patient.address?.city) {
+      bookingCity = await City.findOne({
+        name: {
+          $regex: new RegExp("^" + patient.address.city.trim() + "$", "i"),
+        },
+        isActive: true,
+      }).session(session);
+    }
+
+    if (!bookingCity?.isActive) {
+      bookingCity = await City.findOne({ isActive: true }).session(session);
+    }
+
+    if (!bookingCity?.isActive) {
+      throw new Error("Invalid or inactive city");
     }
 
     // ✅ Ensure previous booking has valid treatment status

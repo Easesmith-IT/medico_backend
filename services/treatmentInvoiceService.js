@@ -6,6 +6,7 @@ const path = require('path');
 const Treatment = require('../models/treatmentModel');
 const Booking = require('../models/bookingModel');
 const Invoice = require('../models/invoiceModel');
+const Payment = require('../models/paymentModel');
 const Patient = require('../models/patientModel');
 const ServiceProvider = require('../models/serviceProviderModel');
 const Service = require('../models/serviceModel');
@@ -64,7 +65,7 @@ const compileAndMaterializeTreatmentInvoice = async ({
     // 3. Fetch only COMPLETED bookings under treatmentId (TC-LIFE-01, TC-LIFE-04)
     const bookings = await Booking.find({
       treatmentId,
-      status: 'Completed',
+      status: { $in: ['Completed', 'TreatmentCompleted'] },
     })
       .sort({ sessionNumber: 1, appointmentDate: 1 })
       .populate('servicePartnerId', 'firstName lastName specialization medicalRegistrationNumber');
@@ -78,7 +79,11 @@ const compileAndMaterializeTreatmentInvoice = async ({
 
     // 4. Idempotency Check (TC-LIFE-03)
     const currentCompletedIds = bookings.map((b) => b._id.toString()).sort();
-    const existingLatest = await Invoice.findOne({ treatmentId, isLatest: true });
+    const existingLatest = await Invoice.findOne({
+      treatmentId,
+      invoiceType: 'TreatmentConsolidated',
+      isLatest: true,
+    });
 
     if (existingLatest) {
       const existingBilledIds = (existingLatest.bookingIds || []).map((id) => id.toString()).sort();
@@ -103,7 +108,13 @@ const compileAndMaterializeTreatmentInvoice = async ({
     const paymentLedger = [];
 
     bookings.forEach((booking, idx) => {
-      const sFee = round2(booking.sessionFinancialSnapshot?.serviceFee || booking.pricing?.basePrice || 0);
+      const sFee = round2(
+        booking.sessionFinancialSnapshot?.serviceFee ||
+        booking.pricing?.basePrice ||
+        booking.pricing?.subtotal ||
+        booking.pricing?.totalAmount ||
+        0
+      );
       const meds = (booking.medicinesUsed || []).map((m) => ({
         medicineId: m.medicineId,
         name: m.name,
@@ -196,9 +207,11 @@ const compileAndMaterializeTreatmentInvoice = async ({
     let nextVersion = 1;
     if (existingLatest) {
       nextVersion = (existingLatest.billVersion || 1) + 1;
-      existingLatest.isLatest = false;
-      await existingLatest.save();
     }
+    await Invoice.updateMany(
+      { treatmentId, invoiceType: 'TreatmentConsolidated', isLatest: true },
+      { $set: { isLatest: false } }
+    );
 
     const billPrefix = treatmentStatus === 'Completed' ? 'FIN' : 'INT';
     const invoiceNumber = `INV-${billPrefix}-${Date.now().toString().slice(-8)}`;
@@ -207,10 +220,12 @@ const compileAndMaterializeTreatmentInvoice = async ({
     const patientSnapshot = {
       uhid: `UHID-${String(patient._id || '').slice(-6).toUpperCase()}`,
       name: `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient',
-      phone: patient.phone || 'N/A',
+      phone: patient.phone || patient.mobile || 'N/A',
       age: patient.age ? String(patient.age) : '38 Y',
       gender: patient.gender || 'Female',
-      address: patient.address ? `${patient.address.street || ''}, ${patient.address.city || ''}`.trim() : 'Address on file',
+      address: typeof patient.address === 'string'
+        ? (patient.address.trim() || 'Address on file')
+        : (patient.address ? `${patient.address.street || ''}, ${patient.address.city || ''}`.trim() : 'Address on file'),
     };
 
     // Accurately determine care period across all treatment sessions
@@ -270,7 +285,6 @@ const compileAndMaterializeTreatmentInvoice = async ({
       issuedAt: new Date(),
       isInvoiceGenerated: true,
       paymentStatus: balanceDue === 0 ? 'Paid' : totalPaidAmount > 0 ? 'Partially Paid' : 'Unpaid',
-      issuedAt: new Date(),
       createdBy: {
         userId: requestedBy.id || null,
         userName: requestedBy.name || 'Clinical Administrator',
@@ -315,12 +329,29 @@ const compileAndMaterializeTreatmentInvoice = async ({
     // 10. Save immutable materialized invoice
     const savedInvoice = await invoiceDoc.save();
 
-    // 11. Link invoice to Treatment without modifying treatment.status!
+    // 11. Link invoice to Treatment, billed Bookings, and Payment ledger
     treatment.invoiceId = savedInvoice._id;
     treatment.invoiceGenerated = true;
     if (!Array.isArray(treatment.invoicesHistory)) treatment.invoicesHistory = [];
     treatment.invoicesHistory.push(savedInvoice._id);
     await treatment.save();
+
+    await Booking.updateMany(
+      { _id: { $in: bookings.map((b) => b._id) } },
+      {
+        $set: {
+          invoiceId: savedInvoice._id,
+          invoiceUrl: savedInvoice.pdfUrl,
+          invoiceGenerated: true,
+          isInvoiceGenerated: true,
+        },
+      }
+    );
+
+    await Payment.updateOne(
+      { treatmentId: treatment._id },
+      { $set: { invoiceId: savedInvoice._id } }
+    );
 
     return savedInvoice;
   } finally {
@@ -338,7 +369,11 @@ const getLatestTreatmentInvoice = async (treatmentId, user = null) => {
     throw err;
   }
 
-  const invoice = await Invoice.findOne({ treatmentId, isLatest: true }).lean();
+  const invoice = await Invoice.findOne({
+    treatmentId,
+    invoiceType: 'TreatmentConsolidated',
+    isLatest: true,
+  }).lean();
   if (!invoice) {
     const err = new Error('No invoice found for this treatment');
     err.statusCode = 404;
@@ -367,7 +402,10 @@ const getTreatmentInvoiceHistory = async (treatmentId, user = null) => {
     throw err;
   }
 
-  const invoices = await Invoice.find({ treatmentId })
+  const invoices = await Invoice.find({
+    treatmentId,
+    invoiceType: 'TreatmentConsolidated',
+  })
     .select('_id invoiceNumber billType billVersion treatmentStatus issuedAt financialDistributionSummary pdfUrl isLatest')
     .sort({ billVersion: -1 })
     .lean();

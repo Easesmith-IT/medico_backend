@@ -132,6 +132,40 @@ function validateBookingCanStart(booking, now = new Date()) {
 }
 
 /**
+ * Validates whether a booking or doctor appointment can be rescheduled.
+ * Business Rule: Reschedule can only occur between Approved/Scheduled and In-Progress/Completed.
+ * A completed appointment/booking can NEVER be rescheduled.
+ */
+function validateBookingCanReschedule(booking) {
+  const currentStatus = String(booking?.status || '');
+  if (['Completed', 'TreatmentCompleted'].includes(currentStatus)) {
+    return {
+      isValid: false,
+      message: 'A completed booking cannot be rescheduled.',
+      statusCode: 400,
+    };
+  }
+
+  if (['In-Progress', 'Started'].includes(currentStatus)) {
+    return {
+      isValid: false,
+      message: 'Cannot reschedule an appointment that is already in progress.',
+      statusCode: 400,
+    };
+  }
+
+  if (['Cancelled', 'Rejected'].includes(currentStatus)) {
+    return {
+      isValid: false,
+      message: `Cannot reschedule a ${currentStatus.toLowerCase()} appointment.`,
+      statusCode: 400,
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
  * Validates whether a booking or doctor appointment can transition to Completed / TreatmentCompleted.
  */
 function validateBookingCanComplete(booking, options = {}) {
@@ -216,5 +250,6 @@ module.exports = {
   getTodayDateStr,
   validateBookingCanStart,
   validateBookingCanComplete,
+  validateBookingCanReschedule,
   validateTreatmentCanComplete,
 };

@@ -28,24 +28,11 @@ router.get(
   invoiceController.getTreatmentInvoiceHistory
 );
 
-// ==========================================
-// LEGACY SINGLE BOOKING & GENERAL INVOICES
-// ==========================================
-
-// Legacy Single-Booking Generate
-router.post('/generate', invoiceController.generateInvoice);
-
-// Legacy Service Provider Invoices
-router.get(
-  '/generateinv/:patientId',
-  invoiceController.getPatientInvoicesByServiceProvider
-);
-
-// Download PDF (Handles both TreatmentConsolidated and Legacy Single Booking)
+// Download Consolidated PDF
 router.get('/download/:invoiceId', invoiceController.downloadInvoice);
 router.get('/:invoiceId/download', invoiceController.downloadInvoice);
 
-// Generic Invoice Details by ID
+// Consolidated Invoice Details by ID
 router.get('/:invoiceId', invoiceController.getInvoice);
 
 module.exports = router;

@@ -506,7 +506,7 @@ exports.completeTreatment = async (req, res) => {
         alreadyCompleted: Boolean(result.alreadyCompleted),
         treatmentId,
         bookingId: result.booking?._id || treatment.currentBookingId,
-        invoiceId: result.invoice?._id || result.booking?.invoiceId || null,
+        invoiceId: result.consolidatedInvoice?._id || result.invoice?._id || result.booking?.invoiceId || null,
         status: result.treatment?.status || TREATMENT_STATES.COMPLETED,
       },
     });

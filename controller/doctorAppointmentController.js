@@ -106,7 +106,7 @@ const hasTimeOverlap = (startTime, endTime, rangeStartTime, rangeEndTime) => {
 };
 
 const buildListQuery = (baseQuery, queryParams) => {
-  const { status, patientId, doctorId, fromDate, toDate } = queryParams;
+  const { status, patientId, doctorId, fromDate, toDate, upcoming } = queryParams;
   const query = { ...baseQuery, isDeleted: false };
 
   if (status) query.status = status;
@@ -121,13 +121,17 @@ const buildListQuery = (baseQuery, queryParams) => {
       end.setHours(23, 59, 59, 999);
       query.appointmentDate.$lte = end;
     }
+  } else if (upcoming === 'true' || upcoming === true) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    query.appointmentDate = { $gte: today };
   }
 
   return query;
 };
 
 const listAppointments = async (baseQuery, req, res) => {
-  const { page = 1, limit = 20 } = req.query;
+  const { page = 1, limit = 20, sort, upcoming } = req.query;
   const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
   const limitNumber = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
   const query = buildListQuery(baseQuery, req.query);
@@ -140,7 +144,7 @@ const listAppointments = async (baseQuery, req, res) => {
       .populate("treatmentId")
       .populate("previousAppointmentId", "appointmentDate status")
       .populate("nextAppointmentId", "appointmentDate status")
-      .sort({ appointmentDate: -1, createdAt: -1 })
+      .sort((sort === 'asc' || sort === '1') ? { appointmentDate: 1, 'slotTime.startTime': 1, createdAt: 1 } : { appointmentDate: -1, 'slotTime.startTime': -1, createdAt: -1 })
       .skip((pageNumber - 1) * limitNumber)
       .limit(limitNumber)
       .lean(),
@@ -555,6 +559,7 @@ exports.createDoctorAppointment = async (req, res) => {
       _id: appointmentId,
       patientId,
       doctorId,
+      treatmentId: req.body?.treatmentId || previousAppointment?.treatmentId || null,
       previousAppointmentId: previousAppointment?._id || null,
       sessionNumber: previousAppointment
         ? Number(previousAppointment.sessionNumber || 1) + 1
@@ -1122,6 +1127,13 @@ exports.updateDoctorAppointmentStatus = async (req, res) => {
     }
 
     const oldStatus = appointment.status;
+    if (['Completed', 'TreatmentCompleted'].includes(oldStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "A completed appointment is final and cannot be modified.",
+      });
+    }
+
     if (appointment.status === 'Cancellation Requested') {
       return res.status(400).json({
         success: false,
@@ -1266,10 +1278,12 @@ exports.rescheduleDoctorAppointment = async (req, res) => {
       });
     }
 
-    if (CANCELLED_STATUSES.includes(appointment.status)) {
-      return res.status(400).json({
+    const { validateBookingCanReschedule } = require("../utils/bookingTemporalValidator");
+    const rescheduleValidation = validateBookingCanReschedule(appointment);
+    if (!rescheduleValidation.isValid) {
+      return res.status(rescheduleValidation.statusCode || 400).json({
         success: false,
-        message: "Cannot reschedule cancelled or rejected doctor appointments",
+        message: rescheduleValidation.message,
       });
     }
 

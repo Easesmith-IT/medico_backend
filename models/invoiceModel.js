@@ -4,7 +4,7 @@ const invoiceSchema = new mongoose.Schema({
   invoiceNumber: { type: String, required: true, unique: true, index: true },
   invoiceType: {
     type: String,
-    enum: ['SingleBooking', 'TreatmentConsolidated'],
+    enum: ['TreatmentConsolidated'],
     default: 'TreatmentConsolidated',
     index: true,
   },
@@ -24,8 +24,7 @@ const invoiceSchema = new mongoose.Schema({
   previousInvoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', default: null },
 
   // Linked References
-  treatmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Treatment', default: null, index: true },
-  bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null }, // Optional for consolidated
+  treatmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Treatment', required: true, index: true },
   bookingIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }],
   patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient' },
   doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceProvider' },
@@ -129,44 +128,6 @@ const invoiceSchema = new mongoose.Schema({
     }
   ],
 
-  // Legacy single-booking fields (maintained for backward compatibility)
-  billingDetails: {
-    category: { type: String, enum: ["consultation", "nursing", "equipment"] },
-    serviceName: String,
-    shiftType: String,
-    durationMinutes: Number,
-    basePrice: Number,
-    calculatedBase: { type: Number, default: 0 },
-    taxPercentage: { type: Number, default: 0 }
-  },
-  medicines: [{
-    name: String,
-    categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'ItemCategory' },
-    categoryName: String,
-    quantity: { type: Number, default: 1 },
-    pricePerUnit: { type: Number, default: 0 },
-    gstPercentage: { type: Number, default: 12 },
-    total: { type: Number, default: 0 },
-    addedDate: { type: Date, default: Date.now }
-  }],
-  additionalEquipment: [{
-    name: String,
-    categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'ItemCategory' },
-    categoryName: String,
-    quantity: { type: Number, default: 1 },
-    rate: { type: Number, default: 0 },
-    gstPercentage: { type: Number, default: 18 },
-    total: { type: Number, default: 0 },
-    addedDate: { type: Date, default: Date.now }
-  }],
-  totals: {
-    subtotal: { type: Number, default: 0 },
-    gstAmount: { type: Number, default: 0 },
-    cgst: { type: Number, default: 0 },
-    sgst: { type: Number, default: 0 },
-    grandTotal: { type: Number, default: 0 }
-  },
-
   // Assets, Security & Delivery
   invoiceUrl: { type: String, default: null }, // CDN URL
   pdfUrl: { type: String, default: null },
@@ -181,43 +142,5 @@ const invoiceSchema = new mongoose.Schema({
     role: { type: String, default: 'Admin' },
   }
 }, { timestamps: true });
-
-// Pre-save calculation strictly for single-booking invoices
-invoiceSchema.pre('save', function (next) {
-  if (this.invoiceType === 'TreatmentConsolidated' || !this.billingDetails) {
-    return next();
-  }
-
-  const billingBase = parseFloat(this.billingDetails.calculatedBase) || 0;
-  const billingTax = (billingBase * (parseFloat(this.billingDetails.taxPercentage) || 0)) / 100;
-
-  let medSub = 0, medTax = 0;
-  if (Array.isArray(this.medicines)) {
-    this.medicines.forEach(m => {
-      const base = (m.quantity || 0) * (m.pricePerUnit || 0);
-      const tax = (base * (m.gstPercentage || 0)) / 100;
-      m.total = base + tax;
-      medSub += base; medTax += tax;
-    });
-  }
-
-  let equipSub = 0, equipTax = 0;
-  if (Array.isArray(this.additionalEquipment)) {
-    this.additionalEquipment.forEach(e => {
-      const base = (e.quantity || 0) * (e.rate || 0);
-      const tax = (base * (e.gstPercentage || 0)) / 100;
-      e.total = base + tax;
-      equipSub += base; equipTax += tax;
-    });
-  }
-
-  if (!this.totals) this.totals = {};
-  this.totals.subtotal = billingBase + medSub + equipSub;
-  this.totals.gstAmount = billingTax + medTax + equipTax;
-  this.totals.cgst = this.totals.gstAmount / 2;
-  this.totals.sgst = this.totals.gstAmount / 2;
-  this.totals.grandTotal = this.totals.subtotal + this.totals.gstAmount;
-  next();
-});
 
 module.exports = mongoose.model('Invoice', invoiceSchema);
