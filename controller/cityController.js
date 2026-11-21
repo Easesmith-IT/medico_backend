@@ -285,7 +285,7 @@ const addCity = async (req, res) => {
     const { name, latitude, longitude, polygon } = req.body;
 
     // Validation
-    if (!name || !polygon || polygon.length < 4) {
+    if (!name || !polygon || polygon.length < 3) {
       return res.status(400).json({
         success: false,
         message: "Name and valid polygon are required",
@@ -414,7 +414,7 @@ const updateCity = async (req, res) => {
     }
 
     // Update polygon if provided
-    if (polygon && polygon.length >= 4) {
+    if (polygon && polygon.length >= 3) {
       const first = polygon[0];
       const last = polygon[polygon.length - 1];
 
