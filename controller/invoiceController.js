@@ -10,7 +10,7 @@ const generateInvoicePdf = require('../utils/generateInvoicePdf');
 exports.generateTreatmentInvoice = async (req, res) => {
   try {
     const { treatmentId } = req.params;
-    const { institutionalDiscount = 0 } = req.body || {};
+    const { institutionalDiscount = 0, finalAdjustments = [] } = req.body || {};
 
     const requestedBy = {
       id: req.user?.id,
@@ -22,6 +22,7 @@ exports.generateTreatmentInvoice = async (req, res) => {
       treatmentId,
       requestedBy,
       institutionalDiscount: Number(institutionalDiscount) || 0,
+      finalAdjustments: Array.isArray(finalAdjustments) ? finalAdjustments : [],
     });
 
     return res.status(201).json({

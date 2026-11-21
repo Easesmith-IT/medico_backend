@@ -1347,6 +1347,11 @@ exports.getServiceProviderById = async (req, res) => {
         .json({ success: false, message: "Service provider not found" });
 
     const providerObject = provider.toObject();
+    if (Array.isArray(providerObject.services)) {
+      providerObject.services = providerObject.services.filter(
+        (s) => s?.serviceId && s.serviceId.isActive !== false && s.serviceId.isDeleted !== true
+      );
+    }
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -1816,6 +1821,8 @@ exports.getProvidersByServiceId = async (req, res) => {
 
     const providers = await ServiceProvider.find({
       "services.serviceId": serviceId,
+      isActive: true,
+      approvalStatus: "Approved",
       isDeleted: { $ne: true },
     })
       .populate("services.serviceId")

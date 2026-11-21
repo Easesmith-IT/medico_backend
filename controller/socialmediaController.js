@@ -3103,7 +3103,7 @@ exports.searchSocialPosts = async (req, res) => {
 
       const [serviceProviders, spTotal] = await Promise.all([
         ServiceProvider.find(spQuery)
-          .select('_id firstName lastName ownerName mobile email currentAddress qualification approvalStatus serviceCities rating socialHandle') // ✅ Added socialHandle to select
+          .select('_id firstName lastName ownerName currentAddress qualification approvalStatus serviceCities rating socialHandle yearsOfExperience services documents.profilePhoto') // ✅ Added socialHandle to select
           .populate('services.serviceId', 'name')
           .populate('serviceCities', 'name')
           .limit(limitNum)

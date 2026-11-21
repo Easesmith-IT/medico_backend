@@ -102,11 +102,30 @@ const invoiceSchema = new mongoose.Schema({
     }
   ],
 
+  // Table 2: End-of-Care Adjustments & Reconciliation Supplies
+  finalAdjustments: [
+    {
+      name: { type: String, required: true },
+      categoryName: { type: String, default: 'Discharge Supplies' },
+      serviceCode: { type: String, default: '' },
+      type: { type: String, default: 'Consumable' },
+      quantity: { type: Number, required: true }, // Negative for returns, positive for additions
+      unitPrice: { type: Number, required: true },
+      taxPercentage: { type: Number, default: 0 },
+      total: { type: Number, required: true },
+      isReturn: { type: Boolean, default: false },
+      originalSessionNumber: { type: Number, default: null },
+      returnReason: { type: String, default: '' },
+      addedAt: { type: Date, default: Date.now },
+    }
+  ],
+
   // Comprehensive Financial Distribution Summary
   financialDistributionSummary: {
     totalServiceFees: { type: Number, default: 0 },
     totalMedicinesCost: { type: Number, default: 0 },
     totalEquipmentInventoryCost: { type: Number, default: 0 },
+    totalAdjustmentsCost: { type: Number, default: 0 },
     grossSubtotal: { type: Number, default: 0 },
     totalDiscounts: { type: Number, default: 0 },
     totalTax: { type: Number, default: 0 },

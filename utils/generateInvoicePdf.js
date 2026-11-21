@@ -310,6 +310,67 @@ const generateInvoicePdf = (invoice) => {
       }
 
       // ==========================================
+      // SECTION 1B: END-OF-CARE ADJUSTMENTS & DISCHARGE SUPPLIES (DIFF TABLE)
+      // ==========================================
+      const adjustments = Array.isArray(invoice.finalAdjustments) && invoice.finalAdjustments.length > 0
+        ? invoice.finalAdjustments
+        : [];
+
+      if (adjustments.length > 0) {
+        checkPageBreak(55 + (adjustments.length * 18));
+        let ay = doc.y + 6;
+        doc.rect(L, ay, W, 22).fill('#1E293B');
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#FFFFFF')
+           .text('END-OF-CARE ADJUSTMENTS & RECONCILIATION SUPPLIES', L + 8, ay + 6, { width: 340 });
+        doc.font('Helvetica-Oblique').fontSize(7.5).fillColor('#94A3B8')
+           .text('DISCHARGE RECONCILIATION (DIFF TABLE)', L + 350, ay + 7, { width: 165, align: 'right' });
+        ay += 24;
+
+        // Table Header
+        doc.rect(L, ay, W, 16).fill('#F1F5F9');
+        doc.font('Helvetica-Bold').fontSize(7).fillColor('#475569');
+        doc.text('ADJUSTMENT ITEM & DESCRIPTION', L + 4, ay + 4, { width: 230 });
+        doc.text('CODE / REF', L + 240, ay + 4, { width: 55 });
+        doc.text('QTY', L + 300, ay + 4, { width: 35, align: 'center' });
+        doc.text('UNIT (Rs.)', L + 340, ay + 4, { width: 60, align: 'right' });
+        doc.text('TAX %', L + 405, ay + 4, { width: 45, align: 'center' });
+        doc.text('TOTAL (Rs.)', L + 455, ay + 4, { width: 64, align: 'right' });
+        doc.y = ay + 18;
+
+        adjustments.forEach((adj) => {
+          checkPageBreak(18);
+          ay = doc.y;
+          const isRet = Boolean(adj.isReturn || (adj.quantity || 0) < 0 || (adj.total || 0) < 0);
+          const adjColor = isRet ? '#DC2626' : '#1E293B';
+          const prefix = isRet ? '[RETURN / CREDIT]' : '[ADDITION]';
+          const refText = adj.originalSessionNumber ? ` (Session #${adj.originalSessionNumber})` : '';
+          const nameText = `${prefix} ${adj.name}${refText}`;
+
+          doc.font(isRet ? 'Helvetica-Bold' : 'Helvetica').fontSize(7.5).fillColor(adjColor)
+             .text(nameText, L + 4, ay + 2, { width: 230 });
+          doc.text(adj.serviceCode || (isRet ? 'RET-01' : 'DIS-01'), L + 240, ay + 2);
+          doc.text(String(adj.quantity || 1), L + 300, ay + 2, { width: 35, align: 'center' });
+          doc.text(formatCurrency(adj.unitPrice || 0), L + 340, ay + 2, { width: 60, align: 'right' });
+          doc.text(`${adj.taxPercentage || 0}%`, L + 405, ay + 2, { width: 45, align: 'center' });
+          doc.text(formatCurrency(adj.total || 0), L + 455, ay + 2, { width: 64, align: 'right' });
+
+          doc.strokeColor('#E2E8F0').lineWidth(0.5).moveTo(L, ay + 14).lineTo(R, ay + 14).stroke();
+          doc.y = ay + 16;
+        });
+
+        // Adjustments Net Row
+        checkPageBreak(20);
+        ay = doc.y;
+        const adjNet = adjustments.reduce((sum, a) => sum + (Number(a.total) || 0), 0);
+        doc.rect(L, ay, W, 18).fill('#F8FAFC');
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#0F172A')
+           .text('NET RECONCILIATION ADJUSTMENTS:', L + 200, ay + 5, { width: 240, align: 'right' });
+        doc.fillColor(adjNet < 0 ? '#DC2626' : '#0F172A')
+           .text(`Rs. ${formatCurrency(adjNet)}`, L + 445, ay + 5, { width: 74, align: 'right' });
+        doc.y = ay + 24;
+      }
+
+      // ==========================================
       // SECTION 2: FINANCIAL DISTRIBUTION MATRIX
       // ==========================================
       if (sessions.length > 0) {

@@ -3791,9 +3791,24 @@ exports.updateServiceStatus = async (req, res) => {
       : null;
 
     // Regular booking statuses (NO INVOICE, NO PAYMENT CHECK)
-    const bookingStatuses = ["Pending", "Approved", "Rejected", "Rescheduled", "Cancelled", "In-Progress", "Completed"];
-    if (bookingStatuses.includes(status)) {
-      if (status === 'In-Progress' || status === 'Started') {
+    const normalizedStatusMap = {
+      pending: 'Pending',
+      approved: 'Approved',
+      confirmed: 'Approved',
+      rejected: 'Rejected',
+      rescheduled: 'Rescheduled',
+      cancelled: 'Cancelled',
+      canceled: 'Cancelled',
+      'in-progress': 'In-Progress',
+      inprogress: 'In-Progress',
+      started: 'Started',
+      completed: 'Completed',
+      treatmentcompleted: 'TreatmentCompleted',
+    };
+    const resolvedStatus = normalizedStatusMap[status?.toLowerCase()?.trim()] || status;
+    const bookingStatuses = ["Pending", "Approved", "Confirmed", "Rejected", "Rescheduled", "Cancelled", "In-Progress", "Started", "Completed"];
+    if (bookingStatuses.includes(resolvedStatus)) {
+      if (resolvedStatus === 'In-Progress' || resolvedStatus === 'Started') {
         const startValidation = validateBookingCanStart(booking);
         if (!startValidation.isValid) {
           return res.status(startValidation.statusCode || 400).json({
@@ -3804,7 +3819,7 @@ exports.updateServiceStatus = async (req, res) => {
         booking.serviceStartedAt = new Date();
       }
 
-      if (status === 'Completed') {
+      if (resolvedStatus === 'Completed') {
         const completeValidation = validateBookingCanComplete(booking);
         if (!completeValidation.isValid) {
           return res.status(completeValidation.statusCode || 400).json({
@@ -3815,12 +3830,12 @@ exports.updateServiceStatus = async (req, res) => {
         booking.serviceEndedAt = new Date();
       }
 
-      if (['Approved', 'Confirmed'].includes(status)) {
+      if (['Approved', 'Confirmed'].includes(resolvedStatus)) {
         const atomicBooking = await Booking.findOneAndUpdate(
           { _id: bookingId, status: 'Pending' },
           {
             $set: {
-              status: status,
+              status: resolvedStatus,
               approvedAt: new Date(),
             },
           },
@@ -3832,10 +3847,10 @@ exports.updateServiceStatus = async (req, res) => {
         if (booking.treatmentId) {
           await Treatment.findByIdAndUpdate(booking.treatmentId, { $set: { status: 'Active' } });
         }
-        return res.status(200).json({ success: true, message: `Booking status updated to ${status}`, data: atomicBooking });
+        return res.status(200).json({ success: true, message: `Booking status updated to ${resolvedStatus}`, data: atomicBooking });
       }
 
-      if (status === 'Rejected') {
+      if (resolvedStatus === 'Rejected') {
         const statusReason = req.body.statusReason || req.body.reason;
         if (!statusReason || !String(statusReason).trim()) {
           return res.status(400).json({ success: false, message: "Rejection reason is mandatory." });
@@ -3865,7 +3880,7 @@ exports.updateServiceStatus = async (req, res) => {
         return res.status(200).json({ success: true, message: "Booking status updated to Rejected", data: atomicBooking });
       }
 
-      booking.status = status;
+      booking.status = resolvedStatus;
       
       // Initialize payment fields if first time
       if (!booking.paidAmount) booking.paidAmount = 0;
@@ -3879,9 +3894,9 @@ exports.updateServiceStatus = async (req, res) => {
       
       return res.status(200).json({
         success: true,
-        message: `Booking status updated to "${status}"`,
+        message: `Booking status updated to "${resolvedStatus}"`,
         data: {
-          bookingStatus: status,
+          bookingStatus: resolvedStatus,
           treatmentStatus: treatment?.status || null,
           paymentStatus: booking.paymentStatus,
           dueAmount: booking.dueAmount,

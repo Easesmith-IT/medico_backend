@@ -28,6 +28,7 @@ const compileAndMaterializeTreatmentInvoice = async ({
   treatmentId,
   requestedBy = {},
   institutionalDiscount = 0,
+  finalAdjustments = [],
 }) => {
   if (!treatmentId || !mongoose.Types.ObjectId.isValid(treatmentId)) {
     const err = new Error('Invalid or missing treatmentId');
@@ -94,7 +95,7 @@ const compileAndMaterializeTreatmentInvoice = async ({
       const invoiceIssuedTime = new Date(existingLatest.issuedAt).getTime();
       const hasRecentBookingUpdates = bookings.some((b) => new Date(b.updatedAt).getTime() > invoiceIssuedTime);
 
-      if (sameBookings && sameStatus && !hasRecentBookingUpdates && institutionalDiscount === (existingLatest.financialDistributionSummary?.totalDiscounts || 0)) {
+      if (sameBookings && sameStatus && !hasRecentBookingUpdates && institutionalDiscount === (existingLatest.financialDistributionSummary?.totalDiscounts || 0) && (!finalAdjustments || finalAdjustments.length === 0)) {
         // Safe return of cached invoice: no new sessions to bill
         return existingLatest;
       }
@@ -186,11 +187,35 @@ const compileAndMaterializeTreatmentInvoice = async ({
       }
     });
 
+    // 5B. Normalize Table 2: End-of-Care Adjustments & Reconciliation Supplies (Diff Table)
+    const compiledAdjustments = (finalAdjustments || []).map((item) => {
+      const qty = Number(item.quantity) || 1;
+      const rate = round2(item.unitPrice || item.rate || 0);
+      const isRet = Boolean(item.isReturn || qty < 0);
+      const total = round2(item.total !== undefined ? item.total : qty * rate);
+      return {
+        name: String(item.name || 'Discharge Supply').trim(),
+        categoryName: String(item.categoryName || (isRet ? 'Credit Return' : 'Discharge Consumable')),
+        serviceCode: String(item.serviceCode || (isRet ? 'RET-01' : 'DIS-01')),
+        type: String(item.type || (isRet ? 'CreditReturn' : 'Consumable')),
+        quantity: qty,
+        unitPrice: rate,
+        taxPercentage: Number(item.taxPercentage) || 0,
+        total: total,
+        isReturn: isRet,
+        originalSessionNumber: item.originalSessionNumber ? Number(item.originalSessionNumber) : null,
+        returnReason: item.returnReason || (isRet ? 'Item returned at treatment conclusion' : ''),
+        addedAt: item.addedAt ? new Date(item.addedAt) : new Date(),
+      };
+    });
+    const totalAdjustmentsCost = round2(compiledAdjustments.reduce((sum, item) => sum + item.total, 0));
+
     // 6. Overall Treatment Financial Reconciliation
-    const grossSubtotal = round2(totalServiceFees + totalMedicinesCost + totalEquipmentInventoryCost);
-    const discountAmount = round2(institutionalDiscount);
-    const netPayableAmount = Math.max(0, round2(grossSubtotal - discountAmount));
+    const grossSubtotal = round2(totalServiceFees + totalMedicinesCost + totalEquipmentInventoryCost + totalAdjustmentsCost);
     const totalPaidAmount = round2(paymentLedger.reduce((sum, p) => sum + p.amount, 0));
+    const maxAllowedDiscount = Math.max(0, round2(grossSubtotal - totalPaidAmount));
+    const discountAmount = round2(Math.min(Math.max(0, Number(institutionalDiscount) || 0), maxAllowedDiscount));
+    const netPayableAmount = Math.max(0, round2(grossSubtotal - discountAmount));
 
     // Handle Balance Due vs. Refund Due (TC-FIN-02)
     let balanceDue = 0;
@@ -267,10 +292,12 @@ const compileAndMaterializeTreatmentInvoice = async ({
       patientSnapshot,
       clinicalContext,
       sessions: compiledSessions,
+      finalAdjustments: compiledAdjustments,
       financialDistributionSummary: {
         totalServiceFees,
         totalMedicinesCost,
         totalEquipmentInventoryCost,
+        totalAdjustmentsCost,
         grossSubtotal,
         totalDiscounts: discountAmount,
         totalTax: 0,
